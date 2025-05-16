@@ -2,13 +2,18 @@ import ejs from "npm:ejs";
 import pug from "npm:pug";
 
 type viewEngine = ejs | pug;
+interface ViewParams {
+  viewName?: string;
+  data?: Record<string, unknown>;
+  mergeData?: Record<string, unknown>;
+}
 class ExpressView {
   static #viewEngine: viewEngine;
   #data: Record<string, unknown> = {};
   static #engine = staticConfig("view.defaultViewEngine") || "ejs";
   rendered = "";
   #viewFile = "";
-  constructor(viewName: string, data = {}, mergeData = {}) {
+  constructor({ viewName = "", data, mergeData }: ViewParams = {}) {
     this.#data = {
       ...mergeData,
       ...data,

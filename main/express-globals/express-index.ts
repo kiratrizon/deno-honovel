@@ -14,7 +14,7 @@ globalFn(
     data: Record<string, unknown> = {},
     mergeData: Record<string, unknown> = {}
   ) => {
-    const renderView = new ExpressView(viewName, data, mergeData);
+    const renderView = new ExpressView({ viewName, data, mergeData });
     return renderView;
   }
 );
