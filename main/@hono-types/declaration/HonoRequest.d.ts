@@ -1,4 +1,4 @@
-import ExpressHeader from "./ExpressHeader.d.ts ";
+import HonoHeader from "./HonoHeader.d.ts";
 import { IncomingHttpHeaders } from "http";
 
 type RequestMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS";
@@ -16,9 +16,9 @@ export interface RequestData {
 }
 
 /**
- * ExpressRequest class that encapsulates HTTP request data.
+ * HonoRequest class that encapsulates HTTP request data.
  */
-declare class ExpressRequest {
+declare class HonoRequest {
   private requestData: RequestData;
   constructor(rq: RequestData);
 
@@ -114,10 +114,10 @@ declare class ExpressRequest {
   public header(key: string): string | null;
 
   /**
-   * ExpressHeader class to manage HTTP headers.
+   * HonoHeader class to manage HTTP headers.
    * It provides an easy interface to retrieve all headers.
    */
-  public headers: ExpressHeader;
+  public headers: HonoHeader;
 
   /**
    * Check if a header exists.
@@ -210,4 +210,4 @@ declare class ExpressRequest {
   // end 🔹 JSON Requests
 }
 
-export default ExpressRequest;
+export default HonoRequest;

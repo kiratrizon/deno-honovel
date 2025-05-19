@@ -1,14 +1,14 @@
 const constant = {
   // Default view engine
-  defaultViewEngine: 'ejs',
+  defaultViewEngine: "ejs",
   // Default view directory
-  defaultViewDir: 'views',
+  defaultViewDir: "views",
   // Default layout file
-  defaultLayout: 'layout',
+  defaultLayout: "layout",
   // Default layout directory
-  defaultLayoutDir: 'layouts',
+  defaultLayoutDir: "layouts",
   // Default partials directory
-  defaultPartialsDir: 'partials',
+  defaultPartialsDir: "partials",
   // Default view cache
   defaultCache: false,
 };

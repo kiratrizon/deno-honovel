@@ -69,13 +69,13 @@ globalFn("storagePath", function (concatenation = "") {
   const dir = path.join("storage", concatenation);
   return basePath(dir);
 });
-globalFn("resourcesPath", function (concatenation = "") {
+globalFn("resourcePath", function (concatenation = "") {
   const dir = path.join("resources", concatenation);
   return basePath(dir);
 });
-globalFn("viewsPath", function (concatenation = "") {
+globalFn("viewPath", function (concatenation = "") {
   const dir = path.join("views", concatenation);
-  return resourcesPath(dir);
+  return resourcePath(dir);
 });
 globalFn("routePath", function (concatenation = "") {
   const dir = path.join("routes", concatenation);
@@ -204,7 +204,7 @@ globalFn("getFileContents", function (fileString = "") {
   }
 });
 
-import Logger from "ExpressLogger";
+import Logger from "HonoLogger";
 
 globalFn(
   "log",
@@ -265,7 +265,7 @@ globalFn("base64decode", function (str = "", safe = false) {
   }
   return Buffer.from(str, "base64").toString("utf8");
 });
-import { DateTime, DurationLike } from "npm:luxon";
+import { DateTime, DurationLike } from "luxon";
 
 const getRelativeTime = (
   expression: string,

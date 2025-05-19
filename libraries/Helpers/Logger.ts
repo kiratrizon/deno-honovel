@@ -18,7 +18,7 @@ class Logger {
       // init write
       writeFile(logPath, "");
     }
-    if (IN_PRODUCTION) {
+    if (IS_PRODUCTION) {
       console.log(logMessage);
       return;
     }

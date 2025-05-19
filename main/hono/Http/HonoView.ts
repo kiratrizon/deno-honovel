@@ -1,17 +1,20 @@
-import ejs from "npm:ejs";
-import pug from "npm:pug";
+import ejs from "ejs";
+import pug from "pug";
 
-type viewEngine = ejs | pug;
+type RenderFn = (template: string, data: Record<string, unknown>) => string;
+
+type ViewEngine = {
+  render: RenderFn;
+};
 interface ViewParams {
   viewName?: string;
   data?: Record<string, unknown>;
   mergeData?: Record<string, unknown>;
 }
-class ExpressView {
-  static #viewEngine: viewEngine;
+class HonoView {
+  static #viewEngine: ViewEngine;
   #data: Record<string, unknown> = {};
-  static #engine = staticConfig("view.defaultViewEngine") || "ejs";
-  rendered = "";
+  static #engine = "ejs";
   #viewFile = "";
   constructor({ viewName = "", data, mergeData }: ViewParams = {}) {
     this.#data = {
@@ -29,24 +32,23 @@ class ExpressView {
     };
 
     const templatePath = viewPath(
-      `${viewName.split(".").join("/")}.${ExpressView.#engine}`
+      `${viewName.split(".").join("/")}.${HonoView.#engine}`
     );
     if (!pathExist(templatePath)) {
       const error = `View not found: ${templatePath}`;
-      this.rendered = error;
       return error;
     }
     const rawHtml = getFileContents(templatePath);
-    const rendered = ExpressView.#viewEngine.render(rawHtml, this.#data);
-    this.rendered = rendered;
+    const rendered = HonoView.#viewEngine.render(rawHtml, this.#data);
     return rendered;
   }
-  static {
-    if (ExpressView.#engine === "ejs") {
-      ExpressView.#viewEngine = ejs;
+  static init() {
+    HonoView.#engine = staticConfig("view.defaultViewEngine") || "ejs";
+    if (HonoView.#engine === "ejs") {
+      HonoView.#viewEngine = ejs;
     }
-    if (ExpressView.#engine === "pug") {
-      ExpressView.#viewEngine = pug;
+    if (HonoView.#engine === "pug") {
+      HonoView.#viewEngine = pug;
     }
   }
 
@@ -58,4 +60,4 @@ class ExpressView {
   }
 }
 
-export default ExpressView;
+export default HonoView;

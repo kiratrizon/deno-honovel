@@ -9,7 +9,7 @@ type ReturnData = {
   download: [string] | [string, string] | null;
   error: string | null;
 };
-class ExpressResponse {
+class HonoResponse {
   #defaultStatusCode = 200;
   #returnStatusCode?: number;
   #headers: Record<string, string> = {};
@@ -23,7 +23,7 @@ class ExpressResponse {
   #returnType: ReturnType;
 
   /**
-   * Create a new ExpressResponse instance.
+   * Create a new HonoResponse instance.
    * @param html Optional initial HTML content to respond with.
    */
   constructor(html: string | null = null) {
@@ -232,4 +232,4 @@ class ExpressResponse {
   }
 }
 
-export default ExpressResponse;
+export default HonoResponse;

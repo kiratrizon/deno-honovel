@@ -165,7 +165,7 @@ declare global {
   /**
    * The path to the application's resources directory, which typically contains views, translations, and other assets.
    */
-  function resourcesPath(concatenation?: string): string;
+  function resourcePath(concatenation?: string): string;
 
   /**
    * The path to the application's view directory, where view files (such as Blade templates) are stored.

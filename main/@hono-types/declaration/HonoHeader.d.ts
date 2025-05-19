@@ -1,14 +1,14 @@
-// ExpressHeader.d.ts
+// HonoHeader.d.ts
 
 import { IncomingHttpHeaders } from "http";
 /**
- * ExpressHeader class to manage HTTP headers.
+ * HonoHeader class to manage HTTP headers.
  * It provides an easy interface to retrieve all headers.
  */
-declare class ExpressHeader {
+declare class HonoHeader {
   private headers: IncomingHttpHeaders;
   /**
-   * Constructs the ExpressHeader instance.
+   * Constructs the HonoHeader instance.
    * @param header - An optional object containing the headers.
    */
   constructor(header: IncomingHttpHeaders);
@@ -47,4 +47,4 @@ declare class ExpressHeader {
   authorization(): string | null;
 }
 
-export default ExpressHeader;
+export default HonoHeader;

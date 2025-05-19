@@ -1,9 +1,9 @@
-// ExpressRedirect.d.ts
+// HonoRedirect.d.ts
 
 /**
  * Represents a redirect response helper similar to Laravel's redirect().
  */
-declare class ExpressRedirect {
+declare class HonoRedirect {
   /**
    * The URL to redirect to.
    */
@@ -15,7 +15,7 @@ declare class ExpressRedirect {
   statusCode?: number;
 
   /**
-   * Creates a new ExpressRedirect instance.
+   * Creates a new HonoRedirect instance.
    * @param url - The URL to redirect to. Defaults to an empty string.
    */
   constructor(url?: string);
@@ -23,23 +23,23 @@ declare class ExpressRedirect {
   /**
    * Sets the HTTP status code for the redirect.
    * @param code - The status code to set.
-   * @returns The current ExpressRedirect instance.
+   * @returns The current HonoRedirect instance.
    */
   setStatusCode(code: number): this;
 
   /**
    * Return to the referrer.
    * @param url - The URL to set.
-   * @returns The current ExpressRedirect instance.
+   * @returns The current HonoRedirect instance.
    */
   back(): this;
 
   /**
    * Redirect to a declared route names in class Route.
    * @param url - The URL to redirect to.
-   * @returns The current ExpressRedirect instance.
+   * @returns The current HonoRedirect instance.
    */
   route(url: string): this;
 }
 
-export default ExpressRedirect;
+export default HonoRedirect;

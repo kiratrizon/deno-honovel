@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>404 Not Found</title>
+<style>
+    body {
+    background-color: #f8fafc;
+    color: #6b7280;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    }
+    h1 {
+    font-size: 6rem;
+    margin: 0;
+    color: #374151;
+    font-weight: 700;
+    }
+    p {
+    font-size: 1.25rem;
+    margin: 1rem 0 0;
+    }
+    a {
+    color: #3b82f6;
+    text-decoration: none;
+    margin-top: 1rem;
+    font-weight: 600;
+    }
+    a:hover {
+    text-decoration: underline;
+    }
+</style>
+</head>
+<body>
+<h1>404</h1>
+<p>Sorry, the page you are looking for could not be found.</p>
+<a href="/">Go Home</a>
+</body>
+</html>
