@@ -96,8 +96,9 @@ globalFn("getConfigStore", async function (): Promise<Record<string, any>> {
   const configFiles = Deno.readDirSync(configPath);
   for (const file of configFiles) {
     if (file.isFile && file.name.endsWith(".ts")) {
-      const filePath = path.resolve(configPath, file.name);
-      const module = (await import(filePath)) as {
+      const filePath = path.join(configPath, file.name);
+      const url = new URL(filePath, import.meta.url).href;
+      const module = (await import(url)) as {
         // deno-lint-ignore no-explicit-any
         default: any;
       };
@@ -109,6 +110,7 @@ globalFn("getConfigStore", async function (): Promise<Record<string, any>> {
 });
 
 const configData = await getConfigStore();
+console.log(configData, "configData");
 const configure = new Configure(configData);
 
 globalFn("staticConfig", function (key: string) {
