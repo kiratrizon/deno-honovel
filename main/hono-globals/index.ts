@@ -98,8 +98,7 @@ globalFn("getConfigStore", async function (): Promise<Record<string, any>> {
     if (file.isFile && file.name.endsWith(".ts")) {
       const filePath = path.join(configPath, file.name);
       const module = (await import(filePath)) as {
-        // deno-lint-ignore no-explicit-any
-        default: Record<string, any>;
+        default: unknown;
       };
       const configName: string = file.name.replace(".ts", "")!;
       configData[configName] = module.default;

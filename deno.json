@@ -1,6 +1,7 @@
 {
   "tasks": {
-    "dev": "deno run --allow-net --allow-env --allow-read --allow-sys --watch main/hono/run-server.ts"
+    "dev": "deno run --allow-net --allow-env --allow-read --allow-sys --watch main/hono/run-server.ts",
+    "start": "deno run --allow-net --allow-env --allow-read --allow-sys index.ts"
   },
   "imports": {
     "hono-sessions": "jsr:@jcs224/hono-sessions@^0.7.2",
