@@ -137,7 +137,8 @@ globalFn("getConfigStore", async function (): Promise<Record<string, any>> {
   } else {
     const allFiles: string[] = (await import("./configModules.ts")).default;
     for (const fileName of allFiles) {
-      const url = new URL(`../../config/${fileName}`, import.meta.url).href;
+      const url = new URL(`${basePath(`config/${fileName}`)}`, import.meta.url)
+        .href;
       const module = await import(url);
       const configName = fileName.replace(".ts", "");
       configData[configName] = module.default;
@@ -154,6 +155,7 @@ globalFn("getConfigStore", async function (): Promise<Record<string, any>> {
 });
 
 const configData = await getConfigStore();
+console.log("Config data loaded", configData);
 const configure = new Configure(configData);
 
 globalFn("staticConfig", function (key: string) {
