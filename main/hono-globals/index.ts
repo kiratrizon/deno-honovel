@@ -94,6 +94,7 @@ globalFn("getConfigStore", async function (): Promise<Record<string, any>> {
   // deno-lint-ignore no-explicit-any
   const configData: Record<string, any> = {};
   const configFiles = Deno.readDirSync(configPath);
+  console.log(configFiles);
   for (const file of configFiles) {
     if (file.isFile && file.name.endsWith(".ts")) {
       const configName: string = file.name.replace(".ts", "")!;
