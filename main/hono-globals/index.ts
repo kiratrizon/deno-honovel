@@ -1,5 +1,6 @@
 import process from "node:process";
 import path from "node:path";
+import "https://deno.land/std@0.224.0/dotenv/load.ts";
 
 Object.defineProperty(globalThis, "globalFn", {
   // deno-lint-ignore no-explicit-any
@@ -42,6 +43,15 @@ globalFn(
     });
   }
 );
+
+const isProd = env("DENO_ENV") === "production";
+define("IS_PRODUCTION", isProd, false);
+
+const isStaging = env("DENO_ENV") === "staging";
+define("IS_STAGING", isStaging, false);
+
+const isLocal = env("DENO_ENV") === "local";
+define("IS_LOCAL", isLocal, false);
 
 globalFn("basePath", function (concatenation = "") {
   return path.join(process.cwd(), concatenation);
@@ -86,6 +96,19 @@ globalFn("tmpPath", function (concatenation = "") {
   return basePath(dir);
 });
 
+async function rewriteConfigModules(filePath: string, allModules: string[]) {
+  const stub = `const configModules: string[] = {{ value }};\n\nexport default configModules;\n`;
+
+  // Convert allModules array to TypeScript array literal
+  const arrayLiteral = `[${allModules.map((m) => `"${m}"`).join(", ")}]`;
+
+  // Replace {{ value }} with the array string
+  const result = stub.replace("{{ value }}", arrayLiteral);
+
+  // Overwrite the target file
+  await Deno.writeTextFile(filePath, result);
+}
+
 import Configure from "Configure";
 
 // deno-lint-ignore no-explicit-any
@@ -94,19 +117,37 @@ globalFn("getConfigStore", async function (): Promise<Record<string, any>> {
   // deno-lint-ignore no-explicit-any
   const configData: Record<string, any> = {};
   const configFiles = Deno.readDirSync(configPath);
-  console.log(configFiles);
-  for (const file of configFiles) {
-    if (file.isFile && file.name.endsWith(".ts")) {
-      const configName: string = file.name.replace(".ts", "")!;
-      const configFilePath = basePath(`config/${file.name}`);
+  const allModuleFiles: string[] = [];
+  if (IS_LOCAL) {
+    for (const file of configFiles) {
+      if (file.isFile && file.name.endsWith(".ts")) {
+        allModuleFiles.push(file.name);
+        const configName: string = file.name.replace(".ts", "")!;
+        const configFilePath = basePath(`config/${file.name}`);
+        const module = (await dynamicImport(configFilePath)).default;
+        configData[configName] = module;
+      }
+    }
+  } else {
+    const allFiles: string[] = (await import("./configModules.ts")).default;
+    for (const file of allFiles) {
+      const configName: string = file.replace(".ts", "")!;
+      const configFilePath = basePath(`config/${file}`);
       const module = (await dynamicImport(configFilePath)).default;
       configData[configName] = module;
     }
   }
+  if (IS_LOCAL) {
+    // rewrite the file './configModule.ts' content
+    await rewriteConfigModules(
+      basePath("main/hono-globals/configModules.ts"),
+      allModuleFiles
+    );
+  }
   return configData;
 });
 
-globalFn("dynamicImport", async function (path: string): Promise<any> {
+globalFn("dynamicImport", async function (path: string): Promise<unknown> {
   let url: string;
 
   if (path.startsWith("/") || path.startsWith("file://")) {
@@ -119,7 +160,6 @@ globalFn("dynamicImport", async function (path: string): Promise<any> {
 });
 
 const configData = await getConfigStore();
-console.log(configData, "configData");
 const configure = new Configure(configData);
 
 globalFn("staticConfig", function (key: string) {
@@ -128,8 +168,6 @@ globalFn("staticConfig", function (key: string) {
 
 const dbUsed = staticConfig("database.database") || "sqlite";
 define("dbUsed", dbUsed, false);
-const isProd = staticConfig("app.env") === "production";
-define("IN_PRODUCTION", isProd, false);
 
 // deno-lint-ignore no-explicit-any
 globalFn("only", function (obj: Record<string, any>, keys: string[]) {
