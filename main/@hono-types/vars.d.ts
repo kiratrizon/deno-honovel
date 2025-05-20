@@ -8,27 +8,27 @@ declare global {
    * @type {boolean}
    * @default false
    */
-  var IS_PRODUCTION: boolean;
+  const IS_PRODUCTION: boolean;
   /**
    * This is a global variable that indicates whether the application is in development mode or not.
    * @type {boolean}
    * @default true
    */
-  var IS_DEVELOPMENT: boolean;
+  const IS_DEVELOPMENT: boolean;
   /**
    * This is a global variable that indicates whether the application is in testing mode or not.
    * @type {boolean}
    * @default false
    */
-  var IS_TESTING: boolean;
+  const IS_TESTING: boolean;
   /**
    * This is a global variable that indicates whether the application is in local mode or not.
    * @type {boolean}
    * @default false
    */
-  var IS_LOCAL: boolean;
+  const IS_LOCAL: boolean;
   /**
    * This is a global variable that holds the version of the framework being used.
    */
-  var FRAMEWORK_VERSION: string;
+  const FRAMEWORK_VERSION: string;
 }
