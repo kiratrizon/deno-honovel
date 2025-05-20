@@ -97,6 +97,12 @@ globalFn("tmpPath", function (concatenation = "") {
 });
 
 async function rewriteConfigModules(filePath: string, allModules: string[]) {
+  // check if filePath and allModules are equal
+  const importedFilePath: string[] = (await import(filePath)).default;
+  if (importedFilePath.join(",") === allModules.join(",")) {
+    console.log("No changes needed to be made");
+    return;
+  }
   const stub = `const configModules: string[] = {{ value }};\n\nexport default configModules;\n`;
 
   // Convert allModules array to TypeScript array literal
@@ -124,17 +130,17 @@ globalFn("getConfigStore", async function (): Promise<Record<string, any>> {
         allModuleFiles.push(file.name);
         const configName: string = file.name.replace(".ts", "")!;
         const configFilePath = basePath(`config/${file.name}`);
-        const module = (await dynamicImport(configFilePath)).default;
+        const module = (await import(configFilePath)).default;
         configData[configName] = module;
       }
     }
   } else {
     const allFiles: string[] = (await import("./configModules.ts")).default;
-    for (const file of allFiles) {
-      const configName: string = file.replace(".ts", "")!;
-      const configFilePath = basePath(`config/${file}`);
-      const module = (await dynamicImport(configFilePath)).default;
-      configData[configName] = module;
+    for (const fileName of allFiles) {
+      const url = new URL(`../../config/${fileName}`, import.meta.url).href;
+      const module = await import(url);
+      const configName = fileName.replace(".ts", "");
+      configData[configName] = module.default;
     }
   }
   if (IS_LOCAL) {
@@ -145,18 +151,6 @@ globalFn("getConfigStore", async function (): Promise<Record<string, any>> {
     );
   }
   return configData;
-});
-
-globalFn("dynamicImport", async function (path: string): Promise<unknown> {
-  let url: string;
-
-  if (path.startsWith("/") || path.startsWith("file://")) {
-    url = path.startsWith("file://") ? path : `file://${path}`;
-  } else {
-    url = new URL(path, import.meta.url).href;
-  }
-  const module = await import(url);
-  return module;
 });
 
 const configData = await getConfigStore();
