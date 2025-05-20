@@ -97,42 +97,57 @@ globalFn("tmpPath", function (concatenation = "") {
 });
 
 async function rewriteConfigModules(filePath: string, allModules: string[]) {
-  // check if filePath and allModules are equal
-  const importedFilePath: string[] = (await import(filePath)).default;
-  if (importedFilePath.join(",") === allModules.join(",")) {
-    console.log("No changes needed to be made");
+  // Convert filenames to base names without `.ts`
+  const moduleNames = allModules.map((f) => f.replace(/\.ts$/, ""));
+  const moduleSets: Record<string, unknown> = (
+    await import("./configModules.ts")
+  ).default;
+
+  if (Object.keys(moduleSets).join(",") == moduleNames.join(",")) {
     return;
   }
-  const stub = `const configModules: string[] = {{ value }};\n\nexport default configModules;\n`;
 
-  // Convert allModules array to TypeScript array literal
-  const arrayLiteral = `[${allModules.map((m) => `"${m}"`).join(", ")}]`;
+  // Generate import lines
+  const imports = moduleNames
+    .map((name) => `import ${name} from "../../config/${name}.ts";`)
+    .join("\n");
 
-  // Replace {{ value }} with the array string
-  const result = stub.replace("{{ value }}", arrayLiteral);
+  // Generate export block
+  const exportBlock = `export default {\n  ${moduleNames.join(",\n  ")},\n};`;
 
-  // Overwrite the target file
+  const result = `${imports}\n\n${exportBlock}\n`;
+
+  // Write the file
   await Deno.writeTextFile(filePath, result);
 }
 
 import Configure from "Configure";
 
 globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
-  const configPath = basePath("config"); // absolute filesystem path to /config
   const configData: Record<string, unknown> = {};
-  const configFiles = Deno.readDirSync(configPath);
+  if (IS_LOCAL) {
+    const configPath = basePath("config");
+    const configFiles = Deno.readDirSync(configPath);
+    const allModules: string[] = [];
+    for (const file of configFiles) {
+      if (file.isFile && file.name.endsWith(".ts")) {
+        const configName = file.name.replace(".ts", "");
 
-  for (const file of configFiles) {
-    if (file.isFile && file.name.endsWith(".ts")) {
-      const configName = file.name.replace(".ts", "");
-
-      // Build absolute file:// URL for import
-      const fullPath = `${configPath}/${file.name}`;
-      const module = await import(fullPath);
-      configData[configName] = module.default;
+        // Build absolute file:// URL for import
+        allModules.push(file.name);
+        const fullPath = `${configPath}/${file.name}`;
+        const module = await import(fullPath);
+        configData[configName] = module.default;
+      }
     }
+    await rewriteConfigModules(
+      basePath("main/hono-globals/configModules.ts"),
+      allModules
+    );
+  } else {
+    const configModules = (await import("./configModules.ts")).default;
+    return configModules;
   }
-
   return configData;
 });
 
