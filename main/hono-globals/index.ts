@@ -699,6 +699,6 @@ globalFn(
   }
 );
 
-const frameworkVersion = (await import(basePath("version.ts"))).default;
+const frameworkVersion = (await import("../../version.ts")).default;
 
 define("FRAMEWORK_VERSION", frameworkVersion, false);
