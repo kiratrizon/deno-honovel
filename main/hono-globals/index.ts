@@ -128,7 +128,9 @@ globalFn("getConfigStore", async function (): Promise<Record<string, any>> {
     if (file.isFile && file.name.endsWith(".ts")) {
       allModuleFiles.push(file.name);
       const configName: string = file.name.replace(".ts", "")!;
-      const module = (await import("../../config/" + file.name)).default;
+      const module = await import(
+        new URL(`../../config/${file.name}`, import.meta.url).href
+      );
       configData[configName] = module;
     }
   }
