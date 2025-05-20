@@ -128,16 +128,8 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
 
       // Build absolute file:// URL for import
       const fullPath = `${configPath}/${file.name}`;
-      const url = new URL(`file://${fullPath}`).href;
-
-      try {
-        const module = await import(url);
-        configData[configName] = module.default ?? module;
-      } catch (e) {
-        throw new Error(
-          `Failed to import config file ${file.name} at ${url}: ${e.message}`
-        );
-      }
+      const module = await import(fullPath);
+      configData[configName] = module.default;
     }
   }
 
