@@ -96,17 +96,25 @@ globalFn("getConfigStore", async function (): Promise<Record<string, any>> {
   const configFiles = Deno.readDirSync(configPath);
   for (const file of configFiles) {
     if (file.isFile && file.name.endsWith(".ts")) {
-      const filePath = path.join(configPath, file.name);
-      const url = new URL(filePath, import.meta.url).href;
-      const module = (await import(url)) as {
-        // deno-lint-ignore no-explicit-any
-        default: any;
-      };
       const configName: string = file.name.replace(".ts", "")!;
-      configData[configName] = module.default;
+      const configFilePath = basePath(`config/${file.name}`);
+      const module = (await dynamicImport(configFilePath)).default;
+      configData[configName] = module;
     }
   }
   return configData;
+});
+
+globalFn("dynamicImport", async function (path: string): Promise<any> {
+  let url: string;
+
+  if (path.startsWith("/") || path.startsWith("file://")) {
+    url = path.startsWith("file://") ? path : `file://${path}`;
+  } else {
+    url = new URL(path, import.meta.url).href;
+  }
+  const module = await import(url);
+  return module;
 });
 
 const configData = await getConfigStore();
