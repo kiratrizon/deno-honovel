@@ -44,13 +44,13 @@ globalFn(
   }
 );
 
-const isProd = env("DENO_ENV") === "production";
+const isProd = env("ENV") === "production";
 define("IS_PRODUCTION", isProd, false);
 
-const isStaging = env("DENO_ENV") === "staging";
+const isStaging = env("ENV") === "staging";
 define("IS_STAGING", isStaging, false);
 
-const isLocal = env("DENO_ENV") === "local";
+const isLocal = env("ENV") === "local";
 define("IS_LOCAL", isLocal, false);
 
 globalFn("basePath", function (concatenation = "") {
