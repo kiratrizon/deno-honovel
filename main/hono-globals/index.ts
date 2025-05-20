@@ -152,6 +152,7 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
 });
 
 const configData = await getConfigStore();
+console.log(configData, "configData");
 const configure = new Configure(configData);
 
 globalFn("staticConfig", function (key: string) {
