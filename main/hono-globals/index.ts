@@ -117,23 +117,30 @@ async function rewriteConfigModules(filePath: string, allModules: string[]) {
 
 import Configure from "Configure";
 
-// deno-lint-ignore no-explicit-any
-globalFn("getConfigStore", async function (): Promise<Record<string, any>> {
-  const configPath = basePath("config");
-  // deno-lint-ignore no-explicit-any
-  const configData: Record<string, any> = {};
+globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
+  const configPath = basePath("config"); // absolute filesystem path to /config
+  const configData: Record<string, unknown> = {};
   const configFiles = Deno.readDirSync(configPath);
-  const allModuleFiles: string[] = [];
+
   for (const file of configFiles) {
     if (file.isFile && file.name.endsWith(".ts")) {
-      allModuleFiles.push(file.name);
-      const configName: string = file.name.replace(".ts", "")!;
-      const module = await import(
-        new URL(`../../config/${file.name}`, import.meta.url).href
-      );
-      configData[configName] = module;
+      const configName = file.name.replace(".ts", "");
+
+      // Build absolute file:// URL for import
+      const fullPath = `${configPath}/${file.name}`;
+      const url = new URL(`file://${fullPath}`).href;
+
+      try {
+        const module = await import(url);
+        configData[configName] = module.default ?? module;
+      } catch (e) {
+        throw new Error(
+          `Failed to import config file ${file.name} at ${url}: ${e.message}`
+        );
+      }
     }
   }
+
   return configData;
 });
 
