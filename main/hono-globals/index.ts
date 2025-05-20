@@ -124,38 +124,18 @@ globalFn("getConfigStore", async function (): Promise<Record<string, any>> {
   const configData: Record<string, any> = {};
   const configFiles = Deno.readDirSync(configPath);
   const allModuleFiles: string[] = [];
-  if (IS_LOCAL) {
-    for (const file of configFiles) {
-      if (file.isFile && file.name.endsWith(".ts")) {
-        allModuleFiles.push(file.name);
-        const configName: string = file.name.replace(".ts", "")!;
-        const configFilePath = basePath(`config/${file.name}`);
-        const module = (await import(configFilePath)).default;
-        configData[configName] = module;
-      }
+  for (const file of configFiles) {
+    if (file.isFile && file.name.endsWith(".ts")) {
+      allModuleFiles.push(file.name);
+      const configName: string = file.name.replace(".ts", "")!;
+      const module = (await import("../../config/" + file.name)).default;
+      configData[configName] = module;
     }
-  } else {
-    const allFiles: string[] = (await import("./configModules.ts")).default;
-    for (const fileName of allFiles) {
-      const url = new URL(`${basePath(`config/${fileName}`)}`, import.meta.url)
-        .href;
-      const module = await import(url);
-      const configName = fileName.replace(".ts", "");
-      configData[configName] = module.default;
-    }
-  }
-  if (IS_LOCAL) {
-    // rewrite the file './configModule.ts' content
-    await rewriteConfigModules(
-      basePath("main/hono-globals/configModules.ts"),
-      allModuleFiles
-    );
   }
   return configData;
 });
 
 const configData = await getConfigStore();
-console.log("Config data loaded", configData);
 const configure = new Configure(configData);
 
 globalFn("staticConfig", function (key: string) {
