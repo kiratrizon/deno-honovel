@@ -152,7 +152,6 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
 });
 
 const configData = await getConfigStore();
-console.log(configData, "configData");
 const configure = new Configure(configData);
 
 globalFn("staticConfig", function (key: string) {
@@ -702,3 +701,30 @@ globalFn(
 const frameworkVersion = (await import("../../version.ts")).default;
 
 define("FRAMEWORK_VERSION", frameworkVersion, false);
+
+globalFn(
+  "moveUploadedFile",
+  function (destination: string, arrayBuffer: ArrayBuffer): boolean {
+    if (!destination.trim()) {
+      throw new Error("Destination is required.");
+    }
+
+    if (!arrayBuffer) {
+      throw new Error("File is required.");
+    }
+
+    // Ensure destination directory exists
+    const dir = path.dirname(destination);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    // Convert ArrayBuffer to Node.js Buffer
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const buffer = Buffer.from(uint8Array);
+
+    // Write file
+    fs.writeFileSync(destination, buffer);
+    return true;
+  }
+);

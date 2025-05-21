@@ -1,0 +1,240 @@
+import IHonoHeader from "../../@hono-types/declaration/IHonoHeader.d.ts";
+import IHonoRequest, {
+  RequestData,
+  RequestMethod,
+  SERVER,
+} from "../../@hono-types/declaration/IHonoRequest.d.ts";
+import HonoHeader from "./HonoHeader.ts";
+
+class HonoRequest implements IHonoRequest {
+  private raw: RequestData;
+  private myAll: Record<string, unknown> = {};
+  constructor(req: RequestData) {
+    this.raw = req;
+    this.myAll = {
+      ...req.query,
+      ...req.body,
+    };
+  }
+
+  public all(): Record<string, unknown> {
+    return this.myAll;
+  }
+
+  public input(key: string): unknown {
+    return this.myAll[key] || null;
+  }
+
+  public only(keys: string[]): Record<string, unknown> {
+    const result: Record<string, unknown> = only(this.myAll, keys);
+    return result;
+  }
+
+  public except(keys: string[]): Record<string, unknown> {
+    const result: Record<string, unknown> = except(this.myAll, keys);
+    return result;
+  }
+
+  public query(key: string) {
+    if (isset(key)) {
+      return (this.raw.query![key] as unknown) || null;
+    }
+    return this.raw.query as Record<string, unknown>;
+  }
+
+  public has(key: string): boolean {
+    return key_exist(this.myAll, key);
+  }
+  public filled(key: string): boolean {
+    return isset(this.myAll[key]) && !empty(this.myAll[key]);
+  }
+
+  public boolean(key: string): boolean {
+    const forTrue = ["1", "true", "yes", "on"];
+    const forFalse = ["0", "false", "no", "off"];
+    const value = this.input(key);
+    if (is_array(value)) {
+      return value.some((v) => forTrue.includes(v));
+    }
+    if (is_string(value)) {
+      if (forTrue.includes(value)) {
+        return true;
+      } else if (forFalse.includes(value)) {
+        return false;
+      }
+    }
+    if (is_numeric(value)) {
+      return value !== 0;
+    }
+    if (is_boolean(value)) {
+      return value;
+    }
+    return false;
+  }
+
+  public async whenHas(
+    key: string,
+    callback: (value: unknown) => Promise<void>
+  ) {
+    if (this.has(key)) {
+      const value = this.input(key) || null;
+      await callback(value);
+    }
+  }
+
+  public async whenFilled(
+    key: string,
+    callback: (value: unknown) => Promise<void>
+  ) {
+    if (this.filled(key)) {
+      const value = this.input(key);
+      await callback(value);
+    }
+  }
+
+  public path(): string {
+    return this.raw.path || "";
+  }
+
+  public url(): string {
+    return this.raw.originalUrl || "";
+  }
+
+  public method(): RequestMethod {
+    return this.raw.method as RequestMethod;
+  }
+
+  public isMethod(method: RequestMethod): boolean {
+    return this.method() === method;
+  }
+
+  public is(pattern: string): boolean {
+    // Escape special regex chars except '*'
+    const regexPattern = pattern
+      .replace(/[.+?^${}()|[\]\\]/g, "\\$&") // escape regex chars
+      .replace(/\*/g, ".*"); // replace * with .*
+
+    const regex = new RegExp(`^${regexPattern}$`);
+    return regex.test(this.path());
+  }
+
+  public header(key: string): string | null {
+    if (key_exist(this.raw.headers, key) && isset(this.raw.headers[key])) {
+      return this.raw.headers[key] as string;
+    }
+    return null;
+  }
+
+  public get headers(): IHonoHeader {
+    const headers = new HonoHeader(this.raw.headers);
+    return headers;
+  }
+
+  public hasHeader(key: string): boolean {
+    return this.headers.has(key);
+  }
+
+  public bearerToken(): string | null {
+    const authHeader = this.headers.authorization();
+    if (authHeader) {
+      const parts = authHeader.split(" ");
+      if (parts.length === 2 && parts[0].toLowerCase() === "bearer") {
+        return parts[1];
+      }
+    }
+    return null;
+  }
+
+  public cookie(key: string): string | null | Record<string, unknown> {
+    if (key_exist(this.raw.cookies, key) && isset(this.raw.cookies[key])) {
+      return this.raw.cookies[key] as string;
+    }
+    if (!isset(key)) {
+      return this.raw.cookies as Record<string, unknown>;
+    }
+    return null;
+  }
+
+  public allFiles(): Record<string, unknown> {
+    return this.raw.files;
+  }
+  public file(key: string): unknown {
+    if (key_exist(this.raw.files, key) && isset(this.raw.files[key])) {
+      return this.raw.files[key] as unknown;
+    }
+    return null;
+  }
+  public hasFile(key: string): boolean {
+    return key_exist(this.raw.files, key) && isset(this.raw.files[key]);
+  }
+
+  public ip(): string {
+    return this.header("x-real-ip") || "unknown";
+  }
+
+  public ips(): string[] {
+    const xForwardedFor = this.header("x-forwarded-for");
+    if (xForwardedFor) {
+      return xForwardedFor.split(",").map((ip) => ip.trim());
+    }
+    return [this.ip()];
+  }
+
+  public userAgent(): string | null {
+    return this.header("user-agent");
+  }
+
+  public server(key: string): SERVER | string | number | null {
+    if (isset(key)) {
+      return this.raw.server[key] || null;
+    }
+    return this.raw.server;
+  }
+
+  public getHost(): string {
+    const host = this.header("host");
+    if (host) {
+      return host.split(":")[0];
+    }
+    return "";
+  }
+
+  public getPort(): number {
+    const host = this.header("host");
+    if (host) {
+      const parts = host.split(":");
+      if (parts.length > 1) {
+        return parseInt(parts[1], 10);
+      }
+    }
+    return this.server("SERVER_PORT") as number;
+  }
+
+  public async user(): Promise<Record<string, unknown> | null> {
+    return await null;
+  }
+
+  public isJson(): boolean {
+    const contentType = this.header("content-type");
+    if (contentType) {
+      return contentType.includes("application/json");
+    }
+    return false;
+  }
+
+  public json(key: string): unknown {
+    if (this.isJson()) {
+      return this.input(key);
+    }
+    return null;
+  }
+  public expectsJson(): boolean {
+    const acceptHeader = this.header("accept");
+    if (acceptHeader) {
+      return acceptHeader.includes("application/json");
+    }
+    return false;
+  }
+}
+
+export default HonoRequest;

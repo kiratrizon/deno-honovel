@@ -1,7 +1,7 @@
 /// <reference path="./index.d.ts" />
 
-import HonoRequest from "./declaration/HonoRequest.d.ts";
-import HonoResponse from "./declaration/HonoResponse.d.ts";
+import IHonoRequest from "./declaration/IHonoRequest.d.ts";
+import IHonoResponse from "./declaration/IHonoResponse.d.ts";
 
 export {};
 declare global {
@@ -16,7 +16,7 @@ declare global {
    * @param html - Optional HTML content to initialize the response with.
    * @returns An instance of HonoResponse.
    */
-  function response(html?: string | null): HonoResponse;
+  function response(html?: string | null): IHonoResponse;
 
   /**
    * HttpHono interface with all the request data.
@@ -27,6 +27,8 @@ declare global {
     /**
      * The HonoRequest object that encapsulates the HTTP request data.
      */
-    request: InstanceType<typeof HonoRequest>;
+    request: IHonoRequest;
   }
+
+  // const storedRoutes: Record<string, unknown>;
 }

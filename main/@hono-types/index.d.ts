@@ -355,108 +355,72 @@ declare global {
   function end(array: any[]): any;
 
   /**
-   * Checks whether a given function is defined in the current scope.
-   * It returns true if it is a function, otherwise false.
+   * Checks whether a given variable is a function.
    */
-  function is_function(name: any): boolean;
+  function is_function(variable: any): variable is (...args: any[]) => any;
 
   /**
    * Checks if the given value is a string.
-   *
-   * @param value - The value to check.
-   * @returns `true` if the value is a string, otherwise `false`.
    */
-  function is_string(value: any): boolean;
+  function is_string(value: any): value is string;
 
   /**
    * Checks if the given value is an array.
-   *
-   * @param value - The value to check.
-   * @returns `true` if the value is an array, otherwise `false`.
    */
-  function is_array(value: any): boolean;
+  function is_array<T = any>(value: any): value is T[];
 
   /**
-   * Checks if the given value is an object (excluding null and arrays).
-   *
-   * @param value - The value to check.
-   * @returns `true` if the value is an object, otherwise `false`.
+   * Checks if the given value is a plain object (excluding null and arrays).
    */
-  function is_object(value: any): boolean;
+  function is_object(value: any): value is Record<string, unknown>;
 
   /**
-   * Checks if the given value is numeric (a number or numeric string).
-   *
-   * @param value - The value to check.
-   * @returns `true` if the value is numeric, otherwise `false`.
+   * Checks if the given value is numeric (number or numeric string).
    */
-  function is_numeric(value: any): boolean;
+  function is_numeric(value: any): value is number | `${number}`;
 
   /**
    * Checks if the given value is an integer.
-   *
-   * @param value - The value to check.
-   * @returns `true` if the value is an integer, otherwise `false`.
    */
-  function is_integer(value: any): boolean;
+  function is_integer(value: any): value is number;
 
   /**
-   * Checks if the given value is a floating-point number.
-   *
-   * @param value - The value to check.
-   * @returns `true` if the value is a float, otherwise `false`.
+   * Checks if the given value is a float.
    */
-  function is_float(value: any): boolean;
+  function is_float(value: any): value is number;
 
   /**
    * Checks if the given value is a boolean.
-   *
-   * @param value - The value to check.
-   * @returns `true` if the value is a boolean, otherwise `false`.
    */
-  function is_boolean(value: any): boolean;
+  function is_boolean(value: any): value is boolean;
 
   /**
-   * Checks if the given value is `null`.
-   *
-   * @param value - The value to check.
-   * @returns `true` if the value is null, otherwise `false`.
+   * Checks if the given value is null.
    */
-  function is_null(value: any): boolean;
+  function is_null(value: any): value is null;
 
   /**
-   * Checks if the given value is set (not `undefined` or `null`).
-   *
-   * @param value - The value to check.
-   * @returns `true` if the value is set, otherwise `false`.
+   * Checks if the given value is not undefined or null.
    */
-  function isset(value: any): boolean;
+  function isset<T>(value: T | null | undefined): value is T;
 
   /**
    * Checks if the given key exists in the object.
-   *
-   * @param object - The object to check.
-   * @param key - The key to check for.
-   * @returns `true` if the key exists in the object, otherwise `false`.
    */
   function key_exist(object: object, key: string): boolean;
 
   /**
    * Checks if the given value is empty.
-   *
-   * @param value - The value to check.
-   * @returns `true` if the value is empty, otherwise `false`.
    */
   function empty(value: any): boolean;
 
   /**
    * Checks if the given method exists on the given object.
-   *
-   * @param object - The object to check.
-   * @param method - The method to check for.
-   * @returns `true` if the method exists on the object, otherwise `false`.
    */
-  function method_exist(object: object, method: string): boolean;
+  function method_exist<T extends object>(
+    object: T,
+    method: string
+  ): method is keyof T & string;
 
   /**
    * Encodes the given data as a JSON string.
@@ -493,5 +457,10 @@ declare global {
     version2: string,
     operator: IVersionOperator | IVersionSymbol
   ): boolean | number;
+
+  function moveUploadedFile(
+    destination: string,
+    arrayBuffer: ArrayBuffer
+  ): true | false;
 }
 export {};
