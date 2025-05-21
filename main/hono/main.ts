@@ -26,6 +26,7 @@ function domainGroup(
     const host = c.req.header("host") || "";
     const subdomain = host.split(".")[0];
 
+    console.log(subdomain);
     if (subdomain === subdomainPattern || subdomainPattern === "*") {
       return await handler(c);
     } else {
@@ -61,6 +62,14 @@ class Server {
       }
     );
 
+    this.app.get(
+      "/dashboard",
+      domainGroup("*", async (c) => {
+        // console.log(c.get("httpHono"));
+        return c.text("Dashboard for foo tenant");
+      })
+    );
+
     // this.app.use(
     //   "*",
     //   secureHeaders({
@@ -77,13 +86,6 @@ class Server {
   }
 
   private static async loadAndValidateRoutes() {
-    this.app.get(
-      "/dashboard",
-      domainGroup("foo", async (c) => {
-        console.log(c.get("httpHono"));
-        return c.text("Dashboard for foo tenant");
-      })
-    );
     const routePath = basePath("routes");
     const routeFiles = fs
       .readdirSync(routePath)

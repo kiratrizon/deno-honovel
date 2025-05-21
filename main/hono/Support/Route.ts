@@ -1,5 +1,12 @@
 import BaseController from "../../Base/BaseController.ts";
 
+import {
+  IRoute,
+  IGroupRoute,
+  IMethodRoute,
+} from "../../@hono-types/declaration/IRoute.d.ts"; /* this statement implements both normal interface & static interface */
+import MethodRoute from "./MethodRoute.ts";
+
 export type ICallback = (
   httpObj: HttpHono,
   ...args: unknown[]
@@ -27,14 +34,14 @@ class Route {
     all: [],
   };
 
-  static group() {}
+  public static group() {}
 
   // Make `get` generic on controller T and method K
-  static get<T extends BaseController, K extends KeysWithICallback<T>>(
+  public static get<T extends BaseController, K extends KeysWithICallback<T>>(
     uri: string,
     arg: ICallback | [new () => T, K]
-  ) {
-    // Your method logic here
+  ): IMethodRoute {
+    return new MethodRoute();
   }
 }
 
