@@ -20,15 +20,17 @@ import { Context } from "node:vm";
 
 function domainGroup(
   subdomainPattern: string,
-  handler: (c: Context) => Promise<Response>
+  handler: (h: HttpHono, returnedPattern: string) => Promise<unknown>
 ) {
   return async (c: Context) => {
-    const host = c.req.header("host") || "";
-    const subdomain = host.split(".")[0];
-
-    console.log(subdomain);
-    if (subdomain === subdomainPattern || subdomainPattern === "*") {
-      return await handler(c);
+    const subdomain = c.req.header("host")?.split(".")[0];
+    const keyOfSubdomain = subdomainPattern.replace(":", "");
+    c.req.param(keyOfSubdomain, subdomain);
+    if (subdomain) {
+      const returned = await handler(c.get("httpHono"), subdomain);
+      if (returned) {
+        return c.json(returned);
+      }
     } else {
       return c.text("Not Found", 404);
     }
@@ -64,9 +66,8 @@ class Server {
 
     this.app.get(
       "/dashboard",
-      domainGroup("*", async (c) => {
-        // console.log(c.get("httpHono"));
-        return c.text("Dashboard for foo tenant");
+      domainGroup(":myfoo", async ({ request }, m) => {
+        return request.all();
       })
     );
 
@@ -106,7 +107,7 @@ class Server {
       const routePrefix = key === "web" ? "" : `/${key}`;
       const filePath = `${routePath}/${file}`;
       const { default: route } = await import(filePath);
-      // console.log(route);
+      console.log(route);
     }
   }
 

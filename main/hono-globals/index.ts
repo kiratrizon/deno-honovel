@@ -548,6 +548,11 @@ globalFn("is_string", function (value) {
   return typeof value === "string";
 });
 
+// is_function
+globalFn("is_function", function (value) {
+  return typeof value === "function";
+});
+
 // is_array
 globalFn("is_array", function (value) {
   return Array.isArray(value);

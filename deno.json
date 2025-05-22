@@ -12,6 +12,7 @@
     "HonoLogger": "./libraries/Helpers/Logger.ts",
     "luxon": "npm:luxon@^3.6.1",
     "pug": "npm:pug@^3.0.3",
-    "redis": "npm:redis@^5.0.1"
+    "redis": "npm:redis@^5.0.1",
+    "Route": "./main/hono/Support/Route.ts"
   }
 }
