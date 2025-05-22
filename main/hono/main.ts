@@ -107,7 +107,7 @@ class Server {
       const routePrefix = key === "web" ? "" : `/${key}`;
       const filePath = `${routePath}/${file}`;
       const { default: route } = await import(filePath);
-      console.log(route);
+      // console.log(route);
     }
   }
 

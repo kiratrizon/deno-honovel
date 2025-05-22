@@ -1,9 +1,15 @@
 import { IGroupInstance } from "../../@hono-types/declaration/IRoute.d.ts";
 import path from "node:path";
 class Group {
-  public static groupId = 0;
-  public static currentGroup: string[] = [];
+  private static groupId = 0;
+  private static currentGroup: string[] = [];
 
+  public static get currGrp() {
+    return Group.currentGroup;
+  }
+  public static get gID() {
+    return Group.groupId;
+  }
   private childRoutes = {
     get: [],
     post: [],

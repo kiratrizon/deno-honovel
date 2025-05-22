@@ -62,6 +62,11 @@ export declare class IGroupInstance {
   public group(callback: () => void): void;
 }
 
+export declare class IEGroupRoute extends IGroupInstance {
+  public static get currGrp(): string[];
+  public static get gID(): number;
+}
+
 export interface IMethodRoute {
   name(name: string): this;
   middleware(handler: string | string[] | (() => Promise<unknown>)): this;

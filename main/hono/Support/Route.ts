@@ -2,13 +2,14 @@ import BaseController from "../../Base/BaseController.ts";
 
 import {
   IRoute,
-  IGroupRoute,
   IMethodRoute,
   IGroupParams,
+  IEGroupRoute,
 } from "../../@hono-types/declaration/IRoute.d.ts";
 import MethodRoute from "./MethodRoute.ts";
-import GroupRoute from "./GroupRoute.ts";
+import GR from "./GroupRoute.ts";
 
+const GroupRoute = GR as typeof IEGroupRoute;
 export type ICallback = (
   httpObj: HttpHono,
   ...args: unknown[]
@@ -90,6 +91,7 @@ class MyRoute {
       arg,
     });
     this.methodPreference[this.routeId] = instancedRoute;
+    console.log(GroupRoute.currGrp);
     return instancedRoute;
   }
 }
