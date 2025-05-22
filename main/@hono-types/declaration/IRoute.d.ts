@@ -10,6 +10,17 @@ export interface IGroupParams {
   domain?: string;
 }
 
+export interface IChildRoutes {
+  get: number[];
+  post: number[];
+  options: number[];
+  put: number[];
+  delete: number[];
+  head: number[];
+  patch: number[];
+  all: number[];
+}
+
 export type ICallback = (
   httpObj: HttpHono,
   ...args: unknown[]
@@ -65,6 +76,8 @@ export declare class IGroupInstance {
 export declare class IEGroupRoute extends IGroupInstance {
   public static get currGrp(): string[];
   public static get gID(): number;
+  public static getGroupName(id: number): IEGroupRoute;
+  pushChilds(method: keyof IChildRoutes, id: number): void;
 }
 
 export interface IMethodRoute {
@@ -198,4 +211,11 @@ export declare class IRoute extends IGroupRoute {
    * @param callback - A function to call when no route matches.
    */
   // public static fallback(callback: () => unknown): void;
+}
+
+export declare class IERoute extends IRoute {
+  public static pushGroupReference(
+    id: number,
+    groupInstance: IGroupInstance
+  ): void;
 }

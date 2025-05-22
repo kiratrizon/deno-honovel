@@ -1,5 +1,9 @@
-import { IGroupInstance } from "../../@hono-types/declaration/IRoute.d.ts";
+import {
+  IChildRoutes,
+  IGroupInstance,
+} from "../../@hono-types/declaration/IRoute.d.ts";
 import path from "node:path";
+
 class Group {
   private static groupId = 0;
   private static currentGroup: string[] = [];
@@ -10,7 +14,7 @@ class Group {
   public static get gID() {
     return Group.groupId;
   }
-  private childRoutes = {
+  private childRoutes: IChildRoutes = {
     get: [],
     post: [],
     options: [],
@@ -20,6 +24,10 @@ class Group {
     patch: [],
     all: [],
   };
+
+  private static groupReference: Record<number, InstanceType<typeof this>> = {};
+
+  private groupName: string = "";
 
   private flag: Record<string, [boolean, unknown]> = {};
 
@@ -70,6 +78,12 @@ class Group {
       }
     }
     const groupName = Group.groupCombiner().string;
+    this.groupName = groupName;
+    Group.groupReference[Group.groupId] = this;
+    if (is_function(callback)) {
+      callback();
+    }
+    Group.currentGroup = currentGroup; // Reset to the previous group
   }
 
   private static groupCombiner() {
@@ -171,6 +185,13 @@ class Group {
 
   public getGroup() {
     return {};
+  }
+
+  public static getGroupName(id: number) {
+    return Group.groupReference[id];
+  }
+  public pushChilds(method: keyof IChildRoutes, id: number) {
+    this.childRoutes[method].push(id);
   }
 }
 

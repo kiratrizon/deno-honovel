@@ -5,6 +5,7 @@ import {
   IMethodRoute,
   IGroupParams,
   IEGroupRoute,
+  IGroupInstance,
 } from "../../@hono-types/declaration/IRoute.d.ts";
 import MethodRoute from "./MethodRoute.ts";
 import GR from "./GroupRoute.ts";
@@ -19,15 +20,25 @@ type KeysWithICallback<T> = {
   [P in keyof T]: T[P] extends ICallback ? P : never;
 }[keyof T];
 
+interface IdefaultRoute {
+  get: number[];
+  post: number[];
+  put: number[];
+  delete: number[];
+  patch: number[];
+  options: number[];
+  head: number[];
+  all: number[];
+}
 class MyRoute {
   private static routeId = 0;
   private static storedControllers = {};
-  private static groupPreference = {};
+  private static groupPreference: Record<number, IEGroupRoute> = {};
   private static methodPreference: Record<
     number,
     InstanceType<typeof MethodRoute>
   > = {};
-  private static defaultRoute = {
+  private static defaultRoute: IdefaultRoute = {
     get: [],
     post: [],
     put: [],
@@ -78,20 +89,36 @@ class MyRoute {
     return groupInstance;
   }
 
+  public static pushGroupReference(id: number, groupInstance: IEGroupRoute) {
+    if (empty(this.groupPreference[id])) {
+      this.groupPreference[id] = groupInstance;
+    }
+  }
+
   // Make `get` generic on controller T and method K
   public static get<T extends BaseController, K extends KeysWithICallback<T>>(
     uri: string,
     arg: ICallback | [new () => T, K]
   ): IMethodRoute {
     this.routeId++;
+    const method = "get";
     const instancedRoute = new MethodRoute({
       id: this.routeId,
       uri,
-      method: "get",
+      method,
       arg,
     });
     this.methodPreference[this.routeId] = instancedRoute;
-    console.log(GroupRoute.currGrp);
+    // console.log(GroupRoute.currGrp);
+    if (empty(GroupRoute.currGrp)) {
+      this.defaultRoute.get.push(this.routeId);
+    } else {
+      const groupId = GroupRoute.gID;
+      if (empty(this.groupPreference[groupId])) {
+        this.groupPreference[groupId] = GroupRoute.getGroupName(groupId)!;
+      }
+      this.groupPreference[groupId].pushChilds(method, this.routeId);
+    }
     return instancedRoute;
   }
 }
