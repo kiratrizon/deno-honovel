@@ -1,10 +1,14 @@
-class Kernel {
-  protected middlewareGroups: { [key: string]: string[] } = {
+import Test from "../Middlewares/Test.ts";
+import HttpKernel from "Illuminate/Foundation/Http/HttpKernel";
+class Kernel extends HttpKernel {
+  protected override middlewareGroups = {
     web: [],
     api: [],
   };
 
-  protected routeMiddleware: { [key: string]: unknown } = {};
+  protected override routeMiddleware = {
+    test: Test,
+  };
 }
 
 export default Kernel;

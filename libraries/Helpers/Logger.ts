@@ -20,7 +20,7 @@ class Logger {
     }
     if (IS_PRODUCTION) {
       console.log(logMessage);
-      return;
+      // return;
     }
 
     appendFile(logPath, logMessage);

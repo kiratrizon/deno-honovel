@@ -1,9 +1,9 @@
 import Controller from "../../../main/Base/BaseController.ts";
 
 class UserController extends Controller {
-  async index({ request }: HttpHono) {}
-
-  async show({ request }: HttpHono) {}
+  index: HttpDispatch = async (_, lang, myid) => {
+    console.log(myid);
+  };
 }
 
 export default UserController;
