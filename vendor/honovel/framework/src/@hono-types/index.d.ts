@@ -1,8 +1,8 @@
-// deno-lint-ignore-file no-explicit-any
+export {};
 interface IFetchDataOption {
   method?: string;
   headers?: Record<string, string>;
-  params?: Record<string, any>;
+  params?: Record<string, unknown>;
   timeout?: number;
   responseType?: "json" | "text" | "blob" | "arrayBuffer" | "document";
 }
@@ -474,4 +474,3 @@ declare global {
     arrayBuffer: ArrayBuffer
   ): true | false;
 }
-export {};

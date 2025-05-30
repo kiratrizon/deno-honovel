@@ -64,27 +64,6 @@ class Server {
     this.app.use("*", logger());
     this.app.use(serveStatic({ root: publicPath() }));
     this.app.use(serveStatic({ root: honovelPath("hono/hono-assets") }));
-    const corsConfig = (staticConfig("cors") as CorsConfig) || {};
-
-    const corsPaths = corsConfig.paths || [];
-    corsPaths.forEach((cpath) => {
-      this.app.use(
-        cpath,
-        cors({
-          origin: corsConfig.allowed_origins || "*",
-          allowMethods: corsConfig.allowed_methods || [
-            "GET",
-            "POST",
-            "PUT",
-            "DELETE",
-          ],
-          allowHeaders: corsConfig.allowed_headers || ["*"],
-          exposeHeaders: corsConfig.exposed_headers || [],
-          maxAge: corsConfig.max_age || 3600,
-          credentials: corsConfig.supports_credentials || false,
-        })
-      );
-    });
 
     // this.app.use(
     //   "*",
@@ -118,8 +97,9 @@ class Server {
     }
     for (const file of routeFiles) {
       const key = file.replace(".ts", "");
-      const routePrefix = key === "web" ? "" : `/${key}`;
+      const routePrefix = key === "web" ? "" : key;
       let route: typeof INRoute | undefined = undefined;
+
       try {
         if (file === "web.ts") {
           const module = await import("../../../../../routes/web.ts");
@@ -132,6 +112,30 @@ class Server {
         console.warn(`Route file "${file}" could not be loaded.`, err);
       }
       if (isset(route)) {
+        const byEndpointsRouter = this.generateNewApp();
+        const corsConfig = (staticConfig("cors") as CorsConfig) || {};
+
+        const corsPaths = corsConfig.paths || [];
+        corsPaths.forEach((cpath) => {
+          if (cpath.startsWith(key + "/")) {
+            byEndpointsRouter.use(
+              cpath.replace(key, ""),
+              cors({
+                origin: corsConfig.allowed_origins || "*",
+                allowMethods: corsConfig.allowed_methods || [
+                  "GET",
+                  "POST",
+                  "PUT",
+                  "DELETE",
+                ],
+                allowHeaders: corsConfig.allowed_headers || ["*"],
+                exposeHeaders: corsConfig.exposed_headers || [],
+                maxAge: corsConfig.max_age || 3600,
+                credentials: corsConfig.supports_credentials || false,
+              })
+            );
+          }
+        });
         const instancedRoute = new route();
         const { groups, methods, defaultRoute } =
           instancedRoute.getAllGroupsAndMethods();
@@ -181,16 +185,11 @@ class Server {
                 const splittedUri =
                   URLArranger.generateOptionalParamRoutes(newMethodUri);
 
-                splittedUri.forEach((uri) => {
-                  myNewGroup.use(
-                    uri,
-                    buildRequestInit(),
-                    ...newGroupMiddleware
-                  );
-                });
                 myNewGroup.on(
                   methodarr.map((m) => m.toUpperCase()),
                   splittedUri,
+                  buildRequestInit(),
+                  ...newGroupMiddleware,
                   returnedDispatch as MiddlewareHandler
                 );
               });
@@ -201,8 +200,9 @@ class Server {
               ).forEach((grp) => {
                 newAppGroup.route(grp, myNewGroup);
               });
-              this.app.route(routePrefix, newAppGroup);
+              byEndpointsRouter.route("/", newAppGroup);
             }
+            this.app.route(routePrefix, byEndpointsRouter);
           }
         }
       }

@@ -1,3 +1,4 @@
+import { ContentfulStatusCode } from "hono/utils/http-status";
 import fs from "node:fs";
 
 type ReturnType = "html" | "json" | "file" | "download" | undefined;
@@ -10,8 +11,8 @@ type ReturnData = {
   error: string | null;
 };
 class HonoResponse {
-  #defaultStatusCode = 200;
-  #returnStatusCode?: number;
+  #defaultStatusCode: ContentfulStatusCode = 200;
+  #returnStatusCode: ContentfulStatusCode = 200;
   #headers: Record<string, string> = {};
   #returnData: ReturnData = {
     html: null,
@@ -40,7 +41,7 @@ class HonoResponse {
   json(
     //   deno-lint-ignore no-explicit-any
     data: Record<string, any> | null,
-    statusCode: number = this.#defaultStatusCode
+    statusCode: ContentfulStatusCode = this.#defaultStatusCode
   ): this {
     try {
       this.#responseValidator("json");
@@ -75,7 +76,10 @@ class HonoResponse {
    * @param content HTML string.
    * @param statusCode Optional HTTP status code.
    */
-  html(content: string, statusCode: number = this.#defaultStatusCode): this {
+  html(
+    content: string,
+    statusCode: ContentfulStatusCode = this.#defaultStatusCode
+  ): this {
     try {
       this.#responseValidator("html");
       this.#returnData.html = content;
@@ -114,7 +118,7 @@ class HonoResponse {
     download: [string] | [string, string] | null;
     error: string | null;
     headers: Record<string, string>;
-    statusCode?: number;
+    statusCode: ContentfulStatusCode;
     returnType: ReturnType;
   } {
     return {
@@ -129,7 +133,10 @@ class HonoResponse {
    * @param filePath Path to the file.
    * @param statusCode Optional HTTP status code.
    */
-  file(filePath: string, statusCode: number = this.#defaultStatusCode): this {
+  file(
+    filePath: string,
+    statusCode: ContentfulStatusCode = this.#defaultStatusCode
+  ): this {
     try {
       this.#responseValidator("file");
       this.#returnData.file = filePath;
@@ -153,7 +160,7 @@ class HonoResponse {
    */
   download(
     filePath: string | [string, string],
-    statusCode: number = this.#defaultStatusCode
+    statusCode: ContentfulStatusCode = this.#defaultStatusCode
   ): this {
     try {
       this.#responseValidator("download");

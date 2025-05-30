@@ -189,14 +189,14 @@ declare class IHonoRequest {
   // Execute callback if input is present.
   public whenHas(
     key: string,
-    callback: (value: unknown) => Promise<void>
-  ): Promise<void>;
+    callback: (value: unknown) => Promise<unknown>
+  ): Promise<unknown>;
 
   // Execute callback if input has value.
   public whenFilled(
     key: string,
-    callback: (value: unknown) => Promise<void>
-  ): Promise<void>;
+    callback: (value: unknown) => Promise<unknown>
+  ): Promise<unknown>;
 
   // end 🔹 Input & Query Parameters
 

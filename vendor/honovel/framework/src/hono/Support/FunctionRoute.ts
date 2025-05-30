@@ -278,6 +278,19 @@ export function toMiddleware(
 
   return newArgs.map((args): MiddlewareHandler => {
     return async (c: Context, next) => {
+      c.setRenderer((content, head) => {
+        return c.html(
+          `<html>
+            <head>
+              <title>${head.title}</title>
+            </head>
+            <body>
+              <header>${head.title}</header>
+              <p>${content}</p>
+            </body>
+          </html>`
+        );
+      });
       const httpHono = c.get("httpHono") as HttpHono;
       const request = httpHono.request;
       const honoClosure = new HonoClosure();
@@ -289,10 +302,7 @@ export function toMiddleware(
         }
         const dispatch = new HonoDispatch(middlewareResp, "middleware");
         if (!dispatch.isNext) {
-          return c[dispatch.action](
-            ...(dispatch.myData as Exclude<unknown, null | undefined>[]),
-            dispatch.statusCode
-          );
+          return (await dispatch.build(request, c)) as Response;
         } else {
           await next();
         }

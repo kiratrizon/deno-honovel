@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "dev": "deno run --allow-net --allow-env --allow-read --allow-sys --allow-write --watch main/hono/run-server.ts",
+    "dev": "deno run --allow-net --allow-env --allow-read --allow-sys --allow-write --watch vendor/honovel/framework/src/hono/run-server.ts",
     "start": "deno run --allow-net --allow-env --allow-read --allow-sys index.ts"
   },
   "imports": {
@@ -15,12 +15,20 @@
     "pug": "npm:pug@^3.0.3",
     "redis": "npm:redis@^5.0.1",
     "Route": "./vendor/honovel/framework/src/hono/Support/Route.ts",
-    "Illuminate/Foundation/Http/HttpKernel": "./main/hono/Http/HttpKernel.ts"
+    "Illuminate/Foundation/Http/HttpKernel": "./vendor/honovel/framework/src/hono/Http/HttpKernel.ts",
+    "Illuminate/Routing/BaseController":"./vendor/honovel/framework/src/Base/BaseController.ts"
   },
   "lint": {
     "rules": {
       "include": ["require-await"],
       "exclude": ["require-await"]
     }
+  },
+  "compilerOptions": {
+    "types": [
+      "./vendor/honovel/framework/src/@hono-types/index.d.ts",
+      "./vendor/honovel/framework/src/@hono-types/hono-index.d.ts",
+      "./vendor/honovel/framework/src/@hono-types/vars.d.ts"
+    ]
   }
 }

@@ -1,4 +1,4 @@
-import Kernel from "../../../app/Http/Kernel.ts";
+import Kernel from "../../../../../../app/Http/Kernel.ts";
 import {
   MiddlewareLike,
   MiddlewareLikeClass,

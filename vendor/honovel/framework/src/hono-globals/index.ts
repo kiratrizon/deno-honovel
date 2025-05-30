@@ -87,10 +87,7 @@ globalFn("resourcePath", function (concatenation = "") {
   const dir = path.join("resources", concatenation);
   return basePath(dir);
 });
-globalFn("viewPath", function (concatenation = "") {
-  const dir = path.join("views", concatenation);
-  return resourcePath(dir);
-});
+
 globalFn("routePath", function (concatenation = "") {
   const dir = path.join("routes", concatenation);
   return basePath(dir);
@@ -113,7 +110,7 @@ async function rewriteConfigModules(filePath: string, allModules: string[]) {
 
   // Generate import lines
   const imports = moduleNames
-    .map((name) => `import ${name} from "../../config/${name}.ts";`)
+    .map((name) => `import ${name} from "../../../../../config/${name}.ts";`)
     .join("\n");
 
   // Generate export block
@@ -162,6 +159,13 @@ globalFn("staticConfig", function (key: string) {
   return configure.read(key);
 });
 
+globalFn("viewPath", function (concatenation = "") {
+  const dir = path.join(
+    staticConfig("view.defaultViewDir") || "views",
+    concatenation
+  );
+  return resourcePath(dir);
+});
 const dbUsed = staticConfig("database.database") || "sqlite";
 define("dbUsed", dbUsed, false);
 
@@ -262,7 +266,10 @@ globalFn(
   }
 );
 
-const irregularPlurals = staticConfig("irregular_words");
+const irregularPlurals = staticConfig("irregular_words") as Record<
+  string,
+  string
+>;
 
 globalFn("generateTableName", function (entity: string = "") {
   const splitWords = entity.split(/(?=[A-Z])/);

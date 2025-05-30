@@ -1,8 +1,12 @@
-import Controller from "../../../main/Base/BaseController.ts";
+import Controller from "./Controller.ts";
+// function guide
+// index: HttpDispatch = async ({ request }) => {
+//    // your code here
+// };
 
 class UserController extends Controller {
-  index: HttpDispatch = async (_, lang, myid) => {
-    console.log(myid);
+  index: HttpDispatch = async ({ request }) => {
+    console.log(this.constructor.name);
   };
 }
 

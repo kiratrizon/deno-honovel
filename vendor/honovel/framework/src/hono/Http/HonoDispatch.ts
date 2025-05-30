@@ -1,52 +1,144 @@
 import { Context } from "hono";
 import HonoClosure from "./HonoClosure.ts";
 import HonoView from "./HonoView.ts";
+import HonoRedirect from "./HonoRedirect.ts";
+import { IERedirectResponse } from "../../@hono-types/declaration/IHonoRedirect.d.ts";
+import HonoResponse from "./HonoResponse.ts";
+import { ContentfulStatusCode } from "hono/utils/http-status";
+import { existsSync } from "https://deno.land/std/fs/mod.ts";
+import * as path from "https://deno.land/std/path/mod.ts";
 
 class HonoDispatch {
   #type: "dispatch" | "middleware";
-  #action: {
-    [K in keyof Context]: Context[K] extends (...args: any[]) => any
-      ? K
-      : never;
-  }[keyof Context] = "text";
   #forNext: boolean = false;
 
-  #statusCode: number = 200;
-  #myData: Exclude<unknown, null | undefined>[] = [];
+  #statusCode: ContentfulStatusCode;
+  #returnedData: unknown;
   constructor(
     returnedData: Exclude<unknown, null | undefined>,
     type: "dispatch" | "middleware" = "dispatch"
   ) {
     this.#type = type;
-    if (returnedData instanceof HonoClosure) {
-      this.#forNext = !0;
-    } else if (is_string(returnedData)) {
-      this.#action = "text";
-      this.#myData.push(returnedData);
-      this.#statusCode = 200;
-    } else if (is_object(returnedData)) {
-      if (returnedData instanceof HonoView) {
-        this.#action = "html";
-        const getView = returnedData.getView();
-        const myElement = returnedData.element(getView.viewFile, {});
-        this.#myData.push(myElement);
+    this.#returnedData = returnedData;
+    this.#statusCode = 200;
+    if (
+      this.#returnedData instanceof HonoClosure &&
+      this.#type === "middleware"
+    ) {
+      this.#forNext = true;
+    }
+  }
+  public async build(request: HttpHono["request"], c: Context) {
+    if (is_object(this.#returnedData)) {
+      if (this.#returnedData instanceof HonoView) {
+        const dataView = this.#returnedData.getView();
+        const rendered = this.#returnedData.element(
+          dataView.viewFile,
+          dataView.data
+        );
         this.#statusCode = 200;
+        return c.html(rendered, 200);
+      } else if (this.#returnedData instanceof HonoRedirect) {
+        switch ((this.#returnedData as IERedirectResponse).type) {
+          case "back":
+            return c.redirect(request.header("referer") || "/", 302);
+          case "redirect":
+          case "to":
+          case "route":
+            return c.redirect(this.#returnedData.getTargetUrl(), 302);
+          default:
+            throw new Error("Invalid use of redirect()");
+        }
+      } else if (this.#returnedData instanceof HonoResponse) {
+        const accessData = this.#returnedData.accessData();
+        const {
+          returnType,
+          statusCode = 200,
+          error,
+          file,
+          download,
+          headers,
+          html,
+          json,
+        } = accessData;
+        this.#statusCode = statusCode;
+        if (error) {
+          throw new Error(error);
+        }
+        switch (returnType) {
+          case "html":
+            if (html) {
+              return c.html(html, {
+                headers,
+                status: this.#statusCode,
+              });
+            }
+            throw new Error("HTML content is missing in the response.");
+          case "json":
+            if (json) {
+              return c.json(json, {
+                headers,
+                status: this.#statusCode,
+              });
+            }
+            throw new Error("JSON content is missing in the response.");
+          case "file":
+            if (file) {
+              if (!existsSync(file)) {
+                return c.text("File not found", 404);
+              }
+              // Open file for reading
+              const fileHandle = await Deno.open(file, { read: true });
+
+              // Return a Response with the file stream as body
+              return new Response(fileHandle.readable, {
+                status: this.#statusCode,
+                headers: {
+                  "Content-Disposition": `attachment; filename="${path.basename(
+                    file
+                  )}"`,
+                  "Content-Type": "application/octet-stream", // generic binary
+                  ...headers,
+                },
+              });
+            }
+            throw new Error("File content is missing in the response.");
+          case "download":
+            if (download) {
+              const filePath = Array.isArray(download) ? download[0] : download;
+              const downloadName =
+                Array.isArray(download) && download.length > 1
+                  ? download[1]
+                  : undefined;
+
+              // Using Deno or Node fs to stream the file
+              const fileStream = (await Deno.open(filePath, { read: true }))
+                .readable;
+
+              const headers = new Headers();
+              headers.set("Content-Type", "application/octet-stream");
+              headers.set(
+                "Content-Disposition",
+                `attachment; filename="${
+                  downloadName || path.basename(filePath)
+                }"`
+              );
+
+              return new Response(fileStream, {
+                status: this.#statusCode || 200,
+                headers,
+              });
+            }
+        }
+      } else {
+        this.#statusCode = 200;
+        return c.json(JSON.parse(JSON.stringify(this.#returnedData)), 200);
       }
     }
   }
 
-  public get isNext() {
+  public get isNext(): boolean {
     return this.#forNext;
-  }
-  public get myData() {
-    return this.#myData;
-  }
-  public get statusCode() {
-    return this.#statusCode;
-  }
-
-  public get action() {
-    return this.#action;
   }
 }
 

@@ -40,6 +40,8 @@ declare global {
     mergeData?: Record<string, unknown>
   ): IHonoView;
 
+  function route(name: string, params?: Record<string, unknown>): string;
+
   /**
    * HttpHono interface with all the request data.
    * This interface is used to pass the request data to the controller methods.

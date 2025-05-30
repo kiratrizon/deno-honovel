@@ -75,22 +75,24 @@ class HonoRequest implements IHonoRequest {
 
   public async whenHas(
     key: string,
-    callback: (value: unknown) => Promise<void>
+    callback: (value: unknown) => Promise<unknown>
   ) {
     if (this.has(key)) {
       const value = this.input(key) || null;
-      await callback(value);
+      return (await callback(value)) || null;
     }
+    return null;
   }
 
   public async whenFilled(
     key: string,
-    callback: (value: unknown) => Promise<void>
+    callback: (value: unknown) => Promise<unknown>
   ) {
     if (this.filled(key)) {
       const value = this.input(key);
-      await callback(value);
+      return (await callback(value)) || null;
     }
+    return null;
   }
 
   public path(): string {
