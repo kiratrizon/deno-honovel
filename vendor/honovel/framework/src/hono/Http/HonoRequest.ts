@@ -227,7 +227,7 @@ class HonoRequest implements IHonoRequest {
 
   public json(key: string): unknown {
     if (this.isJson()) {
-      return this.input(key);
+      return this.input(key) || null;
     }
     return null;
   }

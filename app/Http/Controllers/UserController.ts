@@ -6,7 +6,7 @@ import Controller from "./Controller.ts";
 
 class UserController extends Controller {
   index: HttpDispatch = async ({ request }) => {
-    console.log(this.constructor.name);
+    return response().download(publicPath("style.css"), 200);
   };
 }
 

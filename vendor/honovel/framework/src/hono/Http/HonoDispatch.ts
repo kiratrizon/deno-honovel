@@ -134,6 +134,30 @@ class HonoDispatch {
         this.#statusCode = 200;
         return c.json(JSON.parse(JSON.stringify(this.#returnedData)), 200);
       }
+    } else if (is_array(this.#returnedData)) {
+      this.#statusCode = 200;
+      if (request.expectsJson()) {
+        return c.json(this.#returnedData, 200);
+      } else {
+        return c.text(JSON.stringify(this.#returnedData, null, 2), 200);
+      }
+    } else if (
+      is_numeric(this.#returnedData) ||
+      is_string(this.#returnedData)
+    ) {
+      this.#statusCode = 200;
+      if (request.expectsJson()) {
+        return c.json(this.#returnedData, 200);
+      } else {
+        return c.text(String(this.#returnedData), 200);
+      }
+    } else if (is_null(this.#returnedData)) {
+      if (request.expectsJson()) {
+        return c.json(null, 200);
+      }
+      return c.text("null", 200);
+    } else {
+      return c.text("", 200);
     }
   }
 

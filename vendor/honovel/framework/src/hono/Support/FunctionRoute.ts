@@ -278,19 +278,19 @@ export function toMiddleware(
 
   return newArgs.map((args): MiddlewareHandler => {
     return async (c: Context, next) => {
-      c.setRenderer((content, head) => {
-        return c.html(
-          `<html>
-            <head>
-              <title>${head.title}</title>
-            </head>
-            <body>
-              <header>${head.title}</header>
-              <p>${content}</p>
-            </body>
-          </html>`
-        );
-      });
+      // c.setRenderer((content, head) => {
+      //   return c.html(
+      //     `<html>
+      //       <head>
+      //         <title>${head.title}</title>
+      //       </head>
+      //       <body>
+      //         <header>${head.title}</header>
+      //         <p>${content}</p>
+      //       </body>
+      //     </html>`
+      //   );
+      // });
       const httpHono = c.get("httpHono") as HttpHono;
       const request = httpHono.request;
       const honoClosure = new HonoClosure();
@@ -354,9 +354,39 @@ export function toDispatch(
         newParams[param] = null;
       }
     });
-    await myconf(httpHono, ...Object.values(newParams));
-
-    return c.text("hello world");
+    const middlewareResp = await myconf(httpHono, ...Object.values(newParams));
+    const dispatch = new HonoDispatch(middlewareResp, "dispatch");
+    try {
+      return (await dispatch.build(httpHono.request, c)) as Response;
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        // populate e with additional information
+        const populatedError: Record<string, unknown> = {};
+        populatedError["error_type"] = e.name.trim();
+        populatedError["message"] = e.message.trim();
+        populatedError["stack"] = e.stack
+          ? e.stack.split("\n").map((line) => line.trim())
+          : [];
+        populatedError["cause"] = e.cause;
+        log(
+          populatedError,
+          "error",
+          `Request URI ${httpHono.request
+            .method()
+            .toUpperCase()} ${httpHono.request.path()}\nRequest ID ${httpHono.request.server(
+            "HTTP_X_REQUEST_ID"
+          )}`
+        );
+        let errorHtml: string;
+        if (!httpHono.request.expectsJson()) {
+          errorHtml = renderErrorHtml(e);
+        } else {
+          errorHtml = "Internal server error";
+        }
+        return c.html(errorHtml, 500);
+      }
+      return c.json({ message: "Internal server error" }, 500);
+    }
   };
 }
 
