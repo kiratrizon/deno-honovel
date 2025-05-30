@@ -1,4 +1,4 @@
-import path from "node:path";
+import * as path from "https://deno.land/std/path/mod.ts";
 import "https://deno.land/std@0.224.0/dotenv/load.ts";
 
 Object.defineProperty(globalThis, "globalFn", {
@@ -136,8 +136,9 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
 
         // Build absolute file:// URL for import
         allModules.push(file.name);
-        const fullPath = `${configPath}/${file.name}`;
-        const module = await import(fullPath);
+        const fullPath = path.join(configPath, file.name);
+        const fullUrl = new URL(`file://${fullPath}`);
+        const module = await import(fullUrl.href);
         configData[configName] = module.default;
       }
     }
@@ -154,7 +155,6 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
 
 const configData = await getConfigStore();
 const configure = new Constants(configData);
-
 globalFn("staticConfig", function (key: string) {
   return configure.read(key);
 });

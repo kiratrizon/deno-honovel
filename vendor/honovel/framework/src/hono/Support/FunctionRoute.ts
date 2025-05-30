@@ -12,6 +12,13 @@ import MyHono from "../Http/HttpHono.ts";
 import Constants from "Constants";
 import IHonoRequest from "../../@hono-types/declaration/IHonoRequest.d.ts";
 import { IConfigure } from "../../@hono-types/declaration/MyImports.d.ts";
+export const regexObj = {
+  number: /^\d+$/,
+  alpha: /^[a-zA-Z]+$/,
+  alphanumeric: /^[a-zA-Z0-9]+$/,
+  slug: /^[a-z0-9-]+$/,
+  uuid: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+};
 export function regexToHono(
   where: Record<string, RegExp[]>,
   params: string[] = []
@@ -59,7 +66,7 @@ export class URLArranger {
       input = [input];
     }
     const groups = input;
-    let convertion = path.join(...groups);
+    let convertion = path.posix.join(...groups);
     if (convertion === ".") {
       convertion = "";
     }
@@ -73,13 +80,8 @@ export class URLArranger {
     if (input === "" || input === "/") {
       return { string: input, requiredParams, optionalParams, sequenceParams };
     }
-    const regex = {
-      number: /^\d+$/,
-      alpha: /^[a-zA-Z]+$/,
-      alphanumeric: /^[a-zA-Z0-9]+$/,
-      slug: /^[a-z0-9-]+$/,
-      uuid: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    };
+    const regex = regexObj;
+
     // Step 1: Replace multiple slashes with a single slash
     input = input.replace(/\/+/g, "/");
 
@@ -91,7 +93,6 @@ export class URLArranger {
     }
     // Step 2: Split the string by slash
     const parts = input.split("/");
-
     const result = parts.map((part) => {
       const constantPart = part;
       if (part.startsWith("{") && part.endsWith("}")) {
@@ -148,7 +149,7 @@ export class URLArranger {
         throw new Error(`${constantPart} is not a valid route`);
       }
     });
-    let modifiedString = `/${path.join(...result)}`;
+    let modifiedString = `/${path.posix.join(...result)}`;
     if (modifiedString.endsWith("/") && modifiedString.length > 1) {
       modifiedString = modifiedString.slice(0, -1).replace(/\/\{/g, "{/"); // Remove trailing slash
     } else {
@@ -208,13 +209,7 @@ export class URLArranger {
   }
 }
 
-export const regexObj = {
-  number: /^\d+$/,
-  alpha: /^[a-zA-Z]+$/,
-  alphanumeric: /^[a-zA-Z0-9]+$/,
-  slug: /^[a-z0-9-]+$/,
-  uuid: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-};
+
 
 export function toMiddleware(
   args: (string | ((obj: HttpHono, next: HonoNext) => Promise<unknown>))[]
@@ -263,7 +258,7 @@ export function toMiddleware(
           // deno-lint-ignore no-explicit-any
           ...args: any[]
         ) => // deno-lint-ignore no-explicit-any
-        any)();
+          any)();
         if (method_exist(middlewareInstance, "handle")) {
           middlewareCallback.push(
             middlewareInstance.handle.bind(middlewareInstance) as HttpMiddleware
@@ -322,8 +317,8 @@ export function toMiddleware(
             `Request URI ${request
               .method()
               .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-              "HTTP_X_REQUEST_ID"
-            )}`
+                "HTTP_X_REQUEST_ID"
+              )}`
           );
           let errorHtml: string;
           if (!request.expectsJson()) {
@@ -374,8 +369,8 @@ export function toDispatch(
           `Request URI ${httpHono.request
             .method()
             .toUpperCase()} ${httpHono.request.path()}\nRequest ID ${httpHono.request.server(
-            "HTTP_X_REQUEST_ID"
-          )}`
+              "HTTP_X_REQUEST_ID"
+            )}`
         );
         let errorHtml: string;
         if (!httpHono.request.expectsJson()) {
@@ -417,15 +412,14 @@ export function renderErrorHtml(e: Error): string {
           ${e.message}
         </p>
 
-        ${
-          e.stack
-            ? `
+        ${e.stack
+      ? `
             <h2 class="text-xl font-semibold text-gray-800 mb-2">🧱 Stack Trace</h2>
             <pre class="text-xs leading-relaxed font-mono bg-gray-900 text-green-400 p-4 rounded-lg border border-gray-700 overflow-x-auto whitespace-pre-wrap hover:scale-[1.01] transition-transform duration-200 ease-out shadow-inner">
 ${e.stack.replace(/</g, "&lt;")}
             </pre>`
-            : ""
-        }
+      : ""
+    }
       </div>
     </div>
   </body>

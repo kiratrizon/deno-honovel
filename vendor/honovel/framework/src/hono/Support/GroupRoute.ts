@@ -3,7 +3,7 @@ import {
   IChildRoutes,
   IGroupInstance,
 } from "../../@hono-types/declaration/IRoute.d.ts";
-import path from "node:path";
+import * as path from "https://deno.land/std/path/mod.ts";
 import { regexObj } from "./FunctionRoute.ts";
 
 class Group {
@@ -142,7 +142,7 @@ class Group {
     }
 
     this.asName = Group.currentAs.join(".");
-    const groupName = path.join(...Group.currentGroup);
+    const groupName = path.posix.join(...Group.currentGroup);
     this.groupName = groupName;
     Group.groupReference[Group.groupId] = this;
     const callbackCalled = Group.callbackCalled;
