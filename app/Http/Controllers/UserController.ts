@@ -6,7 +6,12 @@ import Controller from "./Controller.ts";
 
 class UserController extends Controller {
   index: HttpDispatch = async ({ request }) => {
-    return response().download(publicPath("style.css"), 200);
+    return response().json(
+      {
+        message: "Hello, User!",
+      },
+      404
+    );
   };
 }
 

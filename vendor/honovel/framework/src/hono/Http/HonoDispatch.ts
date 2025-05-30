@@ -7,6 +7,7 @@ import HonoResponse from "./HonoResponse.ts";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 import { existsSync } from "https://deno.land/std/fs/mod.ts";
 import * as path from "https://deno.land/std/path/mod.ts";
+import { contentType } from "https://deno.land/std@0.224.0/media_types/mod.ts";
 
 class HonoDispatch {
   #type: "dispatch" | "middleware";
@@ -90,14 +91,10 @@ class HonoDispatch {
               // Open file for reading
               const fileHandle = await Deno.open(file, { read: true });
 
-              // Return a Response with the file stream as body
               return new Response(fileHandle.readable, {
                 status: this.#statusCode,
                 headers: {
-                  "Content-Disposition": `attachment; filename="${path.basename(
-                    file
-                  )}"`,
-                  "Content-Type": "application/octet-stream", // generic binary
+                  "Content-Type": contentType(file) || "text/plain",
                   ...headers,
                 },
               });
