@@ -298,8 +298,6 @@ export function toMiddleware(
         const dispatch = new HonoDispatch(middlewareResp, "middleware");
         if (!dispatch.isNext) {
           return (await dispatch.build(request, c)) as Response;
-        } else {
-          await next();
         }
       } catch (e: unknown) {
         if (e instanceof Error) {
@@ -330,6 +328,7 @@ export function toMiddleware(
         }
         return c.json({ message: "Internal server error" }, 500);
       }
+      await next();
     };
   });
 }
