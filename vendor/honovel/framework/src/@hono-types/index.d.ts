@@ -1,4 +1,6 @@
-export {};
+import { EnvConfig } from "./declaration/Built-in-env.d.ts";
+
+export { };
 interface IFetchDataOption {
   method?: string;
   headers?: Record<string, string>;
@@ -37,7 +39,10 @@ declare global {
    * @param {string} key - The name of the environment variable to retrieve.
    * @returns {string | null} The value of the environment variable, or `null` if not set.
    */
-  function env(arg1: string, arg2?: any): any;
+  function env<K extends keyof EnvConfig>(
+    key: K,
+    fallback?: EnvConfig[K]
+  ): EnvConfig[K];
 
   /**
    * Defines a global variable on `global` with the specified name and value.

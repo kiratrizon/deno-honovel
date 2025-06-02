@@ -25,6 +25,8 @@ globalFn("env", function (key: string, value: any = null): any {
   return Deno.env.get(key);
 });
 
+const isDenoDeploy = !!env("DENO_DEPLOYMENT_ID");
+
 globalFn("isDefined", function (key = "") {
   return key in globalThis;
 });
@@ -43,13 +45,13 @@ globalFn(
   }
 );
 
-const isProd = env("ENV") === "production";
+const isProd = env("APP_ENV") === "production";
 define("IS_PRODUCTION", isProd, false);
 
-const isStaging = env("ENV") === "staging";
+const isStaging = env("APP_ENV") === "staging";
 define("IS_STAGING", isStaging, false);
 
-const isLocal = env("ENV") === "local";
+const isLocal = env("APP_ENV") === "local";
 define("IS_LOCAL", isLocal, false);
 
 globalFn("basePath", function (concatenation = "") {

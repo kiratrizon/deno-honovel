@@ -147,7 +147,6 @@ class Server {
               const myNewGroup = this.generateNewApp(); // Create a new Hono instance for the group
 
               const myGroup = groups[groupKey];
-              const groupChildren = myGroup.children!;
               const {
                 as = "",
                 domain = null,
@@ -198,6 +197,7 @@ class Server {
                 arrangerGroup.string,
                 "group"
               ).forEach((grp) => {
+                // apply the middlewares here
                 newAppGroup.route(grp, myNewGroup);
               });
               byEndpointsRouter.route("/", newAppGroup);

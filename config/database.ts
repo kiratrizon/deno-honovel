@@ -1,25 +1,26 @@
 const constant = {
-  database: env("DATABASE", "sqlite"),
-  mysql: {
-    host: env("MYSQL_HOST", "localhost"),
-    port: env("MYSQL_PORT", 3306),
-    user: env("MYSQL_USER", "root"),
-    password: env("MYSQL_PASSWORD", ""),
-    database: env("MYSQL_DB", "hono"),
-    charset: "utf8mb4",
-    connectionLimit: env("USING_FREE_TIER", "true") === "true" ? 4 : null,
-    waitForConnections: true,
-    dateStrings: true,
+  default: env("DB_CONNECTION", "mysql"),
+
+  connections: {
+    mysql: {
+      host: env("DB_HOST", "127.0.0.1"),
+      port: Number(env("DB_PORT", 3306)),
+      user: env("DB_USERNAME", "root"),
+      password: env("DB_PASSWORD", ""),
+      database: env("DB_DATABASE", "honovel"),
+      charset: "utf8mb4",
+    },
+    pgsql: {
+      host: env("DB_HOST", "127.0.0.1"),
+      port: Number(env("DB_PORT", 5432)),
+      user: env("DB_USERNAME", "postgres"),
+      password: env("DB_PASSWORD", ""),
+      database: env("DB_DATABASE", "honovel"),
+    },
+    sqlite: {
+      database: databasePath('database.sqlite'),
+    },
   },
-  postgresql: {
-    host: env("POSTGRES_HOST", "localhost"),
-    port: env("POSTGRES_PORT", 5432),
-    user: env("POSTGRES_USER", "postgres"),
-    password: env("POSTGRES_PASSWORD", ""),
-    database: env("POSTGRES_DB", "hono"),
-    charset: "utf8mb4",
-  },
-  timezone: env("DATABASE_TIMEZONE", "+08:00"),
 };
 
 export default constant;
