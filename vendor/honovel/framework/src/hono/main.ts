@@ -110,6 +110,7 @@ class Server {
         if (file === "web.ts") {
           byEndpointsRouter.use("*", async (c, next: Next) => {
             c.set("from_web", true);
+            await next();
           });
         }
         byEndpointsRouter.use("*", honoSession());
