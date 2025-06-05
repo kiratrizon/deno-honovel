@@ -14,8 +14,9 @@ import { Redis as IORedis } from "ioredis";
 import { SessionContract } from "../../@hono-types/declaration/ISession.d.ts";
 
 export interface SessionConfig {
+  // session lifetime in minutes
   driver: "file" | "redis" | "database" | "memory";
-  lifetime: number; // session lifetime in minutes
+  lifetime: number;
   encrypt: boolean; // whether to encrypt session data
   files: string; // path to session files (if file driver)
   cookie: string; // session cookie name
