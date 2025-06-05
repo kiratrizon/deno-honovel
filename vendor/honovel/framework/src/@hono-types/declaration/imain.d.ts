@@ -7,9 +7,9 @@ type SessionDataTypes = {
 
 // for Context
 export type Variables = {
-  message: string;
   httpHono: HttpHono;
   session: HonoSession<SessionDataTypes>;
+  from_web: boolean;
 };
 
 export type HonoType = Hono<{
