@@ -1,7 +1,7 @@
 import { SessionConfig } from "../vendor/honovel/framework/src/hono/Http/HonoSession.ts";
 
 export default {
-  driver: env("SESSION_DRIVER", "file"),
+  driver: env("SESSION_DRIVER", "memory"),
 
   lifetime: env("SESSION_LIFETIME", 120),
 
