@@ -1,4 +1,6 @@
+import Controller from "../../../../../../app/Http/Controllers/Controller.ts";
 import { IMethodRoute } from "../../@hono-types/declaration/IRoute.d.ts";
+import { regexObj } from "./FunctionRoute.ts";
 
 type argType = "function" | "controller";
 
@@ -6,11 +8,12 @@ export interface IMyConfig {
   id: number;
   uri: string;
   method: string[];
-  // deno-lint-ignore no-explicit-any
-  callback: any;
+  callback: HttpDispatch;
 }
 class MethodRoute implements IMethodRoute {
-  private flags: Record<string, boolean> = {};
+  private flag: Record<string, unknown> = {
+    where: {} satisfies Record<string, RegExp[]>,
+  };
 
   private type: argType;
 
@@ -32,7 +35,7 @@ class MethodRoute implements IMethodRoute {
       this.type = "function";
       myFunc = arg;
     } else if (is_array(arg) && arg.length === 2) {
-      const [controller, method] = arg;
+      const [controller, method] = arg as [new () => Controller, string];
       const controllerInstance = new controller();
       if (!method_exist(controllerInstance, method)) {
         throw new Error(
@@ -49,50 +52,83 @@ class MethodRoute implements IMethodRoute {
       id,
       uri,
       method: method.map((m) => m.toLowerCase()),
-      callback: myFunc,
+      callback: myFunc as HttpDispatch,
     };
   }
   public name(name: string): this {
-    this.validateConfigs("name");
+    this.validateConfig("name", name);
     return this;
   }
 
   public whereNumber(key: string): this {
-    this.validateConfigs("whereNumber");
+    this.validateConfig("where", { [key]: regexObj.number });
     return this;
   }
 
-  public where(key: string, regex: string): this {
-    this.validateConfigs("where");
+  public where(ojb: Record<string, RegExp[] | RegExp>): this {
+    this.validateConfig("where", ojb);
     return this;
   }
 
   public middleware(middleware: unknown): this {
-    this.validateConfigs("middleware");
+    this.validateConfig("middleware", middleware);
     return this;
   }
 
-  private processMiddleware(): void {}
-
   public whereAlphaNumeric(key: string): this {
-    this.validateConfigs("whereAlphaNumeric");
+    this.validateConfig("where", { [key]: regexObj.alphanumeric });
     return this;
   }
 
   public whereAlpha(key: string): this {
-    this.validateConfigs("whereAlpha");
+    this.validateConfig("where", { [key]: regexObj.alpha });
     return this;
   }
-
-  private validateConfigs(type: string): void {
-    if (this.flags[type]) {
-      throw new Error(`Route ${type} already set`);
+  private validateConfig(methodName: string, value: unknown) {
+    if (this.flag[methodName] && methodName !== "where") {
+      throw new Error(`Method ${methodName} already exists`);
     }
-    this.flags[type] = true;
+    if (methodName === "middleware") {
+      if (!is_array(value)) {
+        this.flag[methodName] = [value];
+        return;
+      }
+    }
+    if (methodName !== "where") {
+      this.flag[methodName] = value;
+    } else {
+      if (!is_object(value)) {
+        throw new Error("Where must be an object");
+      }
+      const newValue = value as Record<string, RegExp | RegExp[]>;
+      for (const key in newValue) {
+        const v = newValue[key];
+        if (!key_exist(this.flag["where"] as Record<string, RegExp[]>, key)) {
+          (this.flag["where"] as Record<string, RegExp[]>)[key] = [];
+        }
+        if (is_array(v)) {
+          if (v.some((item) => !(item instanceof RegExp)) || v.length === 0) {
+            throw new Error("Where value must be an array of RegExp");
+          }
+          (this.flag["where"] as Record<string, RegExp[]>)[key].push(...v);
+        } else {
+          if (!(v instanceof RegExp)) {
+            throw new Error(
+              "Where value must be a RegExp or an array of RegExp"
+            );
+          }
+          (this.flag["where"] as Record<string, RegExp[]>)[key].push(v);
+        }
+      }
+    }
+    return;
   }
-
   public get config(): IMyConfig {
     return this.myConfig;
+  }
+
+  public get myFlag() {
+    return this.flag;
   }
 }
 

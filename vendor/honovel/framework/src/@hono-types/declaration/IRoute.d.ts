@@ -210,7 +210,7 @@ export interface IMethodRoute {
   middleware(
     handler: string | (string | HttpMiddleware)[] | HttpMiddleware
   ): this;
-  where(key: string, regex: string): this;
+  where(ojb: Record<string, RegExp[] | RegExp>): this;
   whereNumber(key: string): this;
   whereAlpha(key: string): this;
   whereAlphaNumeric(key: string): this;
@@ -340,16 +340,7 @@ export declare class IRoute extends IGroupRoute {
   // public static fallback(callback: () => unknown): void;
 }
 
-export interface IdefaultRoute {
-  get: number[];
-  post: number[];
-  put: number[];
-  delete: number[];
-  patch: number[];
-  options: number[];
-  head: number[];
-  all: number[];
-}
+export type IdefaultRoute = Record<string, (keyof IChildRoutes)[]>;
 
 export declare class IERoute extends IRoute {
   public static pushGroupReference(

@@ -2,9 +2,6 @@ import "../hono-globals/hono-index.ts";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
-import { sessionMiddleware, MemoryStore } from "hono-sessions";
-import { createClient } from "redis";
-import { getCookie, setCookie } from "hono/cookie";
 import { serveStatic } from "hono/deno";
 import fs from "node:fs";
 
@@ -19,9 +16,7 @@ import {
 } from "../@hono-types/declaration/imain.d.ts";
 
 import { Context } from "node:vm";
-import { IChildRoutes, INRoute } from "../@hono-types/declaration/IRoute.d.ts";
-import Constants from "Constants";
-import { IConfigure } from "../@hono-types/declaration/MyImports.d.ts";
+import { INRoute } from "../@hono-types/declaration/IRoute.d.ts";
 import {
   buildRequestInit,
   regexToHono,
@@ -30,8 +25,7 @@ import {
   URLArranger,
 } from "./Support/FunctionRoute.ts";
 import { IMyConfig } from "./Support/MethodRoute.ts";
-import path from "node:path";
-import MyHono from "./Http/HttpHono.ts";
+import { honoSession } from "./Http/HonoSession.ts";
 
 function domainGroup(
   subdomainPattern: string,
@@ -113,8 +107,18 @@ class Server {
       }
       if (isset(route)) {
         const byEndpointsRouter = this.generateNewApp();
+        if (file === "web.ts") {
+          byEndpointsRouter.use("*", honoSession(), async (c, next: Next) => {
+            const session = c.get("session");
+            console.log(session.id);
+            await next();
+          });
+        } else {
+          // byEndpointsRouter.use("*", async (c, next: Next) => {
+          //   c.set("sessionInstance", {});
+          // });
+        }
         const corsConfig = (staticConfig("cors") as CorsConfig) || {};
-
         const corsPaths = corsConfig.paths || [];
         corsPaths.forEach((cpath) => {
           if (cpath.startsWith(key + "/")) {
@@ -147,7 +151,6 @@ class Server {
               const myNewGroup = this.generateNewApp(); // Create a new Hono instance for the group
 
               const myGroup = groups[groupKey];
-              const groupChildren = myGroup.children!;
               const {
                 as = "",
                 domain = null,
@@ -155,6 +158,8 @@ class Server {
                 middleware = [],
                 name = "",
               } = myGroup.flagConfig;
+
+              middleware.unshift(key);
 
               const groupEntries = Object.entries(myGroup.myRoutes);
               const arrangerGroup = URLArranger.urlCombiner(name);
@@ -173,7 +178,6 @@ class Server {
                 const arrangerDispatch = URLArranger.urlCombiner(myConfig.uri);
                 const newMethodUri = arrangerDispatch.string;
                 const newGroupMiddleware: MiddlewareHandler[] = [];
-
                 if (isset(where) && !empty(where)) {
                   newGroupMiddleware.unshift(
                     regexToHono(where, [
@@ -198,6 +202,7 @@ class Server {
                 arrangerGroup.string,
                 "group"
               ).forEach((grp) => {
+                // apply the middlewares here
                 newAppGroup.route(grp, myNewGroup);
               });
               byEndpointsRouter.route("/", newAppGroup);

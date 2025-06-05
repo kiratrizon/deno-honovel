@@ -8,4 +8,6 @@ Route.as("hello")
   .group(() => {
     Route.get("/user/{myid?}/test", [UserController, "index"]);
   });
+
+Route.get("/user/{myid?}/test", [UserController, "index"]);
 export default Route;

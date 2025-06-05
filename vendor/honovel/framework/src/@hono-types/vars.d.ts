@@ -31,4 +31,8 @@ declare global {
    * This is a global variable that holds the version of the framework being used.
    */
   const FRAMEWORK_VERSION: string;
+  /**
+   * This is the config all values that are used in the application.
+   */
+  const myConfigData: Record<string, unknown>;
 }

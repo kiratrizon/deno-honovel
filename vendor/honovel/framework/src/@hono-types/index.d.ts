@@ -1,11 +1,22 @@
+import { ResponseType } from "axios";
+
 export {};
-interface IFetchDataOption {
+export interface IFetchDataOption {
   method?: string;
   headers?: Record<string, string>;
   params?: Record<string, unknown>;
   timeout?: number;
-  responseType?: "json" | "text" | "blob" | "arrayBuffer" | "document";
+  responseType?: ResponseType;
 }
+
+type IGetType =
+  | "string"
+  | "number"
+  | "boolean"
+  | "object"
+  | "array"
+  | "NULL"
+  | "undefined";
 
 type IVersionSymbol =
   | "<"
@@ -25,19 +36,26 @@ declare global {
    * It includes utility functions, configuration options, and other helpers
    * that can be used throughout the application.
    */
-  function globalFn(key: string, value: (...args: any) => void): void;
+  // deno-lint-ignore no-explicit-any
+  function globalFn(key: string, value: (...args: any[]) => void): void;
 
   /**
    * Retrieves the value of the specified environment variable.
-   * Returns `null` if the variable is not set.
    *
-   * Usage:
-   *   const value = env('MY_ENV_VAR');
+   * - If a fallback value is provided and the variable exists, the result is converted to the same type as the fallback.
+   * - If no fallback is provided, the result is returned as a `string`.
+   * - If the variable is not set, the fallback is returned if provided; otherwise, `null` is returned.
+   *
+   * @example
+   * const host = env("REDIS_HOST"); // string or null
+   * const port = env("REDIS_PORT", 6379); // number
    *
    * @param {string} key - The name of the environment variable to retrieve.
-   * @returns {string | null} The value of the environment variable, or `null` if not set.
+   * @param {T} [fallback] - An optional fallback value to return (and type to infer) if the variable is not set.
+   * @returns {string | T | null} The environment variable's value, or the fallback, or `null` if not set.
    */
-  function env(arg1: string, arg2?: any): any;
+  function env<K extends keyof EnvConfig>(key: K): string;
+  function env<K extends keyof EnvConfig, T>(key: K, fallback: T): T;
 
   /**
    * Defines a global variable on `global` with the specified name and value.
@@ -50,16 +68,22 @@ declare global {
    *   console.log(global.myVar); // 123
    *
    * @param {string} name - The name of the global variable.
-   * @param {any} value - The value to assign to the global variable.
+   * @param {unknown} value - The value to assign to the global variable.
    * @throws {Error} If the global variable already exists.
    */
-  function define(name: string, value: any, configurable?: boolean): void;
+  function define(name: string, value: unknown, configurable?: boolean): void;
 
   /**
    * Checks whether a given variable is defined in the current scope.
    * It returns true if the variable exists, otherwise false.
    */
-  function isDefined(name: string): boolean;
+  function isDefined(value: string): value is keyof typeof globalThis;
+
+  /**
+   * Get the type of a variable.
+   * Returns a string representing the type of the variable.
+   */
+  function getType(variable: unknown): IGetType;
 
   /**
    * Dynamically imports a module relative to the specified base path.
@@ -67,7 +91,7 @@ declare global {
    * @param file - The relative path to the module file (from basePath).
    * @returns A promise that resolves to the imported module.
    */
-  function dynamicImport(file: string): Promise<any>;
+  function dynamicImport<T = unknown>(file: string): Promise<T>;
 
   /**
    * Retrieves the value of a configuration option, similar to Laravel's `config` helper function.
@@ -78,27 +102,13 @@ declare global {
    *   const value = await config('database.connections.mysql.host'); // Retrieves the value of a nested key
    *
    * @param {string} key - The configuration key, which can use dot notation for nested values.
-   * @returns {any} The value of the configuration option, or `undefined` if the key does not exist.
-   * @returns {void} Sets the value of the configuration option if an object is passed as the argument.
+   * @returns {unknown} The value of the configuration option, or `undefined` if the key does not exist.
    */
-  function config(key: string, value?: any): any;
-
-  /**
-   * Retrieves the value of a configuration option, similar to Laravel's `config` helper function.
-   * Supports dot notation for nested configuration keys.
-   *
-   * Usage:
-   *   const value = await config('app.name'); // Retrieves the value of `app.name`
-   *   const value = await config('database.connections.mysql.host'); // Retrieves the value of a nested key
-   *
-   * @param {string} key - The configuration key, which can use dot notation for nested values.
-   * @returns {any} The value of the configuration option, or `undefined` if the key does not exist.
-   */
-  function staticConfig(key: string): any;
+  function staticConfig(key: string): unknown;
   /**
    * Initializes the configuration store by reading all configuration files in the config directory.
    */
-  function getConfigStore(): Promise<Record<string, any>>;
+  function getConfigStore(): Promise<Record<string, unknown>>;
 
   /**
    * Restricts an object to only the specified keys.
@@ -107,14 +117,14 @@ declare global {
    * Usage:
    *   const filtered = only(obj, ['key1', 'key2']);
    *
-   * @param {Record<string, any>} source - The object to filter.
+   * @param {Record<string, unknown>} source - The object to filter.
    * @param {string[]} keys - The list of keys to include in the new object.
-   * @returns {Record<string, any>} A new object containing only the specified keys.
+   * @returns {Record<string, unknown>} A new object containing only the specified keys.
    */
   function only(
-    source: Record<string, any>,
+    source: Record<string, unknown>,
     keys: string[]
-  ): Record<string, any>;
+  ): Record<string, unknown>;
 
   /**
    * Removes the specified keys from an object.
@@ -123,14 +133,14 @@ declare global {
    * Usage:
    *   const cleaned = except(obj, ['password', 'token']);
    *
-   * @param {Record<string, any>} source - The object to filter.
+   * @param {Record<string, unknown>} source - The object to filter.
    * @param {string[]} keys - The list of keys to exclude from the new object.
-   * @returns {Record<string, any>} A new object without the specified keys.
+   * @returns {Record<string, unknown>} A new object without the specified keys.
    */
   function except(
-    source: Record<string, any>,
+    source: Record<string, unknown>,
     keys: string[]
-  ): Record<string, any>;
+  ): Record<string, unknown>;
 
   /**
    * Converts the first character of a string to uppercase while keeping the rest unchanged.
@@ -150,7 +160,7 @@ declare global {
    * Usage:
    *   log({ key: 'value' }, 'debug'); // Writes the object to `tmp/debug.log`
    *
-   * @param {any} variable - The variable to write into the log file. Can be any type (string, object, array, etc.).
+   * @param {unknown} variable - The variable to write into the log file. Can be any type (string, object, array, etc.).
    * @param {string} logName - The name of the log file (without extension).
    * @returns {void}
    */
@@ -161,6 +171,11 @@ declare global {
    * This is used as the starting point for resolving all other paths.
    */
   function basePath(concatenation?: string): string;
+
+  /**
+   * The path to the application's storage directory, which typically contains cache or tmp files.
+   */
+  function storagePath(concatenation?: string): string;
 
   /**
    * The path of the application's framework directory, which contains the core framework files.
@@ -352,58 +367,60 @@ declare global {
   function fetchData(
     url: string,
     options?: IFetchDataOption
-  ): Promise<[any, any]>;
+  ): Promise<[boolean, unknown]>;
 
   /**
    * Retrieve the last element of an array.
    * If the array is empty, `null` is returned.
    */
-  function end(array: any[]): any;
+  function end<T>(array: T[]): T | null;
 
   /**
    * Checks whether a given variable is a function.
    */
-  function is_function(variable: any): variable is (...args: any[]) => any;
+  function is_function(
+    variable: unknown
+  ): variable is (...args: unknown[]) => unknown;
 
   /**
    * Checks if the given value is a string.
    */
-  function is_string(value: any): value is string;
+  function is_string(value: unknown): value is string;
 
   /**
    * Checks if the given value is an array.
    */
-  function is_array<T = any>(value: any): value is T[];
+  function is_array<T = unknown>(value: unknown): value is T[];
 
   /**
    * Checks if the given value is a plain object (excluding null and arrays).
    */
-  function is_object(value: any): value is Record<string, unknown>;
+  function is_object(value: unknown): value is Record<string, unknown>;
 
   /**
    * Checks if the given value is numeric (number or numeric string).
    */
-  function is_numeric(value: any): value is number | `${number}`;
+  function is_numeric(value: unknown): value is number | `${number}`;
 
   /**
    * Checks if the given value is an integer.
    */
-  function is_integer(value: any): value is number;
+  function is_integer(value: unknown): value is number;
 
   /**
    * Checks if the given value is a float.
    */
-  function is_float(value: any): value is number;
+  function is_float(value: unknown): value is number;
 
   /**
    * Checks if the given value is a boolean.
    */
-  function is_boolean(value: any): value is boolean;
+  function is_boolean(value: unknown): value is boolean;
 
   /**
    * Checks if the given value is null.
    */
-  function is_null(value: any): value is null;
+  function is_null(value: unknown): value is null;
 
   /**
    * Checks if the given value is not undefined or null.
@@ -415,7 +432,7 @@ declare global {
    */
   function key_exist<T extends object>(
     object: T,
-    key: keyof any
+    key: string | number | symbol
   ): key is keyof T;
 
   /**
@@ -439,7 +456,7 @@ declare global {
    * @param data - The data to encode.
    * @returns A string representing the JSON-encoded version of the data.
    */
-  function json_encode(data: any): string;
+  function json_encode(data: unknown): string;
 
   /**
    * Decodes the given JSON string into a JavaScript object or returns the data if it's not a string.
@@ -447,7 +464,7 @@ declare global {
    * @param data - The JSON string to decode.
    * @returns The decoded JavaScript object, or the original data if it is not a string.
    */
-  function json_decode(data: any): any;
+  function json_decode(data: unknown): unknown;
 
   /**
    * Reads the content of a file synchronously.

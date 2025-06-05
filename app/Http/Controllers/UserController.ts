@@ -6,12 +6,9 @@ import Controller from "./Controller.ts";
 
 class UserController extends Controller {
   index: HttpDispatch = async ({ request }) => {
-    return response().json(
-      {
-        message: "Hello, User!",
-      },
-      404
-    );
+    return response().json({
+      message: request.session().get("test"),
+    });
   };
 }
 

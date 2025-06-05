@@ -124,7 +124,7 @@ class MyRoute {
     });
     this.methodPreference[id] = instancedRoute;
     if (empty(GroupRoute.currGrp)) {
-      this.defaultRoute.get.push(id);
+      this.defaultRoute[id] = method;
     } else {
       const groupId = GroupRoute.gID;
       if (empty(this.groupPreference[groupId])) {
@@ -132,7 +132,7 @@ class MyRoute {
       }
       this.groupPreference[groupId].pushChildren(method, id);
     }
-    return instancedRoute;
+    return this.methodPreference[id];
   }
 
   public getAllGroupsAndMethods(): IReferencesRoute {

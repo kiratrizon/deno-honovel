@@ -13,6 +13,7 @@ export async function buildRequest(c: Context): Promise<RequestData> {
   const req = c.req;
   const url = new URL(req.url);
 
+  // console.log(getCookie(c, "SESSION_ID"));
   const forServer: SERVER = {
     SERVER_NAME: c.req.header("host")?.split(":")[0] || "unknown",
     SERVER_ADDR: "unknown", // Not available directly

@@ -12,6 +12,7 @@ import MyHono from "../Http/HttpHono.ts";
 import Constants from "Constants";
 import IHonoRequest from "../../@hono-types/declaration/IHonoRequest.d.ts";
 import { IConfigure } from "../../@hono-types/declaration/MyImports.d.ts";
+import HonoCookie from "../Http/HonoCookie.ts";
 export const regexObj = {
   number: /^\d+$/,
   alpha: /^[a-zA-Z]+$/,
@@ -209,8 +210,6 @@ export class URLArranger {
   }
 }
 
-
-
 export function toMiddleware(
   args: (string | ((obj: HttpHono, next: HonoNext) => Promise<unknown>))[]
 ): MiddlewareHandler[] {
@@ -241,7 +240,7 @@ export function toMiddleware(
                 );
               }
             }
-          } else if (is_object(middleware)) {
+          } else {
             const middlewareInstance = new middleware();
             if (method_exist(middlewareInstance, "handle")) {
               middlewareCallback.push(
@@ -258,7 +257,7 @@ export function toMiddleware(
           // deno-lint-ignore no-explicit-any
           ...args: any[]
         ) => // deno-lint-ignore no-explicit-any
-          any)();
+        any)();
         if (method_exist(middlewareInstance, "handle")) {
           middlewareCallback.push(
             middlewareInstance.handle.bind(middlewareInstance) as HttpMiddleware
@@ -315,8 +314,8 @@ export function toMiddleware(
             `Request URI ${request
               .method()
               .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-                "HTTP_X_REQUEST_ID"
-              )}`
+              "HTTP_X_REQUEST_ID"
+            )}`
           );
           let errorHtml: string;
           if (!request.expectsJson()) {
@@ -368,8 +367,8 @@ export function toDispatch(
           `Request URI ${httpHono.request
             .method()
             .toUpperCase()} ${httpHono.request.path()}\nRequest ID ${httpHono.request.server(
-              "HTTP_X_REQUEST_ID"
-            )}`
+            "HTTP_X_REQUEST_ID"
+          )}`
         );
         let errorHtml: string;
         if (!httpHono.request.expectsJson()) {
@@ -411,28 +410,35 @@ export function renderErrorHtml(e: Error): string {
           ${e.message}
         </p>
 
-        ${e.stack
-      ? `
+        ${
+          e.stack
+            ? `
             <h2 class="text-xl font-semibold text-gray-800 mb-2">🧱 Stack Trace</h2>
             <pre class="text-xs leading-relaxed font-mono bg-gray-900 text-green-400 p-4 rounded-lg border border-gray-700 overflow-x-auto whitespace-pre-wrap hover:scale-[1.01] transition-transform duration-200 ease-out shadow-inner">
 ${e.stack.replace(/</g, "&lt;")}
             </pre>`
-      : ""
-    }
+            : ""
+        }
       </div>
     </div>
   </body>
   </html>
   `;
 }
-
-const configData = await getConfigStore();
-const configure = new Constants(configData) as IConfigure;
 export const buildRequestInit = (): MiddlewareHandler => {
+  const configure = new Constants(myConfigData) as IConfigure;
   return async (c, next) => {
     const rawRequest = await buildRequest(c);
-    const request: IHonoRequest = new HonoRequest(rawRequest);
-    const constructorObj = { request, config: configure };
+    console.log();
+    const request: IHonoRequest = new HonoRequest(
+      rawRequest,
+      c.get("sessionInstance")
+    );
+    const constructorObj = {
+      request,
+      config: configure,
+      cookie: new HonoCookie(c),
+    };
     c.set("httpHono", new MyHono(constructorObj));
     await next();
   };
