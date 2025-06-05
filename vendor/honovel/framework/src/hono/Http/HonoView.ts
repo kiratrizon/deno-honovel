@@ -37,7 +37,8 @@ class HonoView {
     return rendered;
   }
   static init() {
-    HonoView.#engine = staticConfig("view.defaultViewEngine") || "ejs";
+    HonoView.#engine =
+      (staticConfig("view.defaultViewEngine") as string) || "ejs";
     if (HonoView.#engine === "ejs") {
       HonoView.#viewEngine = ejs;
     }

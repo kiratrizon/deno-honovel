@@ -1,5 +1,17 @@
 import * as path from "https://deno.land/std/path/mod.ts";
-import "https://deno.land/std@0.224.0/dotenv/load.ts";
+import { load } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
+
+try {
+  const envObj = (await import("../../../../../environment.ts")).default;
+  const data = await load(envObj);
+  if (data) {
+    for (const [key, value] of Object.entries(data)) {
+      Deno.env.set(key, value);
+    }
+  }
+} catch (_) {
+  console.warn(`Env not loaded, please check your environment.ts file.`);
+}
 
 Object.defineProperty(globalThis, "globalFn", {
   // deno-lint-ignore no-explicit-any
@@ -17,15 +29,129 @@ Object.defineProperty(globalThis, "globalFn", {
   configurable: false,
 });
 
-// deno-lint-ignore no-explicit-any
-globalFn("env", function (key: string, value: any = null): any {
-  if (Deno.env.get(key) === undefined || Deno.env.get(key) === null) {
-    return value;
-  }
-  return Deno.env.get(key);
+// is_string
+globalFn("is_string", function (value) {
+  return typeof value === "string";
 });
 
-const isDenoDeploy = !!env("DENO_DEPLOYMENT_ID");
+// is_function
+globalFn("is_function", function (value) {
+  if (!is_string(value)) {
+    return typeof value === "function";
+  } else {
+    if (isDefined(value)) {
+      return typeof globalThis[value] === "function";
+    }
+  }
+  return false;
+});
+
+// is_array
+globalFn("is_array", function (value) {
+  return Array.isArray(value);
+});
+
+// is_object
+globalFn("is_object", function (value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+});
+
+// is_numeric
+globalFn("is_numeric", function (value) {
+  return !isNaN(value) && !isNaN(parseFloat(value));
+});
+
+// is_integer
+globalFn("is_integer", function (value) {
+  return Number.isInteger(value);
+});
+// is_float
+globalFn("is_float", function (value) {
+  return typeof value === "number" && !Number.isInteger(value);
+});
+// is_boolean
+globalFn("is_boolean", function (value) {
+  return typeof value === "boolean";
+});
+// is_null
+globalFn("is_null", function (value) {
+  return value === null;
+});
+
+// isset
+globalFn("isset", function (value) {
+  return typeof value !== "undefined" && value !== null;
+});
+
+globalFn("key_exist", function (object, key) {
+  if (typeof object !== "object" || object === null) {
+    return false;
+  }
+  return Object.prototype.hasOwnProperty.call(object, key);
+});
+
+// empty
+globalFn("empty", function (value) {
+  return (
+    is_null(value) ||
+    (is_array(value) && value.length === 0) ||
+    (is_object(value) && Object.keys(value).length === 0) ||
+    (is_string(value) && value.trim() === "") ||
+    value === undefined
+  );
+});
+
+// method_exist
+globalFn("method_exist", function (object, method) {
+  return typeof object[method] === "function";
+});
+
+globalFn("getType", (variable: unknown) => {
+  const type = typeof variable;
+  if (type === "object") {
+    if (is_array(variable)) {
+      return "array";
+    }
+    if (is_object(variable)) {
+      return "object";
+    }
+    if (!variable) {
+      return "NULL";
+    }
+  }
+  return type;
+});
+
+// deno-lint-ignore no-explicit-any
+globalFn("env", function (key: string, value: any = null): any {
+  const raw = Deno.env.get(key);
+  if (raw === undefined || raw === null) {
+    return value;
+  }
+
+  if (isset(value)) {
+    switch (getType(value)) {
+      case "string":
+        return raw;
+      case "number":
+        return parseFloat(raw);
+      case "boolean":
+        return raw.toLowerCase() === "true" || raw === "1";
+      case "array":
+      case "object":
+        try {
+          return JSON.parse(raw);
+        } catch (_e) {
+          console.error(
+            `Failed to parse environment variable "${key}" as ${getType(value)}`
+          );
+          return value;
+        }
+    }
+  }
+
+  return raw;
+});
 
 globalFn("isDefined", function (key = "") {
   return key in globalThis;
@@ -45,17 +171,13 @@ globalFn(
   }
 );
 
-const isProd = env("APP_ENV") === "production";
-define("IS_PRODUCTION", isProd, false);
-
-const isStaging = env("APP_ENV") === "staging";
-define("IS_STAGING", isStaging, false);
-
-const isLocal = env("APP_ENV") === "local";
-define("IS_LOCAL", isLocal, false);
-
 globalFn("basePath", function (concatenation = "") {
   return path.join(Deno.cwd(), concatenation);
+});
+
+globalFn("storagePath", function (concatenation = "") {
+  const dir = path.join("storage", concatenation);
+  return basePath(dir);
 });
 
 globalFn("honovelPath", function (concatenation = "") {
@@ -124,6 +246,15 @@ async function rewriteConfigModules(filePath: string, allModules: string[]) {
   await Deno.writeTextFile(filePath, result);
 }
 
+const isProd = env("APP_ENV") === "production";
+define("IS_PRODUCTION", isProd, false);
+
+const isStaging = env("APP_ENV") === "staging";
+define("IS_STAGING", isStaging, false);
+
+const isLocal = env("APP_ENV") === "local";
+define("IS_LOCAL", isLocal, false);
+
 import Constants from "Constants";
 
 globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
@@ -137,11 +268,15 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
         const configName = file.name.replace(".ts", "");
 
         // Build absolute file:// URL for import
-        allModules.push(file.name);
         const fullPath = path.join(configPath, file.name);
         const fullUrl = new URL(`file://${fullPath}`);
-        const module = await import(fullUrl.href);
-        configData[configName] = module.default;
+        try {
+          const module = await import(fullUrl.href);
+          configData[configName] = module.default;
+          allModules.push(file.name);
+        } catch (_e) {
+          console.error(`Failed to import config module: ${file.name}`);
+        }
       }
     }
     await rewriteConfigModules(
@@ -155,15 +290,15 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
   return configData;
 });
 
-const configData = await getConfigStore();
-const configure = new Constants(configData);
+define("myConfigData", await getConfigStore(), false);
+const configure = new Constants(myConfigData as Record<string, unknown>);
 globalFn("staticConfig", function (key: string) {
   return configure.read(key);
 });
 
 globalFn("viewPath", function (concatenation = "") {
   const dir = path.join(
-    staticConfig("view.defaultViewDir") || "views",
+    (staticConfig("view.defaultViewDir") as string) || "views",
     concatenation
   );
   return resourcePath(dir);
@@ -210,12 +345,23 @@ globalFn("pathExist", function (fileString: string = "") {
   const returndata = fs.existsSync(fileString);
   return returndata;
 });
-globalFn("writeFile", function (fileString = "", content = "") {
-  if (fileString === "") {
-    throw new Error("Filename is required.");
+
+globalFn(
+  "writeFile",
+  function (fileString = "", content = "", encoding = "utf8") {
+    if (!fileString) {
+      console.warn("writeFile: Filename is required but not provided.");
+      return;
+    }
+
+    try {
+      fs.writeFileSync(fileString, content, encoding);
+    } catch (err) {
+      console.error(`writeFile: Failed to write to ${fileString}`, err);
+      // No throw
+    }
   }
-  fs.writeFileSync(fileString, content, "utf8");
-});
+);
 
 globalFn("makeDir", function (dirString = "") {
   if (dirString === "") {
@@ -556,76 +702,6 @@ globalFn("time", () => {
   return strtotime("now");
 });
 
-// is_string
-globalFn("is_string", function (value) {
-  return typeof value === "string";
-});
-
-// is_function
-globalFn("is_function", function (value) {
-  return typeof value === "function";
-});
-
-// is_array
-globalFn("is_array", function (value) {
-  return Array.isArray(value);
-});
-
-// is_object
-globalFn("is_object", function (value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-});
-
-// is_numeric
-globalFn("is_numeric", function (value) {
-  return !isNaN(value) && !isNaN(parseFloat(value));
-});
-
-// is_integer
-globalFn("is_integer", function (value) {
-  return Number.isInteger(value);
-});
-// is_float
-globalFn("is_float", function (value) {
-  return typeof value === "number" && !Number.isInteger(value);
-});
-// is_boolean
-globalFn("is_boolean", function (value) {
-  return typeof value === "boolean";
-});
-// is_null
-globalFn("is_null", function (value) {
-  return value === null;
-});
-
-// isset
-globalFn("isset", function (value) {
-  return typeof value !== "undefined" && value !== null;
-});
-
-globalFn("key_exist", function (object, key) {
-  if (typeof object !== "object" || object === null) {
-    return false;
-  }
-  return Object.prototype.hasOwnProperty.call(object, key);
-});
-
-// empty
-globalFn("empty", function (value) {
-  return (
-    is_null(value) ||
-    (is_array(value) && value.length === 0) ||
-    (is_object(value) && Object.keys(value).length === 0) ||
-    (is_string(value) && value.trim() === "") ||
-    value === undefined
-  );
-});
-
-// method_exist
-globalFn("method_exist", function (object, method) {
-  return typeof object[method] === "function";
-});
-
 globalFn("json_encode", function (data) {
   return JSON.stringify(data);
 });
@@ -744,5 +820,38 @@ globalFn(
     // Write file
     fs.writeFileSync(destination, buffer);
     return true;
+  }
+);
+
+import axios, { AxiosRequestConfig, AxiosError } from "axios";
+import { IFetchDataOption } from "../@hono-types/index.d.ts";
+
+globalFn(
+  "fetchData",
+  async function (
+    url: string,
+    {
+      method = "GET",
+      headers,
+      params,
+      timeout = 5000,
+      responseType = "json",
+    }: IFetchDataOption = {}
+  ): Promise<[boolean, unknown]> {
+    const config: AxiosRequestConfig = {
+      method,
+      headers,
+      params,
+      timeout,
+      responseType,
+    };
+
+    try {
+      const response = await axios(url, config);
+      return [false, response.data];
+    } catch (error) {
+      const err = error as AxiosError;
+      return [true, err.response?.data ?? err.message];
+    }
   }
 );

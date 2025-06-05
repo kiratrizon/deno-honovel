@@ -4,18 +4,21 @@ import IHonoRequest, {
   RequestMethod,
   SERVER,
 } from "../../@hono-types/declaration/IHonoRequest.d.ts";
+import { SessionContract } from "../../@hono-types/declaration/ISession.d.ts";
 import HonoHeader from "./HonoHeader.ts";
 import { isbot } from "isbot";
 
 class HonoRequest implements IHonoRequest {
   private raw: RequestData;
   private myAll: Record<string, unknown> = {};
-  constructor(req: RequestData) {
+  #sessionInstance: SessionContract;
+  constructor(req: RequestData, sessionInstance: SessionContract) {
     this.raw = req;
     this.myAll = {
       ...req.query,
       ...req.body,
     };
+    this.#sessionInstance = sessionInstance;
   }
 
   public all(): Record<string, unknown> {
@@ -55,7 +58,7 @@ class HonoRequest implements IHonoRequest {
     const forFalse = ["0", "false", "no", "off"];
     const value = this.input(key);
     if (is_array(value)) {
-      return value.some((v) => forTrue.includes(v));
+      return value.some((v) => forTrue.includes(v as string));
     }
     if (is_string(value)) {
       if (forTrue.includes(value)) {
@@ -260,6 +263,14 @@ class HonoRequest implements IHonoRequest {
     const mobileRegex =
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|WPDesktop/i;
     return mobileRegex.test(this.userAgent());
+  }
+
+  public ajax(): boolean {
+    return this.header("x-requested-with")?.toLowerCase() === "xmlhttprequest";
+  }
+
+  public session(): SessionContract {
+    return this.#sessionInstance;
   }
 }
 

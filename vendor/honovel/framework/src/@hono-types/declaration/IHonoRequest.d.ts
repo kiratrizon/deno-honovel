@@ -1,5 +1,6 @@
 import IHonoHeader from "./IHonoHeader.d.ts";
 import { IncomingHttpHeaders } from "node:http";
+import { SessionContract } from "./ISession.d.ts";
 
 export type RequestMethod =
   | "GET"
@@ -348,6 +349,14 @@ declare class IHonoRequest {
    * Check if request is from a bot.
    */
   public isBot(): boolean;
+
+  /**
+   * Determine if it is an AJAX request.
+   */
+  public ajax(): boolean;
+
+  // start 🔹 Miscellaneous
+  public session(): SessionContract;
 }
 
 export default IHonoRequest;

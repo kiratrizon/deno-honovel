@@ -30,6 +30,12 @@ class HonoDispatch {
     }
   }
   public async build(request: HttpHono["request"], c: Context) {
+    if (c.get("from_web")) {
+      const sessionValue = c.get("sessionInstance").values;
+      const session = c.get("session");
+      session.update(sessionValue);
+      await session.dispose();
+    }
     if (is_object(this.#returnedData)) {
       if (this.#returnedData instanceof HonoView) {
         const dataView = this.#returnedData.getView();

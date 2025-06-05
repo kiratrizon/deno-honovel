@@ -1,3 +1,4 @@
+import Controller from "../../../../../../app/Http/Controllers/Controller.ts";
 import { IMethodRoute } from "../../@hono-types/declaration/IRoute.d.ts";
 import { regexObj } from "./FunctionRoute.ts";
 
@@ -7,7 +8,7 @@ export interface IMyConfig {
   id: number;
   uri: string;
   method: string[];
-  callback: unknown;
+  callback: HttpDispatch;
 }
 class MethodRoute implements IMethodRoute {
   private flag: Record<string, unknown> = {
@@ -34,7 +35,7 @@ class MethodRoute implements IMethodRoute {
       this.type = "function";
       myFunc = arg;
     } else if (is_array(arg) && arg.length === 2) {
-      const [controller, method] = arg;
+      const [controller, method] = arg as [new () => Controller, string];
       const controllerInstance = new controller();
       if (!method_exist(controllerInstance, method)) {
         throw new Error(
@@ -51,7 +52,7 @@ class MethodRoute implements IMethodRoute {
       id,
       uri,
       method: method.map((m) => m.toLowerCase()),
-      callback: myFunc,
+      callback: myFunc as HttpDispatch,
     };
   }
   public name(name: string): this {
@@ -73,8 +74,6 @@ class MethodRoute implements IMethodRoute {
     this.validateConfig("middleware", middleware);
     return this;
   }
-
-
 
   public whereAlphaNumeric(key: string): this {
     this.validateConfig("where", { [key]: regexObj.alphanumeric });
