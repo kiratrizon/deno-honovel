@@ -108,16 +108,11 @@ class Server {
       if (isset(route)) {
         const byEndpointsRouter = this.generateNewApp();
         if (file === "web.ts") {
-          byEndpointsRouter.use("*", honoSession(), async (c, next: Next) => {
-            const session = c.get("session");
-            console.log(session.id);
-            await next();
+          byEndpointsRouter.use("*", async (c, next: Next) => {
+            c.set("from_web", true);
           });
-        } else {
-          // byEndpointsRouter.use("*", async (c, next: Next) => {
-          //   c.set("sessionInstance", {});
-          // });
         }
+        byEndpointsRouter.use("*", honoSession());
         const corsConfig = (staticConfig("cors") as CorsConfig) || {};
         const corsPaths = corsConfig.paths || [];
         corsPaths.forEach((cpath) => {

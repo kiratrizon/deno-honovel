@@ -188,123 +188,128 @@ class HonoSessionMemory {
 
 export function honoSession(): MiddlewareHandler {
   return async (c, next) => {
-    c.set("from_web", true);
-    const appKey = getAppKey();
-    let sid = await getSignedCookie(c, appKey, "sid");
+    if (c.get("from_web")) {
+      const appKey = getAppKey();
+      let sid = await getSignedCookie(c, appKey, "sid");
 
-    const sessionConfig = staticConfig("session") as SessionConfig;
-    const isEncrypt = sessionConfig.encrypt || false;
+      const sessionConfig = staticConfig("session") as SessionConfig;
+      const isEncrypt = sessionConfig.encrypt || false;
 
-    // deno-lint-ignore no-explicit-any
-    let value: Record<string, NonFunction<any>> = {};
-    // getting sid
-    if (!isset(sid) || empty(sid) || !sid) {
-      const sessionId = await sessionIdRecursive();
-      await setSignedCookie(c, "sid", sessionId, appKey, {
-        maxAge: (sessionConfig.lifetime || 120) * 60,
-        sameSite: sessionConfig.sameSite || "lax",
-        httpOnly: sessionConfig.httpOnly || true,
-        path: sessionConfig.path || "/",
-        secure: sessionConfig.secure || false,
-      });
+      // deno-lint-ignore no-explicit-any
+      let value: Record<string, NonFunction<any>> = {};
+      // getting sid
+      if (!isset(sid) || empty(sid) || !sid) {
+        const sessionId = await sessionIdRecursive();
+        await setSignedCookie(c, "sid", sessionId, appKey, {
+          maxAge: (sessionConfig.lifetime || 120) * 60,
+          sameSite: sessionConfig.sameSite || "lax",
+          httpOnly: sessionConfig.httpOnly || true,
+          path: sessionConfig.path || "/",
+          secure: sessionConfig.secure || false,
+        });
 
-      sid = sessionId;
-    }
-    // sid is validated store the session with value
-    if (isset(sid) && !empty(sid) && sid) {
-      const pathDefault: string =
-        sessionConfig.files || storagePath("framework/sessions");
-      // deno-lint(no-case-declarations)
-      switch (sessionConfig.driver || "file") {
-        case "file": {
-          if (!pathExist(pathDefault)) {
-            makeDir(pathDefault);
-          }
-          const filePath = path.join(pathDefault, `${sid}.json`);
-          if (pathExist(filePath)) {
-            try {
-              const data = JSON.parse(await Deno.readTextFile(filePath));
-              if (isEncrypt) {
-                value = await dataDecryption(
-                  (data as SessionEncrypt)["encrypt"],
-                  appKey
-                );
-              } else {
-                value = data;
-              }
-            } catch (e) {
-              console.error("Failed to parse session data:", e);
-              value = {};
-            }
-          } else {
-            await writeSessionFile({
-              filePath,
-              value,
-              isEncrypt,
-              appKey,
-            });
-          }
-          break;
-        }
-        case "redis": {
-          const redisConfig = staticConfig("redis") as RedisConfig;
-          const connectionName = sessionConfig.connection || "default";
-          if (!redisConfig) {
-            throw new Error("Redis configuration not found");
-          }
-          // use url first
-          const redisConnection = redisConfig.connections[connectionName];
-          if (!isset(redisConnection)) {
-            throw new Error(`Redis connection "${connectionName}" not found`);
-          }
-          if (!isset(MyRedis.client)) {
-            await createRedisConnection(redisConnection);
-          }
-          const redisData = (await MyRedis.client.get(sid)) as
-            | Record<string, unknown>
-            | string
-            | null;
-          const data = is_string(redisData) ? JSON.parse(redisData) : redisData;
-          if (isset(data)) {
-            try {
-              if (isEncrypt) {
-                value = await dataDecryption(
-                  (data as SessionEncrypt)["encrypt"],
-                  appKey
-                );
-              } else {
-                value = data;
-              }
-            } catch (_e) {
-              value = {};
-            }
-          } else {
-            await writeSessionRedis({
-              sid,
-              value,
-              isEncrypt,
-              appKey,
-            });
-          }
-          break;
-        }
-        case "database": {
-          // For database, we would typically use an ORM or direct SQL queries
-        }
-        case "memory": {
-          // For memory, we can use a simple in-memory store
-          // Note: This is not persistent and will be lost on server restart
-          // For production, use file or redis
-          if (key_exist(HonoSessionMemory.sessions, sid)) {
-            value = HonoSessionMemory.sessions[sid];
-          } else {
-            HonoSessionMemory.sessions[sid] = value;
-          }
-          break;
-        }
+        sid = sessionId;
       }
-      c.set("session", new HonoSession(sid, value));
-      c.set("sessionInstance", new Session(c.get("session").values));
+      // sid is validated store the session with value
+      if (isset(sid) && !empty(sid) && sid) {
+        const pathDefault: string =
+          sessionConfig.files || storagePath("framework/sessions");
+        // deno-lint(no-case-declarations)
+        switch (sessionConfig.driver || "file") {
+          case "file": {
+            if (!pathExist(pathDefault)) {
+              makeDir(pathDefault);
+            }
+            const filePath = path.join(pathDefault, `${sid}.json`);
+            if (pathExist(filePath)) {
+              try {
+                const data = JSON.parse(await Deno.readTextFile(filePath));
+                if (isEncrypt) {
+                  value = await dataDecryption(
+                    (data as SessionEncrypt)["encrypt"],
+                    appKey
+                  );
+                } else {
+                  value = data;
+                }
+              } catch (e) {
+                console.error("Failed to parse session data:", e);
+                value = {};
+              }
+            } else {
+              await writeSessionFile({
+                filePath,
+                value,
+                isEncrypt,
+                appKey,
+              });
+            }
+            break;
+          }
+          case "redis": {
+            const redisConfig = staticConfig("redis") as RedisConfig;
+            const connectionName = sessionConfig.connection || "default";
+            if (!redisConfig) {
+              throw new Error("Redis configuration not found");
+            }
+            // use url first
+            const redisConnection = redisConfig.connections[connectionName];
+            if (!isset(redisConnection)) {
+              throw new Error(`Redis connection "${connectionName}" not found`);
+            }
+            if (!isset(MyRedis.client)) {
+              await createRedisConnection(redisConnection);
+            }
+            const redisData = (await MyRedis.client.get(sid)) as
+              | Record<string, unknown>
+              | string
+              | null;
+            const data = is_string(redisData)
+              ? JSON.parse(redisData)
+              : redisData;
+            if (isset(data)) {
+              try {
+                if (isEncrypt) {
+                  value = await dataDecryption(
+                    (data as SessionEncrypt)["encrypt"],
+                    appKey
+                  );
+                } else {
+                  value = data;
+                }
+              } catch (_e) {
+                value = {};
+              }
+            } else {
+              await writeSessionRedis({
+                sid,
+                value,
+                isEncrypt,
+                appKey,
+              });
+            }
+            break;
+          }
+          case "database": {
+            // For database, we would typically use an ORM or direct SQL queries
+          }
+          case "memory": {
+            // For memory, we can use a simple in-memory store
+            // Note: This is not persistent and will be lost on server restart
+            // For production, use file or redis
+            if (key_exist(HonoSessionMemory.sessions, sid)) {
+              value = HonoSessionMemory.sessions[sid];
+            } else {
+              HonoSessionMemory.sessions[sid] = value;
+            }
+            break;
+          }
+        }
+        c.set("session", new HonoSession(sid, value));
+        c.set("sessionInstance", new Session(c.get("session").values));
+      }
+    } else {
+      c.set("sessionInstance", new Session({}));
     }
     await next();
   };
