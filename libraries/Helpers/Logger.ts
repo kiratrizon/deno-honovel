@@ -17,23 +17,36 @@ class Logger {
       typeof value === "object" ? JSON.stringify(value, null, 2) : value
     }\n\n`;
 
+    if (!empty(env("DENO_DEPLOYMENT_ID", ""))) {
+      console.log(logMessage);
+      return;
+    }
+
     const logToChannel = (channel: string) => {
       const conf = channels[channel];
       if (!conf) return;
 
       switch (conf.driver) {
         case "single": {
-          const filePath = tmpPath(conf.path);
-          const dir = path.dirname(filePath);
-          if (!pathExist(dir)) makeDir(dir);
-          if (!pathExist(filePath)) writeFile(filePath, "");
-          appendFile(filePath, logMessage);
+          if (!empty(env("DENO_DEPLOYMENT_ID", ""))) {
+            console.log(logMessage);
+          } else {
+            const filePath = tmpPath(conf.path);
+            const dir = path.dirname(filePath);
+            if (!pathExist(dir)) makeDir(dir);
+            if (!pathExist(filePath)) writeFile(filePath, "");
+            appendFile(filePath, logMessage);
+          }
           break;
         }
 
         case "daily": {
+          if (!empty(env("DENO_DEPLOYMENT_ID", ""))) {
+            console.log(logMessage);
+            return;
+          }
           const dateStr = date("Y-m-d");
-          const filePath = tmpPath(`${conf.path}/${dateStr}.log`);
+          const filePath = tmpPath(path.join(`${conf.path}`, `${dateStr}.log`));
           const dir = path.dirname(filePath);
           if (!pathExist(dir)) makeDir(dir);
           if (!pathExist(filePath)) writeFile(filePath, "");
