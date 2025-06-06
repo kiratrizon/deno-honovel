@@ -94,7 +94,7 @@ export async function buildRequest(c: Context): Promise<RequestData> {
 
   const xForwardedFor = c.req.raw.headers.get("x-forwarded-for");
   const xRealIp = c.req.raw.headers.get("x-real-ip");
-  const protoHeader = c.req.raw.headers.get("x-forwarded-proto");
+  const protoHeader = c.req.url.split(":")[0];
 
   const method = methodType;
   const headers = Object.fromEntries(c.req.raw.headers.entries());
@@ -107,11 +107,7 @@ export async function buildRequest(c: Context): Promise<RequestData> {
   const ip = xForwardedFor
     ? xForwardedFor.split(",")[0].trim()
     : xRealIp || "unknown";
-  const protocol = protoHeader
-    ? protoHeader.split(",")[0].trim()
-    : c.req.url.startsWith("https")
-    ? "https"
-    : "http";
+  const protocol = protoHeader;
   const userAgent = c.req.header("user-agent") || "";
   const timestamp = time();
 
@@ -131,7 +127,7 @@ export async function buildRequest(c: Context): Promise<RequestData> {
     timestamp,
     files,
     server: forServer,
-    params: c.req.param() || {},
+    params: { ...c.get("subdomain"), ...(c.req.param() || {}) },
   };
 
   return REQUEST;

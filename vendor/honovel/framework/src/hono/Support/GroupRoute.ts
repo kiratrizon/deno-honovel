@@ -4,7 +4,7 @@ import {
   IGroupInstance,
 } from "../../@hono-types/declaration/IRoute.d.ts";
 import * as path from "https://deno.land/std/path/mod.ts";
-import { regexObj } from "./FunctionRoute.ts";
+import { regexObj, URLArranger } from "./FunctionRoute.ts";
 
 class Group {
   private static groupId = 0;

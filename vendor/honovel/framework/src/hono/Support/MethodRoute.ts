@@ -1,5 +1,8 @@
 import Controller from "../../../../../../app/Http/Controllers/Controller.ts";
-import { IMethodRoute } from "../../@hono-types/declaration/IRoute.d.ts";
+import {
+  IMethodRoute,
+  IMFlagConfig,
+} from "../../@hono-types/declaration/IRoute.d.ts";
 import { regexObj } from "./FunctionRoute.ts";
 
 type argType = "function" | "controller";
@@ -127,7 +130,7 @@ class MethodRoute implements IMethodRoute {
     return this.myConfig;
   }
 
-  public get myFlag() {
+  public get myFlag(): IMFlagConfig {
     return this.flag;
   }
 }

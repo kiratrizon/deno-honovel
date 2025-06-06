@@ -16,7 +16,7 @@
     "luxon": "npm:luxon@^3.6.1",
     "pug": "npm:pug@^3.0.3",
     "redis": "npm:redis@^5.5.5",
-    "Route": "./vendor/honovel/framework/src/hono/Support/Route.ts",
+    "Illuminate/Support/Facades/Route": "./vendor/honovel/framework/src/hono/Support/Route.ts",
     "Illuminate/Foundation/Http/HttpKernel": "./vendor/honovel/framework/src/hono/Http/HttpKernel.ts",
     "Illuminate/Routing/BaseController":"./vendor/honovel/framework/src/Base/BaseController.ts"
   },
@@ -30,7 +30,8 @@
     "types": [
       "./vendor/honovel/framework/src/@hono-types/index.d.ts",
       "./vendor/honovel/framework/src/@hono-types/hono-index.d.ts",
-      "./vendor/honovel/framework/src/@hono-types/vars.d.ts"
+      "./vendor/honovel/framework/src/@hono-types/vars.d.ts",
+      "./vendor/honovel/framework/src/@hono-types/Built-in-env.d.ts"
     ]
   }
 }

@@ -17,10 +17,7 @@ export interface IChildRoutes {
   patch: number[];
 }
 
-export type ICallback = (
-  httpObj: HttpHono,
-  ...args: unknown[]
-) => Promise<unknown>;
+export type ICallback = (httpObj: HttpHono, ...args: any[]) => Promise<unknown>;
 
 type KeysWithICallback<T> = {
   [P in keyof T]: T[P] extends ICallback ? P : never;
@@ -187,12 +184,18 @@ export declare class IGroupInstance {
   public group(callback: () => void): void;
 }
 
-interface IGFlagConfig {
-  name?: string;
+interface FlagConfig {
   middleware?: (string | HttpMiddleware)[];
-  as?: string;
-  domain?: string;
   where?: Record<string, RegExp[]>;
+}
+
+interface IGFlagConfig extends FlagConfig {
+  domain?: string;
+  as?: string;
+  name?: string;
+}
+export interface IMFlagConfig extends FlagConfig {
+  name?: string;
 }
 export declare class IEGroupRoute extends IGroupInstance {
   public static get currGrp(): string[];
@@ -236,50 +239,50 @@ export declare class IRoute extends IGroupRoute {
    * @param uri - The URI pattern.
    * @param arg - A callback function or a [Controller class, method name] tuple.
    */
-  // public static post<T extends BaseController, K extends KeysWithICallback<T>>(
-  //   uri: string,
-  //   arg: ICallback | [new () => T, K]
-  // ): IMethodRoute;
+  public static post<T extends BaseController, K extends KeysWithICallback<T>>(
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ): IMethodRoute;
 
   /**
    * Register a PUT route.
    * @param uri - The URI pattern.
    * @param arg - A callback function or a [Controller class, method name] tuple.
    */
-  // public static put<T extends BaseController, K extends KeysWithICallback<T>>(
-  //   uri: string,
-  //   arg: ICallback | [new () => T, K]
-  // ): IMethodRoute;
+  public static put<T extends BaseController, K extends KeysWithICallback<T>>(
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ): IMethodRoute;
 
   /**
    * Register a DELETE route.
    * @param uri - The URI pattern.
    * @param arg - A callback function or a [Controller class, method name] tuple.
    */
-  // public static delete<
-  //   T extends BaseController,
-  //   K extends KeysWithICallback<T>
-  // >(uri: string, arg: ICallback | [new () => T, K]): IMethodRoute;
+  public static delete<
+    T extends BaseController,
+    K extends KeysWithICallback<T>
+  >(uri: string, arg: ICallback | [new () => T, K]): IMethodRoute;
 
   /**
    * Register a PATCH route.
    * @param uri - The URI pattern.
    * @param arg - A callback function or a [Controller class, method name] tuple.
    */
-  // public static patch<T extends BaseController, K extends KeysWithICallback<T>>(
-  //   uri: string,
-  //   arg: ICallback | [new () => T, K]
-  // ): IMethodRoute;
+  public static patch<T extends BaseController, K extends KeysWithICallback<T>>(
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ): IMethodRoute;
 
   /**
    * Register an OPTIONS route.
    * @param uri - The URI pattern.
    * @param arg - A callback function or a [Controller class, method name] tuple.
    */
-  // public static options<
-  //   T extends BaseController,
-  //   K extends KeysWithICallback<T>
-  // >(uri: string, arg: ICallback | [new () => T, K]): IMethodRoute;
+  public static options<
+    T extends BaseController,
+    K extends KeysWithICallback<T>
+  >(uri: string, arg: ICallback | [new () => T, K]): IMethodRoute;
 
   /**
    * Register a HEAD route.
@@ -296,10 +299,10 @@ export declare class IRoute extends IGroupRoute {
    * @param uri - The URI pattern.
    * @param arg - A callback function or a [Controller class, method name] tuple.
    */
-  // public static any<T extends BaseController, K extends KeysWithICallback<T>>(
-  //   uri: string,
-  //   arg: ICallback | [new () => T, K]
-  // ): IMethodRoute;
+  public static any<T extends BaseController, K extends KeysWithICallback<T>>(
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ): IMethodRoute;
 
   /**
    * Register a route for multiple specified HTTP methods.
@@ -307,11 +310,11 @@ export declare class IRoute extends IGroupRoute {
    * @param uri - The URI pattern.
    * @param arg - A callback function or a [Controller class, method name] tuple.
    */
-  // public static match<T extends BaseController, K extends KeysWithICallback<T>>(
-  //   methods: string[],
-  //   uri: string,
-  //   arg: ICallback | [new () => T, K]
-  // ): IMethodRoute;
+  public static match<T extends BaseController, K extends KeysWithICallback<T>>(
+    methods: (keyof IChildRoutes)[],
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ): IMethodRoute;
 
   /**
    * Define a route that redirects to another URI.
@@ -331,7 +334,11 @@ export declare class IRoute extends IGroupRoute {
    * @param view - The name of the view to render.
    * @param data - Optional data to pass to the view.
    */
-  // public static view(uri: string, view: string, data?: object): void;
+  public static view(
+    uri: string,
+    view: string,
+    data?: Record<string, unknown>
+  ): void;
 
   /**
    * Register a fallback route, typically used for 404 handling.

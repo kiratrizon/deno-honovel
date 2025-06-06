@@ -10,6 +10,7 @@ export type Variables = {
   httpHono: HttpHono;
   session: HonoSession<SessionDataTypes>;
   from_web: boolean;
+  subdomain: Record<string, string | null>;
 };
 
 export type HonoType = Hono<{

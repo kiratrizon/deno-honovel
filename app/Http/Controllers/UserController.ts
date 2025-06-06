@@ -10,6 +10,13 @@ class UserController extends Controller {
       message: request.session().get("test"),
     });
   };
+
+  view: HttpDispatch = async ({ request }) => {
+    return response().json({
+      message: "Hello world",
+      session: request.session().get("test"),
+    });
+  };
 }
 
 export default UserController;

@@ -62,7 +62,7 @@ export function regexToHono(
 }
 
 export class URLArranger {
-  public static urlCombiner(input: string[] | string) {
+  public static urlCombiner(input: string[] | string, strict = true) {
     if (is_string(input)) {
       input = [input];
     }
@@ -71,10 +71,10 @@ export class URLArranger {
     if (convertion === ".") {
       convertion = "";
     }
-    return this.processString(convertion);
+    return this.processString(convertion, strict);
   }
 
-  private static processString(input: string) {
+  private static processString(input: string, strict = true) {
     const requiredParams: string[] = [];
     const optionalParams: string[] = [];
     const sequenceParams: string[] = [];
@@ -120,9 +120,13 @@ export class URLArranger {
           }
         }
 
-        throw new Error(
-          `${JSON.stringify(constantPart)} is not a valid parameter name`
-        );
+        if (strict) {
+          throw new Error(
+            `${JSON.stringify(constantPart)} is not a valid parameter name`
+          );
+        } else {
+          return `${constantPart}`;
+        }
       } else {
         if (regex.number.test(part)) {
           return `${part}`;
@@ -147,7 +151,11 @@ export class URLArranger {
             return `${part}`;
           }
         }
-        throw new Error(`${constantPart} is not a valid route`);
+        if (strict) {
+          throw new Error(`${constantPart} is not a valid route`);
+        } else {
+          return `${constantPart}`;
+        }
       }
     });
     let modifiedString = `/${path.posix.join(...result)}`;
@@ -347,6 +355,7 @@ export function toDispatch(
         newParams[param] = null;
       }
     });
+    console.log(params);
     const middlewareResp = await myconf(httpHono, ...Object.values(newParams));
     const dispatch = new HonoDispatch(middlewareResp, "dispatch");
     try {

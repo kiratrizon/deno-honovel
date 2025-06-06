@@ -1,13 +1,11 @@
-import UserController from "../app/Http/Controllers/UserController.ts";
-import Route from "Route";
+import Route from "Illuminate/Support/Facades/Route";
 
-// Route.get("/user", [UserController, "index"]);
-Route.as("hello")
-  .prefix("{lang?}")
-  .middleware("test")
-  .group(() => {
-    Route.get("/user/{myid?}/test", [UserController, "index"]);
+Route.view("/", "welcome");
+
+Route.domain("{domain}.hello").group(() => {
+  Route.get("/", async function ({ request }, domain: string) {
+    return domain;
   });
+});
 
-Route.get("/user/{myid?}/test", [UserController, "index"]);
 export default Route;

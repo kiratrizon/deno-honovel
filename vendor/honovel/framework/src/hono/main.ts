@@ -27,22 +27,71 @@ import {
 import { IMyConfig } from "./Support/MethodRoute.ts";
 import { honoSession } from "./Http/HonoSession.ts";
 
+const myError = async (c: Context) => {
+  if (c.req.header("accept")?.includes("application/json")) {
+    return c.json(
+      {
+        message: "Not Found",
+      },
+      404
+    );
+  }
+
+  // this is for html
+  if (
+    !pathExist(viewPath(`error/404.${staticConfig("view.defaultViewEngine")}`))
+  ) {
+    return c.html(getFileContents(honovelPath("hono/defaults/404.stub")), 404);
+  }
+  const html404 = new HonoView();
+  const render = html404.element("error/404", {});
+  return c.html(render, 404);
+};
+
 function domainGroup(
-  subdomainPattern: string,
-  handler: (h: HttpHono, returnedPattern: string) => Promise<unknown>
-) {
-  return async (c: Context) => {
-    const subdomain = c.req.header("host")?.split(".")[0];
-    const keyOfSubdomain = subdomainPattern.replace(":", "");
-    c.req.param(keyOfSubdomain, subdomain);
-    if (subdomain) {
-      const returned = await handler(c.get("httpHono"), subdomain);
-      if (returned) {
-        return c.json(returned);
+  mainstring: string,
+  {
+    string,
+    sequenceParams,
+    optionalParams,
+    requiredParams,
+  }: {
+    string: string;
+    sequenceParams: string[];
+    optionalParams: string[];
+    requiredParams: string[];
+  }
+): MiddlewareHandler {
+  return async (c: Context, next) => {
+    const protocol = (c.req.url.split("://")[0] || "http") + "://";
+    const host = c.req.header("host")?.split(".");
+    const subdomain = host.shift();
+
+    const checker = (protocol + subdomain).startsWith(env("APP_URL"));
+
+    const [keyOfSubdomain, extra] = string.replace("/:", "").split(".");
+    console.log(keyOfSubdomain);
+    if (!empty(requiredParams) && empty(optionalParams)) {
+      if (checker) {
+        console.warn(
+          `Please check your ENV APP_URL configuration. It should contain the base URL with port if needed, like "http://localhost:2000" or "https://example.com".`
+        );
+        return await myError(c);
+      } else {
+        c.set("subdomain", { [keyOfSubdomain]: subdomain });
       }
-    } else {
-      return c.text("Not Found", 404);
+    } else if (empty(requiredParams) && !empty(optionalParams)) {
+      if (checker) {
+        c.set("subdomain", { [keyOfSubdomain]: null });
+      } else {
+        c.set("subdomain", { [keyOfSubdomain]: subdomain });
+      }
+    } else if (empty(requiredParams) && empty(optionalParams)) {
+      if (subdomain.toLowerCase() !== keyOfSubdomain.toLowerCase()) {
+        return await myError(c);
+      }
     }
+    await next();
   };
 }
 
@@ -55,7 +104,10 @@ class Server {
     await Boot.init();
 
     this.app = this.generateNewApp();
-    this.app.use("*", logger());
+    this.app.use("*", async (c, next) => {
+      c.set("subdomain", {});
+      await next();
+    });
     this.app.use(serveStatic({ root: publicPath() }));
     this.app.use(serveStatic({ root: honovelPath("hono/hono-assets") }));
 
@@ -140,6 +192,39 @@ class Server {
         const { groups, methods, defaultRoute } =
           instancedRoute.getAllGroupsAndMethods();
         if (isset(methods) && !empty(methods)) {
+          if (isset(defaultRoute) && !empty(defaultRoute)) {
+            const defaultMethods = Object.entries(defaultRoute);
+            for (const [routeId, methodarr] of defaultMethods) {
+              const routeUsed = methods[routeId];
+              const flag = routeUsed.myFlag;
+              const flagWhere = flag.where || {};
+              const flagName = flag.name || "";
+              const flagMiddleware = flag.middleware || [];
+
+              const myConfig = routeUsed.config;
+              const arrangerDispatch = URLArranger.urlCombiner(myConfig.uri);
+              const newApp = this.generateNewApp();
+
+              const splittedUri = URLArranger.generateOptionalParamRoutes(
+                arrangerDispatch.string
+              );
+              const returnedDispatch = toDispatch(
+                myConfig.callback as IMyConfig["callback"],
+                arrangerDispatch.sequenceParams
+              );
+              newApp.on(
+                methodarr.map((m) => m.toUpperCase()),
+                splittedUri,
+                buildRequestInit(),
+                regexToHono(flagWhere, arrangerDispatch.sequenceParams),
+                ...toMiddleware(flagMiddleware),
+                returnedDispatch as MiddlewareHandler
+              );
+              byEndpointsRouter.route("/", newApp);
+            }
+            this.app.route(routePrefix, byEndpointsRouter);
+          }
+
           // for groups
           if (isset(groups) && !empty(groups) && is_object(groups)) {
             const groupKeys = Object.keys(groups);
@@ -157,18 +242,34 @@ class Server {
 
               middleware.unshift(key);
 
+              const domainParam: string[] = [];
+              if (isset(domain) && !empty(domain)) {
+                const domainArranger = URLArranger.urlCombiner(domain, false);
+                myNewGroup.use("*", domainGroup(domain, domainArranger));
+                domainParam.push(...domainArranger.sequenceParams);
+              }
+              let newName = "";
+              if (!empty(name)) {
+                newName = (name.replace(/\*\d+\*/g, "") || "/").replace(
+                  /\/+/g,
+                  "/"
+                );
+              }
               const groupEntries = Object.entries(myGroup.myRoutes);
-              const arrangerGroup = URLArranger.urlCombiner(name);
+              const arrangerGroup = URLArranger.urlCombiner(newName);
               groupEntries.forEach(([routeId, methodarr]) => {
                 const routeUsed = methods[routeId];
                 const myConfig = routeUsed.config;
+                const flag = routeUsed.myFlag;
+
                 const combinedGroupDispatch = URLArranger.urlCombiner([
-                  name,
+                  newName,
                   myConfig.uri,
                 ]);
+                domainParam.push(...combinedGroupDispatch.sequenceParams);
                 const returnedDispatch = toDispatch(
                   myConfig.callback as IMyConfig["callback"],
-                  combinedGroupDispatch.sequenceParams
+                  domainParam
                 );
 
                 const arrangerDispatch = URLArranger.urlCombiner(myConfig.uri);
@@ -176,15 +277,20 @@ class Server {
                 const newGroupMiddleware: MiddlewareHandler[] = [];
                 if (isset(where) && !empty(where)) {
                   newGroupMiddleware.unshift(
-                    regexToHono(where, [
-                      ...combinedGroupDispatch.sequenceParams,
-                    ])
+                    regexToHono(where, [...domainParam])
                   );
                 }
                 newGroupMiddleware.push(...toMiddleware(middleware));
                 const splittedUri =
                   URLArranger.generateOptionalParamRoutes(newMethodUri);
 
+                const flagWhere = flag.where || {};
+                const flagName = flag.name || "";
+                const flagMiddleware = flag.middleware || [];
+                newGroupMiddleware.push(
+                  regexToHono(flagWhere, [...domainParam]),
+                  ...toMiddleware(flagMiddleware)
+                );
                 myNewGroup.on(
                   methodarr.map((m) => m.toUpperCase()),
                   splittedUri,
@@ -212,30 +318,7 @@ class Server {
 
   private static endInit() {
     this.app.use("*", async function (c) {
-      // for something that accepts a json response
-      if (c.req.header("accept")?.includes("application/json")) {
-        return c.json(
-          {
-            message: "Not Found",
-          },
-          404
-        );
-      }
-
-      // this is for html
-      if (
-        !pathExist(
-          viewPath(`error/404.${staticConfig("view.defaultViewEngine")}`)
-        )
-      ) {
-        return c.html(
-          getFileContents(honovelPath("hono/defaults/404.stub")),
-          404
-        );
-      }
-      const html404 = new HonoView();
-      const render = html404.element("error/404", {});
-      return c.html(render, 404);
+      return await myError(c);
     });
   }
 }

@@ -26,16 +26,7 @@ class MyRoute {
   private static routeId = 0;
   private static groupPreference: IReferencesRoute["groups"] = {};
   private static methodPreference: IReferencesRoute["methods"] = {};
-  private static defaultRoute: IReferencesRoute["defaultRoute"] = {
-    get: [],
-    post: [],
-    put: [],
-    delete: [],
-    patch: [],
-    options: [],
-    head: [],
-    all: [],
-  };
+  private static defaultRoute: IReferencesRoute["defaultRoute"] = {};
 
   public static group(config: IGroupParams, callback: () => void): void {
     if (!is_object(config)) {
@@ -135,6 +126,223 @@ class MyRoute {
     return this.methodPreference[id];
   }
 
+  public static post<T extends BaseController, K extends KeysWithICallback<T>>(
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ): IMethodRoute {
+    MyRoute.routeId++;
+    const id = MyRoute.routeId;
+    const method = ["post"] as (keyof IChildRoutes)[];
+    const instancedRoute = new MethodRoute({
+      id,
+      uri,
+      method,
+      arg,
+    });
+    this.methodPreference[id] = instancedRoute;
+    if (empty(GroupRoute.currGrp)) {
+      this.defaultRoute[id] = method;
+    } else {
+      const groupId = GroupRoute.gID;
+      if (empty(this.groupPreference[groupId])) {
+        this.groupPreference[groupId] = GroupRoute.getGroupName(groupId);
+      }
+      this.groupPreference[groupId].pushChildren(method, id);
+    }
+    return this.methodPreference[id];
+  }
+
+  public static put<T extends BaseController, K extends KeysWithICallback<T>>(
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ): IMethodRoute {
+    MyRoute.routeId++;
+    const id = MyRoute.routeId;
+    const method = ["put"] as (keyof IChildRoutes)[];
+    const instancedRoute = new MethodRoute({
+      id,
+      uri,
+      method,
+      arg,
+    });
+    this.methodPreference[id] = instancedRoute;
+    if (empty(GroupRoute.currGrp)) {
+      this.defaultRoute[id] = method;
+    } else {
+      const groupId = GroupRoute.gID;
+      if (empty(this.groupPreference[groupId])) {
+        this.groupPreference[groupId] = GroupRoute.getGroupName(groupId);
+      }
+      this.groupPreference[groupId].pushChildren(method, id);
+    }
+    return this.methodPreference[id];
+  }
+
+  public static delete<
+    T extends BaseController,
+    K extends KeysWithICallback<T>
+  >(uri: string, arg: ICallback | [new () => T, K]): IMethodRoute {
+    MyRoute.routeId++;
+    const id = MyRoute.routeId;
+    const method = ["delete"] as (keyof IChildRoutes)[];
+    const instancedRoute = new MethodRoute({
+      id,
+      uri,
+      method,
+      arg,
+    });
+    this.methodPreference[id] = instancedRoute;
+    if (empty(GroupRoute.currGrp)) {
+      this.defaultRoute[id] = method;
+    } else {
+      const groupId = GroupRoute.gID;
+      if (empty(this.groupPreference[groupId])) {
+        this.groupPreference[groupId] = GroupRoute.getGroupName(groupId);
+      }
+      this.groupPreference[groupId].pushChildren(method, id);
+    }
+    return this.methodPreference[id];
+  }
+
+  public static patch<T extends BaseController, K extends KeysWithICallback<T>>(
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ): IMethodRoute {
+    MyRoute.routeId++;
+    const id = MyRoute.routeId;
+    const method = ["patch"] as (keyof IChildRoutes)[];
+    const instancedRoute = new MethodRoute({
+      id,
+      uri,
+      method,
+      arg,
+    });
+    this.methodPreference[id] = instancedRoute;
+    if (empty(GroupRoute.currGrp)) {
+      this.defaultRoute[id] = method;
+    } else {
+      const groupId = GroupRoute.gID;
+      if (empty(this.groupPreference[groupId])) {
+        this.groupPreference[groupId] = GroupRoute.getGroupName(groupId);
+      }
+      this.groupPreference[groupId].pushChildren(method, id);
+    }
+    return this.methodPreference[id];
+  }
+
+  public static options<
+    T extends BaseController,
+    K extends KeysWithICallback<T>
+  >(uri: string, arg: ICallback | [new () => T, K]): IMethodRoute {
+    MyRoute.routeId++;
+    const id = MyRoute.routeId;
+    const method = ["options"] as (keyof IChildRoutes)[];
+    const instancedRoute = new MethodRoute({
+      id,
+      uri,
+      method,
+      arg,
+    });
+    this.methodPreference[id] = instancedRoute;
+    if (empty(GroupRoute.currGrp)) {
+      this.defaultRoute[id] = method;
+    } else {
+      const groupId = GroupRoute.gID;
+      if (empty(this.groupPreference[groupId])) {
+        this.groupPreference[groupId] = GroupRoute.getGroupName(groupId);
+      }
+      this.groupPreference[groupId].pushChildren(method, id);
+    }
+    return this.methodPreference[id];
+  }
+
+  public static any<T extends BaseController, K extends KeysWithICallback<T>>(
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ): IMethodRoute {
+    MyRoute.routeId++;
+    const id = MyRoute.routeId;
+    const method = [
+      "get",
+      "post",
+      "put",
+      "delete",
+      "patch",
+      "options",
+    ] as (keyof IChildRoutes)[];
+    const instancedRoute = new MethodRoute({
+      id,
+      uri,
+      method,
+      arg,
+    });
+    this.methodPreference[id] = instancedRoute;
+    if (empty(GroupRoute.currGrp)) {
+      this.defaultRoute[id] = method;
+    } else {
+      const groupId = GroupRoute.gID;
+      if (empty(this.groupPreference[groupId])) {
+        this.groupPreference[groupId] = GroupRoute.getGroupName(groupId);
+      }
+      this.groupPreference[groupId].pushChildren(method, id);
+    }
+    return this.methodPreference[id];
+  }
+
+  public static match<T extends BaseController, K extends KeysWithICallback<T>>(
+    match: (keyof IChildRoutes)[],
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ): IMethodRoute {
+    MyRoute.routeId++;
+    const id = MyRoute.routeId;
+    const instancedRoute = new MethodRoute({
+      id,
+      uri,
+      method: match as (keyof IChildRoutes)[],
+      arg,
+    });
+    this.methodPreference[id] = instancedRoute;
+    if (empty(GroupRoute.currGrp)) {
+      this.defaultRoute[id] = match;
+    } else {
+      const groupId = GroupRoute.gID;
+      if (empty(this.groupPreference[groupId])) {
+        this.groupPreference[groupId] = GroupRoute.getGroupName(groupId);
+      }
+      this.groupPreference[groupId].pushChildren(match, id);
+    }
+    return this.methodPreference[id];
+  }
+
+  public static view(
+    uri: string,
+    viewName: string,
+    data: Record<string, unknown> = {}
+  ): void {
+    MyRoute.routeId++;
+    const id = MyRoute.routeId;
+    const method = ["get"] as (keyof IChildRoutes)[];
+    const instancedRoute = new MethodRoute({
+      id,
+      uri,
+      method,
+      arg: async () => {
+        return view(viewName, data);
+      },
+    });
+    this.methodPreference[id] = instancedRoute;
+    if (empty(GroupRoute.currGrp)) {
+      this.defaultRoute[id] = method;
+    } else {
+      const groupId = GroupRoute.gID;
+      if (empty(this.groupPreference[groupId])) {
+        this.groupPreference[groupId] = GroupRoute.getGroupName(groupId);
+      }
+      this.groupPreference[groupId].pushChildren(method, id);
+    }
+  }
+
   public getAllGroupsAndMethods(): IReferencesRoute {
     const myData = {
       groups: MyRoute.groupPreference,
@@ -145,16 +353,7 @@ class MyRoute {
     // Reset the static properties after fetching
     MyRoute.groupPreference = {};
     MyRoute.methodPreference = {};
-    MyRoute.defaultRoute = {
-      get: [],
-      post: [],
-      put: [],
-      delete: [],
-      patch: [],
-      options: [],
-      head: [],
-      all: [],
-    };
+    MyRoute.defaultRoute = {};
 
     return myData;
   }
