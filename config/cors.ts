@@ -3,7 +3,7 @@ import { CorsConfig } from "../vendor/honovel/framework/src/@hono-types/declarat
 const constant: CorsConfig = {
   paths: ["api/*"],
   allowed_methods: ["GET", "POST", "PUT", "DELETE"],
-  allowed_origins: env("ORIGINS", []),
+  allowed_origins: env("ORIGINS", ['*']),
   allowed_origins_patterns: [],
   allowed_headers: ["Content-Type", "Authorization", "Accept"],
   exposed_headers: [],

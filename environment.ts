@@ -7,9 +7,13 @@ export default {
 
 // export your interface "ImportEnv" here
 
-export interface ImportEnv {
+export interface ImportEnvConfig {
   readonly ORIGINS: string[];
   readonly REDIS_URL: string;
   readonly UPSTASH_REDIS_REST_URL: string;
   readonly UPSTASH_REDIS_REST_TOKEN: string;
+  /**
+   * The system's default timezone
+   */
+  readonly TIMEZONE: string;
 }

@@ -224,23 +224,38 @@ globalFn("tmpPath", function (concatenation = "") {
 async function rewriteConfigModules(filePath: string, allModules: string[]) {
   // Convert filenames to base names without `.ts`
   const moduleNames = allModules.map((f) => f.replace(/\.ts$/, ""));
-  const moduleSets: Record<string, unknown> = (
-    await import("./configModules.ts")
-  ).default;
+  try {
+    const moduleSets: Record<string, unknown> = (
+      await import("./configModules.ts")
+    ).default;
 
-  if (Object.keys(moduleSets).join(",") == moduleNames.join(",")) {
-    return;
+    if (Object.keys(moduleSets).join(",") == moduleNames.join(",")) {
+      return;
+    }
+  } catch (_e) {
+    // Ignore error if configModules.ts does not exist or cannot be imported
   }
+
+  const mainImport = `
+    const myModules:Record<string, unknown> = {};
+  `;
 
   // Generate import lines
   const imports = moduleNames
-    .map((name) => `import ${name} from "../../../../../config/${name}.ts";`)
+    .map((name) => `
+    try {
+      const ${name} = (await import("../../../../../config/${name}.ts")).default;
+      myModules["${name}"] = ${name};
+    } catch (_e) {
+      console.error(\`Failed to import config module: conifg/${name}\nExport it with default\`);
+    }`)
     .join("\n");
 
   // Generate export block
-  const exportBlock = `export default {\n  ${moduleNames.join(",\n  ")},\n};`;
+  const exportBlock = `export default myModules;`;
 
-  const result = `${imports}\n\n${exportBlock}\n`;
+  // Combine all parts into the final content
+  const result = [mainImport, imports, exportBlock].join("\n\n");
 
   // Write the file
   await Deno.writeTextFile(filePath, result);

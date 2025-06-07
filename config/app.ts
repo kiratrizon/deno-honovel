@@ -6,5 +6,6 @@ const constant = {
   redis: {
     url: env("REDIS_URL", ""),
   },
+  env: env("APP_ENV", "production")
 };
 export default constant;

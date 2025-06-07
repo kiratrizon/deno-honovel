@@ -20,7 +20,7 @@ export type HonoType = Hono<{
 export interface CorsConfig {
   paths?: string[];
   allowed_methods?: string[];
-  allowed_origins?: string[];
+  allowed_origins: string[] | null;
   allowed_origins_patterns?: string[];
   allowed_headers?: string[];
   exposed_headers?: string[];

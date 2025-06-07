@@ -1,10 +1,10 @@
 /// <reference path="./index.d.ts" />
 
-import { ImportEnv } from "../../../../../environment.ts";
+import { ImportEnvConfig } from "../../../../../environment.ts";
 
-export {};
+export { };
 declare global {
-  interface EnvConfig extends ImportEnv {
+  interface EnvConfig extends ImportEnvConfig {
     readonly DENO_REGION?: string;
     readonly DENO_DEPLOYMENT_ID?: string;
     readonly APP_NAME: string;
@@ -14,14 +14,14 @@ declare global {
     readonly APP_URL: string;
     readonly LOG_CHANNEL: string;
     readonly LOG_LEVEL:
-      | "debug"
-      | "info"
-      | "notice"
-      | "warning"
-      | "error"
-      | "critical"
-      | "alert"
-      | "emergency";
+    | "debug"
+    | "info"
+    | "notice"
+    | "warning"
+    | "error"
+    | "critical"
+    | "alert"
+    | "emergency";
     readonly DB_CONNECTION: "mysql" | "pgsql" | "sqlite" | "sqlsrv";
     readonly DB_HOST: string;
     readonly DB_PORT: number;
