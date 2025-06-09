@@ -25,20 +25,14 @@ class HonoView {
     };
 
     const templatePath = viewPath(
-      `${viewName.split(".").join("/")}.${HonoView.#engine}`
+      `${viewName.split(".").join("/")}.edge`
     );
     if (!pathExist(templatePath)) {
-      const error = `View not found: ${templatePath}`;
+      const error = `View not found: ${viewName}`;
       return error;
     }
-    if (HonoView.#engine !== "edge") {
-      const rawHtml = getFileContents(templatePath);
-      const rendered = await HonoView.#viewEngine.render(rawHtml, this.#data);
-      return rendered;
-    } else {
-      const rendered = await HonoView.#viewEngine.render(viewName, this.#data);
-      return rendered;
-    }
+    const rendered = await HonoView.#viewEngine.render(viewName.split(".").join("/"), this.#data);
+    return rendered;
   }
   static init() {
     const edge = new Edge({
