@@ -79,7 +79,6 @@ class Server {
   private routes: Record<string, unknown> = {};
   public static async init() {
     await Boot.init();
-
     this.app = this.generateNewApp({}, true);
 
     this.app.use("*", async (c, next: Next) => {
