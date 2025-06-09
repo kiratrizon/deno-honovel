@@ -6,7 +6,7 @@ import ChildKernel from "./ChildKernel.ts";
 import HonoClosure from "../Http/HonoClosure.ts";
 import { IMyConfig } from "./MethodRoute.ts";
 import HonoDispatch from "../Http/HonoDispatch.ts";
-import { buildRequest } from "../Http/builder.ts";
+import { buildRequest, myError } from "../Http/builder.ts";
 import HonoRequest from "../Http/HonoRequest.ts";
 import MyHono from "../Http/HttpHono.ts";
 import Constants from "Constants";
@@ -35,25 +35,7 @@ export function regexToHono(
       );
 
       if (!isPassed) {
-        if (request.expectsJson()) {
-          return c.json({ message: "Not found" }, 404);
-        }
-
-        const viewPathFile = `error/404.${staticConfig(
-          "view.defaultViewEngine"
-        )}`;
-        const fullPath = viewPath(viewPathFile);
-
-        if (!pathExist(fullPath)) {
-          const fallbackHtml = getFileContents(
-            honovelPath("hono/defaults/404.stub")
-          );
-          return c.html(fallbackHtml, 404);
-        }
-
-        const html404 = new HonoView();
-        const rendered = html404.element("error/404", {});
-        return c.html(rendered, 404);
+        return await myError(c);
       }
     }
 
@@ -355,7 +337,6 @@ export function toDispatch(
         newParams[param] = null;
       }
     });
-    console.log(params);
     const middlewareResp = await myconf(httpHono, ...Object.values(newParams));
     const dispatch = new HonoDispatch(middlewareResp, "dispatch");
     try {

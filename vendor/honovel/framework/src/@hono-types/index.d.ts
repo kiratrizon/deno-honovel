@@ -1,6 +1,6 @@
 import { ResponseType } from "axios";
 
-export { };
+export {};
 export interface IFetchDataOption {
   method?: string;
   headers?: Record<string, string>;
@@ -55,7 +55,10 @@ declare global {
    * @returns {string | T | null} The environment variable's value, or the fallback, or `null` if not set.
    */
   function env<K extends keyof EnvConfig>(key: K): string | null;
-  function env<K extends keyof EnvConfig>(key: K, fallback: EnvConfig[K]): EnvConfig[K] | null;
+  function env<K extends keyof EnvConfig>(
+    key: K,
+    fallback: EnvConfig[K]
+  ): EnvConfig[K];
 
   /**
    * Defines a global variable on `global` with the specified name and value.

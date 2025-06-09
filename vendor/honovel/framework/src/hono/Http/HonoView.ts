@@ -1,5 +1,6 @@
 import ejs from "ejs";
 import pug from "pug";
+import { Edge } from "edge.js";
 import {
   ViewEngine,
   ViewParams,
@@ -19,7 +20,7 @@ class HonoView {
     this.#viewFile = viewName;
   }
 
-  element(viewName: string, data = {}) {
+  async element(viewName: string, data = {}) {
     this.#data = {
       ...data,
       ...this.#data,
@@ -32,9 +33,14 @@ class HonoView {
       const error = `View not found: ${templatePath}`;
       return error;
     }
-    const rawHtml = getFileContents(templatePath);
-    const rendered = HonoView.#viewEngine.render(rawHtml, this.#data);
-    return rendered;
+    if (HonoView.#engine !== "edge") {
+      const rawHtml = getFileContents(templatePath);
+      const rendered = await HonoView.#viewEngine.render(rawHtml, this.#data);
+      return rendered;
+    } else {
+      const rendered = await HonoView.#viewEngine.render(viewName, this.#data);
+      return rendered;
+    }
   }
   static init() {
     HonoView.#engine =
@@ -44,6 +50,18 @@ class HonoView {
     }
     if (HonoView.#engine === "pug") {
       HonoView.#viewEngine = pug;
+    }
+    if (HonoView.#engine === "edge") {
+      const edge = new Edge({
+        cache: false,
+      });
+
+      edge.mount(viewPath());
+      HonoView.#viewEngine = {
+        render: async (template: string, data: Record<string, unknown>) => {
+          return await edge.render(template, data);
+        },
+      };
     }
   }
 

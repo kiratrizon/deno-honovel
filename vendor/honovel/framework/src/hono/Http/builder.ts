@@ -5,6 +5,7 @@ import type {
   SERVER,
 } from "../../@hono-types/declaration/IHonoRequest.d.ts";
 import { getCookie } from "hono/cookie";
+import HonoView from "./HonoView.ts";
 
 export async function buildRequest(c: Context): Promise<RequestData> {
   const toStr = (val: string | string[] | undefined): string =>
@@ -134,4 +135,25 @@ export async function buildRequest(c: Context): Promise<RequestData> {
 }
 function generateRequestId() {
   return crypto.randomUUID?.() || "req-" + Math.random().toString(36).slice(2);
+}
+
+export async function myError(c: Context) {
+  if (c.req.header("accept")?.includes("application/json")) {
+    return c.json(
+      {
+        message: "Not Found",
+      },
+      404
+    );
+  }
+
+  // this is for html
+  if (
+    !pathExist(viewPath(`error/404.${staticConfig("view.defaultViewEngine")}`))
+  ) {
+    return c.html(getFileContents(honovelPath("hono/defaults/404.stub")), 404);
+  }
+  const html404 = new HonoView();
+  const render = await html404.element("error/404", {});
+  return c.html(render, 404);
 }

@@ -8,14 +8,13 @@ import fs from "node:fs";
 import { Hono, MiddlewareHandler, Next } from "hono";
 import Boot from "../Maneuver/Boot.ts";
 
-import HonoView from "./Http/HonoView.ts";
 import {
   Variables,
   HonoType,
   CorsConfig,
 } from "../@hono-types/declaration/imain.d.ts";
 
-import { Context } from "node:vm";
+import { Context } from "hono";
 import { INRoute } from "../@hono-types/declaration/IRoute.d.ts";
 import {
   buildRequestInit,
@@ -26,51 +25,44 @@ import {
 } from "./Support/FunctionRoute.ts";
 import { IMyConfig } from "./Support/MethodRoute.ts";
 import { honoSession } from "./Http/HonoSession.ts";
-
-const myError = async (c: Context) => {
-  if (c.req.header("accept")?.includes("application/json")) {
-    return c.json(
-      {
-        message: "Not Found",
-      },
-      404
-    );
-  }
-
-  // this is for html
-  if (
-    !pathExist(viewPath(`error/404.${staticConfig("view.defaultViewEngine")}`))
-  ) {
-    return c.html(getFileContents(honovelPath("hono/defaults/404.stub")), 404);
-  }
-  const html404 = new HonoView();
-  const render = html404.element("error/404", {});
-  return c.html(render, 404);
-};
+import { myError } from "./Http/builder.ts";
 
 function domainGroup(
   mainstring: string,
   {
-    string,
     sequenceParams,
     optionalParams,
     requiredParams,
   }: {
-    string: string;
     sequenceParams: string[];
     optionalParams: string[];
     requiredParams: string[];
   }
 ): MiddlewareHandler {
   return async (c: Context, next) => {
-    const protocol = (c.req.url.split("://")[0] || "http") + "://";
-    const host = c.req.header("host")?.split(".");
-    const subdomain = host.shift();
+    const url = c.req.url;
+    const protocol = (url.split("://")[0] || "http") + "://";
+    const host = url.split("://")[1].split("/")[0];
+    const splittedString = mainstring.split(".");
+    const myDomain = splittedString.splice(1, splittedString.length).join(".");
 
-    const checker = (protocol + subdomain).startsWith(env("APP_URL"));
+    let mysubdomain = host.replace(myDomain, "");
+    // replace the trailing dot if exists
+    while (mysubdomain.endsWith(".")) {
+      mysubdomain = mysubdomain.slice(0, -1);
+    }
+    const subdomain = mysubdomain.replace(/\./g, "");
 
-    const [keyOfSubdomain, extra] = string.replace("/:", "").split(".");
-    console.log(keyOfSubdomain);
+    const checker = (protocol + subdomain).startsWith(env("APP_URL", ""));
+    const forStaticSubdomain = host
+      .toLowerCase()
+      .endsWith(mainstring.toLowerCase());
+    let keyOfSubdomain = "";
+    const fromAjax =
+      c.req.header("x-requested-with")?.toLowerCase() === "xmlhttprequest";
+    if (!empty(sequenceParams)) {
+      keyOfSubdomain = sequenceParams[0];
+    }
     if (!empty(requiredParams) && empty(optionalParams)) {
       if (checker) {
         console.warn(
@@ -80,14 +72,11 @@ function domainGroup(
       } else {
         c.set("subdomain", { [keyOfSubdomain]: subdomain });
       }
-    } else if (empty(requiredParams) && !empty(optionalParams)) {
-      if (checker) {
-        c.set("subdomain", { [keyOfSubdomain]: null });
-      } else {
-        c.set("subdomain", { [keyOfSubdomain]: subdomain });
-      }
     } else if (empty(requiredParams) && empty(optionalParams)) {
-      if (subdomain.toLowerCase() !== keyOfSubdomain.toLowerCase()) {
+      if (!forStaticSubdomain) {
+        console.warn(
+          `Please check your ENV APP_URL configuration. It should contain the base URL with port if needed, like "http://localhost:2000" or "https://example.com".`
+        );
         return await myError(c);
       }
     }
@@ -95,35 +84,76 @@ function domainGroup(
   };
 }
 
+function convertLaravelDomainToWildcard(domain: string): string {
+  return domain.replace(/\{[^.}]+\}/g, "*");
+}
+
+const myDefaults: MiddlewareHandler[] = [
+  async (c, next) => {
+    c.set("subdomain", {});
+    await next();
+  },
+  serveStatic({ root: publicPath() }),
+  serveStatic({ root: honovelPath("hono/hono-assets") }),
+];
+
 class Server {
   private static Hono = Hono;
   public static app: HonoType;
+  public static domainPattern: Record<string, HonoType> = {};
 
   private routes: Record<string, unknown> = {};
   public static async init() {
     await Boot.init();
 
-    this.app = this.generateNewApp();
-    this.app.use("*", async (c, next) => {
-      c.set("subdomain", {});
+    this.app = this.generateNewApp({}, true);
+
+    this.app.use("*", async (c, next: Next) => {
+      const requestUrl = new URL(c.req.url);
+      const appUrl = env("APP_URL", "").toLowerCase();
+      const incomingUrl = requestUrl.toString().toLowerCase();
+
+      if (!incomingUrl.startsWith(appUrl)) {
+        const host = c.req.raw.url.split("://")[1].split("/")[0];
+
+        if (key_exist(Server.domainPattern, host)) {
+          return await Server.domainPattern[host].fetch(c.req.raw);
+        }
+        // Check for patterns with wildcards
+        for (const pattern in Server.domainPattern) {
+          if (pattern.includes("*")) {
+            const regex = new RegExp(
+              "^" + pattern.replace(/\./g, "\\.").replace(/\*/g, "[^.]+") + "$"
+            );
+
+            if (regex.test(host)) {
+              return await Server.domainPattern[pattern].fetch(c.req.raw);
+            }
+          }
+        }
+        return await myError(c);
+      }
+
       await next();
     });
-    this.app.use(serveStatic({ root: publicPath() }));
-    this.app.use(serveStatic({ root: honovelPath("hono/hono-assets") }));
-
-    // this.app.use(
-    //   "*",
-    //   secureHeaders({
-    //     xFrameOptions: false,
-    //     xXssProtection: false,
-    //   })
-    // );
     await this.loadAndValidateRoutes();
     this.endInit();
   }
 
-  private static generateNewApp(): HonoType {
-    return new this.Hono<{ Variables: Variables }>();
+  private static generateNewApp(
+    config?: Record<string, unknown>,
+    withDefaults: boolean = false
+  ): HonoType {
+    let app: HonoType;
+    if (isset(config) && !empty(config)) {
+      app = new this.Hono(config);
+    } else {
+      app = new this.Hono<{ Variables: Variables }>();
+    }
+    if (withDefaults) {
+      app.use(...myDefaults);
+    }
+    return app;
   }
 
   private static async loadAndValidateRoutes() {
@@ -228,8 +258,10 @@ class Server {
           // for groups
           if (isset(groups) && !empty(groups) && is_object(groups)) {
             const groupKeys = Object.keys(groups);
+            let hasDomain = false;
+            let domainName = "";
             for (const groupKey of groupKeys) {
-              const myNewGroup = this.generateNewApp(); // Create a new Hono instance for the group
+              const myNewGroup = this.generateNewApp();
 
               const myGroup = groups[groupKey];
               const {
@@ -244,9 +276,22 @@ class Server {
 
               const domainParam: string[] = [];
               if (isset(domain) && !empty(domain)) {
-                const domainArranger = URLArranger.urlCombiner(domain, false);
+                const domainArranger = URLArranger.urlCombiner(
+                  domain.split("."),
+                  false
+                );
+                domainArranger.string = domainArranger.string
+                  .slice(1)
+                  .split("/")
+                  .join(".");
                 myNewGroup.use("*", domainGroup(domain, domainArranger));
                 domainParam.push(...domainArranger.sequenceParams);
+                hasDomain = true;
+                domainName = convertLaravelDomainToWildcard(domain);
+                Server.domainPattern[domainName] = this.generateNewApp(
+                  {},
+                  true
+                );
               }
               let newName = "";
               if (!empty(name)) {
@@ -307,7 +352,48 @@ class Server {
                 // apply the middlewares here
                 newAppGroup.route(grp, myNewGroup);
               });
-              byEndpointsRouter.route("/", newAppGroup);
+
+              if (!hasDomain) {
+                byEndpointsRouter.route("/", newAppGroup);
+              } else if (isset(domain) && !empty(domain)) {
+                if (file === "web.ts") {
+                  Server.domainPattern[domainName].use(
+                    "*",
+                    async (c, next: Next) => {
+                      c.set("from_web", true);
+                      await next();
+                    }
+                  );
+                }
+                Server.domainPattern[domainName].use("*", honoSession());
+                corsPaths.forEach((cpath) => {
+                  if (cpath.startsWith(key + "/")) {
+                    Server.domainPattern[domainName].use(
+                      cpath.replace(key, ""),
+                      cors({
+                        origin: corsConfig.allowed_origins || "*",
+                        allowMethods: corsConfig.allowed_methods || [
+                          "GET",
+                          "POST",
+                          "PUT",
+                          "DELETE",
+                        ],
+                        allowHeaders: corsConfig.allowed_headers || ["*"],
+                        exposeHeaders: corsConfig.exposed_headers || [],
+                        maxAge: corsConfig.max_age || 3600,
+                        credentials: corsConfig.supports_credentials || false,
+                      })
+                    );
+                  }
+                });
+                Server.domainPattern[domainName].route(
+                  routePrefix,
+                  newAppGroup
+                );
+                Server.domainPattern[domainName].use("*", async function (c) {
+                  return await myError(c);
+                });
+              }
             }
             this.app.route(routePrefix, byEndpointsRouter);
           }

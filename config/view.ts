@@ -1,5 +1,5 @@
 const constant = {
-  defaultViewEngine: "ejs",
+  defaultViewEngine: "edge",
   defaultViewDir: "views",
   defaultLayout: "layout",
 };

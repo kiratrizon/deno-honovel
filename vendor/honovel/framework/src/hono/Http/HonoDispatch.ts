@@ -39,7 +39,7 @@ class HonoDispatch {
     if (is_object(this.#returnedData)) {
       if (this.#returnedData instanceof HonoView) {
         const dataView = this.#returnedData.getView();
-        const rendered = this.#returnedData.element(
+        const rendered = await this.#returnedData.element(
           dataView.viewFile,
           dataView.data
         );

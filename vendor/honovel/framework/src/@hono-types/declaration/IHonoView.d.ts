@@ -1,7 +1,7 @@
 export type RenderFn = (
   template: string,
   data: Record<string, unknown>
-) => string;
+) => Promise<string>;
 
 export type ViewEngine = {
   render: RenderFn;
