@@ -61,14 +61,10 @@ function domainGroup(
 function convertLaravelDomainToWildcard(domain: string): string {
   return domain.replace(/\{[^.}]+\}/g, "*");
 }
-
+import * as path from "https://deno.land/std/path/mod.ts";
 const myStaticDefaults: MiddlewareHandler[] = [
-  serveStatic({ root: publicPath().replace(/\\/g, "/") }),
-  serveStatic({ root: honovelPath("hono/hono-assets").replace(/\\/g, "/") }),
-  async (c, next) => {
-    c.set("subdomain", {});
-    await next();
-  }
+  serveStatic({ root: path.relative(Deno.cwd(), publicPath()) }),
+  serveStatic({ root: path.relative(Deno.cwd(), honovelPath("hono/hono-assets")) }),
 ];
 
 class Server {
@@ -125,7 +121,11 @@ class Server {
     }
 
     if (withDefaults) {
-      app.use("*", ...myStaticDefaults);
+      app.use(...myStaticDefaults);
+      app.use("*", async (c, next) => {
+        c.set("subdomain", {});
+        await next();
+      })
     }
     return app;
   }
