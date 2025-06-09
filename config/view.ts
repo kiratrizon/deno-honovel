@@ -1,5 +1,4 @@
 const constant = {
-  defaultViewEngine: "edge",
   defaultViewDir: "views",
   defaultLayout: "layout",
 };

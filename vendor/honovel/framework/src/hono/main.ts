@@ -39,7 +39,9 @@ function domainGroup(
     const host = c.req.raw.url.split("://")[1].split("/")[0];
     const domainParts = host.split(".");
     const domainPattern = mainstring.split(".");
-    const domainParams: Record<string, string> = {};
+    const domainParams: Record<string, string> = {
+      string: "",
+    };
     if (!empty(sequenceParams)) {
       domainPattern.forEach((part, index) => {
         if (part === "*" && sequenceParams.length > 0) {

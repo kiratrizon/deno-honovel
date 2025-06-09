@@ -1,5 +1,3 @@
-import ejs from "ejs";
-import pug from "pug";
 import { Edge } from "edge.js";
 import {
   ViewEngine,
@@ -9,7 +7,7 @@ import {
 class HonoView {
   static #viewEngine: ViewEngine;
   #data: Record<string, unknown> = {};
-  static #engine = "ejs";
+  static #engine = "edge";
   #viewFile = "";
   constructor({ viewName = "", data, mergeData }: ViewParams = {}) {
     this.#data = {
@@ -43,26 +41,16 @@ class HonoView {
     }
   }
   static init() {
-    HonoView.#engine =
-      (staticConfig("view.defaultViewEngine") as string) || "ejs";
-    if (HonoView.#engine === "ejs") {
-      HonoView.#viewEngine = ejs;
-    }
-    if (HonoView.#engine === "pug") {
-      HonoView.#viewEngine = pug;
-    }
-    if (HonoView.#engine === "edge") {
-      const edge = new Edge({
-        cache: false,
-      });
+    const edge = new Edge({
+      cache: false,
+    });
 
-      edge.mount(viewPath());
-      HonoView.#viewEngine = {
-        render: async (template: string, data: Record<string, unknown>) => {
-          return await edge.render(template, data);
-        },
-      };
-    }
+    edge.mount(viewPath());
+    HonoView.#viewEngine = {
+      render: async (template: string, data: Record<string, unknown>) => {
+        return await edge.render(template, data);
+      },
+    };
   }
 
   getView() {

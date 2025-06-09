@@ -148,9 +148,7 @@ export async function myError(c: Context) {
   }
 
   // this is for html
-  if (
-    !pathExist(viewPath(`error/404.${staticConfig("view.defaultViewEngine")}`))
-  ) {
+  if (!pathExist(viewPath(`error/404.edge`))) {
     return c.html(getFileContents(honovelPath("hono/defaults/404.stub")), 404);
   }
   const html404 = new HonoView();
