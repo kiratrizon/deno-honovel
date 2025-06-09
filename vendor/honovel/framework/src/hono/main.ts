@@ -31,55 +31,27 @@ function domainGroup(
   mainstring: string,
   {
     sequenceParams,
-    optionalParams,
-    requiredParams,
   }: {
     sequenceParams: string[];
-    optionalParams: string[];
-    requiredParams: string[];
   }
 ): MiddlewareHandler {
   return async (c: Context, next) => {
-    const url = c.req.url;
-    const protocol = (url.split("://")[0] || "http") + "://";
-    const host = url.split("://")[1].split("/")[0];
-    const splittedString = mainstring.split(".");
-    const myDomain = splittedString.splice(1, splittedString.length).join(".");
-
-    let mysubdomain = host.replace(myDomain, "");
-    // replace the trailing dot if exists
-    while (mysubdomain.endsWith(".")) {
-      mysubdomain = mysubdomain.slice(0, -1);
-    }
-    const subdomain = mysubdomain.replace(/\./g, "");
-
-    const checker = (protocol + subdomain).startsWith(env("APP_URL", ""));
-    const forStaticSubdomain = host
-      .toLowerCase()
-      .endsWith(mainstring.toLowerCase());
-    let keyOfSubdomain = "";
-    const fromAjax =
-      c.req.header("x-requested-with")?.toLowerCase() === "xmlhttprequest";
+    const host = c.req.raw.url.split("://")[1].split("/")[0];
+    const domainParts = host.split(".");
+    const domainPattern = mainstring.split(".");
+    const domainParams: Record<string, string> = {};
     if (!empty(sequenceParams)) {
-      keyOfSubdomain = sequenceParams[0];
+      domainPattern.forEach((part, index) => {
+        if (part === "*" && sequenceParams.length > 0) {
+          const key = sequenceParams.shift();
+          const value = domainParts[index];
+          if (isset(key) && isset(value)) {
+            domainParams[key] = value;
+          }
+        }
+      });
     }
-    if (!empty(requiredParams) && empty(optionalParams)) {
-      if (checker) {
-        console.warn(
-          `Please check your ENV APP_URL configuration. It should contain the base URL with port if needed, like "http://localhost:2000" or "https://example.com".`
-        );
-        return await myError(c);
-      } else {
-        c.set("subdomain", { [keyOfSubdomain]: subdomain });
-      }
-    } else if (empty(requiredParams) && empty(optionalParams)) {
-      if (!forStaticSubdomain) {
-        console.warn(
-          `Please check your ENV APP_URL configuration. It should contain the base URL with port if needed, like "http://localhost:2000" or "https://example.com".`
-        );
-        return await myError(c);
-      }
-    }
+    c.set("subdomain", domainParams);
     await next();
   };
 }
@@ -276,6 +248,8 @@ class Server {
 
               const domainParam: string[] = [];
               if (isset(domain) && !empty(domain)) {
+                domainName = convertLaravelDomainToWildcard(domain);
+
                 const domainArranger = URLArranger.urlCombiner(
                   domain.split("."),
                   false
@@ -284,10 +258,9 @@ class Server {
                   .slice(1)
                   .split("/")
                   .join(".");
-                myNewGroup.use("*", domainGroup(domain, domainArranger));
+                myNewGroup.use("*", domainGroup(domainName, domainArranger));
                 domainParam.push(...domainArranger.sequenceParams);
                 hasDomain = true;
-                domainName = convertLaravelDomainToWildcard(domain);
                 Server.domainPattern[domainName] = this.generateNewApp(
                   {},
                   true
