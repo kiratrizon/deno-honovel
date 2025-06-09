@@ -17,29 +17,29 @@ Welcome to **Honovel Deno** — a Laravel-inspired web framework powered by [Hon
 
 1. **Download or clone the repository**
 
-```
 bash
+```
 git clone https://github.com/kiratrizon/deno-honovel.git
 ```
 
 2. **Navigate to the root folder**
 
-```
 bash
+```
 cd deno-honovel
 ```
 
 3. **Install dependencies**
 
-```
 bash
+```
 deno install
 ```
 
 4. **Start the development server**
 
-```
 bash
+```
 deno task dev
 ```
 
