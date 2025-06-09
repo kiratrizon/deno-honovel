@@ -8,6 +8,7 @@ import {
   IReferencesRoute,
   HonoNext,
   IChildRoutes,
+  IHeaderChildRoutes,
 } from "../../@hono-types/declaration/IRoute.d.ts";
 import MethodRoute from "./MethodRoute.ts";
 import GR from "./GroupRoute.ts";
@@ -19,7 +20,7 @@ export type ICallback = (
 ) => Promise<unknown>;
 
 type KeysWithICallback<T> = {
-  [P in keyof T]: T[P] extends ICallback ? P : never;
+  [P in keyof T]: T[P] extends ICallback ? P : unknown;
 }[keyof T];
 
 class MyRoute {
@@ -237,6 +238,32 @@ class MyRoute {
     MyRoute.routeId++;
     const id = MyRoute.routeId;
     const method = ["options"] as (keyof IChildRoutes)[];
+    const instancedRoute = new MethodRoute({
+      id,
+      uri,
+      method,
+      arg,
+    });
+    this.methodPreference[id] = instancedRoute;
+    if (empty(GroupRoute.currGrp)) {
+      this.defaultRoute[id] = method;
+    } else {
+      const groupId = GroupRoute.gID;
+      if (empty(this.groupPreference[groupId])) {
+        this.groupPreference[groupId] = GroupRoute.getGroupName(groupId);
+      }
+      this.groupPreference[groupId].pushChildren(method, id);
+    }
+    return this.methodPreference[id];
+  }
+
+  public static head<
+    T extends BaseController,
+    K extends KeysWithICallback<T>
+  >(uri: string, arg: ICallback | [new () => T, K]): IMethodRoute {
+    MyRoute.routeId++;
+    const id = MyRoute.routeId;
+    const method = ["head"] as (keyof IHeaderChildRoutes)[];
     const instancedRoute = new MethodRoute({
       id,
       uri,

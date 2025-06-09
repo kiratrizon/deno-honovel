@@ -17,6 +17,10 @@ export interface IChildRoutes {
   patch: number[];
 }
 
+export interface IHeaderChildRoutes extends IChildRoutes {
+  head: number[]
+}
+
 export type ICallback = (httpObj: HttpHono, ...args: any[]) => Promise<unknown>;
 
 type KeysWithICallback<T> = {
@@ -201,11 +205,11 @@ export declare class IEGroupRoute extends IGroupInstance {
   public static get currGrp(): string[];
   public static get gID(): number;
   public static getGroupName(id: number): IEGroupRoute;
-  public pushChildren(method: (keyof IChildRoutes)[], id: number): void;
-  public get children(): IChildRoutes;
+  public pushChildren(method: (keyof IHeaderChildRoutes)[], id: number): void;
+  public get children(): IHeaderChildRoutes;
   public get name(): string;
   public get flagConfig(): IGFlagConfig;
-  public get myRoutes(): Record<string, (keyof IChildRoutes)[]>;
+  public get myRoutes(): Record<string, (keyof IHeaderChildRoutes)[]>;
 }
 
 export interface IMethodRoute {
@@ -289,10 +293,10 @@ export declare class IRoute extends IGroupRoute {
    * @param uri - The URI pattern.
    * @param arg - A callback function or a [Controller class, method name] tuple.
    */
-  // public static head<T extends BaseController, K extends KeysWithICallback<T>>(
-  //   uri: string,
-  //   arg: ICallback | [new () => T, K]
-  // ): IMethodRoute;
+  public static head<T extends BaseController, K extends KeysWithICallback<T>>(
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ): IMethodRoute;
 
   /**
    * Register a route that responds to any HTTP method.
@@ -347,7 +351,7 @@ export declare class IRoute extends IGroupRoute {
   // public static fallback(callback: () => unknown): void;
 }
 
-export type IdefaultRoute = Record<string, (keyof IChildRoutes)[]>;
+export type IdefaultRoute = Record<string, (keyof IHeaderChildRoutes)[]>;
 
 export declare class IERoute extends IRoute {
   public static pushGroupReference(

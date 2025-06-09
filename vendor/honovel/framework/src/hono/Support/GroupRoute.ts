@@ -2,6 +2,7 @@ import {
   HonoNext,
   IChildRoutes,
   IGroupInstance,
+  IHeaderChildRoutes,
 } from "../../@hono-types/declaration/IRoute.d.ts";
 import * as path from "https://deno.land/std/path/mod.ts";
 import { regexObj, URLArranger } from "./FunctionRoute.ts";
@@ -25,16 +26,17 @@ class Group {
     return Group.currentDomain;
   }
   private static callbackCalled: boolean = false;
-  private childRoutes: IChildRoutes = {
+  private childRoutes: IHeaderChildRoutes = {
     get: [],
     post: [],
     options: [],
     put: [],
     delete: [],
     patch: [],
+    head: [],
   };
 
-  private onRoutes: Record<string, (keyof IChildRoutes)[]> = {};
+  private onRoutes: Record<string, (keyof IHeaderChildRoutes)[]> = {};
 
   private static groupReference: Record<number, InstanceType<typeof Group>> =
     {};
@@ -187,7 +189,7 @@ class Group {
   public static getGroupName(id: number) {
     return Group.groupReference[id];
   }
-  public pushChildren(method: (keyof IChildRoutes)[], id: number) {
+  public pushChildren(method: (keyof IHeaderChildRoutes)[], id: number) {
     this.onRoutes[id] = method;
   }
 
@@ -213,7 +215,7 @@ class Group {
     };
   }
 
-  public get myRoutes(): Record<string, (keyof IChildRoutes)[]> {
+  public get myRoutes(): Record<string, (keyof IHeaderChildRoutes)[]> {
     return this.onRoutes;
   }
 }

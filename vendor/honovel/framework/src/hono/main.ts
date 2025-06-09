@@ -215,14 +215,23 @@ class Server {
                 myConfig.callback as IMyConfig["callback"],
                 arrangerDispatch.sequenceParams
               );
-              newApp.on(
-                methodarr.map((m) => m.toUpperCase()),
-                splittedUri,
+              const allBuilds = [
                 buildRequestInit(),
                 regexToHono(flagWhere, arrangerDispatch.sequenceParams),
                 ...toMiddleware(flagMiddleware),
                 returnedDispatch as MiddlewareHandler
-              );
+              ];
+              if (methodarr.length === 1 && methodarr[0].toLowerCase() === 'head') {
+                splittedUri.forEach((str) => {
+                  newApp.get(str, ...allBuilds)
+                })
+              } else {
+                newApp.on(
+                  methodarr.map((m) => m.toUpperCase()),
+                  splittedUri,
+                  ...allBuilds
+                );
+              }
               byEndpointsRouter.route("/", newApp);
             }
             this.app.route(routePrefix, byEndpointsRouter);
@@ -310,13 +319,22 @@ class Server {
                   regexToHono(flagWhere, [...domainParam]),
                   ...toMiddleware(flagMiddleware)
                 );
-                myNewGroup.on(
-                  methodarr.map((m) => m.toUpperCase()),
-                  splittedUri,
+                const allBuilds = [
                   buildRequestInit(),
                   ...newGroupMiddleware,
                   returnedDispatch as MiddlewareHandler
-                );
+                ];
+                if (methodarr.length === 1 && methodarr[0].toLowerCase() === 'head') {
+                  splittedUri.forEach((str) => {
+                    myNewGroup.get(str, ...allBuilds);
+                  })
+                } else {
+                  myNewGroup.on(
+                    methodarr.map((m) => m.toUpperCase()),
+                    splittedUri,
+                    ...allBuilds
+                  );
+                }
               });
               const newAppGroup = this.generateNewApp();
               URLArranger.generateOptionalParamRoutes(

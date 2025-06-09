@@ -1,22 +1,25 @@
 import Controller from "./Controller.ts";
-// function guide
-// index: HttpDispatch = async ({ request }) => {
-//    // your code here
-// };
 
 class UserController extends Controller {
-  index: HttpDispatch = async ({ request }) => {
-    return response().json({
-      message: request.session().get("test"),
-    });
+  // function guide
+  // index: HttpDispatch = async ({ request }) => {
+  //    // your code here
+  // };
+  // or
+
+  // public async view({request}:HttpHono){
+  //    // your code here
+  // }
+
+  index: HttpDispatch = async (_) => {
+    return response().header('test', 'hello');
   };
 
-  view: HttpDispatch = async ({ request }) => {
-    return response().json({
-      message: "Hello world",
-      session: request.session().get("test"),
+  public async view(_: HttpHono) {
+    return view('welcome', {
+      'hello': 'world'
     });
-  };
+  }
 }
 
 export default UserController;
