@@ -21,6 +21,7 @@ export interface IHeaderChildRoutes extends IChildRoutes {
   head: number[]
 }
 
+// deno-lint-ignore no-explicit-any
 export type ICallback = (httpObj: HttpHono, ...args: any[]) => Promise<unknown>;
 
 type KeysWithICallback<T> = {
@@ -213,13 +214,45 @@ export declare class IEGroupRoute extends IGroupInstance {
 }
 
 export interface IMethodRoute {
+  /**
+   * Assign an alias name to the route.
+   * Alias names are used as prefixes for route naming.
+   * @param name - The alias name string.
+   * @returns The current instance of IMethodRoute for method chaining.
+   */
   name(name: string): this;
+  /**
+   * Apply middleware or an array of middleware to the route.
+   * Middleware can be strings (middleware names) or handler functions.
+   * @param handler - A middleware string, array of middleware strings/functions, or a middleware function.
+   * @returns The current instance of IMethodRoute for method chaining.
+   */
   middleware(
     handler: string | (string | HttpMiddleware)[] | HttpMiddleware
   ): this;
+  /**
+   * Define parameter constraints using regular expressions.
+   * @param ojb - An object mapping parameter names to regex pattern strings.
+   * @returns The current instance of IMethodRoute for method chaining.
+   */
   where(ojb: Record<string, RegExp[] | RegExp>): this;
+  /**
+   * Define a constraint for a route parameter that only allows numeric characters.
+   * @param key - The parameter name.
+   * @returns The current instance of IMethodRoute.
+   */
   whereNumber(key: string): this;
+  /**
+   * Define a constraint for a route parameter that only allows alpha characters.
+   * @param key - The parameter name.
+   * @returns The current instance of IMethodRoute.
+   */
   whereAlpha(key: string): this;
+  /**
+   * Define a constraint for a route parameter that only allows alphanumeric characters.
+   * @param key - The parameter name.
+   * @returns The current instance of IMethodRoute.
+   */
   whereAlphaNumeric(key: string): this;
 }
 

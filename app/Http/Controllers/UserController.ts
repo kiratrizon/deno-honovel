@@ -20,6 +20,12 @@ class UserController extends Controller {
       'hello': 'world'
     });
   }
+
+  public async test({ request }: HttpHono, id: string) {
+    return response().json({
+      id
+    })
+  }
 }
 
 export default UserController;

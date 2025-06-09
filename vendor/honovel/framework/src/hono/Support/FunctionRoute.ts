@@ -196,7 +196,9 @@ export class URLArranger {
       }
       return route;
     });
-    return final;
+    return final.flatMap((r) => {
+      return (type == "dispatch" && !r.endsWith("/")) ? [r, `${r}/`] : [r]
+    });
   }
 }
 
@@ -247,7 +249,7 @@ export function toMiddleware(
           // deno-lint-ignore no-explicit-any
           ...args: any[]
         ) => // deno-lint-ignore no-explicit-any
-        any)();
+          any)();
         if (method_exist(middlewareInstance, "handle")) {
           middlewareCallback.push(
             middlewareInstance.handle.bind(middlewareInstance) as HttpMiddleware
@@ -304,8 +306,8 @@ export function toMiddleware(
             `Request URI ${request
               .method()
               .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-              "HTTP_X_REQUEST_ID"
-            )}`
+                "HTTP_X_REQUEST_ID"
+              )}`
           );
           let errorHtml: string;
           if (!request.expectsJson()) {
@@ -357,8 +359,8 @@ export function toDispatch(
           `Request URI ${httpHono.request
             .method()
             .toUpperCase()} ${httpHono.request.path()}\nRequest ID ${httpHono.request.server(
-            "HTTP_X_REQUEST_ID"
-          )}`
+              "HTTP_X_REQUEST_ID"
+            )}`
         );
         let errorHtml: string;
         if (!httpHono.request.expectsJson()) {
@@ -400,15 +402,14 @@ export function renderErrorHtml(e: Error): string {
           ${e.message}
         </p>
 
-        ${
-          e.stack
-            ? `
+        ${e.stack
+      ? `
             <h2 class="text-xl font-semibold text-gray-800 mb-2">🧱 Stack Trace</h2>
             <pre class="text-xs leading-relaxed font-mono bg-gray-900 text-green-400 p-4 rounded-lg border border-gray-700 overflow-x-auto whitespace-pre-wrap hover:scale-[1.01] transition-transform duration-200 ease-out shadow-inner">
 ${e.stack.replace(/</g, "&lt;")}
             </pre>`
-            : ""
-        }
+      : ""
+    }
       </div>
     </div>
   </body>
