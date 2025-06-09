@@ -62,13 +62,13 @@ function convertLaravelDomainToWildcard(domain: string): string {
   return domain.replace(/\{[^.}]+\}/g, "*");
 }
 
-const myDefaults: MiddlewareHandler[] = [
+const myStaticDefaults: MiddlewareHandler[] = [
+  serveStatic({ root: publicPath().replace(/\\/g, "/") }),
+  serveStatic({ root: honovelPath("hono/hono-assets").replace(/\\/g, "/") }),
   async (c, next) => {
     c.set("subdomain", {});
     await next();
-  },
-  serveStatic({ root: publicPath() }),
-  serveStatic({ root: honovelPath("hono/hono-assets") }),
+  }
 ];
 
 class Server {
@@ -123,8 +123,9 @@ class Server {
     } else {
       app = new this.Hono<{ Variables: Variables }>();
     }
+
     if (withDefaults) {
-      app.use(...myDefaults);
+      app.use("*", ...myStaticDefaults);
     }
     return app;
   }

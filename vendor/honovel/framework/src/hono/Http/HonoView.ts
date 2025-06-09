@@ -28,8 +28,7 @@ class HonoView {
       `${viewName.split(".").join("/")}.edge`
     );
     if (!pathExist(templatePath)) {
-      const error = `View not found: ${viewName}`;
-      return error;
+      throw new Error(`View not found: ${viewName}`);
     }
     const rendered = await HonoView.#viewEngine.render(viewName.split(".").join("/"), this.#data);
     return rendered;

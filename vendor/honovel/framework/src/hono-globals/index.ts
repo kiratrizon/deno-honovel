@@ -172,7 +172,7 @@ globalFn(
 );
 
 globalFn("basePath", function (concatenation = "") {
-  return path.join(Deno.cwd(), concatenation);
+  return path.join(Deno.cwd(), path.join(...concatenation.split('/')));
 });
 
 globalFn("storagePath", function (concatenation = "") {

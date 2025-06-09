@@ -16,7 +16,7 @@ class UserController extends Controller {
   };
 
   public async view(_: HttpHono) {
-    return view('welcome', {
+    return view('hello', {
       'hello': 'world'
     });
   }
