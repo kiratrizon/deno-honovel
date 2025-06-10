@@ -137,6 +137,13 @@ class HonoDispatch {
                 headers,
               });
             }
+            break;
+          default:
+            if (!empty(headers)) {
+              throw new Error(`${request.method()} methods cannot return with headers only.`);
+            } else {
+              throw new Error(`${request.method()} methods should have html, json, file, or download.`)
+            }
         }
       } else {
         this.#statusCode = 200;
@@ -164,9 +171,8 @@ class HonoDispatch {
         return c.json(null, 200);
       }
       return c.text("null", 200);
-    } else {
-      return c.text("", 200);
     }
+    throw new Error(`Route no return`);
   }
 
   public get isNext(): boolean {

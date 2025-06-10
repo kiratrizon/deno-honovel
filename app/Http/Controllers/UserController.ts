@@ -12,7 +12,9 @@ class UserController extends Controller {
   // }
 
   index: HttpDispatch = async (_) => {
-    return response().header('test', 'hello');
+    return view('welcome', {
+      "hello": "world"
+    })
   };
 
   public async view(_: HttpHono) {

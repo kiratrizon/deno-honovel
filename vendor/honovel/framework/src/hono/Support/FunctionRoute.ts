@@ -348,11 +348,11 @@ export function toDispatch(
         }, 500)
       }
     }
-    console.log(newParams, sequenceParams)
     const middlewareResp = await myconf(httpHono, ...Object.values(newParams));
     const dispatch = new HonoDispatch(middlewareResp, "dispatch");
     try {
-      return (await dispatch.build(httpHono.request, c)) as Response;
+      const build = (await dispatch.build(httpHono.request, c)) as Response;
+      return build;
     } catch (e: unknown) {
       if (e instanceof Error) {
         // populate e with additional information
@@ -380,8 +380,8 @@ export function toDispatch(
         }
         return c.html(errorHtml, 500);
       }
-      return c.json({ message: "Internal server error" }, 500);
     }
+    return c.json({ message: "Internal server error" }, 500);
   };
 }
 

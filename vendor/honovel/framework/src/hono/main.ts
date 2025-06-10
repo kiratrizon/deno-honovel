@@ -115,7 +115,7 @@ class Server {
   ): HonoType {
     let app: HonoType;
     if (isset(config) && !empty(config)) {
-      app = new this.Hono(config);
+      app = new this.Hono<{ Variables: Variables }>(config);
     } else {
       app = new this.Hono<{ Variables: Variables }>();
     }
