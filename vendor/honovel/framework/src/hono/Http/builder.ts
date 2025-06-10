@@ -130,7 +130,6 @@ export async function buildRequest(c: Context): Promise<RequestData> {
     server: forServer,
     params: { ...c.get("subdomain"), ...(c.req.param() || {}) },
   };
-
   return REQUEST;
 }
 function generateRequestId() {

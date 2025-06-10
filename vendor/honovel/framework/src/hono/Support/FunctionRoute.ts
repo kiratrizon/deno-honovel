@@ -348,6 +348,7 @@ export function toDispatch(
         }, 500)
       }
     }
+    console.log(newParams, sequenceParams)
     const middlewareResp = await myconf(httpHono, ...Object.values(newParams));
     const dispatch = new HonoDispatch(middlewareResp, "dispatch");
     try {
@@ -429,7 +430,6 @@ export const buildRequestInit = (): MiddlewareHandler => {
   const configure = new Constants(myConfigData) as IConfigure;
   return async (c, next) => {
     const rawRequest = await buildRequest(c);
-    console.log();
     const request: IHonoRequest = new HonoRequest(
       rawRequest,
       c.get("sessionInstance")

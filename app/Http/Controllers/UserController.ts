@@ -22,6 +22,7 @@ class UserController extends Controller {
   }
 
   public async test({ request }: HttpHono, id: string) {
+    console.log('hello')
     return response().json({
       id
     })

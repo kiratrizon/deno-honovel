@@ -252,9 +252,9 @@ class Server {
           // for groups
           if (isset(groups) && !empty(groups) && is_object(groups)) {
             const groupKeys = Object.keys(groups);
-            let hasDomain = false;
-            let domainName = "";
             for (const groupKey of groupKeys) {
+              let hasDomain = false;
+              let domainName = "";
               const myNewGroup = this.generateNewApp();
 
               const myGroup = groups[groupKey];
@@ -311,23 +311,22 @@ class Server {
                 const routeUsed = methods[routeId];
                 const myConfig = routeUsed.config;
                 const flag = routeUsed.myFlag;
-
+                const myParam: string[] = [...domainParam];
                 const combinedGroupDispatch = URLArranger.urlCombiner([
                   newName,
                   myConfig.uri,
                 ]);
-                domainParam.push(...combinedGroupDispatch.sequenceParams);
+                myParam.push(...combinedGroupDispatch.sequenceParams);
                 const returnedDispatch = toDispatch(
                   myConfig.callback as IMyConfig["callback"],
-                  domainParam
+                  myParam
                 );
-
                 const arrangerDispatch = URLArranger.urlCombiner(myConfig.uri);
                 const newMethodUri = arrangerDispatch.string;
                 const newGroupMiddleware: MiddlewareHandler[] = [];
                 if (isset(where) && !empty(where)) {
                   newGroupMiddleware.unshift(
-                    regexToHono(where, [...domainParam])
+                    regexToHono(where, [...myParam])
                   );
                 }
                 newGroupMiddleware.push(...toMiddleware(middleware));
@@ -338,7 +337,7 @@ class Server {
                 const flagName = flag.name || "";
                 const flagMiddleware = flag.middleware || [];
                 newGroupMiddleware.push(
-                  regexToHono(flagWhere, [...domainParam]),
+                  regexToHono(flagWhere, [...myParam]),
                   ...toMiddleware(flagMiddleware)
                 );
                 const allBuilds = [
