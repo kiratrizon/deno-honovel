@@ -207,6 +207,7 @@ export declare class IEGroupRoute extends IGroupInstance {
   public static get gID(): number;
   public static getGroupName(id: number): IEGroupRoute;
   public pushChildren(method: (keyof IHeaderChildRoutes)[], id: number): void;
+  public pushResource(resourceId: number): void;
   public get children(): IHeaderChildRoutes;
   public get name(): string;
   public get flagConfig(): IGFlagConfig;
@@ -377,11 +378,10 @@ export declare class IRoute extends IGroupRoute {
     data?: Record<string, unknown>
   ): void;
 
-  /**
-   * Register a fallback route, typically used for 404 handling.
-   * @param callback - A function to call when no route matches.
-   */
-  // public static fallback(callback: () => unknown): void;
+  public static resource<T extends BaseController>(
+    uri: string,
+    controller: new () => T
+  ): IResourceRoute;
 }
 
 export type IdefaultRoute = Record<string, (keyof IHeaderChildRoutes)[]>;
@@ -394,12 +394,45 @@ export declare class IERoute extends IRoute {
 }
 
 import MethodRoute from "../../hono/Support/MethodRoute.ts";
+import ResourceRoute, { ResourceKeys } from "../../hono/Support/ResourceRoute.ts";
 export interface IReferencesRoute {
   groups: Record<string, IEGroupRoute>;
   methods: Record<string, InstanceType<typeof MethodRoute>>;
   defaultRoute: IdefaultRoute;
+  defaultResource: number[];
+  resourceReferrence: Record<string, ResourceRoute>
 }
 
 export declare class INRoute extends IRoute {
   getAllGroupsAndMethods(): IReferencesRoute;
+}
+
+export declare class IResourceRoute {
+  /**
+   * Define parameter constraints using regular expressions.
+   * @param ojb - An object mapping parameter names to regex pattern strings.
+   * @returns The current instance of IResourceRoute for method chaining.
+   */
+  public where(ojb: Record<string, RegExp[] | RegExp>): this;
+  /**
+   * Define a constraint for a route parameter that only allows numeric values.
+   * @param key - The parameter name.
+   * @returns The current instance of IResourceRoute for method chaining.
+   */
+  public whereNumber(key: string): this;
+  /**
+   * Define a constraint for a route parameter that only allows alphabetic characters.
+   * @param key - The parameter name.
+   * @returns The current instance of IResourceRoute for method chaining.
+   */
+  public whereAlpha(key: string): this;
+  /**
+   * Define a constraint for a route parameter that only allows alphanumeric characters.
+   * @param key - The parameter name.
+   * @returns The current instance of IResourceRoute for method chaining.
+   */
+  public whereAlphaNumeric(key: string): this;
+
+  public except(arr: ResourceKeys[]): this;
+  public only(arr: ResourceKeys[]): this;
 }

@@ -193,9 +193,19 @@ class Server {
           }
         });
         const instancedRoute = new route();
-        const { groups, methods, defaultRoute } =
-          instancedRoute.getAllGroupsAndMethods();
+        const allGroup = instancedRoute.getAllGroupsAndMethods();
+
+        const { groups, methods, defaultRoute, defaultResource, resourceReferrence } = allGroup;
         if (isset(methods) && !empty(methods)) {
+          if (!empty(defaultResource)) {
+            for (const di of defaultResource) {
+              const resourceUse = resourceReferrence[String(di)];
+              const myResourceRoute = resourceUse.myRouters;
+              if (!empty(myResourceRoute)) {
+                Object.assign(defaultRoute, myResourceRoute);
+              }
+            }
+          }
           if (isset(defaultRoute) && !empty(defaultRoute)) {
             const defaultMethods = Object.entries(defaultRoute);
             for (const [routeId, methodarr] of defaultMethods) {
@@ -238,6 +248,7 @@ class Server {
             this.app.route(routePrefix, byEndpointsRouter);
           }
 
+
           // for groups
           if (isset(groups) && !empty(groups) && is_object(groups)) {
             const groupKeys = Object.keys(groups);
@@ -247,6 +258,16 @@ class Server {
               const myNewGroup = this.generateNewApp();
 
               const myGroup = groups[groupKey];
+              // @ts-ignore //
+              const resourceRoutes = myGroup.resourceRoutes as number[];
+              for (const di of resourceRoutes) {
+                const resourceUse = resourceReferrence[String(di)];
+                const myResourceRoute = resourceUse.myRouters;
+                if (!empty(myResourceRoute)) {
+                  // @ts-ignore //
+                  Object.assign(myGroup.onRoutes, myResourceRoute);
+                }
+              }
               const {
                 as = "",
                 domain = null,

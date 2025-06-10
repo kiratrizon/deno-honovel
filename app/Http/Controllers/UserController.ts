@@ -16,7 +16,7 @@ class UserController extends Controller {
   };
 
   public async view(_: HttpHono) {
-    return view('hello', {
+    return view('welcome', {
       'hello': 'world'
     });
   }
@@ -25,6 +25,10 @@ class UserController extends Controller {
     return response().json({
       id
     })
+  }
+
+  public async show(_: HttpHono, user: string) {
+    return response().json({ user })
   }
 }
 

@@ -339,6 +339,15 @@ export function toDispatch(
         newParams[param] = null;
       }
     });
+    if (!is_function(myconf)) {
+      if (httpHono.request.expectsJson()) {
+        return c.html("Cannot find route", 500);
+      } else {
+        return c.json({
+          message: "Cannot find route"
+        }, 500)
+      }
+    }
     const middlewareResp = await myconf(httpHono, ...Object.values(newParams));
     const dispatch = new HonoDispatch(middlewareResp, "dispatch");
     try {

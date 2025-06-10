@@ -476,7 +476,8 @@
   "redirects": {
     "https://deno.land/std/fs/mod.ts": "https://deno.land/std@0.224.0/fs/mod.ts",
     "https://deno.land/std/path/mod.ts": "https://deno.land/std@0.224.0/path/mod.ts",
-    "https://deno.land/x/base64/base64url.ts": "https://deno.land/x/base64@v0.2.1/base64url.ts"
+    "https://deno.land/x/base64/base64url.ts": "https://deno.land/x/base64@v0.2.1/base64url.ts",
+    "https://deno.land/x/deno_plural/mod.ts": "https://deno.land/x/deno_plural@2.0.0/mod.ts"
   },
   "remote": {
     "https://deno.land/std@0.187.0/_util/asserts.ts": "178dfc49a464aee693a7e285567b3d0b555dc805ff490505a8aae34f9cfb1462",
@@ -598,6 +599,13 @@
     "https://deno.land/std@0.224.0/path/windows/to_namespaced_path.ts": "4ffa4fb6fae321448d5fe810b3ca741d84df4d7897e61ee29be961a6aac89a4c",
     "https://deno.land/x/base64@v0.2.1/base.ts": "47dc8d68f07dc91524bdd6db36eccbe59cf4d935b5fc09f27357a3944bb3ff7b",
     "https://deno.land/x/base64@v0.2.1/base64url.ts": "18bbf879b31f1f32cca8adaa2b6885ae325c2cec6a66c5817b684ca12c46ad5e",
+    "https://deno.land/x/deno_plural@2.0.0/mod.ts": "9473507398048cb24dbb37b3a220777106c69c28d573898648deb2bb84a7e131",
+    "https://deno.land/x/deno_plural@2.0.0/src/denoPlural.ts": "975dd7a85d25b44de78276d7dce93606c2cbbaa48718f5e83ba35af9e823f6f3",
+    "https://deno.land/x/deno_plural@2.0.0/src/mod.ts": "b9e42705558be387dbdd76e524b5940b09d7356ffb27a7f388d9a17084a7d9bc",
+    "https://deno.land/x/deno_plural@2.0.0/src/rules/en.ts": "78baa1ea1bde89f23ff5080b6721b49c7e33f0abf8013f0a6b34ecba7ac7a63c",
+    "https://deno.land/x/deno_plural@2.0.0/src/types.ts": "9382d30f8cb2c0875a9021fb152323587f905b4e71510dbccea25af7c854ee2e",
+    "https://deno.land/x/deno_plural@2.0.0/src/utils.ts": "d7db0793a17f48156ceb5a1a6efc6d25bea1c243e4ea02a7ccc411902ba26bf5",
+    "https://deno.land/x/pluralize@v0.0.1/mod.ts": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
     "https://deno.land/x/redis@v0.29.4/backoff.ts": "33e4a6e245f8743fbae0ce583993a671a3ac2ecee433a3e7f0bd77b5dd541d84",
     "https://deno.land/x/redis@v0.29.4/command.ts": "9d1a679821c9065298fc2b8831b6532605426259b17a1f9d41ee9219180244c7",
     "https://deno.land/x/redis@v0.29.4/connection.ts": "335f0aa728b8e0b90353c4015daf5abaa7cae657739eb66cb48324f2d197dcc0",

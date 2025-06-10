@@ -11,7 +11,7 @@ export interface IMyConfig {
   id: number;
   uri: string;
   method: string[];
-  callback: HttpDispatch;
+  callback: HttpDispatch | null;
 }
 class MethodRoute implements IMethodRoute {
   private flag: Record<string, unknown> = {
@@ -33,19 +33,16 @@ class MethodRoute implements IMethodRoute {
     arg: unknown;
     match?: string[];
   }) {
-    let myFunc;
+    let myFunc = null;
     if (is_function(arg)) {
       this.type = "function";
-      myFunc = arg;
+      myFunc = arg as HttpDispatch;
     } else if (is_array(arg) && arg.length === 2) {
       const [controller, method] = arg as [new () => Controller, string];
       const controllerInstance = new controller();
-      if (!method_exist(controllerInstance, method)) {
-        throw new Error(
-          `Method ${method} does not exist in controller ${controller.name}`
-        );
+      if (method_exist(controllerInstance, method)) {
+        myFunc = (controllerInstance[method].bind(controllerInstance)) as unknown as HttpDispatch;
       }
-      myFunc = controllerInstance[method].bind(controllerInstance);
       this.type = "controller";
     } else {
       throw new Error("Invalid argument type");
@@ -55,7 +52,7 @@ class MethodRoute implements IMethodRoute {
       id,
       uri,
       method: method.map((m) => m.toLowerCase()),
-      callback: myFunc as HttpDispatch,
+      callback: myFunc,
     };
   }
   public name(name: string): this {

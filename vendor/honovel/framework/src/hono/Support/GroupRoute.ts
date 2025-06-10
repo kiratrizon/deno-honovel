@@ -37,6 +37,7 @@ class Group {
   };
 
   private onRoutes: Record<string, (keyof IHeaderChildRoutes)[]> = {};
+  private resourceRoutes: number[] = [];
 
   private static groupReference: Record<number, InstanceType<typeof Group>> =
     {};
@@ -193,6 +194,12 @@ class Group {
     this.onRoutes[id] = method;
   }
 
+  public pushResource(resourceId: number): void {
+    if (this.resourceRoutes.indexOf(resourceId) == -1) {
+      this.resourceRoutes.push(resourceId)
+    }
+  }
+
   public get children() {
     return this.childRoutes;
   }
@@ -217,6 +224,10 @@ class Group {
 
   public get myRoutes(): Record<string, (keyof IHeaderChildRoutes)[]> {
     return this.onRoutes;
+  }
+
+  public get myResource() {
+    return this.resourceRoutes;
   }
 }
 
