@@ -18,7 +18,7 @@ export interface RequestData {
   body?: Record<string, unknown>;
   query?: Record<string, unknown>;
   rawQuery?: string; // raw query string after '?'
-  cookies: Record<string, unknown>;
+  cookies: Record<string, string>;
   cookieHeader?: string; // raw cookie header string
   path?: string;
   originalUrl?: string;
@@ -254,9 +254,15 @@ declare class IHonoRequest {
   public bearerToken(): string | null;
 
   /**
-   * Get a cookie value.
+   * Get a specific cookie value by key.
    */
-  public cookie(key?: string): string | null | Record<string, unknown>;
+  public cookie(key: string): string | null;
+
+  /**
+   * Get all cookies as a key-value map.
+   */
+  public cookie(): Record<string, string>;
+
 
   // start 🔹 Files & Uploaded Content
 

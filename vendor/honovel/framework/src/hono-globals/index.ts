@@ -717,15 +717,20 @@ globalFn("time", () => {
   return strtotime("now");
 });
 
-globalFn("json_encode", function (data) {
-  return JSON.stringify(data);
+globalFn("jsonEncode", function (data) {
+  try {
+    return JSON.stringify(data);
+  } catch (_error) {
+    return '';
+  }
 });
 
-globalFn("json_decode", function (data) {
-  if (is_string(data)) {
+globalFn("jsonDecode", function (data) {
+  try {
     return JSON.parse(data);
+  } catch (_error) {
+    return null;
   }
-  return data;
 });
 
 globalFn(

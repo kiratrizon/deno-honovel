@@ -1,6 +1,6 @@
 import { ResponseType } from "axios";
 
-export {};
+export { };
 export interface IFetchDataOption {
   method?: string;
   headers?: Record<string, string>;
@@ -37,7 +37,7 @@ declare global {
    * that can be used throughout the application.
    */
   // deno-lint-ignore no-explicit-any
-  function globalFn(key: string, value: (...args: any[]) => void): void;
+  function globalFn<T extends (...args: any[]) => any>(name: string, fn: T): void
 
   /**
    * Retrieves the value of the specified environment variable.
@@ -459,7 +459,7 @@ declare global {
    * @param data - The data to encode.
    * @returns A string representing the JSON-encoded version of the data.
    */
-  function json_encode(data: unknown): string;
+  function jsonEncode(data: unknown): string;
 
   /**
    * Decodes the given JSON string into a JavaScript object or returns the data if it's not a string.
@@ -467,7 +467,7 @@ declare global {
    * @param data - The JSON string to decode.
    * @returns The decoded JavaScript object, or the original data if it is not a string.
    */
-  function json_decode(data: unknown): unknown;
+  function jsonDecode<T = any>(value: string): Exclude<T, undefined>;
 
   /**
    * Reads the content of a file synchronously.

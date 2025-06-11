@@ -118,7 +118,7 @@ export class HonoSession<
 }
 
 class Session implements SessionContract {
-  constructor(private values: Record<string, NonFunction<unknown>> = {}) {}
+  constructor(private values: Record<string, NonFunction<unknown>> = {}) { }
   public put(key: string, value: NonFunction<unknown>) {
     this.values[key] = value;
   }
@@ -315,7 +315,7 @@ export function honoSession(): MiddlewareHandler {
   };
 }
 
-function getAppKey(): Uint8Array {
+export function getAppKey(): Uint8Array {
   const key = env("APP_KEY");
   if (!key) throw new Error("APP_KEY is not defined in environment");
 

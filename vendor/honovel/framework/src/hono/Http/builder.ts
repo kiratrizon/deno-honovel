@@ -4,8 +4,9 @@ import type {
   RequestMethod,
   SERVER,
 } from "../../@hono-types/declaration/IHonoRequest.d.ts";
-import { getCookie } from "hono/cookie";
+import { getSignedCookie } from "hono/cookie";
 import HonoView from "./HonoView.ts";
+import { getAppKey } from "./HonoSession.ts";
 
 export async function buildRequest(c: Context): Promise<RequestData> {
   const toStr = (val: string | string[] | undefined): string =>
@@ -14,7 +15,6 @@ export async function buildRequest(c: Context): Promise<RequestData> {
   const req = c.req;
   const url = new URL(req.url);
 
-  // console.log(getCookie(c, "SESSION_ID"));
   const forServer: SERVER = {
     SERVER_NAME: c.req.header("host")?.split(":")[0] || "unknown",
     SERVER_ADDR: "unknown", // Not available directly
@@ -101,7 +101,7 @@ export async function buildRequest(c: Context): Promise<RequestData> {
   const headers = Object.fromEntries(c.req.raw.headers.entries());
   const query = c.req.query() || {};
   const rawQuery = c.req.url.split("?")[1] || "";
-  const cookies = getCookie(c);
+  const cookies = await getSignedCookie(c, getAppKey());
   const cookieHeader = c.req.header("cookie") || "";
   const path = c.req.path;
   const originalUrl = c.req.url;

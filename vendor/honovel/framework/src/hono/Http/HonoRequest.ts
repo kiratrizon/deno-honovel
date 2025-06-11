@@ -151,12 +151,15 @@ class HonoRequest implements IHonoRequest {
     return null;
   }
 
-  public cookie(key: string): string | null | Record<string, unknown> {
-    if (key_exist(this.raw.cookies, key) && isset(this.raw.cookies[key])) {
+  // 🔁 These are the overloads — must match the interface exactly
+  public cookie(key: string): string | null;
+  public cookie(): Record<string, string>;
+  public cookie(key?: string): string | null | Record<string, string> {
+    if (is_string(key) && key_exist(this.raw.cookies, key) && isset(this.raw.cookies[key])) {
       return this.raw.cookies[key] as string;
     }
     if (!isset(key)) {
-      return this.raw.cookies as Record<string, unknown>;
+      return this.raw.cookies as Record<string, string>;
     }
     return null;
   }

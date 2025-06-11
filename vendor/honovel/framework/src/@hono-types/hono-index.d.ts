@@ -1,13 +1,12 @@
 /// <reference path="./index.d.ts" />
 
 import HonoClosure from "../hono/Http/HonoClosure.ts";
-import HonoCookie from "../hono/Http/HonoCookie.ts";
 import IHonoRequest from "./declaration/IHonoRequest.d.ts";
 import IHonoResponse from "./declaration/IHonoResponse.d.ts";
 import IHonoView from "./declaration/IHonoView.d.ts";
 import { IConfigure } from "./declaration/MyImports.d.ts";
 
-export {};
+export { };
 declare global {
   /**
    * Instantiates a new HonoResponse object.
@@ -58,8 +57,6 @@ declare global {
      * Read and write to the configuration store.
      */
     get Config(): IConfigure;
-
-    get cookie(): HonoCookie;
   }
 
   type HttpMiddleware = (

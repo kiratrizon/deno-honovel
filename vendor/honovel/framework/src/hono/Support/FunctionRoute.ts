@@ -437,7 +437,6 @@ export const buildRequestInit = (): MiddlewareHandler => {
     const constructorObj = {
       request,
       config: configure,
-      cookie: new HonoCookie(c),
     };
     c.set("httpHono", new MyHono(constructorObj));
     await next();
