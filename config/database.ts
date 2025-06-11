@@ -18,7 +18,7 @@ const constant = {
       database: env("DB_DATABASE", "honovel"),
     },
     sqlite: {
-      database: databasePath('database.sqlite'),
+      database: databasePath("database.sqlite"),
     },
   },
 };

@@ -221,48 +221,6 @@ globalFn("tmpPath", function (concatenation = "") {
   return basePath(dir);
 });
 
-async function rewriteConfigModules(filePath: string, allModules: string[]) {
-  // Convert filenames to base names without `.ts`
-  const moduleNames = allModules.map((f) => f.replace(/\.ts$/, ""));
-  try {
-    const moduleSets: Record<string, unknown> = (
-      await import("./configModules.ts")
-    ).default;
-
-    if (Object.keys(moduleSets).join(",") == moduleNames.join(",")) {
-      return;
-    }
-  } catch (_e) {
-    // Ignore error if configModules.ts does not exist or cannot be imported
-  }
-
-  const mainImport = `
-    const myModules:Record<string, unknown> = {};
-  `;
-
-  // Generate import lines
-  const imports = moduleNames
-    .map(
-      (name) => `
-    try {
-      const ${name} = (await import("../../../../../config/${name}.ts")).default;
-      myModules["${name}"] = ${name};
-    } catch (_e) {
-      console.error(\`Failed to import config module: conifg/${name}\nExport it with default\`);
-    }`
-    )
-    .join("\n");
-
-  // Generate export block
-  const exportBlock = `export default myModules;`;
-
-  // Combine all parts into the final content
-  const result = [mainImport, imports, exportBlock].join("\n\n");
-
-  // Write the file
-  await Deno.writeTextFile(filePath, result);
-}
-
 const isProd = env("APP_ENV") === "production";
 define("IS_PRODUCTION", isProd, false);
 
@@ -285,9 +243,20 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
       const fullPath = path.join(configPath, file.name);
       const fullUrl = path.toFileUrl(fullPath).href;
       const module = await import(fullUrl);
-      configData[configName] = module.default;
-      // allModules.push(file.name);
+      try {
+        configData[configName] = module.default;
+        if (!isset(configData[configName])) {
+          throw new Error();
+        }
+      } catch (_e) {
+        console.log(
+          `Config file "config/${file.name}" does not export a default value.`
+        );
+      }
     }
+  }
+  if (isset(env("DENO_DEPLOYMENT_ID"))) {
+    console.log(configData);
   }
   return configData;
 });
