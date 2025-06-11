@@ -1,0 +1,29 @@
+import "./vendor/honovel/framework/src/hono-globals/index.ts";
+import { Command } from "https://deno.land/x/cliffy@v1.0.0-rc.4/command/mod.ts";
+
+async function publishConfig() {
+  // Read the module names from the JSON file
+  const jsonPath = honovelPath("hono-globals/config.json");
+  const jsonText = await Deno.readTextFile(jsonPath);
+  const modules: string[] = JSON.parse(jsonText);
+  console.log(modules);
+  let output = "";
+  for (const name of modules) {
+    output += `import ${name} from "../${name}.ts";\n`;
+  }
+  output += `\nexport default {\n`;
+  for (const name of modules) {
+    output += `  ${name},\n`;
+  }
+  output += `};\n`;
+  writeFile(basePath("config/build/myConfig.ts"), output);
+  console.log(`✅ Generated ${basePath("config/build/myConfig.ts")}`);
+}
+
+await new Command()
+  .name("honovel")
+  .description("Honovel CLI")
+  .version("1.0.0")
+  .command("publish:config", "Generate config.ts from config.json")
+  .action(publishConfig)
+  .parse(Deno.args);

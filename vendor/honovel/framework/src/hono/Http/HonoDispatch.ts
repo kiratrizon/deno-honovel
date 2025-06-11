@@ -36,6 +36,13 @@ class HonoDispatch {
       session.update(sessionValue);
       await session.dispose();
     }
+    if (
+      request.isMethod("HEAD") &&
+      is_object(this.#returnedData) &&
+      !(this.#returnedData instanceof HonoResponse)
+    ) {
+      throw new Error("HEAD method cannot return a response.");
+    }
     if (is_object(this.#returnedData)) {
       if (this.#returnedData instanceof HonoView) {
         const dataView = this.#returnedData.getView();
@@ -72,11 +79,11 @@ class HonoDispatch {
         if (error) {
           throw new Error(error);
         }
-        if (request.isMethod('HEAD')) {
+        if (request.isMethod("HEAD")) {
           return new Response(null, {
             status: statusCode,
             headers,
-          })
+          });
         }
         switch (returnType) {
           case "html":
@@ -128,7 +135,8 @@ class HonoDispatch {
               headers.set("Content-Type", "application/octet-stream");
               headers.set(
                 "Content-Disposition",
-                `attachment; filename="${downloadName || path.basename(filePath)
+                `attachment; filename="${
+                  downloadName || path.basename(filePath)
                 }"`
               );
 
@@ -140,9 +148,13 @@ class HonoDispatch {
             break;
           default:
             if (!empty(headers)) {
-              throw new Error(`${request.method()} methods cannot return with headers only.`);
+              throw new Error(
+                `${request.method()} methods cannot return with headers only.`
+              );
             } else {
-              throw new Error(`${request.method()} methods should have html, json, file, or download.`)
+              throw new Error(
+                `${request.method()} methods should have html, json, file, or download.`
+              );
             }
         }
       } else {

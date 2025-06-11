@@ -230,33 +230,64 @@ define("IS_STAGING", isStaging, false);
 const isLocal = env("APP_ENV") === "local";
 define("IS_LOCAL", isLocal, false);
 
+globalFn(
+  "writeFile",
+  function (fileString = "", content = "", encoding = "utf8") {
+    if (!fileString) {
+      console.warn("writeFile: Filename is required but not provided.");
+      return;
+    }
+
+    try {
+      fs.writeFileSync(fileString, content, encoding);
+    } catch (err) {
+      console.error(`writeFile: Failed to write to ${fileString}`, err);
+      // No throw
+    }
+  }
+);
+
 import Constants from "Constants";
 
 globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
   const configData: Record<string, unknown> = {};
   const configPath = basePath("config");
   const configFiles = Deno.readDirSync(configPath);
-  // const allModules: string[] = [];
-  for (const file of configFiles) {
-    if (file.isFile && file.name.endsWith(".ts")) {
-      const configName = file.name.replace(".ts", "");
-      const fullPath = path.join(configPath, file.name);
-      const fullUrl = path.toFileUrl(fullPath).href;
-      const module = await import(fullUrl);
-      try {
-        configData[configName] = module.default;
-        if (!isset(configData[configName])) {
-          throw new Error();
+  const allModules: string[] = [];
+  if (!isset(env("DENO_DEPLOYMENT_ID"))) {
+    for (const file of configFiles) {
+      if (file.isFile && file.name.endsWith(".ts")) {
+        const configName = file.name.replace(".ts", "");
+        const fullPath = path.join(configPath, file.name);
+        const fullUrl = path.toFileUrl(fullPath).href;
+        try {
+          const module = await import(fullUrl);
+          configData[configName] = module.default;
+          if (!isset(configData[configName])) {
+            throw new Error();
+          }
+          allModules.push(configName);
+        } catch (_e) {
+          console.log(
+            `Config file "config/${file.name}" does not export a default value.`
+          );
         }
-      } catch (_e) {
-        console.log(
-          `Config file "config/${file.name}" does not export a default value.`
-        );
       }
     }
-  }
-  if (isset(env("DENO_DEPLOYMENT_ID"))) {
-    console.log(configData);
+    writeFile(
+      honovelPath("hono-globals/config.json"),
+      JSON.stringify(allModules, null, 2)
+    );
+  } else {
+    const conf = {};
+    try {
+      const module = await import("../../../../../config/build/myConfig.ts");
+      const defaultConfig = module.default as Record<string, unknown>;
+      Object.assign(conf, defaultConfig);
+    } catch (_e) {
+      // return conf;
+    }
+    return conf;
   }
   return configData;
 });
@@ -316,23 +347,6 @@ globalFn("pathExist", function (fileString: string = "") {
   const returndata = fs.existsSync(fileString);
   return returndata;
 });
-
-globalFn(
-  "writeFile",
-  function (fileString = "", content = "", encoding = "utf8") {
-    if (!fileString) {
-      console.warn("writeFile: Filename is required but not provided.");
-      return;
-    }
-
-    try {
-      fs.writeFileSync(fileString, content, encoding);
-    } catch (err) {
-      console.error(`writeFile: Failed to write to ${fileString}`, err);
-      // No throw
-    }
-  }
-);
 
 globalFn("makeDir", function (dirString = "") {
   if (dirString === "") {
