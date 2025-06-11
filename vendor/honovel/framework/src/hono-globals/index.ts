@@ -295,7 +295,7 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
       }
     }
   } catch (_e) {
-    console.error("Failed to read config directory:", _e);
+    throw new Error((_e as Error).message);
     const configModules = (await import("./configModules.ts")).default;
     return configModules;
   }
