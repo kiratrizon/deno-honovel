@@ -1,3 +1,4 @@
+import { CookieOptions } from "hono/utils/cookie";
 import IHonoHeader from "../../@hono-types/declaration/IHonoHeader.d.ts";
 import IHonoRequest, {
   RequestData,
@@ -12,6 +13,7 @@ class HonoRequest implements IHonoRequest {
   private raw: RequestData;
   private myAll: Record<string, unknown> = {};
   #sessionInstance: SessionContract;
+  #myCookie: Record<string, [string, CookieOptions]> = {};
   constructor(req: RequestData, sessionInstance: SessionContract) {
     this.raw = req;
     this.myAll = {
@@ -151,15 +153,46 @@ class HonoRequest implements IHonoRequest {
     return null;
   }
 
-  // 🔁 These are the overloads — must match the interface exactly
-  public cookie(key: string): string | null;
-  public cookie(): Record<string, string>;
-  public cookie(key?: string): string | null | Record<string, string> {
-    if (is_string(key) && key_exist(this.raw.cookies, key) && isset(this.raw.cookies[key])) {
-      return this.raw.cookies[key] as string;
+  public cookie(
+    key: string,
+    value: Exclude<unknown, undefined>,
+    config: CookieOptions
+  ): void;
+  public cookie(key: string): Exclude<unknown, undefined>;
+  public cookie(): Record<string, Exclude<unknown, undefined>>;
+  public cookie(
+    key?: string,
+    value?: Exclude<unknown, undefined>,
+    config?: CookieOptions
+  ): unknown {
+    if (is_string(key) && key === "sid") {
+      throw new Error(
+        `The 'sid' cookie is reserved for session management and cannot be set directly.`
+      );
+    }
+    if (isset(key) && isset(value) && is_string(key)) {
+      this.#myCookie[key] = [jsonEncode(value), config || {}];
+      return;
+    }
+    if (is_string(key) && !isset(value)) {
+      if (key_exist(this.#myCookie, key) && isset(this.#myCookie[key])) {
+        return jsonDecode(this.#myCookie[key][0]);
+      } else if (key_exist(this.raw.cookies, key)) {
+        return this.raw.cookies[key];
+      }
     }
     if (!isset(key)) {
-      return this.raw.cookies as Record<string, string>;
+      const fromMyCookie: Record<
+        string,
+        Exclude<unknown, undefined>
+      > = Object.entries(this.#myCookie).reduce((acc, [k, v]) => {
+        acc[k] = jsonDecode(v[0]);
+        return acc;
+      }, {} as Record<string, Exclude<unknown, undefined>>);
+      return {
+        ...this.raw.cookies,
+        ...fromMyCookie,
+      };
     }
     return null;
   }
@@ -220,7 +253,7 @@ class HonoRequest implements IHonoRequest {
   }
 
   public async user(): Promise<Record<string, unknown> | null> {
-    return await null;
+    return null; // Placeholder for user retrieval logic
   }
 
   public isJson(): boolean {

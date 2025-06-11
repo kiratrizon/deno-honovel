@@ -1,6 +1,7 @@
 import IHonoHeader from "./IHonoHeader.d.ts";
 import { IncomingHttpHeaders } from "node:http";
 import { SessionContract } from "./ISession.d.ts";
+import { CookieOptions } from "hono/utils/cookie";
 
 export type RequestMethod =
   | "GET"
@@ -18,7 +19,7 @@ export interface RequestData {
   body?: Record<string, unknown>;
   query?: Record<string, unknown>;
   rawQuery?: string; // raw query string after '?'
-  cookies: Record<string, string>;
+  cookies: Record<string, unknown>;
   cookieHeader?: string; // raw cookie header string
   path?: string;
   originalUrl?: string;
@@ -254,16 +255,26 @@ declare class IHonoRequest {
   public bearerToken(): string | null;
 
   /**
+   * Set a cookie value with optional configuration.
+   * @param key The cookie name.
+   * @param value The cookie value, must not be undefined.
+   * @param config Optional cookie configuration like maxAge, path, domain, etc.
+   */
+  public cookie(
+    key: string,
+    value: Exclude<unknown, undefined>,
+    config: CookieOptions
+  ): void;
+
+  /**
    * Get a specific cookie value by key.
    */
-  public cookie(key: string): string | null;
+  public cookie(key: string): Exclude<unknown, undefined>;
 
   /**
    * Get all cookies as a key-value map.
    */
-  public cookie(): Record<string, string>;
-
-
+  public cookie(): Record<string, Exclude<unknown, undefined>>;
   // start 🔹 Files & Uploaded Content
 
   /**

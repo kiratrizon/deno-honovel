@@ -1,28 +1,18 @@
-import { Context } from "hono";
-import { getSignedCookie } from "hono/cookie";
+import { CookieOptions } from "hono/utils/cookie";
 
 class HonoCookie {
-  #c: Context;
-  constructor(c: Context) {
-    this.#c = c;
-  }
-  async getSigned(key: string) {
-    const APP_KEY = env("APP_KEY");
-    if (!isset(APP_KEY) || empty(APP_KEY)) {
-      return null;
-    }
-    if (!APP_KEY.startsWith("base64:")) {
-      return null;
-    }
-    const [, secretKey] = APP_KEY.split(":");
-    const cookie = await getSignedCookie(this.#c, key, secretKey);
-    if (!isset(cookie) || empty(cookie)) {
-      return null;
-    }
-    return cookie;
-  }
+  private myCookie: Record<string, [string, CookieOptions]> = {};
 
-  async validateSigned() {}
+  set(
+    key: string,
+    value: Exclude<unknown, undefined>,
+    options: CookieOptions = {}
+  ) {
+    if (typeof value === "undefined") {
+      throw new Error("Cookie value cannot be undefined");
+    }
+    this.myCookie[key] = [jsonEncode(value), options];
+  }
 }
 
 export default HonoCookie;

@@ -101,7 +101,11 @@ export async function buildRequest(c: Context): Promise<RequestData> {
   const headers = Object.fromEntries(c.req.raw.headers.entries());
   const query = c.req.query() || {};
   const rawQuery = c.req.url.split("?")[1] || "";
-  const cookies = await getSignedCookie(c, getAppKey());
+  const cookies = (await getSignedCookie(c, getAppKey())) || {};
+  if (key_exist(cookies, "sid")) {
+    // Remove session ID from cookies if it exists
+    delete cookies.sid;
+  }
   const cookieHeader = c.req.header("cookie") || "";
   const path = c.req.path;
   const originalUrl = c.req.url;

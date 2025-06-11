@@ -1,6 +1,5 @@
 import {
   HonoNext,
-  IChildRoutes,
   IGroupInstance,
   IHeaderChildRoutes,
 } from "../../@hono-types/declaration/IRoute.d.ts";
@@ -196,7 +195,7 @@ class Group {
 
   public pushResource(resourceId: number): void {
     if (this.resourceRoutes.indexOf(resourceId) == -1) {
-      this.resourceRoutes.push(resourceId)
+      this.resourceRoutes.push(resourceId);
     }
   }
 

@@ -172,7 +172,7 @@ globalFn(
 );
 
 globalFn("basePath", function (concatenation = "") {
-  return path.join(Deno.cwd(), path.join(...concatenation.split('/')));
+  return path.join(Deno.cwd(), path.join(...concatenation.split("/")));
 });
 
 globalFn("storagePath", function (concatenation = "") {
@@ -242,13 +242,15 @@ async function rewriteConfigModules(filePath: string, allModules: string[]) {
 
   // Generate import lines
   const imports = moduleNames
-    .map((name) => `
+    .map(
+      (name) => `
     try {
       const ${name} = (await import("../../../../../config/${name}.ts")).default;
       myModules["${name}"] = ${name};
     } catch (_e) {
       console.error(\`Failed to import config module: conifg/${name}\nExport it with default\`);
-    }`)
+    }`
+    )
     .join("\n");
 
   // Generate export block
@@ -274,19 +276,17 @@ import Constants from "Constants";
 
 globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
   const configData: Record<string, unknown> = {};
-  if (IS_LOCAL) {
+  try {
     const configPath = basePath("config");
     const configFiles = Deno.readDirSync(configPath);
     const allModules: string[] = [];
     for (const file of configFiles) {
       if (file.isFile && file.name.endsWith(".ts")) {
         const configName = file.name.replace(".ts", "");
-
-        // Build absolute file:// URL for import
         const fullPath = path.join(configPath, file.name);
-        const fullUrl = new URL(`file://${fullPath}`);
+        const fullUrl = path.toFileUrl(fullPath).href;
+        const module = await import(fullUrl);
         try {
-          const module = await import(fullUrl.href);
           configData[configName] = module.default;
           allModules.push(file.name);
         } catch (_e) {
@@ -294,11 +294,8 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
         }
       }
     }
-    await rewriteConfigModules(
-      honovelPath("hono-globals/configModules.ts"),
-      allModules
-    );
-  } else {
+  } catch (_e) {
+    console.error("Failed to read config directory:", _e);
     const configModules = (await import("./configModules.ts")).default;
     return configModules;
   }
@@ -429,28 +426,13 @@ globalFn(
   }
 );
 
-const irregularPlurals = staticConfig("irregular_words") as Record<
-  string,
-  string
->;
-
+import { plural } from "https://deno.land/x/deno_plural/mod.ts";
 globalFn("generateTableName", function (entity: string = "") {
   const splitWords = entity.split(/(?=[A-Z])/);
   const lastWord = splitWords.pop()!.toLowerCase();
 
   const pluralizedLastWord = (() => {
-    if (irregularPlurals[lastWord]) {
-      return irregularPlurals[lastWord];
-    }
-    if (lastWord.endsWith("y")) {
-      return lastWord.slice(0, -1) + "ies";
-    }
-    if (
-      ["s", "x", "z", "ch", "sh"].some((suffix) => lastWord.endsWith(suffix))
-    ) {
-      return lastWord + "es";
-    }
-    return lastWord + "s";
+    return plural(lastWord);
   })();
 
   return [...splitWords, pluralizedLastWord].join("").toLowerCase();
@@ -721,7 +703,7 @@ globalFn("jsonEncode", function (data) {
   try {
     return JSON.stringify(data);
   } catch (_error) {
-    return '';
+    return "";
   }
 });
 

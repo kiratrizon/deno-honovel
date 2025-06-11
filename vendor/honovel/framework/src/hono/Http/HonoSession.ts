@@ -118,7 +118,7 @@ export class HonoSession<
 }
 
 class Session implements SessionContract {
-  constructor(private values: Record<string, NonFunction<unknown>> = {}) { }
+  constructor(private values: Record<string, NonFunction<unknown>> = {}) {}
   public put(key: string, value: NonFunction<unknown>) {
     this.values[key] = value;
   }
@@ -188,19 +188,27 @@ class HonoSessionMemory {
 
 export function honoSession(): MiddlewareHandler {
   return async (c, next) => {
+    // deno-lint-ignore no-explicit-any
+    let value: Record<string, NonFunction<any>> = {};
     if (c.get("from_web")) {
       const appKey = getAppKey();
-      let sid = await getSignedCookie(c, appKey, "sid");
+      let sid;
+      const gSid = (await getSignedCookie(c, appKey, "sid")) || "";
+      try {
+        if (isset(gSid) && !empty(gSid)) {
+          sid = jsonDecode(gSid);
+        }
+      } catch (_e) {
+        sid = gSid;
+      }
 
       const sessionConfig = staticConfig("session") as SessionConfig;
       const isEncrypt = sessionConfig.encrypt || false;
 
-      // deno-lint-ignore no-explicit-any
-      let value: Record<string, NonFunction<any>> = {};
       // getting sid
-      if (!isset(sid) || empty(sid) || !sid) {
+      if (!isset(sid) || empty(sid) || !sid || !is_string(sid)) {
         const sessionId = await sessionIdRecursive();
-        await setSignedCookie(c, "sid", sessionId, appKey, {
+        await setSignedCookie(c, "sid", jsonEncode(sessionId), appKey, {
           maxAge: (sessionConfig.lifetime || 120) * 60,
           sameSite: sessionConfig.sameSite || "lax",
           httpOnly: sessionConfig.httpOnly || true,
@@ -306,11 +314,9 @@ export function honoSession(): MiddlewareHandler {
           }
         }
         c.set("session", new HonoSession(sid, value));
-        c.set("sessionInstance", new Session(c.get("session").values));
       }
-    } else {
-      c.set("sessionInstance", new Session({}));
     }
+    c.set("sessionInstance", new Session(value));
     await next();
   };
 }
@@ -422,7 +428,7 @@ export async function dataEncryption(
     false,
     ["encrypt"]
   );
-  const encoded = new TextEncoder().encode(JSON.stringify(data));
+  const encoded = new TextEncoder().encode(jsonEncode(data));
   const encrypted = await crypto.subtle.encrypt(
     { name: "AES-CBC", iv },
     key,
@@ -523,12 +529,12 @@ async function writeSessionRedis({
   const sessionConfig = staticConfig("session") as SessionConfig;
   if (isEncrypt) {
     const encryptedContent = await dataEncryption(value, appKey);
-    const stringified = JSON.stringify({ encrypt: encryptedContent });
+    const stringified = jsonEncode({ encrypt: encryptedContent });
     await MyRedis.set(sid, stringified, {
       ex: (sessionConfig.lifetime || 120) * 60, // default to 120 minutes
     });
   } else {
-    await MyRedis.set(sid, JSON.stringify(value), {
+    await MyRedis.set(sid, jsonEncode(value), {
       ex: (sessionConfig.lifetime || 120) * 60, // default to 120 minutes
     });
   }
@@ -547,12 +553,12 @@ async function writeSessionFile({
 }) {
   if (isEncrypt) {
     const encryptedContent = await dataEncryption(value, appKey);
-    const rewriting = JSON.stringify({
+    const rewriting = jsonEncode({
       encrypt: encryptedContent,
     });
     writeFile(filePath, rewriting);
   } else {
-    writeFile(filePath, JSON.stringify(value));
+    writeFile(filePath, jsonEncode(value));
   }
 }
 
