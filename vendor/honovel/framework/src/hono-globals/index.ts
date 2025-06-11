@@ -276,28 +276,18 @@ import Constants from "Constants";
 
 globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
   const configData: Record<string, unknown> = {};
-  try {
-    const configPath = basePath("config");
-    const configFiles = Deno.readDirSync(configPath);
-    const allModules: string[] = [];
-    for (const file of configFiles) {
-      if (file.isFile && file.name.endsWith(".ts")) {
-        const configName = file.name.replace(".ts", "");
-        const fullPath = path.join(configPath, file.name);
-        const fullUrl = path.toFileUrl(fullPath).href;
-        const module = await import(fullUrl);
-        try {
-          configData[configName] = module.default;
-          allModules.push(file.name);
-        } catch (_e) {
-          console.error(`Failed to import config module: ${file.name}`);
-        }
-      }
+  const configPath = basePath("config");
+  const configFiles = Deno.readDirSync(configPath);
+  // const allModules: string[] = [];
+  for (const file of configFiles) {
+    if (file.isFile && file.name.endsWith(".ts")) {
+      const configName = file.name.replace(".ts", "");
+      const fullPath = path.join(configPath, file.name);
+      const fullUrl = path.toFileUrl(fullPath).href;
+      const module = await import(fullUrl);
+      configData[configName] = module.default;
+      // allModules.push(file.name);
     }
-  } catch (_e) {
-    throw new Error((_e as Error).message);
-    const configModules = (await import("./configModules.ts")).default;
-    return configModules;
   }
   return configData;
 });
