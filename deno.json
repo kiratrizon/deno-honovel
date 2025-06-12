@@ -17,7 +17,8 @@
     "redis": "npm:redis@^5.5.5",
     "Illuminate/Support/Facades/Route": "./vendor/honovel/framework/src/hono/Support/Route.ts",
     "Illuminate/Foundation/Http/HttpKernel": "./vendor/honovel/framework/src/hono/Http/HttpKernel.ts",
-    "Illuminate/Routing/BaseController":"./vendor/honovel/framework/src/Base/BaseController.ts"
+    "Illuminate/Routing/BaseController":"./vendor/honovel/framework/src/Base/BaseController.ts",
+    "MyArtisan": "./vendor/honovel/framework/src/Maneuver/Honovel-CLI.ts"
   },
   "lint": {
     "rules": {

@@ -16,4 +16,5 @@ export interface ImportEnvConfig {
    * The system's default timezone
    */
   readonly TIMEZONE: string;
+  readonly JWT_SECRET_KEY: string;
 }

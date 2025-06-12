@@ -274,10 +274,6 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
         }
       }
     }
-    writeFile(
-      honovelPath("hono-globals/config.json"),
-      JSON.stringify(allModules, null, 2)
-    );
   } else {
     const conf = {};
     try {

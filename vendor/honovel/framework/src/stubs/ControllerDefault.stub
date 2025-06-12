@@ -1,0 +1,10 @@
+import Controller from "./Controller.ts";
+
+class {{ ClassName }} extends Controller {
+    // create function like this
+    public index: HttpDispatch = async ({request}) => {
+        // your logic here
+    }
+}
+
+export default {{ ClassName }};

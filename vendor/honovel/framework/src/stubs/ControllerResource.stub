@@ -1,0 +1,40 @@
+import Controller from "./Controller.ts";
+
+class {{ ClassName }} extends Controller {
+    // GET /resource
+    public index: HttpDispatch = async ({ request }) => {
+        // List all resources
+    };
+
+    // GET /resource/{id}
+    public show: HttpDispatch = async ({ request }, id) => {
+        // Show a single resource by ID
+    };
+
+    // GET /resource/create
+    public create: HttpDispatch = async ({ request }) => {
+        // Return form or data for creating resource
+    };
+
+    // POST /resource
+    public store: HttpDispatch = async ({ request }) => {
+        // Create a new resource
+    };
+
+    // GET /resource/{id}/edit
+    public edit: HttpDispatch = async ({ request }, id) => {
+        // Return form or data for editing resource
+    };
+
+    // PUT or PATCH /resource/{id}
+    public update: HttpDispatch = async ({ request }, id) => {
+        // Update a resource by ID
+    };
+
+    // DELETE /resource/{id}
+    public destroy: HttpDispatch = async ({ request }, id) => {
+        // Delete a resource by ID
+    };
+}
+
+export default {{ ClassName }};
