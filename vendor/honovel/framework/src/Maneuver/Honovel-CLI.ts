@@ -82,6 +82,6 @@ class MyArtisan {
   }
 }
 
-const Artisan: typeof IMyArtisan = MyArtisan;
+const Artisan: IMyArtisan = new MyArtisan();
 
 export default Artisan;

@@ -1,7 +1,5 @@
-import MyArtisan from "MyArtisan";
+import artisan from "MyArtisan";
 
-const artisan = new MyArtisan();
-
-await artisan.command(Deno.args);
+artisan.command(Deno.args);
 
 Deno.exit(0);
