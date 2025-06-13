@@ -1,6 +1,10 @@
+import "../hono-globals/index.ts";
+import { Command } from "https://deno.land/x/cliffy@v1.0.0-rc.4/command/mod.ts";
+
+import { IMyArtisan } from "../@hono-types/IMyArtisan.d.ts";
 class MyArtisan {
   constructor() {}
-  public async createConfig(options: { force?: boolean }, name: string) {
+  private async createConfig(options: { force?: boolean }, name: string) {
     const stubPath = honovelPath("stubs/ConfigDefault.stub");
     const stubContent = getFileContents(stubPath);
     if (!options.force) {
@@ -20,7 +24,7 @@ class MyArtisan {
     Deno.exit(0);
   }
 
-  public async publishConfig() {
+  private async publishConfig() {
     // Read the module names from the JSON file
     const modules: string[] = Object.keys(myConfigData);
     let output = "";
@@ -36,7 +40,7 @@ class MyArtisan {
     console.log(`✅ Generated ${basePath("config/build/myConfig.ts")}`);
   }
 
-  public async makeController(options: { resource?: boolean }, name: string) {
+  private async makeController(options: { resource?: boolean }, name: string) {
     let stubPath: string;
     if (options.resource) {
       stubPath = honovelPath("stubs/ControllerResource.stub");
@@ -50,6 +54,34 @@ class MyArtisan {
     console.log(`✅ Generated app/Controllers/${name}.ts`);
     Deno.exit(0);
   }
+
+  public async command(args: string[]): Promise<void> {
+    await new Command()
+      .name("Honovel")
+      .description("Honovel CLI")
+      .version(FRAMEWORK_VERSION)
+      .command("make:config", "Make a new config file")
+      .arguments("<name:string>")
+      .option("--force", "Force overwrite existing config file")
+      .action(this.createConfig)
+
+      .command("make:controller", "Generate a controller file")
+      .arguments("<name:string>")
+      .option(
+        "--resource",
+        "Generate a resourceful controller (index, create, store, etc.)"
+      )
+      .action(this.makeController)
+
+      .command(
+        "publish:config",
+        "Build your configs in config/build/myConfig.ts"
+      )
+      .action(this.publishConfig)
+      .parse(args);
+  }
 }
 
-export default MyArtisan;
+const Artisan: typeof IMyArtisan = MyArtisan;
+
+export default Artisan;
