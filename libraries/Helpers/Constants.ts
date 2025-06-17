@@ -65,7 +65,7 @@ class Constants implements IConstants {
       throw new Error("Config store is not initialized");
     }
 
-    if (is_function(data)) {
+    if (isFunction(data)) {
       throw new Error("Cannot write a function to the config store");
     }
     const keys = key.split(".");

@@ -1,38 +1,61 @@
 import Controller from "./Controller.ts";
 
 class UserController extends Controller {
-  // function guide
-  // index: HttpDispatch = async ({ request }) => {
-  //    // your code here
-  // };
-  // or
+    // GET /resource
+    public index: HttpDispatch = async ({ request }) => {
+        // List all resources
+        return response().json({
+            message:"index"
+        })
+    };
 
-  // public async view({request}:HttpHono){
-  //    // your code here
-  // }
+    // GET /resource/{id}
+    public show: HttpDispatch = async ({ request }, id) => {
+        // Show a single resource by ID
+        return response().json({
+            message:`show ${id}`
+        })
+    };
 
-  public index: HttpDispatch = async (_) => {
-    return view("welcome", {
-      hello: "world",
-    });
-  };
+    // GET /resource/create
+    public create: HttpDispatch = async ({ request }) => {
+        // Return form or data for creating resource
+        return response().json({
+            message:`create`
+        })
+    };
 
-  public async view(_: HttpHono) {
-    return view("welcome", {
-      hello: "world",
-    });
-  }
+    // POST /resource
+    public store: HttpDispatch = async ({ request }) => {
+        // Create a new resource
+        return response().json({
+            message:`store`
+        })
+    };
 
-  public async test({ request }: HttpHono, id: string) {
-    console.log("hello");
-    return response().json({
-      id,
-    });
-  }
+    // GET /resource/{id}/edit
+    public edit: HttpDispatch = async ({ request }, id) => {
+        // Return form or data for editing resource
+        return response().json({
+            message:`edit ${id}`
+        })
+    };
 
-  public async show(_: HttpHono, user: string) {
-    return response().json({ user });
-  }
+    // PUT or PATCH /resource/{id}
+    public update: HttpDispatch = async ({ request }, id) => {
+        // Update a resource by ID
+        return response().json({
+            message:`update ${id}`
+        })
+    };
+
+    // DELETE /resource/{id}
+    public destroy: HttpDispatch = async ({ request }, id) => {
+        // Delete a resource by ID
+        return response().json({
+            message:`delete ${id}`
+        })
+    };
 }
 
 export default UserController;

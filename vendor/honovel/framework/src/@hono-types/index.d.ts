@@ -1,6 +1,6 @@
 import { ResponseType } from "axios";
 
-export { };
+export {};
 export interface IFetchDataOption {
   method?: string;
   headers?: Record<string, string>;
@@ -37,7 +37,10 @@ declare global {
    * that can be used throughout the application.
    */
   // deno-lint-ignore no-explicit-any
-  function globalFn<T extends (...args: any[]) => any>(name: string, fn: T): void
+  function globalFn<T extends (...args: any[]) => any>(
+    name: string,
+    fn: T
+  ): void;
 
   /**
    * Retrieves the value of the specified environment variable.
@@ -381,49 +384,49 @@ declare global {
   /**
    * Checks whether a given variable is a function.
    */
-  function is_function(
+  function isFunction(
     variable: unknown
   ): variable is (...args: unknown[]) => unknown;
 
   /**
    * Checks if the given value is a string.
    */
-  function is_string(value: unknown): value is string;
+  function isString(value: unknown): value is string;
 
   /**
    * Checks if the given value is an array.
    */
-  function is_array<T = unknown>(value: unknown): value is T[];
+  function isArray<T = unknown>(value: unknown): value is T[];
 
   /**
    * Checks if the given value is a plain object (excluding null and arrays).
    */
-  function is_object(value: unknown): value is Record<string, unknown>;
+  function isObject(value: unknown): value is Record<string, unknown>;
 
   /**
    * Checks if the given value is numeric (number or numeric string).
    */
-  function is_numeric(value: unknown): value is number | `${number}`;
+  function isNumeric(value: unknown): value is number | `${number}`;
 
   /**
    * Checks if the given value is an integer.
    */
-  function is_integer(value: unknown): value is number;
+  function isInteger(value: unknown): value is number;
 
   /**
    * Checks if the given value is a float.
    */
-  function is_float(value: unknown): value is number;
+  function isFloat(value: unknown): value is number;
 
   /**
    * Checks if the given value is a boolean.
    */
-  function is_boolean(value: unknown): value is boolean;
+  function isBoolean(value: unknown): value is boolean;
 
   /**
    * Checks if the given value is null.
    */
-  function is_null(value: unknown): value is null;
+  function isNull(value: unknown): value is null;
 
   /**
    * Checks if the given value is not undefined or null.
@@ -433,7 +436,7 @@ declare global {
   /**
    * Checks if the given key exists in the object.
    */
-  function key_exist<T extends object>(
+  function keyExist<T extends object>(
     object: T,
     key: string | number | symbol
   ): key is keyof T;
@@ -448,7 +451,7 @@ declare global {
   /**
    * Checks if the given method exists on the given object.
    */
-  function method_exist<T extends object>(
+  function methodExist<T extends object>(
     object: T,
     method: string
   ): method is keyof T & string;
@@ -493,4 +496,16 @@ declare global {
     destination: string,
     arrayBuffer: ArrayBuffer
   ): true | false;
+
+  /**
+   * Returns the first element of an array.
+   * If the array is empty, `null` is returned.
+   */
+  function arrayFirst<T>(array: T[]): T | null;
+
+  /**
+   * Returns the last element of an array.
+   * If the array is empty, `null` is returned.
+   */
+  function arrayLast<T>(array: T[]): T | null;
 }

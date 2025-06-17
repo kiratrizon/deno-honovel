@@ -55,7 +55,7 @@ export async function buildRequest(c: Context): Promise<RequestData> {
     for (const [key, val] of formData.entries()) {
       if (val instanceof File) {
         files[key] = [val];
-      } else if (is_array(val) && val.every((v) => v instanceof File)) {
+      } else if (isArray(val) && val.every((v) => v instanceof File)) {
         files[key] = val;
       } else {
         body[key] = val;
@@ -66,7 +66,7 @@ export async function buildRequest(c: Context): Promise<RequestData> {
     const params = new URLSearchParams(text);
     params.forEach((value, key) => {
       if (body[key]) {
-        if (is_array(body[key])) {
+        if (isArray(body[key])) {
           (body[key] as string[]).push(value);
         } else {
           body[key] = [body[key] as string, value];
@@ -102,7 +102,7 @@ export async function buildRequest(c: Context): Promise<RequestData> {
   const query = c.req.query() || {};
   const rawQuery = c.req.url.split("?")[1] || "";
   const cookies = (await getSignedCookie(c, getAppKey())) || {};
-  if (key_exist(cookies, "sid")) {
+  if (keyExist(cookies, "sid")) {
     // Remove session ID from cookies if it exists
     delete cookies.sid;
   }

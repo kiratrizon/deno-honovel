@@ -29,14 +29,14 @@ Object.defineProperty(globalThis, "globalFn", {
   configurable: false,
 });
 
-// is_string
-globalFn("is_string", function (value) {
+// isString
+globalFn("isString", function (value) {
   return typeof value === "string";
 });
 
-// is_function
-globalFn("is_function", function (value) {
-  if (!is_string(value)) {
+// isFunction
+globalFn("isFunction", function (value) {
+  if (!isString(value)) {
     return typeof value === "function";
   } else {
     if (isDefined(value)) {
@@ -46,35 +46,35 @@ globalFn("is_function", function (value) {
   return false;
 });
 
-// is_array
-globalFn("is_array", function (value) {
+// isArray
+globalFn("isArray", function (value) {
   return Array.isArray(value);
 });
 
-// is_object
-globalFn("is_object", function (value) {
+// isObject
+globalFn("isObject", function (value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 });
 
-// is_numeric
-globalFn("is_numeric", function (value) {
+// isNumeric
+globalFn("isNumeric", function (value) {
   return !isNaN(value) && !isNaN(parseFloat(value));
 });
 
-// is_integer
-globalFn("is_integer", function (value) {
+// isInteger
+globalFn("isInteger", function (value) {
   return Number.isInteger(value);
 });
-// is_float
-globalFn("is_float", function (value) {
+// isFloat
+globalFn("isFloat", function (value) {
   return typeof value === "number" && !Number.isInteger(value);
 });
-// is_boolean
-globalFn("is_boolean", function (value) {
+// isBoolean
+globalFn("isBoolean", function (value) {
   return typeof value === "boolean";
 });
-// is_null
-globalFn("is_null", function (value) {
+// isNull
+globalFn("isNull", function (value) {
   return value === null;
 });
 
@@ -83,7 +83,7 @@ globalFn("isset", function (value) {
   return typeof value !== "undefined" && value !== null;
 });
 
-globalFn("key_exist", function (object, key) {
+globalFn("keyExist", function (object, key) {
   if (typeof object !== "object" || object === null) {
     return false;
   }
@@ -93,26 +93,26 @@ globalFn("key_exist", function (object, key) {
 // empty
 globalFn("empty", function (value) {
   return (
-    is_null(value) ||
-    (is_array(value) && value.length === 0) ||
-    (is_object(value) && Object.keys(value).length === 0) ||
-    (is_string(value) && value.trim() === "") ||
+    isNull(value) ||
+    (isArray(value) && value.length === 0) ||
+    (isObject(value) && Object.keys(value).length === 0) ||
+    (isString(value) && value.trim() === "") ||
     value === undefined
   );
 });
 
-// method_exist
-globalFn("method_exist", function (object, method) {
+// methodExist
+globalFn("methodExist", function (object, method) {
   return typeof object[method] === "function";
 });
 
 globalFn("getType", (variable: unknown) => {
   const type = typeof variable;
   if (type === "object") {
-    if (is_array(variable)) {
+    if (isArray(variable)) {
       return "array";
     }
-    if (is_object(variable)) {
+    if (isObject(variable)) {
       return "object";
     }
     if (!variable) {
@@ -826,3 +826,11 @@ globalFn(
     }
   }
 );
+
+globalFn("arrayFirst", function (array: unknown[]) {
+  return isArray(array) && array.length > 0 ? array[0] : null;
+});
+
+globalFn("arrayLast", function (array: unknown[]) {
+  return isArray(array) && array.length > 0 ? array[array.length - 1] : null;
+});

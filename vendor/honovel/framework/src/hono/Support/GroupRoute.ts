@@ -78,7 +78,7 @@ class Group {
       throw new Error(`Method ${methodName} already exists`);
     }
     if (methodName === "middleware") {
-      if (!is_array(value)) {
+      if (!isArray(value)) {
         this.flag[methodName] = [value];
         return;
       }
@@ -90,16 +90,16 @@ class Group {
     if (methodName !== "where") {
       this.flag[methodName] = value;
     } else {
-      if (!is_object(value)) {
+      if (!isObject(value)) {
         throw new Error("Where must be an object");
       }
       const newValue = value as Record<string, RegExp | RegExp[]>;
       for (const key in newValue) {
         const v = newValue[key];
-        if (!key_exist(this.flag["where"] as Record<string, RegExp[]>, key)) {
+        if (!keyExist(this.flag["where"] as Record<string, RegExp[]>, key)) {
           (this.flag["where"] as Record<string, RegExp[]>)[key] = [];
         }
-        if (is_array(v)) {
+        if (isArray(v)) {
           if (v.some((item) => !(item instanceof RegExp)) || v.length === 0) {
             throw new Error("Where value must be an array of RegExp");
           }
@@ -124,7 +124,7 @@ class Group {
       Group.currentGroup = [...currentGroup, `*${Group.groupId}*`];
     } else {
       const prefix = this.flag["prefix"];
-      if (is_string(prefix)) {
+      if (isString(prefix)) {
         Group.currentGroup = [...currentGroup, prefix];
       } else {
         throw new Error("Prefix must be a string");
@@ -137,7 +137,7 @@ class Group {
 
     if (
       isset(this.flag["domain"]) &&
-      is_string(this.flag["domain"]) &&
+      isString(this.flag["domain"]) &&
       !isset(Group.currentDomain)
     ) {
       Group.currentDomain = this.flag["domain"];
@@ -148,7 +148,7 @@ class Group {
     this.groupName = groupName;
     Group.groupReference[Group.groupId] = this;
     const callbackCalled = Group.callbackCalled;
-    if (is_function(callback)) {
+    if (isFunction(callback)) {
       if (
         callbackCalled &&
         isset(this.flag["domain"]) &&

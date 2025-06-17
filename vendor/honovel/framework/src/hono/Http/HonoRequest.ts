@@ -49,7 +49,7 @@ class HonoRequest implements IHonoRequest {
   }
 
   public has(key: string): boolean {
-    return key_exist(this.myAll, key);
+    return keyExist(this.myAll, key);
   }
   public filled(key: string): boolean {
     return isset(this.myAll[key]) && !empty(this.myAll[key]);
@@ -59,20 +59,20 @@ class HonoRequest implements IHonoRequest {
     const forTrue = ["1", "true", "yes", "on"];
     const forFalse = ["0", "false", "no", "off"];
     const value = this.input(key);
-    if (is_array(value)) {
+    if (isArray(value)) {
       return value.some((v) => forTrue.includes(v as string));
     }
-    if (is_string(value)) {
+    if (isString(value)) {
       if (forTrue.includes(value)) {
         return true;
       } else if (forFalse.includes(value)) {
         return false;
       }
     }
-    if (is_numeric(value)) {
+    if (isNumeric(value)) {
       return value !== 0;
     }
-    if (is_boolean(value)) {
+    if (isBoolean(value)) {
       return value;
     }
     return false;
@@ -127,7 +127,7 @@ class HonoRequest implements IHonoRequest {
   }
 
   public header(key: string): string | null {
-    if (key_exist(this.raw.headers, key) && isset(this.raw.headers[key])) {
+    if (keyExist(this.raw.headers, key) && isset(this.raw.headers[key])) {
       return this.raw.headers[key] as string;
     }
     return null;
@@ -165,19 +165,19 @@ class HonoRequest implements IHonoRequest {
     value?: Exclude<unknown, undefined>,
     config?: CookieOptions
   ): unknown {
-    if (is_string(key) && key === "sid") {
+    if (isString(key) && key === "sid") {
       throw new Error(
         `The 'sid' cookie is reserved for session management and cannot be set directly.`
       );
     }
-    if (isset(key) && isset(value) && is_string(key)) {
+    if (isset(key) && isset(value) && isString(key)) {
       this.#myCookie[key] = [jsonEncode(value), config || {}];
       return;
     }
-    if (is_string(key) && !isset(value)) {
-      if (key_exist(this.#myCookie, key) && isset(this.#myCookie[key])) {
+    if (isString(key) && !isset(value)) {
+      if (keyExist(this.#myCookie, key) && isset(this.#myCookie[key])) {
         return jsonDecode(this.#myCookie[key][0]);
-      } else if (key_exist(this.raw.cookies, key)) {
+      } else if (keyExist(this.raw.cookies, key)) {
         return this.raw.cookies[key];
       }
     }
@@ -201,13 +201,13 @@ class HonoRequest implements IHonoRequest {
     return this.raw.files;
   }
   public file(key: string): unknown {
-    if (key_exist(this.raw.files, key) && isset(this.raw.files[key])) {
+    if (keyExist(this.raw.files, key) && isset(this.raw.files[key])) {
       return this.raw.files[key] as unknown;
     }
     return null;
   }
   public hasFile(key: string): boolean {
-    return key_exist(this.raw.files, key) && isset(this.raw.files[key]);
+    return keyExist(this.raw.files, key) && isset(this.raw.files[key]);
   }
 
   public ip(): string {
@@ -281,7 +281,7 @@ class HonoRequest implements IHonoRequest {
   public route(key: string) {
     if (
       isset(key) &&
-      key_exist(this.raw.params, key) &&
+      keyExist(this.raw.params, key) &&
       isset(this.raw.params[key])
     ) {
       return this.raw.params[key];

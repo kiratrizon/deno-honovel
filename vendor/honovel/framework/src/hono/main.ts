@@ -27,6 +27,13 @@ import { IMyConfig } from "./Support/MethodRoute.ts";
 import { honoSession } from "./Http/HonoSession.ts";
 import { myError } from "./Http/builder.ts";
 
+const headFunction: MiddlewareHandler = async (c, next) => {
+  const { request } = c.get("HttpHono") as HttpHono;
+  if (!request.isMethod("HEAD")) {
+    return await myError(c);
+  }
+  await next();
+};
 function domainGroup(
   mainstring: string,
   {
@@ -64,7 +71,9 @@ function convertLaravelDomainToWildcard(domain: string): string {
 import * as path from "https://deno.land/std/path/mod.ts";
 const myStaticDefaults: MiddlewareHandler[] = [
   serveStatic({ root: path.relative(Deno.cwd(), publicPath()) }),
-  serveStatic({ root: path.relative(Deno.cwd(), honovelPath("hono/hono-assets")) }),
+  serveStatic({
+    root: path.relative(Deno.cwd(), honovelPath("hono/hono-assets")),
+  }),
 ];
 
 class Server {
@@ -85,7 +94,7 @@ class Server {
       if (!incomingUrl.startsWith(appUrl)) {
         const host = c.req.raw.url.split("://")[1].split("/")[0];
 
-        if (key_exist(Server.domainPattern, host)) {
+        if (keyExist(Server.domainPattern, host)) {
           return await Server.domainPattern[host].fetch(c.req.raw);
         }
         // Check for patterns with wildcards
@@ -125,7 +134,7 @@ class Server {
       app.use("*", async (c, next) => {
         c.set("subdomain", {});
         await next();
-      })
+      });
     }
     return app;
   }
@@ -195,7 +204,13 @@ class Server {
         const instancedRoute = new route();
         const allGroup = instancedRoute.getAllGroupsAndMethods();
 
-        const { groups, methods, defaultRoute, defaultResource, resourceReferrence } = allGroup;
+        const {
+          groups,
+          methods,
+          defaultRoute,
+          defaultResource,
+          resourceReferrence,
+        } = allGroup;
         if (isset(methods) && !empty(methods)) {
           if (!empty(defaultResource)) {
             for (const di of defaultResource) {
@@ -230,12 +245,13 @@ class Server {
                 buildRequestInit(),
                 regexToHono(flagWhere, arrangerDispatch.sequenceParams),
                 ...toMiddleware(flagMiddleware),
-                returnedDispatch as MiddlewareHandler
+                returnedDispatch as MiddlewareHandler,
               ];
-              if (methodarr.length === 1 && methodarr[0].toLowerCase() === 'head') {
+              if (methodarr.length === 1 && arrayFirst(methodarr) === "head") {
+                allBuilds.splice(1, 0, headFunction);
                 splittedUri.forEach((str) => {
-                  newApp.get(str, ...allBuilds)
-                })
+                  newApp.get(str, ...allBuilds);
+                });
               } else {
                 newApp.on(
                   methodarr.map((m) => m.toUpperCase()),
@@ -248,9 +264,8 @@ class Server {
             this.app.route(routePrefix, byEndpointsRouter);
           }
 
-
           // for groups
-          if (isset(groups) && !empty(groups) && is_object(groups)) {
+          if (isset(groups) && !empty(groups) && isObject(groups)) {
             const groupKeys = Object.keys(groups);
             for (const groupKey of groupKeys) {
               let hasDomain = false;
@@ -305,8 +320,13 @@ class Server {
                   "/"
                 );
               }
+
               const groupEntries = Object.entries(myGroup.myRoutes);
-              const arrangerGroup = URLArranger.urlCombiner(newName);
+              const arrangerGroup = URLArranger.urlCombiner(
+                newName,
+                true,
+                where
+              );
               groupEntries.forEach(([routeId, methodarr]) => {
                 const routeUsed = methods[routeId];
                 const myConfig = routeUsed.config;
@@ -323,11 +343,10 @@ class Server {
                 );
                 const arrangerDispatch = URLArranger.urlCombiner(myConfig.uri);
                 const newMethodUri = arrangerDispatch.string;
+
                 const newGroupMiddleware: MiddlewareHandler[] = [];
                 if (isset(where) && !empty(where)) {
-                  newGroupMiddleware.unshift(
-                    regexToHono(where, [...myParam])
-                  );
+                  newGroupMiddleware.unshift(regexToHono(where, [...myParam]));
                 }
                 newGroupMiddleware.push(...toMiddleware(middleware));
                 const splittedUri =
@@ -343,12 +362,16 @@ class Server {
                 const allBuilds = [
                   buildRequestInit(),
                   ...newGroupMiddleware,
-                  returnedDispatch as MiddlewareHandler
+                  returnedDispatch as MiddlewareHandler,
                 ];
-                if (methodarr.length === 1 && methodarr[0].toLowerCase() === 'head') {
+                if (
+                  methodarr.length === 1 &&
+                  arrayFirst(methodarr) === "head"
+                ) {
+                  allBuilds.splice(1, 0, headFunction);
                   splittedUri.forEach((str) => {
                     myNewGroup.get(str, ...allBuilds);
-                  })
+                  });
                 } else {
                   myNewGroup.on(
                     methodarr.map((m) => m.toUpperCase()),
@@ -358,10 +381,14 @@ class Server {
                 }
               });
               const newAppGroup = this.generateNewApp();
-              URLArranger.generateOptionalParamRoutes(
+              const generatedopts = URLArranger.generateOptionalParamRoutes(
                 arrangerGroup.string,
                 "group"
-              ).forEach((grp) => {
+              );
+
+              console.log(generatedopts);
+
+              generatedopts.forEach((grp) => {
                 // apply the middlewares here
                 newAppGroup.route(grp, myNewGroup);
               });

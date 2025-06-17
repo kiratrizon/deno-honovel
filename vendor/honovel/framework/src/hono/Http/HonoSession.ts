@@ -98,7 +98,7 @@ export class HonoSession<
       case "database":
       case "memory": {
         // For memory, we can just remove the session from the in-memory store
-        if (key_exist(HonoSessionMemory.sessions, this.id)) {
+        if (keyExist(HonoSessionMemory.sessions, this.id)) {
           HonoSessionMemory.sessions[this.id] = {
             ...HonoSessionMemory.sessions[this.id],
             ...this.values,
@@ -127,7 +127,7 @@ class Session implements SessionContract {
     return this.values[key] || null;
   }
   public has(key: string): boolean {
-    return key_exist(this.values, key);
+    return keyExist(this.values, key);
   }
   public forget(key: string) {
     delete this.values[key];
@@ -206,7 +206,7 @@ export function honoSession(): MiddlewareHandler {
       const isEncrypt = sessionConfig.encrypt || false;
 
       // getting sid
-      if (!isset(sid) || empty(sid) || !sid || !is_string(sid)) {
+      if (!isset(sid) || empty(sid) || !sid || !isString(sid)) {
         const sessionId = await sessionIdRecursive();
         await setSignedCookie(c, "sid", jsonEncode(sessionId), appKey, {
           maxAge: (sessionConfig.lifetime || 120) * 60,
@@ -272,7 +272,7 @@ export function honoSession(): MiddlewareHandler {
               | Record<string, unknown>
               | string
               | null;
-            const data = is_string(redisData)
+            const data = isString(redisData)
               ? JSON.parse(redisData)
               : redisData;
             if (isset(data)) {
@@ -305,7 +305,7 @@ export function honoSession(): MiddlewareHandler {
             // For memory, we can use a simple in-memory store
             // Note: This is not persistent and will be lost on server restart
             // For production, use file or redis
-            if (key_exist(HonoSessionMemory.sessions, sid)) {
+            if (keyExist(HonoSessionMemory.sessions, sid)) {
               value = HonoSessionMemory.sessions[sid];
             } else {
               HonoSessionMemory.sessions[sid] = value;
@@ -393,7 +393,7 @@ async function sessionIdRecursive(): Promise<string> {
             .map((b) => b.toString(16).padStart(2, "0"))
             .join("");
       } while (
-        key_exist(HonoSessionMemory.sessions, sessionId) ||
+        keyExist(HonoSessionMemory.sessions, sessionId) ||
         !isset(sessionId)
       );
       return sessionId;
@@ -494,7 +494,7 @@ function parseUpstashEnv(obj: {
 async function createRedisConnection(redisConnection: RedisConnection) {
   if (
     isset(redisConnection.upstash) &&
-    is_object(redisConnection.upstash) &&
+    isObject(redisConnection.upstash) &&
     Object.entries(redisConnection.upstash).every(
       ([, value]) => isset(value) && !empty(value)
     )
@@ -503,7 +503,7 @@ async function createRedisConnection(redisConnection: RedisConnection) {
   } else if (
     isset(redisConnection.url) &&
     !empty(redisConnection.url) &&
-    is_string(redisConnection.url)
+    isString(redisConnection.url)
   ) {
     MyRedis.setClient(new IORedis(redisConnection.url));
   } else {

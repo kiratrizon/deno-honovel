@@ -214,7 +214,7 @@ class HonoResponse {
     returnTypes.splice(returnTypes.indexOf(insertType), 1);
     let countErrors = 0;
     returnTypes.forEach((type) => {
-      if (key_exist(this.#returnData, type) && !empty(this.#returnData[type])) {
+      if (keyExist(this.#returnData, type) && !empty(this.#returnData[type])) {
         countErrors++;
       }
     });

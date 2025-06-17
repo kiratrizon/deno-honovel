@@ -34,14 +34,16 @@ class MethodRoute implements IMethodRoute {
     match?: string[];
   }) {
     let myFunc = null;
-    if (is_function(arg)) {
+    if (isFunction(arg)) {
       this.type = "function";
       myFunc = arg as HttpDispatch;
-    } else if (is_array(arg) && arg.length === 2) {
+    } else if (isArray(arg) && arg.length === 2) {
       const [controller, method] = arg as [new () => Controller, string];
       const controllerInstance = new controller();
-      if (method_exist(controllerInstance, method)) {
-        myFunc = (controllerInstance[method].bind(controllerInstance)) as unknown as HttpDispatch;
+      if (methodExist(controllerInstance, method)) {
+        myFunc = controllerInstance[method].bind(
+          controllerInstance
+        ) as unknown as HttpDispatch;
       }
       this.type = "controller";
     } else {
@@ -89,7 +91,7 @@ class MethodRoute implements IMethodRoute {
       throw new Error(`Method ${methodName} already exists`);
     }
     if (methodName === "middleware") {
-      if (!is_array(value)) {
+      if (!isArray(value)) {
         this.flag[methodName] = [value];
         return;
       }
@@ -97,16 +99,16 @@ class MethodRoute implements IMethodRoute {
     if (methodName !== "where") {
       this.flag[methodName] = value;
     } else {
-      if (!is_object(value)) {
+      if (!isObject(value)) {
         throw new Error("Where must be an object");
       }
       const newValue = value as Record<string, RegExp | RegExp[]>;
       for (const key in newValue) {
         const v = newValue[key];
-        if (!key_exist(this.flag["where"] as Record<string, RegExp[]>, key)) {
+        if (!keyExist(this.flag["where"] as Record<string, RegExp[]>, key)) {
           (this.flag["where"] as Record<string, RegExp[]>)[key] = [];
         }
-        if (is_array(v)) {
+        if (isArray(v)) {
           if (v.some((item) => !(item instanceof RegExp)) || v.length === 0) {
             throw new Error("Where value must be an array of RegExp");
           }

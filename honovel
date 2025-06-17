@@ -1,5 +1,5 @@
 import artisan from "MyArtisan";
 
-artisan.command(Deno.args);
+await artisan.command(Deno.args);
 
 Deno.exit(0);

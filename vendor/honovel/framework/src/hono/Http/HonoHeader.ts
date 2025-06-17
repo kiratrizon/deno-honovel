@@ -15,7 +15,7 @@ class HonoHeader implements IHonoHeader {
   get(key: string): string | null {
     const value = this.headers[key.toLowerCase()];
     if (!value) return null;
-    if (is_array(value)) {
+    if (isArray(value)) {
       return value.length > 0 ? value[0] : null;
     }
     return value;

@@ -38,12 +38,12 @@ class HonoDispatch {
     }
     if (
       request.isMethod("HEAD") &&
-      is_object(this.#returnedData) &&
+      isObject(this.#returnedData) &&
       !(this.#returnedData instanceof HonoResponse)
     ) {
       throw new Error("HEAD method cannot return a response.");
     }
-    if (is_object(this.#returnedData)) {
+    if (isObject(this.#returnedData)) {
       if (this.#returnedData instanceof HonoView) {
         const dataView = this.#returnedData.getView();
         const rendered = await this.#returnedData.element(
@@ -161,24 +161,21 @@ class HonoDispatch {
         this.#statusCode = 200;
         return c.json(JSON.parse(JSON.stringify(this.#returnedData)), 200);
       }
-    } else if (is_array(this.#returnedData)) {
+    } else if (isArray(this.#returnedData)) {
       this.#statusCode = 200;
       if (request.expectsJson()) {
         return c.json(this.#returnedData, 200);
       } else {
         return c.text(JSON.stringify(this.#returnedData, null, 2), 200);
       }
-    } else if (
-      is_numeric(this.#returnedData) ||
-      is_string(this.#returnedData)
-    ) {
+    } else if (isNumeric(this.#returnedData) || isString(this.#returnedData)) {
       this.#statusCode = 200;
       if (request.expectsJson()) {
         return c.json(this.#returnedData, 200);
       } else {
         return c.text(String(this.#returnedData), 200);
       }
-    } else if (is_null(this.#returnedData)) {
+    } else if (isNull(this.#returnedData)) {
       if (request.expectsJson()) {
         return c.json(null, 200);
       }

@@ -44,8 +44,12 @@ export function regexToHono(
 }
 
 export class URLArranger {
-  public static urlCombiner(input: string[] | string, strict = true) {
-    if (is_string(input)) {
+  public static urlCombiner(
+    input: string[] | string,
+    strict = true,
+    where: Record<string, RegExp[]> = {}
+  ) {
+    if (isString(input)) {
       input = [input];
     }
     const groups = input;
@@ -53,10 +57,14 @@ export class URLArranger {
     if (convertion === ".") {
       convertion = "";
     }
-    return this.processString(convertion, strict);
+    return this.processString(convertion, strict, where);
   }
 
-  private static processString(input: string, strict = true) {
+  private static processString(
+    input: string,
+    strict = true,
+    where: Record<string, RegExp[]> = {}
+  ) {
     const requiredParams: string[] = [];
     const optionalParams: string[] = [];
     const sequenceParams: string[] = [];
@@ -197,7 +205,7 @@ export class URLArranger {
       return route;
     });
     return final.flatMap((r) => {
-      return (type == "dispatch" && !r.endsWith("/")) ? [r, `${r}/`] : [r]
+      return type == "dispatch" && !r.endsWith("/") ? [r, `${r}/`] : [r];
     });
   }
 }
@@ -213,18 +221,18 @@ export function toMiddleware(
       obj: HttpHono,
       next: HonoNext
     ) => Promise<unknown>)[] = [];
-    if (is_string(arg)) {
-      if (key_exist(MiddlewareGroups, arg)) {
+    if (isString(arg)) {
+      if (keyExist(MiddlewareGroups, arg)) {
         const middlewareGroup = MiddlewareGroups[arg];
         middlewareGroup.forEach((middleware) => {
-          if (is_string(middleware)) {
-            if (key_exist(RouteMiddleware, middleware)) {
+          if (isString(middleware)) {
+            if (keyExist(RouteMiddleware, middleware)) {
               const middlewareClass = RouteMiddleware[middleware];
               const middlewareInstance =
                 new (middlewareClass as new () => InstanceType<
                   typeof middlewareClass
                 >)();
-              if (method_exist(middlewareInstance, "handle")) {
+              if (methodExist(middlewareInstance, "handle")) {
                 middlewareCallback.push(
                   middlewareInstance.handle.bind(
                     middlewareInstance
@@ -234,7 +242,7 @@ export function toMiddleware(
             }
           } else {
             const middlewareInstance = new middleware();
-            if (method_exist(middlewareInstance, "handle")) {
+            if (methodExist(middlewareInstance, "handle")) {
               middlewareCallback.push(
                 middlewareInstance.handle.bind(
                   middlewareInstance
@@ -243,20 +251,20 @@ export function toMiddleware(
             }
           }
         });
-      } else if (key_exist(RouteMiddleware, arg)) {
+      } else if (keyExist(RouteMiddleware, arg)) {
         const middlewareClass = RouteMiddleware[arg];
         const middlewareInstance = new (middlewareClass as new (
           // deno-lint-ignore no-explicit-any
           ...args: any[]
         ) => // deno-lint-ignore no-explicit-any
-          any)();
-        if (method_exist(middlewareInstance, "handle")) {
+        any)();
+        if (methodExist(middlewareInstance, "handle")) {
           middlewareCallback.push(
             middlewareInstance.handle.bind(middlewareInstance) as HttpMiddleware
           );
         }
       }
-    } else if (is_function(arg)) {
+    } else if (isFunction(arg)) {
       middlewareCallback.push(arg as HttpMiddleware);
     }
     return middlewareCallback;
@@ -283,7 +291,7 @@ export function toMiddleware(
       try {
         const middlewareResp =
           (await args(httpHono, honoClosure.next.bind(honoClosure))) || null;
-        if (is_null(middlewareResp)) {
+        if (isNull(middlewareResp)) {
           return c.json(null);
         }
         const dispatch = new HonoDispatch(middlewareResp, "middleware");
@@ -306,8 +314,8 @@ export function toMiddleware(
             `Request URI ${request
               .method()
               .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-                "HTTP_X_REQUEST_ID"
-              )}`
+              "HTTP_X_REQUEST_ID"
+            )}`
           );
           let errorHtml: string;
           if (!request.expectsJson()) {
@@ -333,24 +341,30 @@ export function toDispatch(
     const params = httpHono.request.route() as Record<string, string>;
     const newParams: Record<string, unknown> = {};
     sequenceParams.forEach((param) => {
-      if (key_exist(params, param)) {
+      if (keyExist(params, param)) {
         newParams[param] = params[param] || null;
       } else {
         newParams[param] = null;
       }
     });
-    if (!is_function(myconf)) {
+    if (!isFunction(myconf)) {
       if (httpHono.request.expectsJson()) {
         return c.html("Cannot find route", 500);
       } else {
-        return c.json({
-          message: "Cannot find route"
-        }, 500)
+        return c.json(
+          {
+            message: "Cannot find route",
+          },
+          500
+        );
       }
     }
-    const middlewareResp = await myconf(httpHono, ...Object.values(newParams));
-    const dispatch = new HonoDispatch(middlewareResp, "dispatch");
     try {
+      const middlewareResp = await myconf(
+        httpHono,
+        ...Object.values(newParams)
+      );
+      const dispatch = new HonoDispatch(middlewareResp, "dispatch");
       const build = (await dispatch.build(httpHono.request, c)) as Response;
       return build;
     } catch (e: unknown) {
@@ -369,8 +383,8 @@ export function toDispatch(
           `Request URI ${httpHono.request
             .method()
             .toUpperCase()} ${httpHono.request.path()}\nRequest ID ${httpHono.request.server(
-              "HTTP_X_REQUEST_ID"
-            )}`
+            "HTTP_X_REQUEST_ID"
+          )}`
         );
         let errorHtml: string;
         if (!httpHono.request.expectsJson()) {
@@ -412,14 +426,15 @@ export function renderErrorHtml(e: Error): string {
           ${e.message}
         </p>
 
-        ${e.stack
-      ? `
+        ${
+          e.stack
+            ? `
             <h2 class="text-xl font-semibold text-gray-800 mb-2">🧱 Stack Trace</h2>
             <pre class="text-xs leading-relaxed font-mono bg-gray-900 text-green-400 p-4 rounded-lg border border-gray-700 overflow-x-auto whitespace-pre-wrap hover:scale-[1.01] transition-transform duration-200 ease-out shadow-inner">
 ${e.stack.replace(/</g, "&lt;")}
             </pre>`
-      : ""
-    }
+            : ""
+        }
       </div>
     </div>
   </body>

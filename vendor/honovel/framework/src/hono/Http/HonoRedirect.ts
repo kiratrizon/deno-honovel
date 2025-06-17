@@ -15,7 +15,7 @@ class HonoRedirect implements IRedirectResponse {
   #errorData: Record<string, unknown> = {};
   #statusCode: number = 302;
   constructor(private url = null, statusCode = 302) {
-    if (!isset(this.url) && is_string(this.url)) {
+    if (!isset(this.url) && isString(this.url)) {
       this.#myRedirectData.redirect = this.url;
       this.#type = "redirect";
     }
@@ -24,7 +24,7 @@ class HonoRedirect implements IRedirectResponse {
 
   public route(name: string, params?: Record<string, unknown>): this {
     this.#type = "route";
-    if (!is_object(params)) {
+    if (!isObject(params)) {
       throw new Error("Params must be an object");
     }
     this.#myRedirectData[this.#type] = route(name, params);
@@ -49,7 +49,7 @@ class HonoRedirect implements IRedirectResponse {
   public with(...args: FlashArg): this {
     if (typeof args[0] === "string") {
       this.#flashData[args[0]] = args[1] || null;
-    } else if (is_object(args[0])) {
+    } else if (isObject(args[0])) {
       const newData = JSON.parse(JSON.stringify(args[0]));
       Object.assign(this.#flashData, newData);
     }
@@ -59,7 +59,7 @@ class HonoRedirect implements IRedirectResponse {
   public withErrors(...args: FlashArg): this {
     if (typeof args[0] === "string") {
       this.#errorData[args[0]] = args[1] || null;
-    } else if (is_object(args[0])) {
+    } else if (isObject(args[0])) {
       const newData = JSON.parse(JSON.stringify(args[0]));
       Object.assign(this.#errorData, newData);
     }

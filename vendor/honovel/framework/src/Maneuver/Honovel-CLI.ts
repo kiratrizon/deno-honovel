@@ -1,6 +1,8 @@
 import "../hono-globals/index.ts";
 import { Command } from "https://deno.land/x/cliffy@v1.0.0-rc.4/command/mod.ts";
 
+const myCommand = new Command();
+
 import { IMyArtisan } from "../@hono-types/IMyArtisan.d.ts";
 class MyArtisan {
   constructor() {}
@@ -56,14 +58,14 @@ class MyArtisan {
   }
 
   public async command(args: string[]): Promise<void> {
-    await new Command()
+    await myCommand
       .name("Honovel")
       .description("Honovel CLI")
       .version(FRAMEWORK_VERSION)
       .command("make:config", "Make a new config file")
       .arguments("<name:string>")
       .option("--force", "Force overwrite existing config file")
-      .action(this.createConfig)
+      .action(this.createConfig) // ✅
 
       .command("make:controller", "Generate a controller file")
       .arguments("<name:string>")
@@ -71,13 +73,13 @@ class MyArtisan {
         "--resource",
         "Generate a resourceful controller (index, create, store, etc.)"
       )
-      .action(this.makeController)
+      .action(this.makeController) // ✅
 
       .command(
         "publish:config",
         "Build your configs in config/build/myConfig.ts"
       )
-      .action(this.publishConfig)
+      .action(this.publishConfig) // ✅
       .parse(args);
   }
 }
