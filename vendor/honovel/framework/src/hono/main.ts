@@ -43,16 +43,15 @@ function domainGroup(
   }
 ): MiddlewareHandler {
   return async (c: Context, next) => {
+    const workingParams = [...sequenceParams];
     const host = c.req.raw.url.split("://")[1].split("/")[0];
     const domainParts = host.split(".");
     const domainPattern = mainstring.split(".");
-    const domainParams: Record<string, string> = {
-      string: "",
-    };
+    const domainParams: Record<string, string> = {};
     if (!empty(sequenceParams)) {
       domainPattern.forEach((part, index) => {
         if (part === "*" && sequenceParams.length > 0) {
-          const key = sequenceParams.shift();
+          const key = workingParams.shift();
           const value = domainParts[index];
           if (isset(key) && isset(value)) {
             domainParams[key] = value;
@@ -235,7 +234,9 @@ class Server {
               const newApp = this.generateNewApp();
 
               const splittedUri = URLArranger.generateOptionalParamRoutes(
-                arrangerDispatch.string
+                arrangerDispatch.string,
+                "dispatch",
+                flagWhere
               );
               const returnedDispatch = toDispatch(
                 myConfig.callback as IMyConfig["callback"],
@@ -243,7 +244,6 @@ class Server {
               );
               const allBuilds = [
                 buildRequestInit(),
-                regexToHono(flagWhere, arrangerDispatch.sequenceParams),
                 ...toMiddleware(flagMiddleware),
                 returnedDispatch as MiddlewareHandler,
               ];
@@ -294,6 +294,8 @@ class Server {
               middleware.unshift(key);
 
               const domainParam: string[] = [];
+              const groupMiddleware: MiddlewareHandler[] = [];
+
               if (isset(domain) && !empty(domain)) {
                 domainName = convertLaravelDomainToWildcard(domain);
 
@@ -312,6 +314,7 @@ class Server {
                   {},
                   true
                 );
+                groupMiddleware.push(regexToHono(where, domainParam));
               }
               let newName = "";
               if (!empty(name)) {
@@ -322,11 +325,7 @@ class Server {
               }
 
               const groupEntries = Object.entries(myGroup.myRoutes);
-              const arrangerGroup = URLArranger.urlCombiner(
-                newName,
-                true,
-                where
-              );
+              const arrangerGroup = URLArranger.urlCombiner(newName, true);
               groupEntries.forEach(([routeId, methodarr]) => {
                 const routeUsed = methods[routeId];
                 const myConfig = routeUsed.config;
@@ -341,29 +340,30 @@ class Server {
                   myConfig.callback as IMyConfig["callback"],
                   myParam
                 );
+                // console.log(myParam);
                 const arrangerDispatch = URLArranger.urlCombiner(myConfig.uri);
                 const newMethodUri = arrangerDispatch.string;
 
-                const newGroupMiddleware: MiddlewareHandler[] = [];
-                if (isset(where) && !empty(where)) {
-                  newGroupMiddleware.unshift(regexToHono(where, [...myParam]));
-                }
-                newGroupMiddleware.push(...toMiddleware(middleware));
-                const splittedUri =
-                  URLArranger.generateOptionalParamRoutes(newMethodUri);
+                const newGroupMiddleware: MiddlewareHandler[] = [
+                  ...groupMiddleware,
+                ];
 
+                newGroupMiddleware.push(...toMiddleware(middleware));
                 const flagWhere = flag.where || {};
+                const splittedUri = URLArranger.generateOptionalParamRoutes(
+                  newMethodUri,
+                  "dispatch",
+                  flagWhere
+                );
                 const flagName = flag.name || "";
                 const flagMiddleware = flag.middleware || [];
-                newGroupMiddleware.push(
-                  regexToHono(flagWhere, [...myParam]),
-                  ...toMiddleware(flagMiddleware)
-                );
+                newGroupMiddleware.push(...toMiddleware(flagMiddleware));
                 const allBuilds = [
                   buildRequestInit(),
                   ...newGroupMiddleware,
                   returnedDispatch as MiddlewareHandler,
                 ];
+
                 if (
                   methodarr.length === 1 &&
                   arrayFirst(methodarr) === "head"
@@ -383,10 +383,9 @@ class Server {
               const newAppGroup = this.generateNewApp();
               const generatedopts = URLArranger.generateOptionalParamRoutes(
                 arrangerGroup.string,
-                "group"
+                "group",
+                where
               );
-
-              console.log(generatedopts);
 
               generatedopts.forEach((grp) => {
                 // apply the middlewares here

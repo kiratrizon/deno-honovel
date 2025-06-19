@@ -508,4 +508,6 @@ declare global {
    * If the array is empty, `null` is returned.
    */
   function arrayLast<T>(array: T[]): T | null;
+
+  function dd(...args: unknown[]): never;
 }

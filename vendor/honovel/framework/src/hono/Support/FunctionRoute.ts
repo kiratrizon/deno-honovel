@@ -13,6 +13,9 @@ import Constants from "Constants";
 import IHonoRequest from "../../@hono-types/declaration/IHonoRequest.d.ts";
 import { IConfigure } from "../../@hono-types/declaration/MyImports.d.ts";
 import HonoCookie from "../Http/HonoCookie.ts";
+import { DDError } from "../../Maneuver/HonovelErrors.ts";
+import util from "node:util";
+
 export const regexObj = {
   number: /^\d+$/,
   alpha: /^[a-zA-Z]+$/,
@@ -44,11 +47,7 @@ export function regexToHono(
 }
 
 export class URLArranger {
-  public static urlCombiner(
-    input: string[] | string,
-    strict = true,
-    where: Record<string, RegExp[]> = {}
-  ) {
+  public static urlCombiner(input: string[] | string, strict = true) {
     if (isString(input)) {
       input = [input];
     }
@@ -57,14 +56,10 @@ export class URLArranger {
     if (convertion === ".") {
       convertion = "";
     }
-    return this.processString(convertion, strict, where);
+    return this.processString(convertion, strict);
   }
 
-  private static processString(
-    input: string,
-    strict = true,
-    where: Record<string, RegExp[]> = {}
-  ) {
+  private static processString(input: string, strict = true) {
     const requiredParams: string[] = [];
     const optionalParams: string[] = [];
     const sequenceParams: string[] = [];
@@ -164,7 +159,8 @@ export class URLArranger {
 
   public static generateOptionalParamRoutes(
     route: string,
-    type: "group" | "dispatch" = "dispatch"
+    type: "group" | "dispatch" = "dispatch",
+    where: Record<string, RegExp[]> = {}
   ): string[] {
     const segments = route.split("/");
     const required: string[] = [];
@@ -204,10 +200,38 @@ export class URLArranger {
       }
       return route;
     });
-    return final.flatMap((r) => {
+    const finalMapping = final.flatMap((r) => {
       return type == "dispatch" && !r.endsWith("/") ? [r, `${r}/`] : [r];
     });
+
+    // console.log(finalMapping, where);
+    const constrainedMapping = finalMapping.map((route) => {
+      return applyConstraintsWithOptional(route, where);
+    });
+
+    // console.log(constrainedMapping);
+
+    return constrainedMapping;
   }
+}
+
+function applyConstraintsWithOptional(
+  route: string,
+  where: Record<string, RegExp[]>
+): string {
+  return route.replace(
+    /:([a-zA-Z0-9_]+)(\?)?/g,
+    (full, param, optionalMark) => {
+      const constraints = where[param];
+      if (constraints) {
+        const pattern = constraints
+          .map((r) => r.source.replace(/^(\^)?/, "").replace(/(\$)?$/, ""))
+          .join("|");
+        return `:${param}{${pattern}}${optionalMark ?? ""}`;
+      }
+      return full;
+    }
+  );
 }
 
 export function toMiddleware(
@@ -324,6 +348,26 @@ export function toMiddleware(
             errorHtml = "Internal server error";
           }
           return c.html(errorHtml, 500);
+        } else if (e instanceof DDError) {
+          const data = forDD(e.data);
+          if (request.expectsJson()) {
+            if (isNull(data.json)) {
+              data.json = null;
+            }
+            if (
+              isArray(data.json) ||
+              isObject(data.json) ||
+              isString(data.json) ||
+              isFloat(data.json) ||
+              isInteger(data.json) ||
+              isBoolean(data.json) ||
+              isNull(data.json)
+            ) {
+              return c.json(data.json, 200);
+            }
+          } else {
+            return c.html(data.html, 200);
+          }
         }
         return c.json({ message: "Internal server error" }, 500);
       }
@@ -393,6 +437,26 @@ export function toDispatch(
           errorHtml = "Internal server error";
         }
         return c.html(errorHtml, 500);
+      } else if (e instanceof DDError) {
+        const data = forDD(e.data);
+        if (httpHono.request.expectsJson()) {
+          if (isNull(data.json)) {
+            data.json = null;
+          }
+          if (
+            isArray(data.json) ||
+            isObject(data.json) ||
+            isString(data.json) ||
+            isFloat(data.json) ||
+            isInteger(data.json) ||
+            isBoolean(data.json) ||
+            isNull(data.json)
+          ) {
+            return c.json(data.json, 200);
+          }
+        } else {
+          return c.html(data.html, 200);
+        }
       }
     }
     return c.json({ message: "Internal server error" }, 500);
@@ -457,3 +521,27 @@ export const buildRequestInit = (): MiddlewareHandler => {
     await next();
   };
 };
+
+function forDD(data: unknown) {
+  let newData: unknown;
+  try {
+    newData = jsonDecode(jsonEncode(data));
+  } catch (_e) {
+    newData = data;
+  }
+  const html = `
+					<style>
+						body { background: #f8fafc; color: #1a202c; font-family: sans-serif; padding: 2rem; }
+						pre { background: #1a202c; color: #f7fafc; padding: 1.5rem; border-radius: 0.5rem; font-size: 14px; overflow-x: auto; }
+						code { white-space: pre-wrap; word-break: break-word; }
+					</style>
+					<pre><code>${util.inspect(newData, { colors: false, depth: null })}</code></pre>
+				`;
+
+  const json = newData;
+
+  return {
+    html,
+    json,
+  };
+}
