@@ -5,5 +5,5 @@ export declare class IMyArtisan {
    * It uses the Deno command line parser to handle various artisan commands.
    * @param args
    */
-  public command(args: string[]): Promise<void>;
+  public readonly command: (args: string[]) => Promise<void>;
 }
