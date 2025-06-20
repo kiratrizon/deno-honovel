@@ -7,17 +7,13 @@ import {
   IGroupParams,
   IEGroupRoute,
   IReferencesRoute,
-  HonoNext,
   IChildRoutes,
   IHeaderChildRoutes,
 } from "../../@hono-types/declaration/IRoute.d.ts";
 import MethodRoute from "./MethodRoute.ts";
 import GR from "./GroupRoute.ts";
 import { regexObj } from "./FunctionRoute.ts";
-import ResourceRoute, {
-  IResourceRouteConf,
-  ResourceKeys,
-} from "./ResourceRoute.ts";
+import ResourceRoute, { IResourceRouteConf } from "./ResourceRoute.ts";
 
 const GroupRoute = GR as typeof IEGroupRoute;
 export type ICallback = (

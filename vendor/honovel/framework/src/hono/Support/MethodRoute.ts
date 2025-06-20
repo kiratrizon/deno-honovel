@@ -1,4 +1,3 @@
-import { debug } from "node:console";
 import Controller from "../../../../../../app/Http/Controllers/Controller.ts";
 import {
   IMethodRoute,
