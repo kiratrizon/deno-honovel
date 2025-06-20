@@ -569,5 +569,5 @@ Deno.addSignalListener("SIGINT", async () => {
   // await db.close();
 
   console.log("Cleanup done. Exiting.");
-  Deno.exit();
+  await Deno.exit(0);
 });

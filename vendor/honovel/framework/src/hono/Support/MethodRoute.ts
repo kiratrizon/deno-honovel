@@ -1,3 +1,4 @@
+import { debug } from "node:console";
 import Controller from "../../../../../../app/Http/Controllers/Controller.ts";
 import {
   IMethodRoute,
@@ -12,6 +13,7 @@ export interface IMyConfig {
   uri: string;
   method: string[];
   callback: HttpDispatch | null;
+  debugString: string;
 }
 class MethodRoute implements IMethodRoute {
   private flag: Record<string, unknown> = {
@@ -34,16 +36,27 @@ class MethodRoute implements IMethodRoute {
     match?: string[];
   }) {
     let myFunc = null;
+    let debugString: string = `// ${method
+      .map((m) => m.toUpperCase())
+      .join(", ")} ${uri} \n`;
     if (isFunction(arg)) {
       this.type = "function";
       myFunc = arg as HttpDispatch;
+      debugString += `// Code Referrence \n${arg.toString()}`;
     } else if (isArray(arg) && arg.length === 2) {
-      const [controller, method] = arg as [new () => Controller, string];
+      const [controller, ctrlrmethod] = arg as [new () => Controller, string];
       const controllerInstance = new controller();
-      if (methodExist(controllerInstance, method)) {
-        myFunc = controllerInstance[method].bind(
+      if (methodExist(controllerInstance, ctrlrmethod)) {
+        myFunc = controllerInstance[ctrlrmethod].bind(
           controllerInstance
         ) as unknown as HttpDispatch;
+        debugString += `// class ${
+          controller.name
+        }@${ctrlrmethod}\n// Code Referrence \n\n${controllerInstance[
+          ctrlrmethod
+        ].toString()}`;
+      } else {
+        debugString += "empty function";
       }
       this.type = "controller";
     } else {
@@ -55,6 +68,7 @@ class MethodRoute implements IMethodRoute {
       uri,
       method: method.map((m) => m.toLowerCase()),
       callback: myFunc,
+      debugString,
     };
   }
   public name(name: string): this {

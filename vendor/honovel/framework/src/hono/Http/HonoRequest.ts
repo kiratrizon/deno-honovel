@@ -8,13 +8,16 @@ import IHonoRequest, {
 import { SessionContract } from "../../@hono-types/declaration/ISession.d.ts";
 import HonoHeader from "./HonoHeader.ts";
 import { isbot } from "isbot";
+import Macroable from "../../Maneuver/Macroable.ts";
 
-class HonoRequest implements IHonoRequest {
+class HonoRequest extends Macroable implements IHonoRequest {
   private raw: RequestData;
   private myAll: Record<string, unknown> = {};
   #sessionInstance: SessionContract;
   #myCookie: Record<string, [string, CookieOptions]> = {};
   constructor(req: RequestData, sessionInstance: SessionContract) {
+    super();
+    (this.constructor as typeof Macroable).applyMacrosTo(this);
     this.raw = req;
     this.myAll = {
       ...req.query,

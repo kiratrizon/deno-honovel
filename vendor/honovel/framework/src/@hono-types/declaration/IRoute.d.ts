@@ -18,7 +18,7 @@ export interface IChildRoutes {
 }
 
 export interface IHeaderChildRoutes extends IChildRoutes {
-  head: number[]
+  head: number[];
 }
 
 // deno-lint-ignore no-explicit-any
@@ -394,13 +394,15 @@ export declare class IERoute extends IRoute {
 }
 
 import MethodRoute from "../../hono/Support/MethodRoute.ts";
-import ResourceRoute, { ResourceKeys } from "../../hono/Support/ResourceRoute.ts";
+import ResourceRoute, {
+  ResourceKeys,
+} from "../../hono/Support/ResourceRoute.ts";
 export interface IReferencesRoute {
   groups: Record<string, IEGroupRoute>;
   methods: Record<string, InstanceType<typeof MethodRoute>>;
   defaultRoute: IdefaultRoute;
   defaultResource: number[];
-  resourceReferrence: Record<string, ResourceRoute>
+  resourceReferrence: Record<string, ResourceRoute>;
 }
 
 export declare class INRoute extends IRoute {

@@ -48,12 +48,7 @@ class Group {
     where: {} satisfies Record<string, RegExp[]>,
   };
 
-  public middleware(
-    handler:
-      | string
-      | string[]
-      | ((obj: HttpHono, next: HonoNext) => Promise<unknown>)
-  ): this {
+  public middleware(handler: string | string[] | HttpMiddleware): this {
     this.validateConfig("middleware", handler);
 
     return this;

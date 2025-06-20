@@ -442,6 +442,13 @@ declare global {
   ): key is keyof T;
 
   /**
+   * Checks if the given value is undefined.
+   */
+  function isUndefined<T>(
+    value: T | null | undefined
+  ): value is Exclude<T, NonNullable<T>>;
+
+  /**
    * Checks if the given value is empty.
    */
   function empty<T>(
@@ -509,5 +516,5 @@ declare global {
    */
   function arrayLast<T>(array: T[]): T | null;
 
-  function dd(...args: unknown[]): never;
+  function denoVersion(): string;
 }

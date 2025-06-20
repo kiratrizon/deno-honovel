@@ -181,7 +181,6 @@ class HonoDispatch {
       }
       return c.text("null", 200);
     }
-    throw new Error(`Route no return`);
   }
 
   public get isNext(): boolean {

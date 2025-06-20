@@ -1,7 +1,5 @@
 import type { Context, MiddlewareHandler } from "hono";
 import path from "node:path";
-import HonoView from "../Http/HonoView.ts";
-import { HonoNext } from "../../@hono-types/declaration/IRoute.d.ts";
 import ChildKernel from "./ChildKernel.ts";
 import HonoClosure from "../Http/HonoClosure.ts";
 import { IMyConfig } from "./MethodRoute.ts";
@@ -12,8 +10,7 @@ import MyHono from "../Http/HttpHono.ts";
 import Constants from "Constants";
 import IHonoRequest from "../../@hono-types/declaration/IHonoRequest.d.ts";
 import { IConfigure } from "../../@hono-types/declaration/MyImports.d.ts";
-import HonoCookie from "../Http/HonoCookie.ts";
-import { DDError } from "../../Maneuver/HonovelErrors.ts";
+import { AbortError, DDError } from "../../Maneuver/HonovelErrors.ts";
 import util from "node:util";
 
 export const regexObj = {
@@ -234,17 +231,19 @@ function applyConstraintsWithOptional(
   );
 }
 
+interface IMiddlewareCompiler {
+  debugString: string;
+  middleware: HttpMiddleware;
+}
+
 export function toMiddleware(
-  args: (string | ((obj: HttpHono, next: HonoNext) => Promise<unknown>))[]
+  args: (string | HttpMiddleware)[]
 ): MiddlewareHandler[] {
   const instanceKernel = new ChildKernel();
   const MiddlewareGroups = instanceKernel.MiddlewareGroups;
   const RouteMiddleware = instanceKernel.RouteMiddleware;
   const newArgs = args.flatMap((arg) => {
-    const middlewareCallback: ((
-      obj: HttpHono,
-      next: HonoNext
-    ) => Promise<unknown>)[] = [];
+    const middlewareCallback: IMiddlewareCompiler[] = [];
     if (isString(arg)) {
       if (keyExist(MiddlewareGroups, arg)) {
         const middlewareGroup = MiddlewareGroups[arg];
@@ -257,21 +256,27 @@ export function toMiddleware(
                   typeof middlewareClass
                 >)();
               if (methodExist(middlewareInstance, "handle")) {
-                middlewareCallback.push(
-                  middlewareInstance.handle.bind(
+                middlewareCallback.push({
+                  debugString: `// class ${
+                    middlewareClass.name
+                  }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+                  middleware: middlewareInstance.handle.bind(
                     middlewareInstance
-                  ) as HttpMiddleware
-                );
+                  ) as HttpMiddleware,
+                });
               }
             }
           } else {
             const middlewareInstance = new middleware();
             if (methodExist(middlewareInstance, "handle")) {
-              middlewareCallback.push(
-                middlewareInstance.handle.bind(
+              middlewareCallback.push({
+                debugString: `// class ${
+                  middleware.name
+                }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+                middleware: middlewareInstance.handle.bind(
                   middlewareInstance
-                ) as HttpMiddleware
-              );
+                ) as HttpMiddleware,
+              });
             }
           }
         });
@@ -283,134 +288,87 @@ export function toMiddleware(
         ) => // deno-lint-ignore no-explicit-any
         any)();
         if (methodExist(middlewareInstance, "handle")) {
-          middlewareCallback.push(
-            middlewareInstance.handle.bind(middlewareInstance) as HttpMiddleware
-          );
+          middlewareCallback.push({
+            debugString: `// class ${
+              middlewareClass.name
+            }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+            middleware: middlewareInstance.handle.bind(
+              middlewareInstance
+            ) as HttpMiddleware,
+          });
         }
       }
     } else if (isFunction(arg)) {
-      middlewareCallback.push(arg as HttpMiddleware);
+      middlewareCallback.push({
+        debugString: `// Code Referrence \n\n${arg.toString()}`,
+        middleware: arg as HttpMiddleware,
+      });
     }
     return middlewareCallback;
   });
 
   return newArgs.map((args): MiddlewareHandler => {
-    return async (c: Context, next) => {
-      // c.setRenderer((content, head) => {
-      //   return c.html(
-      //     `<html>
-      //       <head>
-      //         <title>${head.title}</title>
-      //       </head>
-      //       <body>
-      //         <header>${head.title}</header>
-      //         <p>${content}</p>
-      //       </body>
-      //     </html>`
-      //   );
-      // });
-      const httpHono = c.get("httpHono") as HttpHono;
-      const request = httpHono.request;
-      const honoClosure = new HonoClosure();
-      try {
-        const middlewareResp =
-          (await args(httpHono, honoClosure.next.bind(honoClosure))) || null;
-        if (isNull(middlewareResp)) {
-          return c.json(null);
-        }
-        const dispatch = new HonoDispatch(middlewareResp, "middleware");
-        if (!dispatch.isNext) {
-          return (await dispatch.build(request, c)) as Response;
-        }
-      } catch (e: unknown) {
-        if (e instanceof Error) {
-          // populate e with additional information
-          const populatedError: Record<string, unknown> = {};
-          populatedError["error_type"] = e.name.trim();
-          populatedError["message"] = e.message.trim();
-          populatedError["stack"] = e.stack
-            ? e.stack.split("\n").map((line) => line.trim())
-            : [];
-          populatedError["cause"] = e.cause;
-          log(
-            populatedError,
-            "error",
-            `Request URI ${request
-              .method()
-              .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-              "HTTP_X_REQUEST_ID"
-            )}`
-          );
-          let errorHtml: string;
-          if (!request.expectsJson()) {
-            errorHtml = renderErrorHtml(e);
-          } else {
-            errorHtml = "Internal server error";
-          }
-          return c.html(errorHtml, 500);
-        } else if (e instanceof DDError) {
-          const data = forDD(e.data);
-          if (request.expectsJson()) {
-            if (isNull(data.json)) {
-              data.json = null;
-            }
-            if (
-              isArray(data.json) ||
-              isObject(data.json) ||
-              isString(data.json) ||
-              isFloat(data.json) ||
-              isInteger(data.json) ||
-              isBoolean(data.json) ||
-              isNull(data.json)
-            ) {
-              return c.json(data.json, 200);
-            }
-          } else {
-            return c.html(data.html, 200);
-          }
-        }
-        return c.json({ message: "Internal server error" }, 500);
-      }
-      await next();
+    const newObj: MiddlewareOrDispatch = {
+      debugString: args.debugString,
+      args: args.middleware,
     };
+    return generateMiddlewareOrDispatch("middleware", newObj);
   });
 }
 
 export function toDispatch(
-  myconf: IMyConfig["callback"],
+  objArgs: MiddlewareOrDispatch,
   sequenceParams: string[]
 ): MiddlewareHandler {
-  return async (c: Context) => {
+  return generateMiddlewareOrDispatch("dispatch", objArgs, sequenceParams);
+}
+
+interface MiddlewareOrDispatch {
+  debugString: string;
+  args: HttpMiddleware | IMyConfig["callback"];
+}
+function generateMiddlewareOrDispatch(
+  type: "middleware" | "dispatch",
+  objArgs: MiddlewareOrDispatch,
+  sequenceParams: string[] = []
+): MiddlewareHandler {
+  return async (c: Context, next) => {
     const httpHono = c.get("httpHono") as HttpHono;
-    const params = httpHono.request.route() as Record<string, string>;
-    const newParams: Record<string, unknown> = {};
-    sequenceParams.forEach((param) => {
-      if (keyExist(params, param)) {
-        newParams[param] = params[param] || null;
-      } else {
-        newParams[param] = null;
-      }
-    });
-    if (!isFunction(myconf)) {
-      if (httpHono.request.expectsJson()) {
-        return c.html("Cannot find route", 500);
-      } else {
-        return c.json(
-          {
-            message: "Cannot find route",
-          },
-          500
-        );
-      }
+    const request = httpHono.request;
+    let middlewareResp;
+    const { args, debugString } = objArgs;
+    if (!isFunction(args)) {
+      return myError(c);
     }
     try {
-      const middlewareResp = await myconf(
-        httpHono,
-        ...Object.values(newParams)
-      );
-      const dispatch = new HonoDispatch(middlewareResp, "dispatch");
-      const build = (await dispatch.build(httpHono.request, c)) as Response;
-      return build;
+      if (type === "middleware") {
+        const honoClosure = new HonoClosure();
+        middlewareResp = await (args as HttpMiddleware)(
+          httpHono,
+          honoClosure.next.bind(honoClosure)
+        );
+      } else {
+        const params = httpHono.request.route() as Record<string, string>;
+        const newParams: Record<string, unknown> = {};
+        sequenceParams.forEach((param) => {
+          if (keyExist(params, param)) {
+            newParams[param] = params[param] || null;
+          } else {
+            newParams[param] = null;
+          }
+        });
+        middlewareResp = await args(httpHono, ...Object.values(newParams));
+      }
+      if (isNull(middlewareResp) && type === "dispatch") {
+        return c.json(null);
+      }
+      const dispatch = new HonoDispatch(middlewareResp, type);
+      if ((type === "middleware" && !dispatch.isNext) || type === "dispatch") {
+        const result = (await dispatch.build(request, c)) as Response;
+        if (!isUndefined(result)) {
+          return result;
+        }
+      }
     } catch (e: unknown) {
       if (e instanceof Error) {
         // populate e with additional information
@@ -424,14 +382,14 @@ export function toDispatch(
         log(
           populatedError,
           "error",
-          `Request URI ${httpHono.request
+          `Request URI ${request
             .method()
-            .toUpperCase()} ${httpHono.request.path()}\nRequest ID ${httpHono.request.server(
+            .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
             "HTTP_X_REQUEST_ID"
           )}`
         );
         let errorHtml: string;
-        if (!httpHono.request.expectsJson()) {
+        if (!request.expectsJson()) {
           errorHtml = renderErrorHtml(e);
         } else {
           errorHtml = "Internal server error";
@@ -439,8 +397,8 @@ export function toDispatch(
         return c.html(errorHtml, 500);
       } else if (e instanceof DDError) {
         const data = forDD(e.data);
-        if (httpHono.request.expectsJson()) {
-          if (isNull(data.json)) {
+        if (request.expectsJson()) {
+          if (!isset(data.json)) {
             data.json = null;
           }
           if (
@@ -457,9 +415,45 @@ export function toDispatch(
         } else {
           return c.html(data.html, 200);
         }
+      } else if (e instanceof AbortError) {
+        if (httpHono.request.expectsJson()) {
+          return e.toJson();
+        } else {
+          return e.toHtml();
+        }
+      }
+      return c.json({ message: "Internal server error" }, 500);
+    }
+    if (!isUndefined(middlewareResp)) {
+      if (type === "middleware") {
+        return await next();
       }
     }
-    return c.json({ message: "Internal server error" }, 500);
+    const debuggingPurpose = renderDebugErrorPage(
+      `${ucFirst(type)} Error`,
+      debugString,
+      type === "middleware"
+        ? "Middleware execution failed. Did you forgot to return response or return next() ?"
+        : "No response returned from dispatch."
+    );
+    if (!isset(env("DENO_DEPLOYMENT_ID"))) {
+      return c.html(debuggingPurpose, 500);
+    }
+    log(
+      debuggingPurpose,
+      "error",
+      `Request URI ${request
+        .method()
+        .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
+        "HTTP_X_REQUEST_ID"
+      )}`
+    );
+    return c.json(
+      {
+        message: "Internal server error",
+      },
+      500
+    );
   };
 }
 
@@ -544,4 +538,66 @@ function forDD(data: unknown) {
     html,
     json,
   };
+}
+
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function renderDebugErrorPage(
+  title: string,
+  debugString: string,
+  message: string = "An unexpected error occurred."
+): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+  <script src="/system-assets/js/tailwind.js"></script>
+</head>
+<body class="antialiased bg-gray-100 text-gray-900">
+  <div class="min-h-screen flex items-center justify-center px-4 py-12">
+    <div class="max-w-3xl w-full bg-white shadow-lg rounded-2xl p-8 border border-red-200">
+      <h1 class="text-3xl font-bold text-red-600 mb-4">${title}</h1>
+
+      <p class="text-gray-700 mb-6 text-base leading-relaxed">
+        ${message}
+      </p>
+
+      <div class="bg-gray-900 text-green-300 text-sm font-mono p-4 rounded-lg overflow-auto max-h-[400px] border border-gray-700">
+        <pre class="whitespace-pre-wrap"><code>${formatDebugString(
+          escapeHtml(debugString)
+        )}</code></pre>
+      </div>
+
+      <p class="text-xs text-gray-400 mt-6">
+       ${date("Y-m-d H:i:s")}
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+}
+
+export function formatDebugString(code: string): string {
+  let indent = 0;
+  return code
+    .split("\n")
+    .map((line) => {
+      line = line.trim();
+      if (line.endsWith("}")) indent--;
+      const padded = "  ".repeat(Math.max(indent, 0)) + line;
+      if (line.endsWith("{")) indent++;
+      return padded;
+    })
+    .join("\n");
 }

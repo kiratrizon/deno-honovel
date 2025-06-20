@@ -90,6 +90,10 @@ globalFn("keyExist", function (object, key) {
   return Object.prototype.hasOwnProperty.call(object, key);
 });
 
+globalFn("isUndefined", function (value) {
+  return !isset(value) && !isNull(value);
+});
+
 // empty
 globalFn("empty", function (value) {
   return (
@@ -833,4 +837,9 @@ globalFn("arrayFirst", function (array: unknown[]) {
 
 globalFn("arrayLast", function (array: unknown[]) {
   return isArray(array) && array.length > 0 ? array[array.length - 1] : null;
+});
+
+globalFn("denoVersion", () => {
+  const version = Deno.version.deno;
+  return version ? version : "Unknown Deno version";
 });

@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { serveStatic } from "hono/deno";
 import fs from "node:fs";
+import * as path from "https://deno.land/std/path/mod.ts";
 
 import { Hono, MiddlewareHandler, Next } from "hono";
 import Boot from "../Maneuver/Boot.ts";
@@ -67,7 +68,6 @@ function domainGroup(
 function convertLaravelDomainToWildcard(domain: string): string {
   return domain.replace(/\{[^.}]+\}/g, "*");
 }
-import * as path from "https://deno.land/std/path/mod.ts";
 const myStaticDefaults: MiddlewareHandler[] = [
   serveStatic({ root: path.relative(Deno.cwd(), publicPath()) }),
   serveStatic({
@@ -85,7 +85,7 @@ class Server {
     await Boot.init();
     this.app = this.generateNewApp({}, true);
 
-    this.app.use("*", async (c, next: Next) => {
+    this.app.use("*", logger(), async (c, next: Next) => {
       const requestUrl = new URL(c.req.url);
       const appUrl = env("APP_URL", "").toLowerCase();
       const incomingUrl = requestUrl.toString().toLowerCase();
@@ -239,7 +239,10 @@ class Server {
                 flagWhere
               );
               const returnedDispatch = toDispatch(
-                myConfig.callback as IMyConfig["callback"],
+                {
+                  args: myConfig.callback as IMyConfig["callback"],
+                  debugString: myConfig.debugString,
+                },
                 arrangerDispatch.sequenceParams
               );
               const allBuilds = [
@@ -337,7 +340,10 @@ class Server {
                 ]);
                 myParam.push(...combinedGroupDispatch.sequenceParams);
                 const returnedDispatch = toDispatch(
-                  myConfig.callback as IMyConfig["callback"],
+                  {
+                    args: myConfig.callback as IMyConfig["callback"],
+                    debugString: myConfig.debugString,
+                  },
                   myParam
                 );
                 // console.log(myParam);

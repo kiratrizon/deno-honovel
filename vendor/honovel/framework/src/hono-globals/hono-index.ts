@@ -2,7 +2,7 @@ import "./index.ts";
 
 import HonoResponse from "../hono/Http/HonoResponse.ts";
 import HonoView from "../hono/Http/HonoView.ts";
-import { DDError } from "../Maneuver/HonovelErrors.ts";
+import { AbortError, DDError } from "../Maneuver/HonovelErrors.ts";
 
 globalFn("response", function (html = null) {
   const HResponse = new HonoResponse(html);
@@ -23,4 +23,8 @@ globalFn(
 globalFn("dd", (...args: unknown[]) => {
   const returnValue = args.length === 1 ? args[0] : args;
   throw new DDError(returnValue || null);
+});
+
+globalFn("abort", (statusCode = 500, message = null) => {
+  throw new AbortError(statusCode, message);
 });

@@ -1,12 +1,13 @@
 /// <reference path="./index.d.ts" />
 
 import HonoClosure from "../hono/Http/HonoClosure.ts";
+import { HttpStatusCodeValue } from "../Maneuver/HonovelErrors.ts";
 import IHonoRequest from "./declaration/IHonoRequest.d.ts";
 import IHonoResponse from "./declaration/IHonoResponse.d.ts";
 import IHonoView from "./declaration/IHonoView.d.ts";
 import { IConfigure } from "./declaration/MyImports.d.ts";
 
-export { };
+export {};
 declare global {
   /**
    * Instantiates a new HonoResponse object.
@@ -70,4 +71,28 @@ declare global {
   ) => Promise<unknown>;
 
   // const storedRoutes: Record<string, unknown>;
+
+  /**
+   * Dumps the provided arguments and throws an error to stop execution.
+   * This is useful for debugging purposes.
+   *
+   * Usage:
+   *   dd('Debugging info', { key: 'value' });
+   *
+   * @param args - The arguments to dump.
+   */
+  function dd(...args: unknown[]): never;
+
+  /**
+   * Aborts the current request with a specified HTTP status code and optional message.
+   * This is useful for error handling and stopping further processing of the request.
+   *
+   * Usage:
+   *   abort(404, 'Not Found');
+   *
+   * @param statusCode - The HTTP status code to return (default is 500).
+   * @param message - Optional message to include in the response.
+   * @returns Never returns;
+   */
+  function abort(statusCode: HttpStatusCodeValue, message?: string): never;
 }

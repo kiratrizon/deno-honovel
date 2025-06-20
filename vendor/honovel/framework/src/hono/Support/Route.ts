@@ -36,8 +36,6 @@ export class MyRoute {
   private static methodPreference: IReferencesRoute["methods"] = {};
   private static defaultRoute: IReferencesRoute["defaultRoute"] = {};
 
-  private static resourcePreference: Record<string, number[]> = {};
-
   public static group(config: IGroupParams, callback: () => void): void {
     if (!isObject(config)) {
       throw new Error("Group config must be an object");
@@ -55,10 +53,7 @@ export class MyRoute {
   }
 
   public static middleware(
-    handler:
-      | string
-      | (string | ((obj: HttpHono, next: HonoNext) => Promise<unknown>))[]
-      | ((obj: HttpHono, next: HonoNext) => Promise<unknown>)
+    handler: string | (string | HttpMiddleware)[] | HttpMiddleware
   ) {
     const groupInstance = new GroupRoute();
     groupInstance.middleware(handler);
