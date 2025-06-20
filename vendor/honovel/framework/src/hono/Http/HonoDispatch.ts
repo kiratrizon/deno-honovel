@@ -43,6 +43,9 @@ class HonoDispatch {
     ) {
       throw new Error("HEAD method cannot return a response.");
     }
+    if (this.#returnedData instanceof Response) {
+      return this.#returnedData;
+    }
     if (isObject(this.#returnedData)) {
       if (this.#returnedData instanceof HonoView) {
         const dataView = this.#returnedData.getView();
@@ -135,8 +138,7 @@ class HonoDispatch {
               headers.set("Content-Type", "application/octet-stream");
               headers.set(
                 "Content-Disposition",
-                `attachment; filename="${
-                  downloadName || path.basename(filePath)
+                `attachment; filename="${downloadName || path.basename(filePath)
                 }"`
               );
 

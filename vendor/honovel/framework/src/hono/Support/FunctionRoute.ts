@@ -257,9 +257,8 @@ export function toMiddleware(
                 >)();
               if (methodExist(middlewareInstance, "handle")) {
                 middlewareCallback.push({
-                  debugString: `// class ${
-                    middlewareClass.name
-                  }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+                  debugString: `// class ${middlewareClass.name
+                    }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
                   middleware: middlewareInstance.handle.bind(
                     middlewareInstance
                   ) as HttpMiddleware,
@@ -270,9 +269,8 @@ export function toMiddleware(
             const middlewareInstance = new middleware();
             if (methodExist(middlewareInstance, "handle")) {
               middlewareCallback.push({
-                debugString: `// class ${
-                  middleware.name
-                }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+                debugString: `// class ${middleware.name
+                  }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
                 middleware: middlewareInstance.handle.bind(
                   middlewareInstance
                 ) as HttpMiddleware,
@@ -286,12 +284,11 @@ export function toMiddleware(
           // deno-lint-ignore no-explicit-any
           ...args: any[]
         ) => // deno-lint-ignore no-explicit-any
-        any)();
+          any)();
         if (methodExist(middlewareInstance, "handle")) {
           middlewareCallback.push({
-            debugString: `// class ${
-              middlewareClass.name
-            }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+            debugString: `// class ${middlewareClass.name
+              }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
             middleware: middlewareInstance.handle.bind(
               middlewareInstance
             ) as HttpMiddleware,
@@ -365,7 +362,7 @@ function generateMiddlewareOrDispatch(
       const dispatch = new HonoDispatch(middlewareResp, type);
       if ((type === "middleware" && !dispatch.isNext) || type === "dispatch") {
         const result = (await dispatch.build(request, c)) as Response;
-        if (!isUndefined(result)) {
+        if (!isUndefined(result) && result instanceof Response) {
           return result;
         }
       }
@@ -385,8 +382,8 @@ function generateMiddlewareOrDispatch(
           `Request URI ${request
             .method()
             .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-            "HTTP_X_REQUEST_ID"
-          )}`
+              "HTTP_X_REQUEST_ID"
+            )}`
         );
         let errorHtml: string;
         if (!request.expectsJson()) {
@@ -445,8 +442,8 @@ function generateMiddlewareOrDispatch(
       `Request URI ${request
         .method()
         .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-        "HTTP_X_REQUEST_ID"
-      )}`
+          "HTTP_X_REQUEST_ID"
+        )}`
     );
     return c.json(
       {
@@ -484,15 +481,14 @@ export function renderErrorHtml(e: Error): string {
           ${e.message}
         </p>
 
-        ${
-          e.stack
-            ? `
+        ${e.stack
+      ? `
             <h2 class="text-xl font-semibold text-gray-800 mb-2">🧱 Stack Trace</h2>
             <pre class="text-xs leading-relaxed font-mono bg-gray-900 text-green-400 p-4 rounded-lg border border-gray-700 overflow-x-auto whitespace-pre-wrap hover:scale-[1.01] transition-transform duration-200 ease-out shadow-inner">
 ${e.stack.replace(/</g, "&lt;")}
             </pre>`
-            : ""
-        }
+      : ""
+    }
       </div>
     </div>
   </body>
@@ -574,8 +570,8 @@ function renderDebugErrorPage(
 
       <div class="bg-gray-900 text-green-300 text-sm font-mono p-4 rounded-lg overflow-auto max-h-[400px] border border-gray-700">
         <pre class="whitespace-pre-wrap"><code>${formatDebugString(
-          escapeHtml(debugString)
-        )}</code></pre>
+    escapeHtml(debugString)
+  )}</code></pre>
       </div>
 
       <p class="text-xs text-gray-400 mt-6">
