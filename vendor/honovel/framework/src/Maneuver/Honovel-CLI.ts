@@ -5,7 +5,7 @@ const myCommand = new Command();
 
 import { IMyArtisan } from "../@hono-types/IMyArtisan.d.ts";
 class MyArtisan {
-  constructor() {}
+  constructor() { }
   private async createConfig(options: { force?: boolean }, name: string) {
     const stubPath = honovelPath("stubs/ConfigDefault.stub");
     const stubContent = getFileContents(stubPath);

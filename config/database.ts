@@ -1,4 +1,6 @@
-const constant = {
+import { DatabaseConfig } from "./@types/database.d.ts";
+
+const constant: DatabaseConfig = {
   default: env("DB_CONNECTION", "mysql"),
 
   connections: {
@@ -9,6 +11,9 @@ const constant = {
       password: env("DB_PASSWORD", ""),
       database: env("DB_DATABASE", "honovel"),
       charset: "utf8mb4",
+      options: {
+        maxConnection: 4
+      }
     },
     pgsql: {
       host: env("DB_HOST", "127.0.0.1"),

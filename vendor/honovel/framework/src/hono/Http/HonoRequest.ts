@@ -31,7 +31,7 @@ class HonoRequest extends Macroable implements IHonoRequest {
   }
 
   public input(key: string): unknown {
-    return this.myAll[key] || null;
+    return this.myAll[key] ?? null;
   }
 
   public only(keys: string[]): Record<string, unknown> {
@@ -46,7 +46,7 @@ class HonoRequest extends Macroable implements IHonoRequest {
 
   public query(key: string) {
     if (isset(key)) {
-      return (this.raw.query![key] as unknown) || null;
+      return (this.raw.query![key] as unknown) ?? null;
     }
     return this.raw.query as Record<string, unknown>;
   }
@@ -86,8 +86,8 @@ class HonoRequest extends Macroable implements IHonoRequest {
     callback: (value: unknown) => Promise<unknown>
   ) {
     if (this.has(key)) {
-      const value = this.input(key) || null;
-      return (await callback(value)) || null;
+      const value = this.input(key) ?? null;
+      return (await callback(value)) ?? null;
     }
     return null;
   }
@@ -98,7 +98,7 @@ class HonoRequest extends Macroable implements IHonoRequest {
   ) {
     if (this.filled(key)) {
       const value = this.input(key);
-      return (await callback(value)) || null;
+      return (await callback(value)) ?? null;
     }
     return null;
   }
@@ -231,7 +231,7 @@ class HonoRequest extends Macroable implements IHonoRequest {
 
   public server(key: keyof SERVER): SERVER | string | number | null {
     if (isset(key)) {
-      return this.raw.server[key] || null;
+      return this.raw.server[key] ?? null;
     }
     return this.raw.server;
   }
@@ -269,7 +269,7 @@ class HonoRequest extends Macroable implements IHonoRequest {
 
   public json(key: string): unknown {
     if (this.isJson()) {
-      return this.input(key) || null;
+      return this.input(key) ?? null;
     }
     return null;
   }

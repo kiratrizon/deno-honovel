@@ -5,7 +5,6 @@ const constant = {
   time_format: "H:i:s",
   redis: {
     url: env("REDIS_URL", ""),
-  },
-  env: env("APP_ENV", "production")
+  }
 };
 export default constant;

@@ -22,7 +22,7 @@ globalFn(
 
 globalFn("dd", (...args: unknown[]) => {
   const returnValue = args.length === 1 ? args[0] : args;
-  throw new DDError(returnValue || null);
+  throw new DDError(returnValue ?? null);
 });
 
 globalFn("abort", (statusCode = 500, message = null) => {

@@ -349,7 +349,7 @@ function generateMiddlewareOrDispatch(
         const newParams: Record<string, unknown> = {};
         sequenceParams.forEach((param) => {
           if (keyExist(params, param)) {
-            newParams[param] = params[param] || null;
+            newParams[param] = params[param] ?? null;
           } else {
             newParams[param] = null;
           }
@@ -426,12 +426,14 @@ function generateMiddlewareOrDispatch(
         return await next();
       }
     }
+    if (type === "dispatch") {
+      // @ts-ignore //
+      type = "route";
+    }
     const debuggingPurpose = renderDebugErrorPage(
       `${ucFirst(type)} Error`,
       debugString,
-      type === "middleware"
-        ? "Middleware execution failed. Did you forgot to return response or return next() ?"
-        : "No response returned from dispatch."
+      `Returned undefined value from the ${type} function.`
     );
     if (!isset(env("DENO_DEPLOYMENT_ID"))) {
       return c.html(debuggingPurpose, 500);

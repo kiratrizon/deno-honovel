@@ -65,11 +65,6 @@ type Channel =
 
 type Channels = Record<string, Channel>;
 
-interface LogConfig {
-  default: string;
-  channels: Channels;
-}
-
 export interface LogConfig {
   default: string;
   channels: Channels;

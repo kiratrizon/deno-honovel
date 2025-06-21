@@ -48,7 +48,7 @@ class HonoRedirect implements IRedirectResponse {
 
   public with(...args: FlashArg): this {
     if (typeof args[0] === "string") {
-      this.#flashData[args[0]] = args[1] || null;
+      this.#flashData[args[0]] = args[1] ?? null;
     } else if (isObject(args[0])) {
       const newData = JSON.parse(JSON.stringify(args[0]));
       Object.assign(this.#flashData, newData);
@@ -58,7 +58,7 @@ class HonoRedirect implements IRedirectResponse {
 
   public withErrors(...args: FlashArg): this {
     if (typeof args[0] === "string") {
-      this.#errorData[args[0]] = args[1] || null;
+      this.#errorData[args[0]] = args[1] ?? null;
     } else if (isObject(args[0])) {
       const newData = JSON.parse(JSON.stringify(args[0]));
       Object.assign(this.#errorData, newData);

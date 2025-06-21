@@ -118,13 +118,13 @@ export class HonoSession<
 }
 
 class Session implements SessionContract {
-  constructor(private values: Record<string, NonFunction<unknown>> = {}) {}
+  constructor(private values: Record<string, NonFunction<unknown>> = {}) { }
   public put(key: string, value: NonFunction<unknown>) {
     this.values[key] = value;
   }
 
   public get(key: string): NonFunction<unknown> | null {
-    return this.values[key] || null;
+    return this.values[key] ?? null;
   }
   public has(key: string): boolean {
     return keyExist(this.values, key);
@@ -569,5 +569,4 @@ Deno.addSignalListener("SIGINT", async () => {
   // await db.close();
 
   console.log("Cleanup done. Exiting.");
-  await Deno.exit(0);
 });

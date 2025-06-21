@@ -210,7 +210,7 @@ class Group {
     return {
       as: this.aName,
       name: this.name,
-      domain: this.flag["domain"] || null,
+      domain: this.flag["domain"] ?? null,
       where: this.flag["where"] || {},
       middleware: this.flag["middleware"] || [],
     };

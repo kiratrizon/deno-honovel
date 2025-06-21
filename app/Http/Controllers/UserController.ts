@@ -1,3 +1,4 @@
+import { Database } from "Database";
 import Controller from "./Controller.ts";
 
 class UserController extends Controller {
@@ -12,8 +13,9 @@ class UserController extends Controller {
   // GET /resource/{id}
   public show: HttpDispatch = async ({ request }, id) => {
     // Show a single resource by ID
+    const db = new Database();
     return response().json({
-      message: `show ${id}`,
+      user: await db.runQuery("SELECT * FROM users WHERE id = ?", [id]),
     });
   };
 
