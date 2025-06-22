@@ -4,21 +4,20 @@ import mysql, {
     PoolConnection,
 } from "npm:mysql2@^2.3.3/promise";
 import MySQL from "./MySQL.ts";
+import SQLite from "./SQlite.ts";
+import { DB, QueryParameter } from "https://deno.land/x/sqlite@v3.7.0/mod.ts";
 
 // This is for RDBMS like MySQL, PostgreSQL, etc.
 export class Database {
     public static client: unknown;
-
-
-    public setClient(client: unknown): void {
-
-    }
 
     public async runQuery(query: string, params: unknown[] = []): Promise<unknown> {
         this.init();
         const dbType = env("DB_CONNECTION", empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql");
         if (dbType == "mysql") {
             return await MySQL.query(Database.client as (Pool | PoolConnection), query, params);
+        } else if (dbType == "sqlite") {
+            return await SQLite.query(Database.client as DB, query, params as QueryParameter[]);
         }
     }
 
@@ -29,6 +28,11 @@ export class Database {
             switch (dbType) {
                 case "sqlite": {
                     // 
+                    const dbConn = new DB(databasePath("database.sqlite"));
+                    if (!isset(dbConn)) {
+                        throw new Error("SQLite database connection failed.");
+                    }
+                    Database.client = dbConn;
                     break;
                 }
                 case "mysql": {

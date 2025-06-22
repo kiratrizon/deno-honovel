@@ -1,12 +1,10 @@
-import type {
+import mysql, {
     Pool,
     PoolConnection,
     ResultSetHeader,
     RowDataPacket,
     OkPacket,
-} from "npm:mysql2/promise";
-
-import mysql from "npm:mysql2@^2.3.3/promise";
+} from "npm:mysql2@^2.3.3/promise";
 
 type QueryResult =
     | RowDataPacket[]
@@ -29,7 +27,6 @@ class MySQL {
             if (["insert", "update", "delete"].includes(queryType)) {
                 if ("affectedRows" in result) {
                     return {
-                        type: queryType,
                         affected: result.affectedRows ?? 0,
                         insertId: "insertId" in result ? result.insertId : null,
                         raw: result,
@@ -40,7 +37,6 @@ class MySQL {
             // DDL: Data Definition (CREATE, ALTER, DROP, etc.)
             if (["create", "alter", "drop", "truncate", "rename"].includes(queryType)) {
                 return {
-                    type: queryType,
                     message: "message" in result ? result.message : "Executed",
                     affected: "affectedRows" in result ? result.affectedRows : undefined,
                     raw: result,
@@ -50,10 +46,11 @@ class MySQL {
             // SELECT and other queries
             return result;
 
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const error = e instanceof Error ? e : new Error(String(e));
             const formattedQuery = mysql.format(query, params);
             console.log(formattedQuery);
-            throw new Error(e.message ?? `Unknown database error: ${formattedQuery}`);
+            throw error;
         }
     }
 }
