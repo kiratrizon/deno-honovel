@@ -1,6 +1,6 @@
 import { ResponseType } from "axios";
 
-export {};
+export { };
 export interface IFetchDataOption {
   method?: string;
   headers?: Record<string, string>;
@@ -50,8 +50,8 @@ declare global {
    * - If the variable is not set, the fallback is returned if provided; otherwise, `null` is returned.
    *
    * @example
-   * const host = env("REDIS_HOST"); // string or null
-   * const port = env("REDIS_PORT", 6379); // number
+   * const host = env("APP_KEY"); // string or null
+   * const port = env("PORT", 2000); // number
    *
    * @param {string} key - The name of the environment variable to retrieve.
    * @param {T} [fallback] - An optional fallback value to return (and type to infer) if the variable is not set.

@@ -74,17 +74,19 @@ export class Database {
     }
 }
 
-Deno.addSignalListener("SIGINT", () => {
+Deno.addSignalListener("SIGINT", async () => {
     const dbType = env("DB_CONNECTION", empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql");
     if (Database.client) {
         if (dbType == "mysql") {
-            (Database.client as (Pool | PoolConnection)).end().then(() => {
-                console.log("MySQL connection closed gracefully.");
-            }).catch((err) => {
-                console.error("Error closing MySQL connection:", err);
-            });
+            try {
+                await (Database.client as (Pool | PoolConnection)).end();
+            } catch (_) {
+                console.error("Failed to close MySQL connection gracefully.");
+            }
         }
 
         Database.client = undefined;
+        console.log("Database connection closed gracefully.");
     }
+    Deno.exit(0);
 });

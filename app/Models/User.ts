@@ -1,14 +1,27 @@
-import { ModelWithAttributes } from "../../vendor/honovel/framework/src/@hono-types/declaration/Base/IBaseModel.d.ts";
-import Model from "./Model.ts";
+import Model, { DefaultSchema } from "./Model.ts";
 
 
-interface UserAttributes {
-    id?: number;
+type UserSchema = DefaultSchema & {
+    email: string;
+    password: string;
+    name: string;
 }
 
-class User extends Model<{ _attributes: UserAttributes }> {
-    declare id?: number;
+class User extends Model<{ _attributes: UserSchema }> {
 
+    protected override _mutators = {
+        email: (value: string) => value.trim().toLowerCase(),
+    };
+
+    protected override _fillable = [
+        "email",
+        "password",
+        "name",
+    ];
+
+    protected override _guarded = [
+        "id"
+    ];
 }
 
 export default User;
