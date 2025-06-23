@@ -1,64 +1,56 @@
-import { DB, QueryParameter } from "https://deno.land/x/sqlite@v3.7.0/mod.ts";
-
-type QueryResult =
-    | Record<string, unknown>[]
-    | {
-        affected: number;
-        lastInsertRowId: number | null;
-        raw: unknown;
-    }
-    | {
-        message: string;
-        affected?: number;
-        raw: unknown;
-    };
+import { Database, RestBindParameters } from "jsr:@db/sqlite";
+import { QueryResult, QueryResultDerived } from "Database";
 
 class SQLite {
-    public static async query(
-        db: DB,
-        query: string,
-        params: QueryParameter[] = [],
-    ): Promise<QueryResult> {
-        const queryType = query.trim().split(" ")[0].toLowerCase();
+  public static async query<T extends keyof QueryResultDerived>(
+    db: Database,
+    query: string,
+    params: unknown[] = []
+  ): Promise<QueryResultDerived[T]> {
+    const queryType = query.trim().split(/\s+/)[0].toLowerCase();
 
-        try {
-            if (["select", "pragma"].includes(queryType)) {
-                const result: Record<string, unknown>[] = [];
-                for (const row of db.queryEntries(query, params)) {
-                    result.push(row);
-                }
-                return result;
-            }
+    try {
+      if (["select", "pragma"].includes(queryType)) {
+        const rows = db.prepare(query).all(params as RestBindParameters);
+        return rows as QueryResultDerived[T];
+      }
 
-            db.query(query, params);
-            const lastInsertRowId = db.lastInsertRowId;
-            const changes = db.changes;
+      if (["insert", "update", "delete"].includes(queryType)) {
+        const stmt = db.prepare(query);
+        const result = stmt.run(...(params as RestBindParameters));
+        return {
+          affected: db.totalChanges,
+          lastInsertRowId: queryType === "insert" ? db.lastInsertRowId : null,
+          raw: result,
+        } as QueryResultDerived[T];
+      }
 
-            if (["insert", "update", "delete"].includes(queryType)) {
-                return {
-                    affected: changes,
-                    lastInsertRowId: queryType === "insert" ? lastInsertRowId : null,
-                    raw: { lastInsertRowId, changes },
-                };
-            }
+      if (
+        ["create", "alter", "drop", "truncate", "rename"].includes(queryType)
+      ) {
+        db.exec(query); // no parameters supported in .exec
+        return {
+          message: "Executed",
+          affected: db.totalChanges,
+          raw: {},
+        } as QueryResultDerived[T];
+      }
 
-            if (["create", "alter", "drop", "truncate", "rename"].includes(queryType)) {
-                return {
-                    message: "Executed",
-                    affected: changes,
-                    raw: { changes },
-                };
-            }
-
-            return { message: "Query executed", raw: {} };
-        } catch (e: unknown) {
-            const error = e instanceof Error ? e : new Error(String(e));
-            console.error("SQLite Error:", error.message);
-            console.error("Query:", query);
-            console.error("Params:", params);
-            throw error;
-        }
+      // fallback generic execution with run
+      const stmt = db.prepare(query);
+      const result = stmt.run(...(params as RestBindParameters));
+      return {
+        message: "Query executed",
+        raw: result,
+      } as QueryResultDerived[T];
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e : new Error(String(e));
+      console.error("SQLite Error:", error.message);
+      console.error("Query:", query);
+      console.error("Params:", params);
+      throw error;
     }
+  }
 }
 
 export default SQLite;

@@ -88,8 +88,21 @@ class Server {
     this.app.use("*", logger(), async (c, next: Next) => {
       const requestUrl = new URL(c.req.url);
       const appUrl = env("APP_URL", "").toLowerCase();
-      const incomingUrl = requestUrl.toString().toLowerCase();
-
+      const [protocol, domain] = requestUrl
+        .toString()
+        .toLowerCase()
+        .split("://");
+      const [incoming, uri] = domain.split("/");
+      let incomingUrl: string;
+      if (isset(env("DENO_DEPLOYMENT_ID"))) {
+        incomingUrl = `${protocol}://${incoming.replace(
+          `-${env("DENO_DEPLOYMENT_ID", "")}`,
+          ""
+        )}`;
+      } else {
+        incomingUrl = `${protocol}://${incoming}`;
+      }
+      incomingUrl = [incomingUrl, uri || ""].join("/");
       if (!incomingUrl.startsWith(appUrl)) {
         const host = c.req.raw.url.split("://")[1].split("/")[0];
 

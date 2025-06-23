@@ -1,6 +1,6 @@
 import { ResponseType } from "axios";
 
-export { };
+export {};
 export interface IFetchDataOption {
   method?: string;
   headers?: Record<string, string>;
@@ -517,4 +517,9 @@ declare global {
   function arrayLast<T>(array: T[]): T | null;
 
   function denoVersion(): string;
+
+  function frameworkVersion(): {
+    denoVersion: string;
+    honovelVersion: string;
+  };
 }

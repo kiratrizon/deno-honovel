@@ -1,11 +1,13 @@
 import "../hono-globals/index.ts";
 import { Command } from "https://deno.land/x/cliffy@v1.0.0-rc.4/command/mod.ts";
+import { Database, QueryResultDerived } from "Database";
 
 const myCommand = new Command();
 
 import { IMyArtisan } from "../@hono-types/IMyArtisan.d.ts";
 class MyArtisan {
-  constructor() { }
+  private static db = new Database();
+  constructor() {}
   private async createConfig(options: { force?: boolean }, name: string) {
     const stubPath = honovelPath("stubs/ConfigDefault.stub");
     const stubContent = getFileContents(stubPath);
@@ -57,15 +59,121 @@ class MyArtisan {
     Deno.exit(0);
   }
 
+  private async getBatchNumber(): Promise<number> {
+    const result = await MyArtisan.db.runQuery<"select">(
+      `SELECT MAX(batch) AS max_batch FROM migrations`
+    );
+    const maxBatch = Number(result[0]?.max_batch ?? 0);
+    return maxBatch + 1;
+  }
+  private async runMigrations(options: { seed?: boolean; path?: string }) {
+    await this.createMigrationTable();
+    const modules = await loadMigrationModules();
+    const batchNumber = await this.getBatchNumber();
+
+    const type = "up"; // or "down" based on your requirement
+    for (const module of modules) {
+      const { name, migration } = module;
+      const isApplied = await MyArtisan.db.runQuery<"select">(
+        `SELECT COUNT(*) AS count FROM migrations WHERE name = ?`,
+        [name]
+      );
+      if ((isApplied[0] as { count: number }).count > 0) {
+        console.log(`Migration ${name} already applied.`);
+        continue;
+      }
+      await migration.run(type);
+      await MyArtisan.db.runQuery<"insert">(
+        `INSERT INTO migrations (name, batch) VALUES (?, ?)`,
+        [name, batchNumber]
+      );
+      console.log(`Migration ${name} applied successfully.`);
+    }
+  }
+
+  private async freshMigrations(options: { seed?: boolean; path?: string }) {
+    await this.createMigrationTable();
+    // Logic to drop all tables and rerun migrations
+    console.log("Running fresh migrations...");
+    // Implement your logic here
+  }
+
+  private async refreshMigrations(options: {
+    seed?: boolean;
+    step?: number;
+    path?: string;
+  }) {
+    await this.createMigrationTable();
+    // Logic to rollback and re-run migrations
+    console.log("Refreshing migrations...");
+    // Implement your logic here
+  }
+
+  private async createMigrationTable() {
+    const dbType = env("DB_CONNECTION", "mysql");
+    let sql = "";
+
+    switch (dbType) {
+      case "mysql":
+        sql = `
+        CREATE TABLE IF NOT EXISTS \`migrations\` (
+          \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+          \`name\` VARCHAR(255) NOT NULL,
+          \`batch\` INT NOT NULL,
+          \`created_at\` DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `;
+        break;
+
+      case "pgsql":
+        sql = `
+        CREATE TABLE IF NOT EXISTS "migrations" (
+          "id" SERIAL PRIMARY KEY,
+          "name" VARCHAR(255) NOT NULL,
+          "batch" INTEGER NOT NULL,
+          "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `;
+        break;
+
+      case "sqlite":
+        sql = `
+        CREATE TABLE IF NOT EXISTS "migrations" (
+          "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+          "name" TEXT NOT NULL,
+          "batch" INTEGER NOT NULL,
+          "created_at" TEXT DEFAULT (datetime('now'))
+        );
+      `;
+        break;
+
+      case "sqlsrv":
+        sql = `
+        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='migrations' and xtype='U')
+        CREATE TABLE [migrations] (
+          [id] INT IDENTITY(1,1) PRIMARY KEY,
+          [name] NVARCHAR(255) NOT NULL,
+          [batch] INT NOT NULL,
+          [created_at] DATETIME DEFAULT GETDATE()
+        );
+      `;
+        break;
+
+      default:
+        throw new Error(`Unsupported DB type: \`${dbType}\``);
+    }
+    await MyArtisan.db.runQuery(sql);
+  }
+
   public async command(args: string[]): Promise<void> {
     await myCommand
       .name("Honovel")
       .description("Honovel CLI")
-      .version(FRAMEWORK_VERSION)
+      .version(frameworkVersion().honovelVersion)
       .command("make:config", "Make a new config file")
       .arguments("<name:string>")
       .option("--force", "Force overwrite existing config file")
-      .action(this.createConfig) // ✅
+      .action((options, name) => this.createConfig.bind(this)(options, name))
 
       .command("make:controller", "Generate a controller file")
       .arguments("<name:string>")
@@ -73,15 +181,63 @@ class MyArtisan {
         "--resource",
         "Generate a resourceful controller (index, create, store, etc.)"
       )
-      .action(this.makeController) // ✅
+      .action((options, name) => this.makeController.bind(this)(options, name))
+
+      .command("migrate", "Run the database migrations")
+      .option("--seed", "Seed the database after migration")
+      .option("--path <path:string>", "Specify a custom migrations directory")
+      .action((options) => this.runMigrations.bind(this)(options))
+
+      .command("migrate:fresh", "Drop all tables and rerun all migrations")
+      .option("--seed", "Seed the database after fresh migration")
+      .option("--path <path:string>", "Specify a custom migrations directory")
+      .action((options) => this.freshMigrations.bind(this)(options))
+
+      .command("migrate:refresh", "Rollback and re-run all migrations")
+      .option("--seed", "Seed the database after refresh")
+      .option(
+        "--step <step:number>",
+        "Number of steps to rollback before migrating"
+      )
+      .option("--path <path:string>", "Specify a custom migrations directory")
+      .action((options) => this.refreshMigrations.bind(this)(options))
 
       .command(
         "publish:config",
         "Build your configs in config/build/myConfig.ts"
       )
-      .action(this.publishConfig) // ✅
+      .action(() => this.publishConfig.bind(this)())
       .parse(args);
   }
+}
+
+import { join } from "https://deno.land/std@0.224.0/path/mod.ts";
+import { Migration } from "Illuminate/Database/Migrations";
+
+interface ModuleMigration {
+  name: string;
+  migration: Migration;
+}
+
+export async function loadMigrationModules(): Promise<ModuleMigration[]> {
+  const migrationsPath = databasePath("migrations");
+  const modules: ModuleMigration[] = [];
+
+  for await (const entry of Deno.readDir(migrationsPath)) {
+    if (entry.isFile && entry.name.endsWith(".ts")) {
+      const fullPath = join(migrationsPath, entry.name);
+      const fileUrl = `file://${fullPath}`;
+      const mod = await import(fileUrl);
+      if (mod?.default) {
+        modules.push({
+          name: entry.name.replace(/\.ts$/, ""),
+          migration: mod.default,
+        });
+      }
+    }
+  }
+
+  return modules;
 }
 
 const Artisan: IMyArtisan = new MyArtisan();

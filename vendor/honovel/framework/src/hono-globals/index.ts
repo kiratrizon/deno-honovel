@@ -767,10 +767,6 @@ globalFn(
   }
 );
 
-const frameworkVersion = (await import("../../version.ts")).default;
-
-define("FRAMEWORK_VERSION", frameworkVersion, false);
-
 globalFn(
   "moveUploadedFile",
   function (destination: string, arrayBuffer: ArrayBuffer): boolean {
@@ -842,4 +838,13 @@ globalFn("arrayLast", function (array: unknown[]) {
 globalFn("denoVersion", () => {
   const version = Deno.version.deno;
   return version ? version : "Unknown Deno version";
+});
+
+const version = (await import("../../version.ts")).default;
+
+globalFn("frameworkVersion", () => {
+  return {
+    denoVersion: denoVersion(),
+    honovelVersion: version,
+  };
 });

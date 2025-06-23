@@ -19,7 +19,10 @@
     "Illuminate/Foundation/Http/HttpKernel": "./vendor/honovel/framework/src/hono/Http/HttpKernel.ts",
     "Illuminate/Routing/BaseController":"./vendor/honovel/framework/src/Base/BaseController.ts",
     "MyArtisan": "./vendor/honovel/framework/src/Maneuver/Honovel-CLI.ts",
-    "Database": "./vendor/honovel/framework/src/DatabaseBuilder/Database.ts"
+    "Database": "./vendor/honovel/framework/src/DatabaseBuilder/Database.ts",
+    "Illuminate/Database/Migrations": "./vendor/honovel/framework/src/Illuminate/Database/Migrations/index.ts",
+    "Illuminate/Database/Schema": "./vendor/honovel/framework/src/Illuminate/Database/Schema/index.ts",
+    "Illuminate/Support/Facades": "./vendor/honovel/framework/src/Illuminate/Support/Facades/index.ts"
   },
   "lint": {
     "rules": {
