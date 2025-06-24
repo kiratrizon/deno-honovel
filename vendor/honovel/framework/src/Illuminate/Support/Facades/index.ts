@@ -187,7 +187,7 @@ function mapColumnType(col: ColumnDefinition, dbType: DBType): string {
     case "boolean":
       return dbType === "pgsql" ? "BOOLEAN" : "TINYINT(1)";
     case "timestamp":
-      if (dbType === "mysql") return "DATETIME";
+      if (dbType === "mysql") return "TIMESTAMP";
       return "TIMESTAMP";
     case "foreignId":
       return dbType === "pgsql" ? "INTEGER" : "INT";
@@ -210,7 +210,7 @@ function quoteIdentifier(name: string, dbType: DBType): string {
 }
 
 function formatDefaultValue(value: unknown): string {
-  if (typeof value === "string") return `'${value}'`;
+  if (typeof value === "string") return `${value}`;
   if (typeof value === "boolean") return value ? "1" : "0";
   return String(value);
 }

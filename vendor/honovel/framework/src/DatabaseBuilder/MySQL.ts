@@ -1,11 +1,5 @@
-import mysql, {
-  Pool,
-  PoolConnection,
-  ResultSetHeader,
-  RowDataPacket,
-  OkPacket,
-} from "npm:mysql2@^2.3.3/promise";
-import { QueryResult, QueryResultDerived } from "Database";
+import mysql, { Pool, PoolConnection } from "npm:mysql2@^2.3.3/promise";
+import { QueryResultDerived } from "Database";
 
 class MySQL {
   public static async query<T extends keyof QueryResultDerived>(

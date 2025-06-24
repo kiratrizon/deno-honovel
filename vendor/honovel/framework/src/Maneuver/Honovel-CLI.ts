@@ -192,7 +192,8 @@ class MyArtisan {
           `SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND table_type = 'BASE TABLE'`,
           [staticConfig("database.connections.mysql.database")]
         );
-        tables = result.map((row) => `\`${row.table_name}\``);
+        console.log(result);
+        tables = result.map((row) => `\`${row.TABLE_NAME}\``);
         break;
       }
 
@@ -234,6 +235,7 @@ class MyArtisan {
         await MyArtisan.db.runQuery(`DROP TABLE ${table};`);
       }
     } else {
+      console.log(tables);
       const dropSQL = `DROP TABLE ${tables.join(", ")};`;
       await MyArtisan.db.runQuery(dropSQL);
     }
