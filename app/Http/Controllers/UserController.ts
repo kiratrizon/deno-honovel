@@ -1,11 +1,20 @@
+import { DB } from "Illuminate/Support/Facades";
 import Controller from "./Controller.ts";
 
 class UserController extends Controller {
   // GET /resource
   public index: HttpDispatch = async ({ request }) => {
+    const id = (
+      await DB.table("users").insert({
+        name: "John Doe",
+        email: "tgenesistroy@gmail.com",
+        password: "password123",
+        remember_token: "ageawfaewcrwavf",
+      })
+    ).lastInsertRowId;
     return response().json({
-      message: "hello world",
-    })
+      id,
+    });
   };
 
   // GET /resource/{id}
@@ -13,7 +22,7 @@ class UserController extends Controller {
     // Show a single resource by ID
     return response().json({
       message: `show ${id}`,
-    })
+    });
   };
 
   // GET /resource/create

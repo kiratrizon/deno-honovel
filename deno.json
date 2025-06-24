@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "dev": "deno run --allow-net --allow-env --allow-read --allow-sys --allow-write --watch --allow-import vendor/honovel/framework/src/hono/run-server.ts",
+    "dev": "deno run -A --watch vendor/honovel/framework/src/hono/run-server.ts",
     "start": "deno run --allow-net --allow-env --allow-read --allow-sys index.ts"
   },
   "imports": {

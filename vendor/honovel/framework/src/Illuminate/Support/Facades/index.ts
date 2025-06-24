@@ -52,6 +52,8 @@ export class Schema {
     };
     const dbType = env("DB_CONNECTION", "mysql");
     const stringedQuery = generateCreateTableSQL(tableSchema, dbType);
+    console.log(blueprint);
+    console.log("Generated SQL:", stringedQuery);
     await this.db.runQuery(stringedQuery);
   }
 
@@ -96,10 +98,7 @@ export class Schema {
   }
 }
 
-function generateCreateTableSQL(
-  schema: TableSchema,
-  dbType: DBType
-): string {
+function generateCreateTableSQL(schema: TableSchema, dbType: DBType): string {
   const lines: string[] = [];
 
   for (const col of schema.columns) {
@@ -108,7 +107,35 @@ function generateCreateTableSQL(
       dbType
     )}`;
 
-    if (!col.options?.nullable) {
+    if (col.options?.autoIncrement) {
+      if (dbType === "mysql") {
+        line += " AUTO_INCREMENT";
+      } else if (dbType === "pgsql") {
+        line = `${quoteIdentifier(col.name, dbType)} SERIAL`;
+      } else if (dbType === "sqlite") {
+        line = `${quoteIdentifier(
+          col.name,
+          dbType
+        )} INTEGER PRIMARY KEY AUTOINCREMENT`;
+        // Note: SQLite only allows AUTOINCREMENT on the primary key
+      } else if (dbType === "sqlsrv") {
+        line += " IDENTITY(1,1)";
+      }
+    }
+
+    // Apply PRIMARY KEY only if it's not already handled (e.g., SQLite auto-increment case)
+    if (
+      col.options?.primary &&
+      !(dbType === "sqlite" && col.options.autoIncrement)
+    ) {
+      line += " PRIMARY KEY";
+    }
+
+    if (
+      isObject(col.options) &&
+      keyExist(col.options, "nullable") &&
+      !col.options?.nullable
+    ) {
       line += " NOT NULL";
     }
 
@@ -188,10 +215,7 @@ function formatDefaultValue(value: unknown): string {
   return String(value);
 }
 
-function generateAlterTableSQL(
-  schema: TableSchema,
-  dbType: DBType
-): string {
+function generateAlterTableSQL(schema: TableSchema, dbType: DBType): string {
   const statements: string[] = [];
 
   const tableName = quoteIdentifier(schema.table, dbType);
@@ -245,23 +269,20 @@ function generateAlterTableSQL(
 }
 
 export class DB {
-  public static table(
-    table: string,
-  ) {
+  public static table(table: string) {
     if (empty(table) || !isString(table)) {
       throw new Error("Table name must be a non-empty string.");
     }
-
-
+    return new TableInstance(table);
   }
 }
 
 class TableInstance {
+  constructor(private tableName: string) {}
 
-  constructor(private tableName: string) {
-  }
-
-  public async insert<T extends "insert">(data: Record<string, unknown>): Promise<QueryResultDerived[T]> {
+  public async insert<T extends "insert">(
+    data: Record<string, unknown>
+  ): Promise<QueryResultDerived[T]> {
     if (empty(data) || !isObject(data)) {
       throw new Error("Data must be a non-empty object.");
     }
@@ -275,19 +296,24 @@ class TableInstance {
 type TInsertBuilder = {
   table: string;
   data: Record<string, unknown>;
-}
+};
 
 function insertBuilder(data: TInsertBuilder): [string, any[]] {
   const dbType = env("DB_CONNECTION", "mysql"); // mysql | sqlite | pgsql | sqlsrv
 
   const columns = Object.keys(data.data);
-  const placeholders = columns.map(() => "?").join(", ");
+  const placeholders =
+    dbType === "pgsql"
+      ? columns.map((_, i) => `$${i + 1}`).join(", ")
+      : columns.map(() => "?").join(", ");
   const values = Object.values(data.data);
 
-  let sql = `INSERT INTO ${data.table} (${columns.join(", ")}) VALUES (${placeholders})`;
+  let sql = `INSERT INTO ${data.table} (${columns.join(
+    ", "
+  )}) VALUES (${placeholders})`;
 
   if (dbType === "pgsql") {
-    sql += " RETURNING *"; // or RETURNING id, if you want just the ID
+    sql += " RETURNING id"; // or RETURNING id, if you want just the ID
   }
 
   return [sql, values];

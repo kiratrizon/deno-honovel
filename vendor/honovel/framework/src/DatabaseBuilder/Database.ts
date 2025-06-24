@@ -1,12 +1,18 @@
 import { DatabaseConfig } from "../../../../../config/@types/database.d.ts";
 import mysql, {
   ConnectionOptions,
-  Pool,
+  Pool as MPool,
   PoolConnection,
 } from "npm:mysql2@^2.3.3/promise";
 import MySQL from "./MySQL.ts";
-import { Database as DB, RestBindParameters } from "jsr:@db/sqlite";
+import { Database as SqliteDB } from "jsr:@db/sqlite";
 import SQlite from "./SQlite.ts";
+import {
+  Pool as PPool,
+  PoolClient,
+  TLSOptions,
+} from "https://deno.land/x/postgres@v0.19.3/mod.ts";
+import PgSQL from "./PGSQL.ts";
 
 export type QueryResult =
   | Record<string, unknown>[]
@@ -20,54 +26,59 @@ export type QueryResult =
       affected?: number;
       raw: unknown;
     };
-type create = {
+type DDL = {
   message: string;
   affected?: number;
   raw: unknown;
 };
-type insertUpdateDelete = {
+
+type DML = {
   affected: number;
   lastInsertRowId: number | null;
   raw: unknown;
 };
+
 export interface QueryResultDerived {
   select: Record<string, unknown>[];
   pragma: Record<string, unknown>[];
-  insert: insertUpdateDelete;
-  update: insertUpdateDelete;
-  delete: insertUpdateDelete;
-  create: create;
-  alter: create;
-  drop: create;
-  truncate: create;
-  rename: create;
+  insert: DML;
+  update: DML;
+  delete: DML;
+  create: DDL;
+  alter: DDL;
+  drop: DDL;
+  truncate: DDL;
+  rename: DDL;
 }
+
 // This is for RDBMS like MySQL, PostgreSQL, etc.
 export class Database {
-  public static client: unknown;
+  public static client: SqliteDB | MPool | PoolConnection | PPool | undefined;
 
   public async runQuery<T extends keyof QueryResultDerived>(
     query: string,
     params: unknown[] = []
   ): Promise<QueryResultDerived[T]> {
-    this.init();
+    await this.init();
     const dbType = env(
       "DB_CONNECTION",
       empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql"
     );
     if (dbType == "mysql") {
       return await MySQL.query<T>(
-        Database.client as Pool | PoolConnection,
+        Database.client as MPool | PoolConnection,
         query,
         params
       );
     } else if (dbType == "sqlite") {
-      return await SQlite.query<T>(Database.client as DB, query, params);
+      return await SQlite.query<T>(Database.client as SqliteDB, query, params);
+    } else if (dbType == "pgsql") {
+      return await PgSQL.query<T>(Database.client as PPool, query, params);
     }
     throw new Error(`Unsupported database type: ${dbType}`);
   }
 
-  private init(): void {
+  private async init(): Promise<void> {
     if (!isset(Database.client)) {
       const databaseObj = staticConfig("database") as DatabaseConfig;
       const dbType = env(
@@ -77,7 +88,7 @@ export class Database {
       switch (dbType) {
         case "sqlite": {
           //
-          const dbConn = new DB(databasePath("database.sqlite"));
+          const dbConn = new SqliteDB(databasePath("database.sqlite"));
           if (!isset(dbConn)) {
             throw new Error("SQLite database connection failed.");
           }
@@ -115,7 +126,37 @@ export class Database {
           break;
         }
         case "pgsql": {
-          //
+          const dbConn = databaseObj?.connections?.pgsql;
+          if (!isset(dbConn)) {
+            throw new Error("PostgreSQL connection configuration is missing.");
+          }
+
+          const secureConnection = {
+            hostname: dbConn.host,
+            port: dbConn.port,
+            user: dbConn.user,
+            password: dbConn.password,
+            database: dbConn.database,
+            tls:
+              dbConn.ssl === true
+                ? {} // enable TLS with default options
+                : typeof dbConn.ssl === "object"
+                ? (dbConn.ssl as Partial<TLSOptions>)
+                : undefined, // if false or unset, disable TLS
+            applicationName: dbConn.application_name,
+            searchPath: Array.isArray(dbConn.searchPath)
+              ? dbConn.searchPath
+              : dbConn.searchPath
+              ? [dbConn.searchPath]
+              : undefined,
+          };
+
+          const maxConn =
+            typeof dbConn.options?.maxConnection === "number"
+              ? dbConn.options.maxConnection
+              : 5;
+
+          Database.client = new PPool(secureConnection, maxConn);
           break;
         }
         case "sqlsrv": {
@@ -135,9 +176,21 @@ Deno.addSignalListener("SIGINT", async () => {
   if (Database.client) {
     if (dbType == "mysql") {
       try {
-        await (Database.client as Pool | PoolConnection).end();
+        await (Database.client as MPool | PoolConnection).end();
       } catch (_) {
         console.error("Failed to close MySQL connection gracefully.");
+      }
+    } else if (dbType == "sqlite") {
+      try {
+        (Database.client as SqliteDB).close();
+      } catch (_) {
+        console.error("Failed to close SQLite connection gracefully.");
+      }
+    } else if (dbType == "pgsql") {
+      try {
+        await (Database.client as PPool).end();
+      } catch (_) {
+        console.error("Failed to release PostgreSQL client gracefully.");
       }
     }
 

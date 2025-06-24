@@ -92,10 +92,28 @@ class MyArtisan {
   }
 
   private async freshMigrations(options: { seed?: boolean; path?: string }) {
+    await this.dropAllTables();
     await this.createMigrationTable();
-    // Logic to drop all tables and rerun migrations
-    console.log("Running fresh migrations...");
-    // Implement your logic here
+    const modules = await loadMigrationModules();
+    const batchNumber = await this.getBatchNumber();
+    const type = "up"; // or "down" based on your requirement
+    for (const module of modules) {
+      const { name, migration } = module;
+      const isApplied = await MyArtisan.db.runQuery<"select">(
+        `SELECT COUNT(*) AS count FROM migrations WHERE name = ?`,
+        [name]
+      );
+      if ((isApplied[0] as { count: number }).count > 0) {
+        console.log(`Migration ${name} already applied.`);
+        continue;
+      }
+      await migration.run(type);
+      await DB.table("migrations").insert({
+        name,
+        batch: batchNumber,
+      });
+      console.log(`Migration ${name} applied successfully.`);
+    }
   }
 
   private async refreshMigrations(options: {
@@ -104,9 +122,8 @@ class MyArtisan {
     path?: string;
   }) {
     await this.createMigrationTable();
+
     // Logic to rollback and re-run migrations
-    console.log("Refreshing migrations...");
-    // Implement your logic here
   }
 
   private async createMigrationTable() {
@@ -142,7 +159,7 @@ class MyArtisan {
           "id" INTEGER PRIMARY KEY AUTOINCREMENT,
           "name" TEXT NOT NULL,
           "batch" INTEGER NOT NULL,
-          "created_at" TEXT DEFAULT (datetime('now'))
+          "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
       `;
         break;
@@ -163,6 +180,63 @@ class MyArtisan {
         throw new Error(`Unsupported DB type: \`${dbType}\``);
     }
     await MyArtisan.db.runQuery(sql);
+  }
+
+  private async dropAllTables(): Promise<void> {
+    const dbType = env("DB_CONNECTION", "mysql").toLowerCase();
+    let tables: string[] = [];
+
+    switch (dbType) {
+      case "mysql": {
+        const result = await MyArtisan.db.runQuery<"select">(
+          `SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND table_type = 'BASE TABLE'`,
+          [staticConfig("database.connections.mysql.database")]
+        );
+        tables = result.map((row) => `\`${row.table_name}\``);
+        break;
+      }
+
+      case "pgsql": {
+        const result = await MyArtisan.db.runQuery<"select">(
+          `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`
+        );
+        tables = result.map((row) => `"${row.tablename}"`);
+        break;
+      }
+
+      case "sqlite": {
+        const result = await MyArtisan.db.runQuery<"select">(
+          `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`
+        );
+        tables = result.map((row) => `"${row.name}"`);
+        break;
+      }
+
+      case "sqlsrv": {
+        const result = await MyArtisan.db.runQuery<"select">(
+          `SELECT name FROM sys.tables`
+        );
+        tables = result.map((row) => `[${row.name}]`);
+        break;
+      }
+
+      default:
+        throw new Error(`Unsupported DB type: \`${dbType}\``);
+    }
+
+    if (tables.length === 0) {
+      console.log("⚠️ No tables found to drop.");
+      return;
+    }
+
+    if (dbType === "sqlite") {
+      for (const table of tables) {
+        await MyArtisan.db.runQuery(`DROP TABLE ${table};`);
+      }
+    } else {
+      const dropSQL = `DROP TABLE ${tables.join(", ")};`;
+      await MyArtisan.db.runQuery(dropSQL);
+    }
   }
 
   public async command(args: string[]): Promise<void> {
@@ -213,6 +287,7 @@ class MyArtisan {
 
 import { join } from "https://deno.land/std@0.224.0/path/mod.ts";
 import { Migration } from "Illuminate/Database/Migrations";
+import { DB } from "Illuminate/Support/Facades";
 
 interface ModuleMigration {
   name: string;
