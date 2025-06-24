@@ -1,7 +1,7 @@
 import { LoadOptions } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
 
 export default {
-  envPath: ".env",
+  envPath: "./.env",
   examplePath: null,
 } as LoadOptions; // don't delete
 

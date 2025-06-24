@@ -30,7 +30,7 @@ export class Hash {
   }
 }
 
-import { Database } from "Database";
+import { Database, QueryResultDerived } from "Database";
 export class Schema {
   private static db = new Database();
   public static async create(
@@ -96,7 +96,7 @@ export class Schema {
   }
 }
 
-export function generateCreateTableSQL(
+function generateCreateTableSQL(
   schema: TableSchema,
   dbType: DBType
 ): string {
@@ -188,7 +188,7 @@ function formatDefaultValue(value: unknown): string {
   return String(value);
 }
 
-export function generateAlterTableSQL(
+function generateAlterTableSQL(
   schema: TableSchema,
   dbType: DBType
 ): string {
@@ -242,4 +242,53 @@ export function generateAlterTableSQL(
   }
 
   return statements.join(";\n") + ";";
+}
+
+export class DB {
+  public static table(
+    table: string,
+  ) {
+    if (empty(table) || !isString(table)) {
+      throw new Error("Table name must be a non-empty string.");
+    }
+
+
+  }
+}
+
+class TableInstance {
+
+  constructor(private tableName: string) {
+  }
+
+  public async insert<T extends "insert">(data: Record<string, unknown>): Promise<QueryResultDerived[T]> {
+    if (empty(data) || !isObject(data)) {
+      throw new Error("Data must be a non-empty object.");
+    }
+    const db = new Database();
+    const [sql, values] = insertBuilder({ table: this.tableName, data });
+    const result = await db.runQuery<T>(sql, values);
+    return result;
+  }
+}
+
+type TInsertBuilder = {
+  table: string;
+  data: Record<string, unknown>;
+}
+
+function insertBuilder(data: TInsertBuilder): [string, any[]] {
+  const dbType = env("DB_CONNECTION", "mysql"); // mysql | sqlite | pgsql | sqlsrv
+
+  const columns = Object.keys(data.data);
+  const placeholders = columns.map(() => "?").join(", ");
+  const values = Object.values(data.data);
+
+  let sql = `INSERT INTO ${data.table} (${columns.join(", ")}) VALUES (${placeholders})`;
+
+  if (dbType === "pgsql") {
+    sql += " RETURNING *"; // or RETURNING id, if you want just the ID
+  }
+
+  return [sql, values];
 }
