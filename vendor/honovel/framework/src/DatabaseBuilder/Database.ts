@@ -1,15 +1,16 @@
 import { DatabaseConfig } from "../../../../../config/@types/database.d.ts";
+// mysql
 import mysql, {
   ConnectionOptions,
   Pool as MPool,
-  PoolConnection,
 } from "npm:mysql2@^2.3.3/promise";
+// sqlite
 import MySQL from "./MySQL.ts";
 import { Database as SqliteDB } from "jsr:@db/sqlite";
 import SQlite from "./SQlite.ts";
+// postgresql
 import {
   Pool as PPool,
-  PoolClient,
   TLSOptions,
 } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
 import PgSQL from "./PGSQL.ts";
@@ -53,7 +54,7 @@ export interface QueryResultDerived {
 
 // This is for RDBMS like MySQL, PostgreSQL, etc.
 export class Database {
-  public static client: SqliteDB | MPool | PoolConnection | PPool | undefined;
+  public static client: SqliteDB | MPool | PPool | undefined;
 
   public async runQuery<T extends keyof QueryResultDerived>(
     query: string,
@@ -65,11 +66,7 @@ export class Database {
       empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql"
     );
     if (dbType == "mysql") {
-      return await MySQL.query<T>(
-        Database.client as MPool | PoolConnection,
-        query,
-        params
-      );
+      return await MySQL.query<T>(Database.client as MPool, query, params);
     } else if (dbType == "sqlite") {
       return await SQlite.query<T>(Database.client as SqliteDB, query, params);
     } else if (dbType == "pgsql") {
@@ -176,7 +173,7 @@ Deno.addSignalListener("SIGINT", async () => {
   if (Database.client) {
     if (dbType == "mysql") {
       try {
-        await (Database.client as MPool | PoolConnection).end();
+        await (Database.client as MPool).end();
       } catch (_) {
         console.error("Failed to close MySQL connection gracefully.");
       }

@@ -389,14 +389,26 @@ function generateMiddlewareOrDispatch(
           )}`
         );
         let errorHtml: string;
-        if (!request.expectsJson()) {
-          errorHtml =
-            extractControllerTrace(populatedError.stack as string[]) ||
-            renderErrorHtml(e);
+        if (env("APP_DEBUG", true)) {
+          if (!request.expectsJson()) {
+            errorHtml =
+              extractControllerTrace(populatedError.stack as string[]) ||
+              renderErrorHtml(e);
+            return c.html(errorHtml, 500);
+          } else {
+            return c.json(
+              {
+                message: populatedError.message,
+                error_type: populatedError.error_type,
+                stack: populatedError.stack,
+                cause: populatedError.cause,
+              },
+              500
+            );
+          }
         } else {
-          errorHtml = "Internal server error";
+          return c.html("Internal server error", 500);
         }
-        return c.html(errorHtml, 500);
       } else if (e instanceof DDError) {
         const data = forDD(e.data);
         if (request.expectsJson()) {
@@ -649,27 +661,29 @@ function tracingLocation(
     const isErrorLine = lineNumber === line;
 
     return `
-  <div class="group flex items-start ${
-    isErrorLine ? "bg-rose-100" : "hover:bg-gray-100"
-  } rounded px-4 py-1">
-    <div class="w-14 text-right pr-4 text-white-400 select-none">${lineNumber}</div>
-    <pre class="flex-1 text-sm overflow-auto whitespace-pre-wrap ${
-      isErrorLine
-        ? "text-rose-600"
-        : "group-hover:text-emerald-600 text-white-800"
-    }">${escapeHtml(contentLine)}</pre>
-  </div>
-  ${
-    isErrorLine
-      ? `<div class="flex items-start">
-           <div class="w-14"></div>
-           <pre class="text-sm text-rose-500 pl-4 leading-tight">${" ".repeat(
-             column - 1
-           )}^</pre>
-         </div>`
-      : ""
-  }
-`;
+      <div id="${
+        isErrorLine ? "error-line" : ""
+      }" class="group flex items-start ${
+      isErrorLine ? "bg-rose-100" : "hover:bg-gray-100"
+    } rounded px-4 py-1">
+        <div class="w-14 text-right pr-4 text-white-400 select-none">${lineNumber}</div>
+        <pre class="flex-1 text-sm overflow-auto whitespace-pre-wrap ${
+          isErrorLine
+            ? "text-rose-600"
+            : "group-hover:text-emerald-600 text-white-800"
+        }">${escapeHtml(contentLine)}</pre>
+      </div>
+      ${
+        isErrorLine
+          ? `<div class="flex items-start">
+              <div class="w-14"></div>
+              <pre class="text-sm text-rose-500 pl-4 leading-tight">${" ".repeat(
+                column - 1
+              )}^</pre>
+            </div>`
+          : ""
+      }
+    `;
   });
 
   return `
@@ -680,6 +694,15 @@ function tracingLocation(
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>Error Trace</title>
       <script src="/system-assets/js/tailwind.js"></script>
+      <script>
+        window.addEventListener("DOMContentLoaded", () => {
+          const el = document.getElementById("error-line");
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        });
+      </script>
+
     </head>
     <body class="bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900 font-sans antialiased">
       <div class="max-w-6xl mx-auto mt-10 p-6">

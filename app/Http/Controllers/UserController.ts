@@ -4,17 +4,26 @@ import Controller from "./Controller.ts";
 class UserController extends Controller {
   // GET /resource
   public index: HttpDispatch = async ({ request }) => {
-    const id = (
-      await DB.table("users").insert({
-        name: "John Doe",
-        email: "tgenesistroy@gmail.com",
-        password: "password123",
-        remember_token: "ageawfaewcrwavf",
+    const data = DB.table("users")
+      .select("users.id", "users.name", "users.email")
+      .join("profiles", "users.id", "profiles.user_id")
+      .join("roles", (join) => {
+        join.on("users.role_id", "=", "roles.id").where("roles.status", 1);
       })
-    ).lastInsertRowId;
-    return response().json({
-      id,
-    });
+      .where("id", ">", 0)
+      .where("status", 1)
+      .where((query) => {
+        query
+          .where("name", "LIKE", "%John%")
+          .orWhere("email", "LIKE", "%gmail%");
+      })
+      .where("id", "<", 100)
+      .whereIn("id", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+      .whereBetween("id", [1, 10])
+      .whereNotNull("name")
+      .toSql();
+
+    dd(data);
   };
 
   // GET /resource/{id}
@@ -42,10 +51,17 @@ class UserController extends Controller {
   };
 
   // GET /resource/{id}/edit
-  public edit: HttpDispatch = async ({ request }, id) => {
-    // Return form or data for editing resource
+  public edit: HttpDispatch = async ({ request }, user) => {
+    const id = (
+      await DB.table("users").insert({
+        name: "John Doe",
+        email: "tgenesistroy@gmail.com",
+        password: "password123",
+        remember_token: "ageawfaewcrwavf",
+      })
+    ).lastInsertRowId;
     return response().json({
-      message: `edit ${id}`,
+      id,
     });
   };
 

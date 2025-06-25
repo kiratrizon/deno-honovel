@@ -31,6 +31,7 @@ export class Hash {
 }
 
 import { Database, QueryResultDerived } from "Database";
+import { Builder } from "../../Database/Query/index.ts";
 export class Schema {
   private static db = new Database();
   public static async create(
@@ -280,6 +281,7 @@ export class DB {
 class TableInstance {
   constructor(private tableName: string) {}
 
+  // for insert operation
   public async insert<T extends "insert">(
     data: Record<string, unknown>
   ): Promise<QueryResultDerived[T]> {
@@ -290,6 +292,11 @@ class TableInstance {
     const [sql, values] = insertBuilder({ table: this.tableName, data });
     const result = await db.runQuery<T>(sql, values);
     return result;
+  }
+
+  // for query building
+  public select(...fields: string[]) {
+    return new Builder(this.tableName, fields);
   }
 }
 
