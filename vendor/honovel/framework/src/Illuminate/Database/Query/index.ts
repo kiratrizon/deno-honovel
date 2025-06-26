@@ -449,7 +449,16 @@ class JoinInterpolator extends WhereInterpolator {
     return [this.joinClauses.concat(whereClause).join(" "), whereValues];
   }
 }
+
+type OrderByDirection = "ASC" | "DESC";
+
 export class Builder extends WhereInterpolator {
+  private limit: number | null = null;
+  private offset: number | null = null;
+  private orderBy: Record<string, OrderByDirection>[] = [];
+  private groupBy: string[] = [];
+  private havingClauses: string[] = [];
+  private havingValues: WhereValue[] = [];
   constructor(private table: string, private fields: string[] = ["*"]) {
     super();
   }
@@ -485,6 +494,105 @@ export class Builder extends WhereInterpolator {
 
     return this;
   }
+
+  public leftJoin(table: string, callback: (join: JoinInterpolator) => void): this;
+  public leftJoin(
+    table: string,
+    first: string,
+    operator: WhereOperator,
+    second: string
+  ): this;
+  public leftJoin(table: string, first: string, second: string): this;
+  public leftJoin(
+    ...args: [
+      string,
+      string | ((join: JoinInterpolator) => void),
+      (string | WhereOperator)?,
+      string?
+    ]
+  ): this {
+    const joinT = returnJoinRaw("LEFT", ...args);
+    if (joinT === false) {
+      // to be implemented
+      this.processJoin(
+        "LEFT",
+        args[0],
+        args[1] as (join: JoinInterpolator) => void
+      );
+    } else {
+      this.joinClauses.push(joinT);
+    }
+    return this;
+  }
+
+  public rightJoin(table: string, callback: (join: JoinInterpolator) => void): this;
+  public rightJoin(
+    table: string,
+    first: string,
+    operator: WhereOperator,
+    second: string
+  ): this;
+  public rightJoin(table: string, first: string, second: string): this;
+  public rightJoin(
+    ...args: [
+      string,
+      string | ((join: JoinInterpolator) => void),
+      (string | WhereOperator)?,
+      string?
+    ]
+  ): this {
+    const joinT = returnJoinRaw("RIGHT", ...args);
+    if (joinT === false) {
+      // to be implemented
+      this.processJoin(
+        "RIGHT",
+        args[0],
+        args[1] as (join: JoinInterpolator) => void
+      );
+    } else {
+      this.joinClauses.push(joinT);
+    }
+    return this;
+  }
+
+  public fullJoin(table: string, callback: (join: JoinInterpolator) => void): this;
+  public fullJoin(
+    table: string,
+    first: string,
+    operator: WhereOperator,
+    second: string
+  ): this;
+  public fullJoin(table: string, first: string, second: string): this;
+  public fullJoin(
+    ...args: [
+      string,
+      string | ((join: JoinInterpolator) => void),
+      (string | WhereOperator)?,
+      string?
+    ]
+  ): this {
+    const joinT = returnJoinRaw("FULL", ...args);
+    if (joinT === false) {
+      // to be implemented
+      this.processJoin(
+        "FULL",
+        args[0],
+        args[1] as (join: JoinInterpolator) => void
+      );
+    } else {
+      this.joinClauses.push(joinT);
+    }
+    return this;
+  }
+
+  public crossJoin(table: string): this {
+    if (!isString(table) || empty(table)) {
+      throw new SQLError("Invalid table name for CROSS JOIN");
+    }
+    this.joinClauses.push(`CROSS JOIN ${table}`);
+    return this;
+  }
+
 
   private processJoin(
     type: JoinType,
