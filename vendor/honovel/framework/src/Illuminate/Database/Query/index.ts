@@ -13,6 +13,7 @@ type WhereOperator =
   | "like"
   | "not like";
 type WhereClause = string;
+const placeHolderuse: string = "?";
 
 type JoinType = "INNER" | "LEFT" | "RIGHT" | "FULL" | "CROSS";
 
@@ -21,7 +22,8 @@ type WhereSeparator = "AND" | "OR";
 // where
 class WhereInterpolator {
   protected whereValues: WhereValue[] = [];
-  protected whereClauses: WhereClause[] = [];
+  protected whereClauses: [string, any[]][] = [];
+  protected callbackWhereClauses: string[] = [];
 
   protected currentLengthValues: number = 0;
   constructor(currentLengthValues: number = 0) {
@@ -75,23 +77,26 @@ class WhereInterpolator {
     const [columnOrFn, operatorOrValue, valueArg] = args;
     if (isFunction(columnOrFn)) {
       // to handle callback
-      const qb = new WhereInterpolator(this.currentLengthValues);
+      const qb = new WhereInterpolator();
       columnOrFn(qb);
-      const [clause, values] = qb.getWhereClauseAndWhereValues();
+      const getWhere = qb.getWhereClauses();
       if (type === "AND") {
+        getWhere.forEach(([clause, values]) => {
+          if (this.whereClauses.length + this.joinClauses.length) {
+            this.whereClauses.push([`AND (${clause})`, [...values]]);
+          } else {
+            this.whereClauses.push([`(${clause})`, [...values]]);
+          }
+        });
+      } else if (type === "OR") {
         if (this.whereClauses.length + this.joinClauses.length) {
-          this.whereClauses.push(`AND (${clause})`);
-        } else {
-          this.whereClauses.push(`(${clause})`);
-        }
-      } else {
-        if (this.whereClauses.length + this.joinClauses.length) {
-          this.whereClauses.push(`OR (${clause})`);
+          getWhere.forEach(([clause, values]) => {
+            this.whereClauses.push([`OR (${clause})`, [...values]]);
+          });
         } else {
           throw new SQLError("Invalid where clause");
         }
       }
-      this.pushValues(...values);
       return;
     }
     let column: string;
@@ -108,39 +113,28 @@ class WhereInterpolator {
     } else {
       throw new SQLError("Invalid where clause");
     }
-    this.pushValues(value);
-    let placeHolderuse: string;
-    const dbType = env(
-      "DB_CONNECTION",
-      empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql"
-    );
-    switch (dbType) {
-      case "mysql":
-      case "sqlite": {
-        placeHolderuse = "?";
-        break;
-      }
-      case "pgsql": {
-        placeHolderuse = `$${this.currentLengthValues}`;
-        break;
-      }
-      case "sqlsrv": {
-        placeHolderuse = `@p${this.currentLengthValues}`;
-        break;
-      }
-    }
+
     if (!isset(placeHolderuse)) {
       throw new SQLError("Unsupported database type for placeholder");
     }
     if (type === "AND") {
       if (this.whereClauses.length + this.joinClauses.length) {
-        this.whereClauses.push(`AND ${column} ${operator} ${placeHolderuse}`);
+        this.whereClauses.push([
+          `AND ${column} ${operator} ${placeHolderuse}`,
+          [value],
+        ]);
       } else {
-        this.whereClauses.push(`${column} ${operator} ${placeHolderuse}`);
+        this.whereClauses.push([
+          `${column} ${operator} ${placeHolderuse}`,
+          [value],
+        ]);
       }
     } else {
       if (this.whereClauses.length + this.joinClauses.length) {
-        this.whereClauses.push(`OR ${column} ${operator} ${placeHolderuse}`);
+        this.whereClauses.push([
+          `OR ${column} ${operator} ${placeHolderuse}`,
+          [value],
+        ]);
       } else {
         throw new SQLError(
           "Provide a valid where clause first before using OR"
@@ -150,17 +144,8 @@ class WhereInterpolator {
     return;
   }
 
-  protected pushValues(...values: WhereValue[]): void {
-    const lengthVal = values.length;
-    this.currentLengthValues += lengthVal;
-    this.whereValues.push(...values);
-  }
-
-  protected getWhereClauseAndWhereValues(): [string, WhereValue[]] {
-    if (this.whereClauses.length === 0) {
-      return ["", this.whereValues];
-    }
-    return [this.whereClauses.join(" "), this.whereValues];
+  protected getWhereClauses(): [string, WhereValue[]][] {
+    return this.whereClauses;
   }
 
   public whereIn(column: string, values: WherePrimitive[]): this {
@@ -201,94 +186,35 @@ class WhereInterpolator {
     );
     switch (type) {
       case "AND": {
-        switch (dbType) {
-          case "sqlite":
-          case "mysql": {
-            const placeholders = values.map(() => "?").join(", ");
-            const clause = `${column} ${operator} (${placeholders})`;
-            if (this.whereClauses.length + this.joinClauses.length) {
-              this.whereClauses.push(`AND ${clause}`);
-            } else {
-              this.whereClauses.push(clause);
-            }
-            this.pushValues(...values);
-            break;
-          }
-          case "pgsql": {
-            const placeholders = values
-              .map((_, i) => `$${this.currentLengthValues + i + 1}`)
-              .join(", ");
-            const clause = `${column} ${operator} (${placeholders})`;
-            if (this.whereClauses.length + this.joinClauses.length) {
-              this.whereClauses.push(`AND ${clause}`);
-            } else {
-              this.whereClauses.push(clause);
-            }
-            this.pushValues(...values);
-            break;
-          }
-          case "sqlsrv": {
-            const placeholders = values
-              .map((_, i) => `@p${this.currentLengthValues + i + 1}`)
-              .join(", ");
-            const clause = `${column} ${operator} (${placeholders})`;
-            if (this.whereClauses.length + this.joinClauses.length) {
-              this.whereClauses.push(`AND ${clause}`);
-            } else {
-              this.whereClauses.push(clause);
-            }
-            this.pushValues(...values);
-            break;
-          }
+        if (this.whereClauses.length + this.joinClauses.length) {
+          this.whereClauses.push([
+            `AND ${column} ${operator} (${values
+              .map(() => placeHolderuse)
+              .join(", ")})`,
+            values,
+          ]);
+        } else {
+          this.whereClauses.push([
+            `${column} ${operator} (${values
+              .map(() => placeHolderuse)
+              .join(", ")})`,
+            values,
+          ]);
         }
         break;
       }
       case "OR": {
-        switch (dbType) {
-          case "sqlite":
-          case "mysql": {
-            const placeholders = values.map(() => "?").join(", ");
-            const clause = `${column} ${operator} (${placeholders})`;
-            if (this.whereClauses.length + this.joinClauses.length) {
-              this.whereClauses.push(`OR ${clause}`);
-            } else {
-              throw new SQLError(
-                "Provide a valid where clause first before using OR"
-              );
-            }
-            this.pushValues(...values);
-            break;
-          }
-          case "pgsql": {
-            const placeholders = values
-              .map((_, i) => `$${this.currentLengthValues + i + 1}`)
-              .join(", ");
-            const clause = `${column} ${operator} (${placeholders})`;
-            if (this.whereClauses.length + this.joinClauses.length) {
-              this.whereClauses.push(`OR ${clause}`);
-            } else {
-              throw new SQLError(
-                "Provide a valid where clause first before using OR"
-              );
-            }
-            this.pushValues(...values);
-            break;
-          }
-          case "sqlsrv": {
-            const placeholders = values
-              .map((_, i) => `@p${this.currentLengthValues + i + 1}`)
-              .join(", ");
-            const clause = `${column} ${operator} (${placeholders})`;
-            if (this.whereClauses.length + this.joinClauses.length) {
-              this.whereClauses.push(`OR ${clause}`);
-            } else {
-              throw new SQLError(
-                "Provide a valid where clause first before using OR"
-              );
-            }
-            this.pushValues(...values);
-            break;
-          }
+        if (this.whereClauses.length + this.joinClauses.length) {
+          this.whereClauses.push([
+            `OR ${column} ${operator} (${values
+              .map(() => placeHolderuse)
+              .join(", ")})`,
+            values,
+          ]);
+        } else {
+          throw new SQLError(
+            "Provide a valid where clause first before using OR"
+          );
         }
         break;
       }
@@ -323,15 +249,15 @@ class WhereInterpolator {
     switch (type) {
       case "AND": {
         if (this.whereClauses.length + this.joinClauses.length) {
-          this.whereClauses.push(`AND ${column} ${operator}`);
+          this.whereClauses.push([`AND ${column} ${operator}`, []]);
         } else {
-          this.whereClauses.push(`${column} ${operator}`);
+          this.whereClauses.push([`${column} ${operator}`, []]);
         }
         break;
       }
       case "OR": {
         if (this.whereClauses.length + this.joinClauses.length) {
-          this.whereClauses.push(`OR ${column} ${operator}`);
+          this.whereClauses.push([`OR ${column} ${operator}`, []]);
         } else {
           throw new SQLError(
             "Provide a valid where clause first before using OR"
@@ -387,55 +313,41 @@ class WhereInterpolator {
     }
 
     const [start, end] = values;
-    this.pushValues(start, end);
-
-    // Determine placeholders based on DB type
-    let placeholderStart: string;
-    let placeholderEnd: string;
-    const dbType = env(
-      "DB_CONNECTION",
-      empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql"
-    );
-    switch (dbType) {
-      case "mysql":
-      case "sqlite":
-        placeholderStart = "?";
-        placeholderEnd = "?";
-        break;
-      case "pgsql":
-        placeholderStart = `$${this.currentLengthValues - 1}`; // first value
-        placeholderEnd = `$${this.currentLengthValues}`; // second value
-        break;
-      case "sqlsrv":
-        placeholderStart = `@p${this.currentLengthValues - 1}`;
-        placeholderEnd = `@p${this.currentLengthValues}`;
-        break;
-      default:
-        throw new SQLError("Unsupported database type");
+    if (!isset(start) || !isset(end)) {
+      throw new SQLError("Both start and end values must be provided");
     }
-
-    const clause = `${column} ${operator} ${placeholderStart} AND ${placeholderEnd}`;
-
     switch (type) {
-      case "AND":
-        this.whereClauses.push(
-          this.whereClauses.length + this.joinClauses.length
-            ? `AND ${clause}`
-            : clause
-        );
-        break;
-      case "OR":
+      case "AND": {
         if (this.whereClauses.length + this.joinClauses.length) {
+          this.whereClauses.push([
+            `AND ${column} ${operator} ${placeHolderuse} AND ${placeHolderuse}`,
+            [start, end],
+          ]);
+        } else {
+          this.whereClauses.push([
+            `${column} ${operator} ${placeHolderuse} AND ${placeHolderuse}`,
+            [start, end],
+          ]);
+        }
+        break;
+      }
+      case "OR": {
+        if (this.whereClauses.length + this.joinClauses.length) {
+          this.whereClauses.push([
+            `OR ${column} ${operator} ${placeHolderuse} AND ${placeHolderuse}`,
+            [start, end],
+          ]);
+        } else {
           throw new SQLError(
             "Provide a valid where clause first before using OR"
           );
         }
-        this.whereClauses.push(`OR ${clause}`);
         break;
+      }
     }
   }
 
-  protected joinClauses: string[] = [];
+  protected joinClauses: [string, any[]][] = [];
 }
 
 // join
@@ -448,13 +360,13 @@ class JoinInterpolator extends WhereInterpolator {
     if (args.length !== 3) {
       throw new SQLError("Invalid ON clause for JOIN");
     }
-    this.joinClauses.push(`${args[0]} ${args[1]} ${args[2]}`);
+    this.joinClauses.push([`${args[0]} ${args[1]} ${args[2]}`, []]);
     return this;
   }
 
-  protected getJoinClauseAndJoinValues(): [string, WhereValue[]] {
-    const [whereClause, whereValues] = this.getWhereClauseAndWhereValues();
-    return [this.joinClauses.concat(whereClause).join(" "), whereValues];
+  protected getJoinClauseAndJoinValues(): [string, any[]][] {
+    const whereClauses = this.getWhereClauses();
+    return this.joinClauses.concat(whereClauses);
   }
 }
 
@@ -497,7 +409,7 @@ export class Builder extends WhereInterpolator {
         args[1] as (join: JoinInterpolator) => void
       );
     } else {
-      this.joinClauses.push(joinT);
+      this.joinClauses.push([joinT, []]);
     }
 
     return this;
@@ -531,7 +443,7 @@ export class Builder extends WhereInterpolator {
         args[1] as (join: JoinInterpolator) => void
       );
     } else {
-      this.joinClauses.push(joinT);
+      this.joinClauses.push([joinT, []]);
     }
     return this;
   }
@@ -564,7 +476,7 @@ export class Builder extends WhereInterpolator {
         args[1] as (join: JoinInterpolator) => void
       );
     } else {
-      this.joinClauses.push(joinT);
+      this.joinClauses.push([joinT, []]);
     }
     return this;
   }
@@ -597,7 +509,7 @@ export class Builder extends WhereInterpolator {
         args[1] as (join: JoinInterpolator) => void
       );
     } else {
-      this.joinClauses.push(joinT);
+      this.joinClauses.push([joinT, []]);
     }
     return this;
   }
@@ -606,7 +518,7 @@ export class Builder extends WhereInterpolator {
     if (!isString(table) || empty(table)) {
       throw new SQLError("Invalid table name for CROSS JOIN");
     }
-    this.joinClauses.push(`CROSS JOIN ${table}`);
+    this.joinClauses.push([`CROSS JOIN ${table}`, []]);
     return this;
   }
 
@@ -622,8 +534,10 @@ export class Builder extends WhereInterpolator {
     fn(join);
     // @ts-ignore //
     const [joinClause, joinValues] = join.getJoinClauseAndJoinValues();
-    this.joinClauses.push(`${type} JOIN ${table} ON ${joinClause}`);
-    this.pushValues(...joinValues);
+    this.joinClauses.push([
+      `${type} JOIN ${table} ON ${joinClause}`,
+      joinValues,
+    ]);
   }
 
   public limit(value: number): this {
@@ -667,21 +581,20 @@ export class Builder extends WhereInterpolator {
   }
 
   public toSql() {
-    return [this.joinClauses, this.whereClauses, this.whereValues];
+    return true;
   }
 
   public toSqlWithValues() {
     const dataReturn: Record<string, unknown> = {
       table: this.table,
       fields: this.fields,
-      where: this.whereClauses.join(" "),
-      whereValues: this.whereValues,
-      joins: this.joinClauses.join(" "),
+      where: this.whereClauses,
+      joins: this.joinClauses,
       limit: this.limitValue,
       offset: this.offsetValue,
       orderBy: this.orderByValue,
       groupBy: this.groupByValue,
-      having: this.havingClauses.join(" "),
+      having: this.havingClauses,
       havingValues: this.havingValues,
     };
     return dataReturn;

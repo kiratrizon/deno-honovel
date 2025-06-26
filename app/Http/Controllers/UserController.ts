@@ -29,7 +29,7 @@ class UserController extends Controller {
       .whereNotNull("name")
       .toSqlWithValues();
 
-    // dd(data);
+    dd(data);
     const user = new User();
     user.setAttribute("password", "password123");
     return "test";
