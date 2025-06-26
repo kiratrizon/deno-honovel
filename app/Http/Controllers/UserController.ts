@@ -11,6 +11,11 @@ class UserController extends Controller {
       .join("roles", (join) => {
         join.on("users.role_id", "=", "roles.id").where("roles.status", 1);
       })
+      .join("permissions", (join) => {
+        join
+          .on("roles.id", "=", "permissions.role_id")
+          .where("permissions.status", 1);
+      })
       .where("id", ">", 0)
       .where("status", 1)
       .where((query) => {
@@ -22,8 +27,9 @@ class UserController extends Controller {
       .whereIn("id", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
       .whereBetween("id", [1, 10])
       .whereNotNull("name")
-      .toSql();
+      .toSqlWithValues();
 
+    // dd(data);
     const user = new User();
     user.setAttribute("password", "password123");
     return "test";

@@ -669,6 +669,23 @@ export class Builder extends WhereInterpolator {
   public toSql() {
     return [this.joinClauses, this.whereClauses, this.whereValues];
   }
+
+  public toSqlWithValues() {
+    const dataReturn: Record<string, unknown> = {
+      table: this.table,
+      fields: this.fields,
+      where: this.whereClauses.join(" "),
+      whereValues: this.whereValues,
+      joins: this.joinClauses.join(" "),
+      limit: this.limitValue,
+      offset: this.offsetValue,
+      orderBy: this.orderByValue,
+      groupBy: this.groupByValue,
+      having: this.havingClauses.join(" "),
+      havingValues: this.havingValues,
+    };
+    return dataReturn;
+  }
 }
 
 function returnJoinRaw(
