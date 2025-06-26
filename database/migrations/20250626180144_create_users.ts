@@ -9,7 +9,6 @@ export default new (class extends Migration {
       table.string("name").nullable();
       table.string("email").unique().nullable();
       table.string("password").nullable();
-      table.string("remember_token").nullable();
       table.timestamps();
     });
   }

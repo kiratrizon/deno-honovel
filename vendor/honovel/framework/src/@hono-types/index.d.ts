@@ -307,13 +307,13 @@ declare global {
    * Typically used to follow naming conventions for database tables.
    *
    * Usage:
-   *   const tableName = generateTableNames('User'); // Generates 'users' table name
-   *   const tableName = generateTableNames('Post'); // Generates 'posts' table name
+   *   const tableName = generateTableName('User'); // Generates 'users' table name
+   *   const tableName = generateTableName('Post'); // Generates 'posts' table name
    *
    * @param {string} modelName - The model name (e.g., 'User', 'Post') for which to generate the table name.
    * @returns {string} The generated table name, typically plural and in snake_case.
    */
-  function generateTableNames(modelName: string): string;
+  function generateTableName(modelName: string): string;
 
   /**
    * Encodes a string to standard Base64.

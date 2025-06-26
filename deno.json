@@ -22,7 +22,8 @@
     "Database": "./vendor/honovel/framework/src/DatabaseBuilder/Database.ts",
     "Illuminate/Database/Migrations": "./vendor/honovel/framework/src/Illuminate/Database/Migrations/index.ts",
     "Illuminate/Database/Schema": "./vendor/honovel/framework/src/Illuminate/Database/Schema/index.ts",
-    "Illuminate/Support/Facades": "./vendor/honovel/framework/src/Illuminate/Support/Facades/index.ts"
+    "Illuminate/Support/Facades": "./vendor/honovel/framework/src/Illuminate/Support/Facades/index.ts",
+    "Illuminate/Database/Eloquent": "./vendor/honovel/framework/src/Illuminate/Database/Eloquent/index.ts"
   },
   "lint": {
     "rules": {

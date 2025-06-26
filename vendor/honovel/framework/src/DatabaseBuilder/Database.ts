@@ -18,15 +18,15 @@ import PgSQL from "./PGSQL.ts";
 export type QueryResult =
   | Record<string, unknown>[]
   | {
-    affected: number;
-    lastInsertRowId: number | null;
-    raw: unknown;
-  }
+      affected: number;
+      lastInsertRowId: number | null;
+      raw: unknown;
+    }
   | {
-    message: string;
-    affected?: number;
-    raw: unknown;
-  };
+      message: string;
+      affected?: number;
+      raw: unknown;
+    };
 type DDL = {
   message: string;
   affected?: number;
@@ -138,14 +138,14 @@ export class Database {
               dbConn.ssl === true
                 ? {} // enable TLS with default options
                 : typeof dbConn.ssl === "object"
-                  ? (dbConn.ssl as Partial<TLSOptions>)
-                  : undefined, // if false or unset, disable TLS
+                ? (dbConn.ssl as Partial<TLSOptions>)
+                : undefined, // if false or unset, disable TLS
             applicationName: dbConn.application_name,
             searchPath: Array.isArray(dbConn.searchPath)
               ? dbConn.searchPath
               : dbConn.searchPath
-                ? [dbConn.searchPath]
-                : undefined,
+              ? [dbConn.searchPath]
+              : undefined,
           };
 
           const maxConn =
@@ -165,7 +165,7 @@ export class Database {
   }
 }
 
-Deno.addSignalListener("SIGINT", async () => {
+export const dbCloser = async () => {
   const dbType = env(
     "DB_CONNECTION",
     empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql"
@@ -175,24 +175,25 @@ Deno.addSignalListener("SIGINT", async () => {
       try {
         await (Database.client as MPool).end();
       } catch (_) {
-        console.error("Failed to close MySQL connection gracefully.");
+        console.error(`Error closing ${dbType} connection:`, _);
       }
     } else if (dbType == "sqlite") {
       try {
         (Database.client as SqliteDB).close();
       } catch (_) {
-        console.error("Failed to close SQLite connection gracefully.");
+        console.error(`Error closing ${dbType} connection:`, _);
       }
     } else if (dbType == "pgsql") {
       try {
         await (Database.client as PPool).end();
       } catch (_) {
-        console.error("Failed to release PostgreSQL client gracefully.");
+        console.error(`Error closing ${dbType} connection:`, _);
       }
     }
 
     Database.client = undefined;
-    console.log("Database connection closed gracefully.");
   }
   Deno.exit(0);
-});
+};
+
+Deno.addSignalListener("SIGINT", dbCloser);

@@ -33,7 +33,6 @@ export class Hash {
 import { Database, QueryResultDerived } from "Database";
 import { Builder } from "../../Database/Query/index.ts";
 export class Schema {
-  private static db = new Database();
   public static async create(
     table: string,
     callback: (blueprint: Blueprint) => void
@@ -53,9 +52,7 @@ export class Schema {
     };
     const dbType = env("DB_CONNECTION", "mysql");
     const stringedQuery = generateCreateTableSQL(tableSchema, dbType);
-    console.log(blueprint);
-    console.log("Generated SQL:", stringedQuery);
-    await this.db.runQuery(stringedQuery);
+    await DB.statement(stringedQuery);
   }
 
   public static async dropIfExists(table: string): Promise<void> {
@@ -78,7 +75,7 @@ export class Schema {
         throw new Error(`Unsupported database type: ${dbType}`);
     }
 
-    await this.db.runQuery(sql);
+    await DB.statement(sql);
   }
 
   public static async table(
@@ -94,8 +91,9 @@ export class Schema {
       columns,
       table,
     };
-    // console.log(tableSchema);
-    console.log("Generated SQL:", generateAlterTableSQL(tableSchema, "sqlsrv"));
+    const dbType = env("DB_CONNECTION", "mysql");
+    const stringedQuery = generateAlterTableSQL(tableSchema, dbType);
+    await DB.statement(stringedQuery);
   }
 }
 
@@ -275,6 +273,60 @@ export class DB {
       throw new Error("Table name must be a non-empty string.");
     }
     return new TableInstance(table);
+  }
+
+  public static async statement(
+    query: string,
+    params: unknown[] = []
+  ): Promise<boolean> {
+    if (empty(query) || !isString(query)) {
+      throw new Error("Query must be a non-empty string.");
+    }
+    const db = new Database();
+
+    try {
+      await db.runQuery(query, params);
+      return true;
+    } catch (error) {
+      console.error("Database statement error:", error);
+      throw error;
+    }
+  }
+
+  public static async select(
+    query: string,
+    params: unknown[] = []
+  ): Promise<QueryResultDerived["select"]> {
+    if (empty(query) || !isString(query)) {
+      throw new Error("Query must be a non-empty string.");
+    }
+    const queryType = query.trim().split(" ")[0].toLowerCase();
+    if (queryType !== "select") {
+      throw new Error("Query must be a SELECT statement.");
+    }
+    const db = new Database();
+
+    try {
+      const result = await db.runQuery<"select">(query, params);
+      return result;
+    } catch (error) {
+      console.error("Database select error:", error);
+      throw error;
+    }
+  }
+
+  public static async insert(
+    table: string,
+    data: Record<string, unknown>
+  ): Promise<QueryResultDerived["insert"]> {
+    if (empty(table) || !isString(table)) {
+      throw new Error("Table name must be a non-empty string.");
+    }
+    if (empty(data) || !isObject(data)) {
+      throw new Error("Data must be a non-empty object.");
+    }
+    const instance = new TableInstance(table);
+    return await instance.insert<"insert">(data);
   }
 }
 

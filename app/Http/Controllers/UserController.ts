@@ -1,5 +1,6 @@
 import { DB } from "Illuminate/Support/Facades";
 import Controller from "./Controller.ts";
+import User, { UserSchema } from "../../Models/User.ts";
 
 class UserController extends Controller {
   // GET /resource
@@ -23,7 +24,9 @@ class UserController extends Controller {
       .whereNotNull("name")
       .toSql();
 
-    dd(data);
+    const user = new User();
+    user.setAttribute("password", "password123");
+    return "test";
   };
 
   // GET /resource/{id}

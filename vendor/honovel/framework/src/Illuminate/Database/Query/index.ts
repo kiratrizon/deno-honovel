@@ -13,10 +13,6 @@ type WhereOperator =
   | "like"
   | "not like";
 type WhereClause = string;
-const dbType = env(
-  "DB_CONNECTION",
-  empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql"
-);
 
 type JoinType = "INNER" | "LEFT" | "RIGHT" | "FULL" | "CROSS";
 
@@ -114,6 +110,10 @@ class WhereInterpolator {
     }
     this.pushValues(value);
     let placeHolderuse: string;
+    const dbType = env(
+      "DB_CONNECTION",
+      empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql"
+    );
     switch (dbType) {
       case "mysql":
       case "sqlite": {
@@ -195,6 +195,10 @@ class WhereInterpolator {
     if (values.length === 0) {
       throw new SQLError("Values for whereIn cannot be empty");
     }
+    const dbType = env(
+      "DB_CONNECTION",
+      empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql"
+    );
     switch (type) {
       case "AND": {
         switch (dbType) {
@@ -388,6 +392,10 @@ class WhereInterpolator {
     // Determine placeholders based on DB type
     let placeholderStart: string;
     let placeholderEnd: string;
+    const dbType = env(
+      "DB_CONNECTION",
+      empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql"
+    );
     switch (dbType) {
       case "mysql":
       case "sqlite":
@@ -453,10 +461,10 @@ class JoinInterpolator extends WhereInterpolator {
 type OrderByDirection = "ASC" | "DESC";
 
 export class Builder extends WhereInterpolator {
-  private limit: number | null = null;
-  private offset: number | null = null;
-  private orderBy: Record<string, OrderByDirection>[] = [];
-  private groupBy: string[] = [];
+  private limitValue: number | null = null;
+  private offsetValue: number | null = null;
+  private orderByValue: Record<string, OrderByDirection>[] = [];
+  private groupByValue: string[] = [];
   private havingClauses: string[] = [];
   private havingValues: WhereValue[] = [];
   constructor(private table: string, private fields: string[] = ["*"]) {
@@ -495,7 +503,10 @@ export class Builder extends WhereInterpolator {
     return this;
   }
 
-  public leftJoin(table: string, callback: (join: JoinInterpolator) => void): this;
+  public leftJoin(
+    table: string,
+    callback: (join: JoinInterpolator) => void
+  ): this;
   public leftJoin(
     table: string,
     first: string,
@@ -525,7 +536,10 @@ export class Builder extends WhereInterpolator {
     return this;
   }
 
-  public rightJoin(table: string, callback: (join: JoinInterpolator) => void): this;
+  public rightJoin(
+    table: string,
+    callback: (join: JoinInterpolator) => void
+  ): this;
   public rightJoin(
     table: string,
     first: string,
@@ -555,7 +569,10 @@ export class Builder extends WhereInterpolator {
     return this;
   }
 
-  public fullJoin(table: string, callback: (join: JoinInterpolator) => void): this;
+  public fullJoin(
+    table: string,
+    callback: (join: JoinInterpolator) => void
+  ): this;
   public fullJoin(
     table: string,
     first: string,
@@ -593,7 +610,6 @@ export class Builder extends WhereInterpolator {
     return this;
   }
 
-
   private processJoin(
     type: JoinType,
     table: string,
@@ -608,6 +624,46 @@ export class Builder extends WhereInterpolator {
     const [joinClause, joinValues] = join.getJoinClauseAndJoinValues();
     this.joinClauses.push(`${type} JOIN ${table} ON ${joinClause}`);
     this.pushValues(...joinValues);
+  }
+
+  public limit(value: number): this {
+    if (!isInteger(value) || value < 0) {
+      throw new SQLError("Limit must be a non-negative number");
+    }
+    this.limitValue = value;
+    return this;
+  }
+
+  public offset(value: number): this {
+    if (!isInteger(value) || value < 0) {
+      throw new SQLError("Offset must be a non-negative number");
+    }
+    this.offsetValue = value;
+    return this;
+  }
+
+  public orderBy(column: string, direction: OrderByDirection = "ASC"): this {
+    if (!isString(column) || empty(column)) {
+      throw new SQLError("Invalid column name for orderBy");
+    }
+    if (!["ASC", "DESC"].includes(direction)) {
+      throw new SQLError("Invalid order direction");
+    }
+    this.orderByValue.push({ [column]: direction });
+    return this;
+  }
+
+  public groupBy(...columns: string[]): this {
+    if (!isArray(columns) || columns.length === 0) {
+      throw new SQLError("Group by requires at least one column");
+    }
+    for (const column of columns) {
+      if (!isString(column) || empty(column)) {
+        throw new SQLError("Invalid column name for groupBy");
+      }
+      this.groupByValue.push(column);
+    }
+    return this;
   }
 
   public toSql() {
