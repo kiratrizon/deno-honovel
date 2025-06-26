@@ -40,7 +40,7 @@ class MySQL {
       }
 
       // SELECT and other queries
-      return result as QueryResultDerived[T];
+      return (result as QueryResultDerived[T]) || [];
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
       const formattedQuery = mysql.format(query, params);

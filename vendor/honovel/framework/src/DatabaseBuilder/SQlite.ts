@@ -12,7 +12,7 @@ class SQLite {
     try {
       if (["select", "pragma"].includes(queryType)) {
         const rows = db.prepare(query).all(params as RestBindParameters);
-        return rows as QueryResultDerived[T];
+        return (rows as QueryResultDerived[T]) || [];
       }
 
       if (["insert", "update", "delete"].includes(queryType)) {

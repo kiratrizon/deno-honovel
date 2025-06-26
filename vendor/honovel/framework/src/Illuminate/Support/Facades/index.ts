@@ -317,16 +317,13 @@ export class DB {
 
   public static async insert(
     table: string,
-    data: Record<string, unknown>
+    ...data: Record<string, unknown>[]
   ): Promise<QueryResultDerived["insert"]> {
     if (empty(table) || !isString(table)) {
       throw new Error("Table name must be a non-empty string.");
     }
-    if (empty(data) || !isObject(data)) {
-      throw new Error("Data must be a non-empty object.");
-    }
     const instance = new TableInstance(table);
-    return await instance.insert<"insert">(data);
+    return await instance.insert<"insert">(...data);
   }
 }
 
@@ -335,10 +332,10 @@ class TableInstance {
 
   // for insert operation
   public async insert<T extends "insert">(
-    data: Record<string, unknown>
+    ...data: Record<string, unknown>[]
   ): Promise<QueryResultDerived[T]> {
-    if (empty(data) || !isObject(data)) {
-      throw new Error("Data must be a non-empty object.");
+    if (!empty(data) && data.every((item) => empty(item) || !isObject(item))) {
+      throw new Error("Insert data must be a non-empty array of objects.");
     }
     const db = new Database();
     const [sql, values] = insertBuilder({ table: this.tableName, data });
@@ -354,25 +351,37 @@ class TableInstance {
 
 type TInsertBuilder = {
   table: string;
-  data: Record<string, unknown>;
+  data: Array<Record<string, unknown>>;
 };
 
-function insertBuilder(data: TInsertBuilder): [string, any[]] {
+function insertBuilder(input: TInsertBuilder): [string, unknown[]] {
   const dbType = env("DB_CONNECTION", "mysql"); // mysql | sqlite | pgsql | sqlsrv
 
-  const columns = Object.keys(data.data);
-  const placeholders =
-    dbType === "pgsql"
-      ? columns.map((_, i) => `$${i + 1}`).join(", ")
-      : columns.map(() => "?").join(", ");
-  const values = Object.values(data.data);
+  if (!Array.isArray(input.data) || input.data.length === 0) {
+    throw new Error("Insert data must be a non-empty array.");
+  }
 
-  let sql = `INSERT INTO ${data.table} (${columns.join(
+  const columns = Object.keys(input.data[0]);
+  const rows = input.data;
+
+  const placeholders = rows.map((_, rowIndex) => {
+    if (dbType === "pgsql") {
+      return `(${columns
+        .map((_, colIndex) => `$${rowIndex * columns.length + colIndex + 1}`)
+        .join(", ")})`;
+    } else {
+      return `(${columns.map(() => "?").join(", ")})`;
+    }
+  });
+
+  const values = rows.flatMap((row) => columns.map((col) => row[col]));
+
+  let sql = `INSERT INTO ${input.table} (${columns.join(
     ", "
-  )}) VALUES (${placeholders})`;
+  )}) VALUES ${placeholders.join(", ")}`;
 
   if (dbType === "pgsql") {
-    sql += " RETURNING id"; // or RETURNING id, if you want just the ID
+    sql += " RETURNING *";
   }
 
   return [sql, values];

@@ -151,7 +151,7 @@ class MyArtisan {
         `SELECT COUNT(*) AS count FROM migrations WHERE name = ?`,
         [name]
       );
-      if ((isApplied[0] as { count: number }).count > 0) {
+      if (!empty(isApplied) && (isApplied[0] as { count: number }).count > 0) {
         console.log(`Migration ${name} already applied.`);
         continue;
       }

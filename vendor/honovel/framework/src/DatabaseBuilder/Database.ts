@@ -40,8 +40,8 @@ type DML = {
 };
 
 export interface QueryResultDerived {
-  select: Record<string, unknown>[];
-  pragma: Record<string, unknown>[];
+  select: Record<string, unknown>[] | [];
+  pragma: Record<string, unknown>[] | [];
   insert: DML;
   update: DML;
   delete: DML;
@@ -65,12 +65,21 @@ export class Database {
       "DB_CONNECTION",
       empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql"
     );
-    if (dbType == "mysql") {
-      return await MySQL.query<T>(Database.client as MPool, query, params);
-    } else if (dbType == "sqlite") {
-      return await SQlite.query<T>(Database.client as SqliteDB, query, params);
-    } else if (dbType == "pgsql") {
-      return await PgSQL.query<T>(Database.client as PPool, query, params);
+
+    const mappedDBType = {
+      mysql: MySQL,
+      sqlite: SQlite,
+      pgsql: PgSQL,
+      // sqlsrv: "sqlsrv",
+    };
+    const dbKeys = Object.keys(mappedDBType);
+    if (dbKeys.includes(dbType.toLowerCase())) {
+      // @ts-ignore //
+      return await mappedDBType[dbType.toLowerCase()].query(
+        Database.client,
+        query,
+        params
+      );
     }
     throw new Error(`Unsupported database type: ${dbType}`);
   }

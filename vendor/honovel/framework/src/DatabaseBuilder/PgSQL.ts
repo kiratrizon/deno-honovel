@@ -20,7 +20,7 @@ class PgSQL {
           query,
           params as QueryArguments
         );
-        return result.rows as QueryResultDerived[T];
+        return (result.rows as QueryResultDerived[T]) || [];
       }
 
       if (["insert", "update", "delete"].includes(queryType)) {
