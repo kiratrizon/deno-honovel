@@ -6,8 +6,7 @@ import mysql, {
 } from "npm:mysql2@^2.3.3/promise";
 // sqlite
 import MySQL from "./MySQL.ts";
-import { Database as SqliteDB } from "jsr:@db/sqlite";
-import SQlite from "./SQlite.ts";
+
 // postgresql
 import {
   Pool as PPool,
@@ -52,9 +51,22 @@ export interface QueryResultDerived {
   rename: DDL;
 }
 
+let SQlite: unknown;
+let SqliteDB: unknown;
+
+if (
+  Deno.env.get("DENO_DEPLOYMENT_ID") &&
+  Deno.env.get("DB_CONNECTION") === "sqlite"
+) {
+  const sqliteModule = await import("jsr:@db/sqlite");
+  SqliteDB = sqliteModule.Database;
+
+  const localSQlite = await import("./SQlite.ts");
+  SQlite = localSQlite.default;
+}
 // This is for RDBMS like MySQL, PostgreSQL, etc.
 export class Database {
-  public static client: SqliteDB | MPool | PPool | undefined;
+  public static client: MPool | PPool | undefined;
 
   public async runQuery<T extends keyof QueryResultDerived>(
     query: string,
@@ -66,12 +78,16 @@ export class Database {
       empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql"
     );
 
-    const mappedDBType = {
+    const mappedDBType: Record<string, unknown> = {
       mysql: MySQL,
-      sqlite: SQlite,
       pgsql: PgSQL,
       // sqlsrv: "sqlsrv",
     };
+
+    if (isset(env("DENO_DEPLOYMENT_ID"))) {
+      mappedDBType.sqlite = SQlite;
+    }
+
     const newQuery = this.beforeQuery(query);
     const dbKeys = Object.keys(mappedDBType);
     if (dbKeys.includes(dbType.toLowerCase())) {
@@ -95,11 +111,13 @@ export class Database {
       switch (dbType) {
         case "sqlite": {
           //
-          const dbConn = new SqliteDB(databasePath("database.sqlite"));
+          const dbConn = new (SqliteDB as {
+            new (...args: unknown[]): unknown;
+          })(databasePath("database.sqlite"));
           if (!isset(dbConn)) {
             throw new Error("SQLite database connection failed.");
           }
-          Database.client = dbConn;
+          Database.client = dbConn as MPool;
           break;
         }
         case "mysql": {
@@ -246,7 +264,8 @@ export const dbCloser = async () => {
       }
     } else if (dbType == "sqlite") {
       try {
-        (Database.client as SqliteDB).close();
+        // @ts-ignore //
+        Database.client.close();
       } catch (_) {
         console.error(`Error closing ${dbType} connection:`, _);
       }
