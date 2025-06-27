@@ -37,6 +37,7 @@
       "./vendor/honovel/framework/src/@hono-types/hono-index.d.ts",
       "./vendor/honovel/framework/src/@hono-types/vars.d.ts",
       "./vendor/honovel/framework/src/@hono-types/Built-in-env.d.ts"
-    ]
+    ],
+    "experimentalDecorators": true
   }
 }
