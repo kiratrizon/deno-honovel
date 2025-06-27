@@ -22,6 +22,33 @@ Welcome to **Honovel Deno** — a Laravel-inspired web framework powered by [Hon
 deno -A https://honovel.deno.dev/create-project <project-name>@<version>
 ```
 
+### 🛠 VS Code Setup for Deno
+
+To enable proper Deno types and IntelliSense in **VS Code**, create a `.vscode/settings.json` file in your root folder:
+
+#### ✅ For **Windows**:
+
+```json
+{
+  "deno.enable": true
+}
+```
+
+#### ✅ For macOS (installed via Homebrew):
+
+```json
+{
+  "deno.enable": true,
+  "deno.importMap": "./deno.json",
+  "deno.path": "/opt/homebrew/bin/deno"
+}
+```
+
+##### 💡 To confirm your Deno path on macOS, run:
+
+```bash
+which deno
+```
 
 📝 **License**
 
