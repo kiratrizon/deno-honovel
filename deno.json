@@ -1,15 +1,15 @@
 {
   "tasks": {
     "dev": "deno run -A --watch vendor/honovel/framework/src/hono/run-server.ts",
-    "help": "deno run -A honovel --help",
-    "migrate": "deno run -A honovel migrate",
-    "migrate:fresh": "deno run -A honovel migrate:fresh",
-    "migrate:refresh": "deno run -A honovel migrate:refresh",
-    "make:migration": "deno run -A honovel make:migration",
-    "make:controller": "deno run -A honovel make:controller",
-    "make:model": "deno run -A honovel make:model",
-    "make:config": "deno run -A honovel make:config",
-    "publish:config": "deno run -A honovel publish:config"
+    "help": "deno run -A novel --help",
+    "migrate": "deno run -A novel migrate",
+    "migrate:fresh": "deno run -A novel migrate:fresh",
+    "migrate:refresh": "deno run -A novel migrate:refresh",
+    "make:migration": "deno run -A novel make:migration",
+    "make:controller": "deno run -A novel make:controller",
+    "make:model": "deno run -A novel make:model",
+    "make:config": "deno run -A novel make:config",
+    "publish:config": "deno run -A novel publish:config"
   },
   "imports": {
     "axios": "npm:axios@^1.9.0",
