@@ -14,6 +14,11 @@ import {
 } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
 import PgSQL from "./PostgreSQL.ts";
 
+const mappedDBType: Record<string, unknown> = {
+  mysql: MySQL,
+  pgsql: PgSQL,
+  // sqlsrv: "sqlsrv",
+};
 export type QueryResult =
   | Record<string, unknown>[]
   | {
@@ -51,19 +56,6 @@ export interface QueryResultDerived {
   rename: DDL;
 }
 
-let SQlite: unknown;
-let SqliteDB: unknown;
-
-if (
-  !Deno.env.get("DENO_DEPLOYMENT_ID") &&
-  Deno.env.get("DB_CONNECTION") === "sqlite"
-) {
-  const sqliteModule = await import("jsr:@db/sqlite");
-  SqliteDB = sqliteModule.Database;
-
-  const localSQlite = await import("./SQlite.ts");
-  SQlite = localSQlite.default;
-}
 // This is for RDBMS like MySQL, PostgreSQL, etc.
 export class Database {
   public static client: MPool | PPool | undefined;
@@ -78,13 +70,13 @@ export class Database {
       empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql"
     );
 
-    const mappedDBType: Record<string, unknown> = {
-      mysql: MySQL,
-      pgsql: PgSQL,
-      // sqlsrv: "sqlsrv",
-    };
-
-    if (!isset(env("DENO_DEPLOYMENT_ID"))) {
+    if (
+      !isset(env("DENO_DEPLOYMENT_ID")) &&
+      dbType === "sqlite" &&
+      !mappedDBType.sqlite
+    ) {
+      const localSQlite = await import("./SQlite.ts");
+      const SQlite = localSQlite.default;
       mappedDBType.sqlite = SQlite;
     }
 
@@ -110,14 +102,15 @@ export class Database {
       );
       switch (dbType) {
         case "sqlite": {
-          //
-          const dbConn = new (SqliteDB as {
-            new (...args: unknown[]): unknown;
-          })(databasePath("database.sqlite"));
+          // @ts-ignore //
+          const sqliteModule = await import("jsr:@db/sqlite");
+          const SqliteDB = sqliteModule.Database;
+          const dbConn = new SqliteDB(databasePath("database.sqlite"));
           if (!isset(dbConn)) {
             throw new Error("SQLite database connection failed.");
           }
-          Database.client = dbConn as MPool;
+          // @ts-ignore //
+          Database.client = dbConn;
           break;
         }
         case "mysql": {
@@ -265,7 +258,7 @@ export const dbCloser = async () => {
     } else if (dbType == "sqlite") {
       try {
         // @ts-ignore //
-        Database.client.close();
+        // Database.client.close();
       } catch (_) {
         console.error(`Error closing ${dbType} connection:`, _);
       }
