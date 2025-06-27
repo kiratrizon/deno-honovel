@@ -55,7 +55,7 @@ let SQlite: unknown;
 let SqliteDB: unknown;
 
 if (
-  Deno.env.get("DENO_DEPLOYMENT_ID") &&
+  !Deno.env.get("DENO_DEPLOYMENT_ID") &&
   Deno.env.get("DB_CONNECTION") === "sqlite"
 ) {
   const sqliteModule = await import("jsr:@db/sqlite");
@@ -84,7 +84,7 @@ export class Database {
       // sqlsrv: "sqlsrv",
     };
 
-    if (isset(env("DENO_DEPLOYMENT_ID"))) {
+    if (!isset(env("DENO_DEPLOYMENT_ID"))) {
       mappedDBType.sqlite = SQlite;
     }
 
