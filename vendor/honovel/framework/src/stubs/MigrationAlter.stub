@@ -1,0 +1,19 @@
+import { Migration } from "Illuminate/Database/Migrations";
+import { Schema } from "Illuminate/Support/Facades";
+import { Blueprint } from "Illuminate/Database/Schema";
+
+export default new (class extends Migration {
+  public async up() {
+    await Schema.table("{{ TableName }}", (table: Blueprint) => {
+        // alter logic
+
+    });
+  }
+
+  public async down() {
+    await Schema.table("{{ TableName }}", (table: Blueprint) => {
+        // reverse alter logic
+        
+    });
+  }
+})();

@@ -1,27 +1,22 @@
-import Model, { DefaultSchema } from "./Model.ts";
+import {
+  Model,
+  ModelWithAttributes,
+} from "Illuminate/Database/Eloquent";
 
+export type UserSchema = {
+  id?: number;
+  email: string;
+  password: string;
+  name: string;
+};
 
-type UserSchema = DefaultSchema & {
-    email: string;
-    password: string;
-    name: string;
+class BaseUser extends Model<{ _attributes: UserSchema }> {
+  // Laravel-like implementation here
+  protected override _fillable = [];
+
+  protected override _hidden = [];
 }
 
-class User extends Model<{ _attributes: UserSchema }> {
-
-    protected override _mutators = {
-        email: (value: string) => value.trim().toLowerCase(),
-    };
-
-    protected override _fillable = [
-        "email",
-        "password",
-        "name",
-    ];
-
-    protected override _guarded = [
-        "id"
-    ];
-}
+const User = BaseUser as ModelWithAttributes<UserSchema, typeof BaseUser>;
 
 export default User;

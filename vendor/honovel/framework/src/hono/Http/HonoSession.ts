@@ -118,7 +118,7 @@ export class HonoSession<
 }
 
 class Session implements SessionContract {
-  constructor(private values: Record<string, NonFunction<unknown>> = {}) { }
+  constructor(private values: Record<string, NonFunction<unknown>> = {}) {}
   public put(key: string, value: NonFunction<unknown>) {
     this.values[key] = value;
   }

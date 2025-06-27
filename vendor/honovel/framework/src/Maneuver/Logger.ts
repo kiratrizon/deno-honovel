@@ -1,5 +1,5 @@
 import * as path from "https://deno.land/std/path/mod.ts";
-import { LogConfig } from "../../vendor/honovel/framework/src/@hono-types/declaration/imain.d.ts";
+import { LogConfig } from "../@hono-types/declaration/imain.d.ts";
 
 class Logger {
   public static log(

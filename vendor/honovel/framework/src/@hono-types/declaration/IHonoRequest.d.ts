@@ -374,6 +374,16 @@ declare class IHonoRequest {
 
   // start 🔹 Miscellaneous
   public session(): SessionContract;
+
+  /**
+   * Validate the request data against a set of rules.
+   * @param data Optional data to validate, defaults to request input.
+   * @param rules Validation rules.
+   */
+  public validate(
+    data?: Record<string, unknown>,
+    rules?: Record<string, string>
+  ): Promise<Record<string, unknown>>;
 }
 
 export default IHonoRequest;

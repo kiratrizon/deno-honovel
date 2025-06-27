@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "dev": "deno run --allow-net --allow-env --allow-read --allow-sys --allow-write --watch --allow-import vendor/honovel/framework/src/hono/run-server.ts",
+    "dev": "deno run -A --watch vendor/honovel/framework/src/hono/run-server.ts",
     "start": "deno run --allow-net --allow-env --allow-read --allow-sys index.ts"
   },
   "imports": {
@@ -9,8 +9,8 @@
     "hono-sessions": "jsr:@jcs224/hono-sessions@^0.7.2",
     "hono": "jsr:@hono/hono@^4.7.10",
     "@std/assert": "jsr:@std/assert@1",
-    "Constants": "./libraries/Helpers/Constants.ts",
-    "HonoLogger": "./libraries/Helpers/Logger.ts",
+    "Constants": "./vendor/honovel/framework/src/Maneuver/Constants.ts",
+    "HonoLogger": "./vendor/honovel/framework/src/Maneuver/Logger.ts",
     "ioredis": "npm:ioredis@^5.6.1",
     "isbot": "npm:isbot@^5.1.28",
     "luxon": "npm:luxon@^3.6.1",
@@ -22,7 +22,8 @@
     "Database": "./vendor/honovel/framework/src/DatabaseBuilder/Database.ts",
     "Illuminate/Database/Migrations": "./vendor/honovel/framework/src/Illuminate/Database/Migrations/index.ts",
     "Illuminate/Database/Schema": "./vendor/honovel/framework/src/Illuminate/Database/Schema/index.ts",
-    "Illuminate/Support/Facades": "./vendor/honovel/framework/src/Illuminate/Support/Facades/index.ts"
+    "Illuminate/Support/Facades": "./vendor/honovel/framework/src/Illuminate/Support/Facades/index.ts",
+    "Illuminate/Database/Eloquent": "./vendor/honovel/framework/src/Illuminate/Database/Eloquent/index.ts"
   },
   "lint": {
     "rules": {
@@ -36,6 +37,7 @@
       "./vendor/honovel/framework/src/@hono-types/hono-index.d.ts",
       "./vendor/honovel/framework/src/@hono-types/vars.d.ts",
       "./vendor/honovel/framework/src/@hono-types/Built-in-env.d.ts"
-    ]
+    ],
+    "experimentalDecorators": true
   }
 }

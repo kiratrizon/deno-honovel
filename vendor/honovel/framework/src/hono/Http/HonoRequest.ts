@@ -9,6 +9,7 @@ import { SessionContract } from "../../@hono-types/declaration/ISession.d.ts";
 import HonoHeader from "./HonoHeader.ts";
 import { isbot } from "isbot";
 import Macroable from "../../Maneuver/Macroable.ts";
+import { Validator } from "Illuminate/Support/Facades";
 
 class HonoRequest extends Macroable implements IHonoRequest {
   private raw: RequestData;
@@ -310,6 +311,17 @@ class HonoRequest extends Macroable implements IHonoRequest {
 
   public session(): SessionContract {
     return this.#sessionInstance;
+  }
+
+  public async validate(
+    data: Record<string, unknown> = {},
+    validations: Record<string, string> = {}
+  ): Promise<Record<string, unknown>> {
+    const validation = await Validator.make(data, validations);
+    if (validation.fails()) {
+      throw new Error(`Validation failed: ${validation.getErrors()}`);
+    }
+    return data;
   }
 }
 

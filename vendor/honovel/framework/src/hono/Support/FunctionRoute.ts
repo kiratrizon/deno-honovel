@@ -257,8 +257,9 @@ export function toMiddleware(
                 >)();
               if (methodExist(middlewareInstance, "handle")) {
                 middlewareCallback.push({
-                  debugString: `// class ${middlewareClass.name
-                    }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+                  debugString: `// class ${
+                    middlewareClass.name
+                  }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
                   middleware: middlewareInstance.handle.bind(
                     middlewareInstance
                   ) as HttpMiddleware,
@@ -269,8 +270,9 @@ export function toMiddleware(
             const middlewareInstance = new middleware();
             if (methodExist(middlewareInstance, "handle")) {
               middlewareCallback.push({
-                debugString: `// class ${middleware.name
-                  }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+                debugString: `// class ${
+                  middleware.name
+                }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
                 middleware: middlewareInstance.handle.bind(
                   middlewareInstance
                 ) as HttpMiddleware,
@@ -284,11 +286,12 @@ export function toMiddleware(
           // deno-lint-ignore no-explicit-any
           ...args: any[]
         ) => // deno-lint-ignore no-explicit-any
-          any)();
+        any)();
         if (methodExist(middlewareInstance, "handle")) {
           middlewareCallback.push({
-            debugString: `// class ${middlewareClass.name
-              }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+            debugString: `// class ${
+              middlewareClass.name
+            }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
             middleware: middlewareInstance.handle.bind(
               middlewareInstance
             ) as HttpMiddleware,
@@ -382,16 +385,30 @@ function generateMiddlewareOrDispatch(
           `Request URI ${request
             .method()
             .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-              "HTTP_X_REQUEST_ID"
-            )}`
+            "HTTP_X_REQUEST_ID"
+          )}`
         );
         let errorHtml: string;
-        if (!request.expectsJson()) {
-          errorHtml = renderErrorHtml(e);
+        if (env("APP_DEBUG", true)) {
+          if (!request.expectsJson()) {
+            errorHtml =
+              extractControllerTrace(populatedError.stack as string[]) ||
+              renderErrorHtml(e);
+            return c.html(errorHtml, 500);
+          } else {
+            return c.json(
+              {
+                message: populatedError.message,
+                error_type: populatedError.error_type,
+                stack: populatedError.stack,
+                cause: populatedError.cause,
+              },
+              500
+            );
+          }
         } else {
-          errorHtml = "Internal server error";
+          return c.html("Internal server error", 500);
         }
-        return c.html(errorHtml, 500);
       } else if (e instanceof DDError) {
         const data = forDD(e.data);
         if (request.expectsJson()) {
@@ -444,8 +461,8 @@ function generateMiddlewareOrDispatch(
       `Request URI ${request
         .method()
         .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-          "HTTP_X_REQUEST_ID"
-        )}`
+        "HTTP_X_REQUEST_ID"
+      )}`
     );
     return c.json(
       {
@@ -483,14 +500,15 @@ export function renderErrorHtml(e: Error): string {
           ${e.message}
         </p>
 
-        ${e.stack
-      ? `
+        ${
+          e.stack
+            ? `
             <h2 class="text-xl font-semibold text-gray-800 mb-2">🧱 Stack Trace</h2>
             <pre class="text-xs leading-relaxed font-mono bg-gray-900 text-green-400 p-4 rounded-lg border border-gray-700 overflow-x-auto whitespace-pre-wrap hover:scale-[1.01] transition-transform duration-200 ease-out shadow-inner">
 ${e.stack.replace(/</g, "&lt;")}
             </pre>`
-      : ""
-    }
+            : ""
+        }
       </div>
     </div>
   </body>
@@ -572,8 +590,8 @@ function renderDebugErrorPage(
 
       <div class="bg-gray-900 text-green-300 text-sm font-mono p-4 rounded-lg overflow-auto max-h-[400px] border border-gray-700">
         <pre class="whitespace-pre-wrap"><code>${formatDebugString(
-    escapeHtml(debugString)
-  )}</code></pre>
+          escapeHtml(debugString)
+        )}</code></pre>
       </div>
 
       <p class="text-xs text-gray-400 mt-6">
@@ -598,4 +616,117 @@ export function formatDebugString(code: string): string {
       return padded;
     })
     .join("\n");
+}
+
+// for tracing
+function extractControllerTrace(stack: string[]): string | false {
+  const pattern = /file:\/\/(.+\/app\/Http\/Controllers\/[^:]+):(\d+):(\d+)/;
+
+  const stackLine: Record<string, unknown> = {};
+  for (const line of stack) {
+    const match = line.match(pattern);
+    if (match) {
+      const [, file, lineStr, columnStr] = match;
+      stackLine.file = file;
+      stackLine.line = Number(lineStr);
+      stackLine.column = Number(columnStr);
+      break;
+    }
+  }
+  if (!empty(stackLine)) {
+    const content = getFileContents(stackLine.file as string);
+    return tracingLocation(
+      content,
+      stackLine.file as string,
+      stackLine.line as number,
+      stackLine.column as number,
+      stack[0]
+    );
+  }
+  return false;
+}
+
+function tracingLocation(
+  content: string,
+  file: string,
+  line: number,
+  column: number,
+  errorDescription: string
+): string {
+  const fileLocation = path.relative(basePath(), file);
+  const lines = content.split("\n");
+
+  const allLines = lines.map((contentLine, index) => {
+    const lineNumber = index + 1;
+    const isErrorLine = lineNumber === line;
+
+    return `
+      <div id="${
+        isErrorLine ? "error-line" : ""
+      }" class="group flex items-start ${
+      isErrorLine ? "bg-rose-100" : "hover:bg-gray-100"
+    } rounded px-4 py-1">
+        <div class="w-14 text-right pr-4 text-white-400 select-none">${lineNumber}</div>
+        <pre class="flex-1 text-sm overflow-auto whitespace-pre-wrap ${
+          isErrorLine
+            ? "text-rose-600"
+            : "group-hover:text-emerald-600 text-white-800"
+        }">${escapeHtml(contentLine)}</pre>
+      </div>
+      ${
+        isErrorLine
+          ? `<div class="flex items-start">
+              <div class="w-14"></div>
+              <pre class="text-sm text-rose-500 pl-4 leading-tight">${" ".repeat(
+                column - 1
+              )}^</pre>
+            </div>`
+          : ""
+      }
+    `;
+  });
+
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Error Trace</title>
+      <script src="/system-assets/js/tailwind.js"></script>
+      <script>
+        window.addEventListener("DOMContentLoaded", () => {
+          const el = document.getElementById("error-line");
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        });
+      </script>
+
+    </head>
+    <body class="bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900 font-sans antialiased">
+      <div class="max-w-6xl mx-auto mt-10 p-6">
+        <div class="bg-white shadow-lg border border-gray-200 rounded-lg overflow-hidden">
+          <div class="px-6 py-4 border-b border-gray-100 bg-rose-50">
+            <h1 class="text-xl font-semibold text-rose-600">${escapeHtml(
+              errorDescription
+            )}</h1>
+          </div>
+
+          <div class="max-h-[500px] overflow-y-auto bg-gray-900 text-gray-100">
+            <div class="py-4">
+              ${allLines.join("")}
+            </div>
+          </div>
+
+          <div class="px-6 py-4 bg-gray-50 text-sm text-gray-700 border-t border-gray-100">
+            <p><strong>File:</strong> <code>${fileLocation}</code></p>
+            <p><strong>Line:</strong> ${line}</p>
+            <p><strong>Column:</strong> ${column}</p>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
 }

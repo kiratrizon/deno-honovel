@@ -6,7 +6,8 @@ export type ColumnType =
   | "integer"
   | "boolean"
   | "timestamp"
-  | "foreignId";
+  | "foreignId"
+  | "id"; // ✅ Add this
 
 export interface ColumnOptions {
   length?: number;
@@ -15,6 +16,8 @@ export interface ColumnOptions {
   unique?: boolean;
   references?: string;
   on?: string;
+  primary?: boolean; // For id() method
+  autoIncrement?: boolean; // For id() method
 }
 
 export interface ColumnDefinition {
@@ -40,6 +43,28 @@ export class Blueprint {
     this.table = table;
   }
 
+  id(name = "id") {
+    this.columns.push({
+      type: "integer", // or "bigint"
+      name,
+      options: {
+        primary: true,
+        autoIncrement: true,
+      },
+    });
+    return this;
+  }
+
+  primary() {
+    this.lastColumn()!.options!.primary = true;
+    return this;
+  }
+
+  autoIncrement() {
+    this.lastColumn()!.options!.autoIncrement = true;
+    return this;
+  }
+
   string(name: string, length = 255) {
     this.columns.push({ type: "string", name, options: { length } });
     return this;
@@ -60,14 +85,32 @@ export class Blueprint {
     return this;
   }
 
-  timestamp(name: string) {
-    this.columns.push({ type: "timestamp", name });
+  timestamp(name: string, options?: ColumnOptions) {
+    this.columns.push({ type: "timestamp", name, options });
     return this;
   }
 
   timestamps() {
-    this.timestamp("created_at");
-    this.timestamp("updated_at");
+    const dbType = env("DB_CONNECTION", "mysql") as DBType;
+
+    const createdAtOptions: ColumnOptions = {};
+    const updatedAtOptions: ColumnOptions = { nullable: true };
+
+    if (dbType === "sqlite") {
+      createdAtOptions.default = "CURRENT_TIMESTAMP";
+      updatedAtOptions.default = "CURRENT_TIMESTAMP";
+    } else if (dbType === "mysql") {
+      createdAtOptions.default = "CURRENT_TIMESTAMP";
+      updatedAtOptions.default =
+        "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"; // leave ON UPDATE to be handled in SQL generator
+    } else if (dbType === "pgsql" || dbType === "sqlsrv") {
+      createdAtOptions.default = "CURRENT_TIMESTAMP";
+      updatedAtOptions.default = "CURRENT_TIMESTAMP";
+    }
+
+    this.timestamp("created_at", createdAtOptions);
+    this.timestamp("updated_at", updatedAtOptions);
+
     return this;
   }
 

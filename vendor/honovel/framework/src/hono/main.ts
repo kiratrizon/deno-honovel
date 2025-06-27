@@ -29,7 +29,7 @@ import { honoSession } from "./Http/HonoSession.ts";
 import { myError } from "./Http/builder.ts";
 
 const headFunction: MiddlewareHandler = async (c, next) => {
-  const { request } = c.get("HttpHono") as HttpHono;
+  const { request } = c.get("httpHono") as HttpHono;
   if (!request.isMethod("HEAD")) {
     return await myError(c);
   }

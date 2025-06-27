@@ -1,11 +1,5 @@
-import mysql, {
-  Pool,
-  PoolConnection,
-  ResultSetHeader,
-  RowDataPacket,
-  OkPacket,
-} from "npm:mysql2@^2.3.3/promise";
-import { QueryResult, QueryResultDerived } from "Database";
+import mysql, { Pool, PoolConnection } from "npm:mysql2@^2.3.3/promise";
+import { QueryResultDerived } from "Database";
 
 class MySQL {
   public static async query<T extends keyof QueryResultDerived>(
@@ -46,7 +40,7 @@ class MySQL {
       }
 
       // SELECT and other queries
-      return result as QueryResultDerived[T];
+      return (result as QueryResultDerived[T]) || [];
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
       const formattedQuery = mysql.format(query, params);

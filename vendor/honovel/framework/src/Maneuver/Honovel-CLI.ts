@@ -1,10 +1,14 @@
 import "../hono-globals/index.ts";
 import { Command } from "https://deno.land/x/cliffy@v1.0.0-rc.4/command/mod.ts";
-import { Database, QueryResultDerived } from "Database";
+import { Database, dbCloser, QueryResultDerived } from "Database";
+import { join } from "https://deno.land/std@0.224.0/path/mod.ts";
+import { Migration } from "Illuminate/Database/Migrations";
+import { DB } from "Illuminate/Support/Facades";
 
 const myCommand = new Command();
 
 import { IMyArtisan } from "../@hono-types/IMyArtisan.d.ts";
+import path from "node:path";
 class MyArtisan {
   private static db = new Database();
   constructor() {}
@@ -16,7 +20,7 @@ class MyArtisan {
         console.error(
           `❌ Config file ${basePath(`config/${name}.ts`)} already exist.`
         );
-        Deno.exit(1);
+        return;
       }
     }
     writeFile(basePath(`config/${name}.ts`), stubContent);
@@ -25,7 +29,7 @@ class MyArtisan {
         `config/${name}.ts`
       )}`
     );
-    Deno.exit(0);
+    return;
   }
 
   private async publishConfig() {
@@ -55,8 +59,13 @@ class MyArtisan {
     const controllerContent = stubContent.replace(/{{ ClassName }}/g, name);
 
     writeFile(basePath(`app/Http/Controllers/${name}.ts`), controllerContent);
-    console.log(`✅ Generated app/Controllers/${name}.ts`);
-    Deno.exit(0);
+    console.log(
+      `✅ Controller file created at ${path.relative(
+        Deno.cwd(),
+        basePath(`app/Http/Controllers/${name}.ts`)
+      )}`
+    );
+    return;
   }
 
   private async getBatchNumber(): Promise<number> {
@@ -66,6 +75,45 @@ class MyArtisan {
     const maxBatch = Number(result[0]?.max_batch ?? 0);
     return maxBatch + 1;
   }
+
+  private async makeModel(
+    options: {
+      migration?: boolean;
+      factory?: boolean;
+      controller?: boolean;
+      resource?: boolean;
+      all?: boolean;
+      pivot?: boolean;
+    },
+    name: string
+  ) {
+    const modelPath = basePath(`app/Models/${name}.ts`);
+    const stubPath = honovelPath("stubs/Model.stub");
+    const stubContent = getFileContents(stubPath);
+    const modelContent = stubContent.replace(/{{ ClassName }}/g, name);
+
+    writeFile(modelPath, modelContent);
+    console.log(
+      `✅ Model file created at ${path.relative(Deno.cwd(), modelPath)}`
+    );
+
+    if (options.migration || options.all) {
+      this.makeMigration({}, generateTableName(name));
+    }
+
+    if (options.factory || options.all) {
+      // Logic to create factory
+      console.log(`Factory creation logic not implemented yet.`);
+    }
+
+    if (options.controller || options.all) {
+      await this.makeController(
+        { resource: options.resource },
+        `${name}Controller`
+      );
+    }
+  }
+
   private async runMigrations(options: { seed?: boolean; path?: string }) {
     await this.createMigrationTable();
     const modules = await loadMigrationModules();
@@ -83,19 +131,37 @@ class MyArtisan {
         continue;
       }
       await migration.run(type);
-      await MyArtisan.db.runQuery<"insert">(
-        `INSERT INTO migrations (name, batch) VALUES (?, ?)`,
-        [name, batchNumber]
-      );
+      await DB.insert(`migrations`, {
+        name,
+        batch: batchNumber,
+      });
       console.log(`Migration ${name} applied successfully.`);
     }
   }
 
   private async freshMigrations(options: { seed?: boolean; path?: string }) {
+    await this.dropAllTables();
     await this.createMigrationTable();
-    // Logic to drop all tables and rerun migrations
-    console.log("Running fresh migrations...");
-    // Implement your logic here
+    const modules = await loadMigrationModules();
+    const batchNumber = await this.getBatchNumber();
+    const type = "up"; // or "down" based on your requirement
+    for (const module of modules) {
+      const { name, migration } = module;
+      const isApplied = await MyArtisan.db.runQuery<"select">(
+        `SELECT COUNT(*) AS count FROM migrations WHERE name = ?`,
+        [name]
+      );
+      if (!empty(isApplied) && (isApplied[0] as { count: number }).count > 0) {
+        console.log(`Migration ${name} already applied.`);
+        continue;
+      }
+      await migration.run(type);
+      await DB.insert("migrations", {
+        name,
+        batch: batchNumber,
+      });
+      console.log(`Migration ${name} applied successfully.`);
+    }
   }
 
   private async refreshMigrations(options: {
@@ -104,9 +170,8 @@ class MyArtisan {
     path?: string;
   }) {
     await this.createMigrationTable();
+
     // Logic to rollback and re-run migrations
-    console.log("Refreshing migrations...");
-    // Implement your logic here
   }
 
   private async createMigrationTable() {
@@ -142,7 +207,7 @@ class MyArtisan {
           "id" INTEGER PRIMARY KEY AUTOINCREMENT,
           "name" TEXT NOT NULL,
           "batch" INTEGER NOT NULL,
-          "created_at" TEXT DEFAULT (datetime('now'))
+          "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
       `;
         break;
@@ -162,7 +227,86 @@ class MyArtisan {
       default:
         throw new Error(`Unsupported DB type: \`${dbType}\``);
     }
-    await MyArtisan.db.runQuery(sql);
+    await DB.statement(sql);
+  }
+
+  private async dropAllTables(): Promise<void> {
+    const dbType = env("DB_CONNECTION", "mysql").toLowerCase();
+    let tables: string[] = [];
+
+    switch (dbType) {
+      case "mysql": {
+        const result = await DB.select(
+          `SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND table_type = 'BASE TABLE'`,
+          [staticConfig("database.connections.mysql.database")]
+        );
+        tables = result.map((row) => `\`${row.TABLE_NAME}\``);
+        break;
+      }
+
+      case "pgsql": {
+        const result = await DB.select(
+          `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`
+        );
+        tables = result.map((row) => `"${row.tablename}"`);
+        break;
+      }
+
+      case "sqlite": {
+        const result = await DB.select(
+          `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`
+        );
+        tables = result.map((row) => `"${row.name}"`);
+        break;
+      }
+
+      case "sqlsrv": {
+        const result = await DB.select(`SELECT name FROM sys.tables`);
+        tables = result.map((row) => `[${row.name}]`);
+        break;
+      }
+
+      default:
+        throw new Error(`Unsupported DB type: \`${dbType}\``);
+    }
+
+    if (tables.length === 0) {
+      console.log("⚠️ No tables found to drop.");
+      return;
+    }
+
+    if (dbType === "sqlite") {
+      for (const table of tables) {
+        await DB.statement(`DROP TABLE ${table};`);
+      }
+    } else {
+      const dropSQL = `DROP TABLE ${tables.join(", ")};`;
+      await DB.statement(dropSQL);
+    }
+  }
+
+  private makeMigration(options: { table?: string }, name: string) {
+    const isAlter = !!options?.table;
+    const stubPath = isAlter
+      ? honovelPath("stubs/MigrationAlter.stub")
+      : honovelPath("stubs/MigrationCreate.stub");
+
+    const stubContent = getFileContents(stubPath);
+    const timestamp = date("YmdHis");
+    const migrationName = isAlter
+      ? `${timestamp}_alter_${name}.ts`
+      : `${timestamp}_create_${name}.ts`;
+    const table = options.table || name;
+
+    const migrationContent = stubContent.replace(/{{ TableName }}/g, table);
+
+    writeFile(
+      basePath(`database/migrations/${migrationName}`),
+      migrationContent
+    );
+    console.log(
+      `✅ Migration file created at database/migrations/${migrationName}`
+    );
   }
 
   public async command(args: string[]): Promise<void> {
@@ -183,10 +327,28 @@ class MyArtisan {
       )
       .action((options, name) => this.makeController.bind(this)(options, name))
 
+      .command("make:migration", "Generate a migration file")
+      .arguments("<name:string>")
+      .option(
+        "--table <table:string>",
+        "Specify the table to alter in the migration"
+      )
+      .action((options, name) => this.makeMigration(options, name))
+
       .command("migrate", "Run the database migrations")
       .option("--seed", "Seed the database after migration")
       .option("--path <path:string>", "Specify a custom migrations directory")
       .action((options) => this.runMigrations.bind(this)(options))
+
+      .command("make:model", "Generate a model class")
+      .arguments("<name:string>")
+      .option("-m, --migration", "Also generate a migration file")
+      .option("-f, --factory", "Also generate a factory file")
+      .option("-c, --controller", "Also generate a controller")
+      .option("-r, --resource", "Make the controller resourceful")
+      .option("--all", "Generate migration, factory, and controller")
+      .option("--pivot", "Indicate the model is a pivot table")
+      .action((options, name) => this.makeModel(options, name))
 
       .command("migrate:fresh", "Drop all tables and rerun all migrations")
       .option("--seed", "Seed the database after fresh migration")
@@ -211,9 +373,6 @@ class MyArtisan {
   }
 }
 
-import { join } from "https://deno.land/std@0.224.0/path/mod.ts";
-import { Migration } from "Illuminate/Database/Migrations";
-
 interface ModuleMigration {
   name: string;
   migration: Migration;
@@ -236,6 +395,9 @@ export async function loadMigrationModules(): Promise<ModuleMigration[]> {
       }
     }
   }
+
+  // Sort modules by name to ensure consistent order
+  modules.sort((a, b) => a.name.localeCompare(b.name));
 
   return modules;
 }

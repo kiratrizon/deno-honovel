@@ -30,9 +30,9 @@ export class Hash {
   }
 }
 
-import { Database } from "Database";
+import { Database, QueryResultDerived } from "Database";
+import { Builder, SQLRaw } from "../../Database/Query/index.ts";
 export class Schema {
-  private static db = new Database();
   public static async create(
     table: string,
     callback: (blueprint: Blueprint) => void
@@ -52,7 +52,7 @@ export class Schema {
     };
     const dbType = env("DB_CONNECTION", "mysql");
     const stringedQuery = generateCreateTableSQL(tableSchema, dbType);
-    await this.db.runQuery(stringedQuery);
+    await DB.statement(stringedQuery);
   }
 
   public static async dropIfExists(table: string): Promise<void> {
@@ -75,7 +75,7 @@ export class Schema {
         throw new Error(`Unsupported database type: ${dbType}`);
     }
 
-    await this.db.runQuery(sql);
+    await DB.statement(sql);
   }
 
   public static async table(
@@ -91,15 +91,13 @@ export class Schema {
       columns,
       table,
     };
-    // console.log(tableSchema);
-    console.log("Generated SQL:", generateAlterTableSQL(tableSchema, "sqlsrv"));
+    const dbType = env("DB_CONNECTION", "mysql");
+    const stringedQuery = generateAlterTableSQL(tableSchema, dbType);
+    await DB.statement(stringedQuery);
   }
 }
 
-export function generateCreateTableSQL(
-  schema: TableSchema,
-  dbType: DBType
-): string {
+function generateCreateTableSQL(schema: TableSchema, dbType: DBType): string {
   const lines: string[] = [];
 
   for (const col of schema.columns) {
@@ -108,7 +106,35 @@ export function generateCreateTableSQL(
       dbType
     )}`;
 
-    if (!col.options?.nullable) {
+    if (col.options?.autoIncrement) {
+      if (dbType === "mysql") {
+        line += " AUTO_INCREMENT";
+      } else if (dbType === "pgsql") {
+        line = `${quoteIdentifier(col.name, dbType)} SERIAL`;
+      } else if (dbType === "sqlite") {
+        line = `${quoteIdentifier(
+          col.name,
+          dbType
+        )} INTEGER PRIMARY KEY AUTOINCREMENT`;
+        // Note: SQLite only allows AUTOINCREMENT on the primary key
+      } else if (dbType === "sqlsrv") {
+        line += " IDENTITY(1,1)";
+      }
+    }
+
+    // Apply PRIMARY KEY only if it's not already handled (e.g., SQLite auto-increment case)
+    if (
+      col.options?.primary &&
+      !(dbType === "sqlite" && col.options.autoIncrement)
+    ) {
+      line += " PRIMARY KEY";
+    }
+
+    if (
+      isObject(col.options) &&
+      keyExist(col.options, "nullable") &&
+      !col.options?.nullable
+    ) {
       line += " NOT NULL";
     }
 
@@ -160,7 +186,7 @@ function mapColumnType(col: ColumnDefinition, dbType: DBType): string {
     case "boolean":
       return dbType === "pgsql" ? "BOOLEAN" : "TINYINT(1)";
     case "timestamp":
-      if (dbType === "mysql") return "DATETIME";
+      if (dbType === "mysql") return "TIMESTAMP";
       return "TIMESTAMP";
     case "foreignId":
       return dbType === "pgsql" ? "INTEGER" : "INT";
@@ -183,15 +209,12 @@ function quoteIdentifier(name: string, dbType: DBType): string {
 }
 
 function formatDefaultValue(value: unknown): string {
-  if (typeof value === "string") return `'${value}'`;
+  if (typeof value === "string") return `${value}`;
   if (typeof value === "boolean") return value ? "1" : "0";
   return String(value);
 }
 
-export function generateAlterTableSQL(
-  schema: TableSchema,
-  dbType: DBType
-): string {
+function generateAlterTableSQL(schema: TableSchema, dbType: DBType): string {
   const statements: string[] = [];
 
   const tableName = quoteIdentifier(schema.table, dbType);
@@ -242,4 +265,247 @@ export function generateAlterTableSQL(
   }
 
   return statements.join(";\n") + ";";
+}
+
+export class DB {
+  public static table(table: string) {
+    if (empty(table) || !isString(table)) {
+      throw new Error("Table name must be a non-empty string.");
+    }
+    return new TableInstance(table);
+  }
+
+  public static async statement(
+    query: string,
+    params: unknown[] = []
+  ): Promise<boolean> {
+    if (empty(query) || !isString(query)) {
+      throw new Error("Query must be a non-empty string.");
+    }
+    const db = new Database();
+
+    try {
+      await db.runQuery(query, params);
+      return true;
+    } catch (error) {
+      console.error("Database statement error:", error);
+      throw error;
+    }
+  }
+
+  public static async select(
+    query: string,
+    params: unknown[] = []
+  ): Promise<QueryResultDerived["select"]> {
+    if (empty(query) || !isString(query)) {
+      throw new Error("Query must be a non-empty string.");
+    }
+    const queryType = query.trim().split(" ")[0].toLowerCase();
+    if (queryType !== "select") {
+      throw new Error("Query must be a SELECT statement.");
+    }
+    const db = new Database();
+
+    try {
+      const result = await db.runQuery<"select">(query, params);
+      return result;
+    } catch (error) {
+      console.error("Database select error:", error);
+      throw error;
+    }
+  }
+
+  public static async insert(
+    table: string,
+    ...data: Record<string, unknown>[]
+  ): Promise<QueryResultDerived["insert"]> {
+    if (empty(table) || !isString(table)) {
+      throw new Error("Table name must be a non-empty string.");
+    }
+    const instance = new TableInstance(table);
+    return await instance.insert<"insert">(...data);
+  }
+
+  public static raw(query: string): SQLRaw {
+    if (empty(query) || !isString(query)) {
+      throw new Error("Raw query must be a non-empty string.");
+    }
+    return new SQLRaw(query);
+  }
+}
+
+class TableInstance {
+  constructor(private tableName: string) { }
+
+  // for insert operation
+  public async insert<T extends "insert">(
+    ...data: Record<string, unknown>[]
+  ): Promise<QueryResultDerived[T]> {
+    if (!empty(data) && data.every((item) => empty(item) || !isObject(item))) {
+      throw new Error("Insert data must be a non-empty array of objects.");
+    }
+    const db = new Database();
+    const [sql, values] = insertBuilder({ table: this.tableName, data });
+    const result = await db.runQuery<T>(sql, values);
+    return result;
+  }
+
+  // for query building
+  public select(...fields: string[]) {
+    return new Builder(this.tableName, fields);
+  }
+
+  public where(...args: any[]): Builder {
+    // @ts-ignore //
+    return new Builder(this.tableName).where(...args);
+  }
+}
+
+type TInsertBuilder = {
+  table: string;
+  data: Array<Record<string, unknown>>;
+};
+
+function insertBuilder(input: TInsertBuilder): [string, unknown[]] {
+  const dbType = env("DB_CONNECTION", "mysql"); // mysql | sqlite | pgsql | sqlsrv
+
+  if (!Array.isArray(input.data) || input.data.length === 0) {
+    throw new Error("Insert data must be a non-empty array.");
+  }
+
+  const columns = Object.keys(input.data[0]);
+  const rows = input.data;
+
+  const placeholders = rows.map((_, rowIndex) => {
+    if (dbType === "pgsql") {
+      return `(${columns
+        .map((_, colIndex) => `$${rowIndex * columns.length + colIndex + 1}`)
+        .join(", ")})`;
+    } else {
+      return `(${columns.map(() => "?").join(", ")})`;
+    }
+  });
+
+  const values = rows.flatMap((row) => columns.map((col) => row[col]));
+
+  let sql = `INSERT INTO ${input.table} (${columns.join(
+    ", "
+  )}) VALUES ${placeholders.join(", ")}`;
+
+  if (dbType === "pgsql") {
+    sql += " RETURNING *";
+  }
+
+  return [sql, values];
+}
+
+interface IRegex {
+  digit: string;
+  alpha: string;
+  alphanumeric: string;
+  alphanumericspecial: string;
+  slug: string;
+  uuid: string;
+}
+export class Validator {
+  #validRules = [
+    "required",
+    "email",
+    "min",
+    "max",
+    "unique",
+    "confirmed",
+    "regex",
+  ];
+  #regex = {
+    digit: "\\d+",
+    alpha: "[a-zA-Z]+",
+    alphanumeric: "[a-zA-Z0-9]+",
+    alphanumericspecial: "^[a-zA-Z0-9@#\\$%\\-_\\.!\\*]+$",
+    slug: "[a-z0-9-]+",
+    uuid: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+  };
+
+  static async make(
+    data: Record<string, unknown> = {},
+    validations: Record<string, string> = {}
+  ) {
+    const v = new Validator(data, validations);
+    await v.#validateAll();
+    return v;
+  }
+
+  #data: Record<string, unknown> = {};
+  #errors: Record<string, string[]> = {};
+  #validations;
+  constructor(
+    data: Record<string, unknown>,
+    validations: Record<string, string>
+  ) {
+    this.#data = data;
+    this.#validations = validations;
+  }
+
+  getErrors() {
+    return Object.fromEntries(
+      Object.entries(this.#errors).filter(([_, v]) => (v as string[]).length)
+    );
+  }
+
+  fails() {
+    return Object.values(this.#errors).some((arr) => arr.length > 0);
+  }
+
+  async #validateAll() {
+    for (const [key, ruleStr] of Object.entries(this.#validations)) {
+      this.#errors[key] = [];
+      for (const rule of ruleStr.split("|")) {
+        const [name, val] = rule.split(":");
+        if (!this.#validRules.includes(name))
+          throw new Error(`Validation rule ${name} is not supported.`);
+        await this.#applyRule(key, name, val);
+      }
+    }
+  }
+
+  async #applyRule(key: string, name: string, val: unknown) {
+    const v = this.#data[key];
+    const e = this.#errors[key];
+
+    switch (name) {
+      case "required":
+        if (!isset(v) || empty(v)) e.push("This field is required.");
+        break;
+      case "email":
+        if (!(v as string)?.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/))
+          e.push("Invalid email format.");
+        break;
+      case "min":
+        if (typeof v !== "string" || v.length < parseInt(val as string))
+          e.push(`Minimum length is ${val}.`);
+        break;
+      case "max":
+        if (typeof v !== "string" || v.length > parseInt(val as string))
+          e.push(`Maximum length is ${val}.`);
+        break;
+      case "unique": {
+        const [table, column] = (val as string).split(",");
+        // const exists = await DB.table(table).where(column, v).get();
+        const exists = false;
+        if (exists) e.push(`The ${key} must be unique.`);
+        break;
+      }
+      case "confirmed":
+        if (v !== this.#data[`${key}_confirmation`])
+          e.push("Confirmation does not match.");
+        break;
+      case "regex": {
+        const pattern = this.#regex[val as keyof IRegex];
+        if (!pattern) e.push(`Regex ${val} is not defined.`);
+        else if (!(v as string)?.match(new RegExp(pattern)))
+          e.push(`Invalid format for ${key}.`);
+        break;
+      }
+    }
+  }
 }

@@ -1,10 +1,16 @@
-import {
+import IBaseModel, {
   AccessorMap,
-  PHPTimestampFormat,
-  IStaticBaseModel,
   IBaseModelProperties,
-} from "../@hono-types/declaration/Base/IBaseModel.d.ts";
-import { staticImplements } from "../framework-utils/index.ts";
+  IStaticBaseModel,
+  PHPTimestampFormat,
+} from "../../../@hono-types/declaration/Base/IBaseModel.d.ts";
+import { staticImplements } from "../../../framework-utils/index.ts";
+
+export type ModelWithAttributes<
+  T extends Record<string, unknown>,
+  C extends new (attr: T) => unknown
+> = (new (...args: ConstructorParameters<C>) => InstanceType<C> & T) & C;
+
 export function schemaKeys<T extends Record<string, unknown>>(
   keys: (keyof T)[]
 ) {
@@ -57,7 +63,10 @@ class BaseModel<T extends IBaseModelProperties> {
   protected _mutators: AccessorMap<T["_attributes"]> = {};
 
   public getTableName(): string {
-    return generateTableName(this._table || this.constructor.name);
+    if (this._table) {
+      return this._table;
+    }
+    return generateTableName(this.constructor.name);
   }
 
   public getKeyName(): string {
@@ -304,4 +313,5 @@ class BaseModel<T extends IBaseModelProperties> {
     return true;
   }
 }
-export default BaseModel;
+
+export const Model = BaseModel as unknown as typeof IBaseModel
