@@ -75,6 +75,49 @@ const myStaticDefaults: MiddlewareHandler[] = [
   }),
 ];
 
+// domain on beta test
+const _forDomain: MiddlewareHandler = async (c, next: Next) => {
+  const requestUrl = new URL(c.req.url);
+  const appUrl = env("APP_URL", "").toLowerCase();
+  const [protocol, domain] = requestUrl
+    .toString()
+    .toLowerCase()
+    .split("://");
+  const [incoming, uri] = domain.split("/");
+  let incomingUrl: string;
+  if (isset(env("DENO_DEPLOYMENT_ID"))) {
+    incomingUrl = `${protocol}://${incoming.replace(
+      `-${env("DENO_DEPLOYMENT_ID", "")}`,
+      ""
+    )}`;
+  } else {
+    incomingUrl = `${protocol}://${incoming}`;
+  }
+  incomingUrl = [incomingUrl, uri || ""].join("/");
+  if (!incomingUrl.startsWith(appUrl)) {
+    const host = c.req.raw.url.split("://")[1].split("/")[0];
+
+    if (keyExist(Server.domainPattern, host)) {
+      return await Server.domainPattern[host].fetch(c.req.raw);
+    }
+    // Check for patterns with wildcards
+    for (const pattern in Server.domainPattern) {
+      if (pattern.includes("*")) {
+        const regex = new RegExp(
+          "^" + pattern.replace(/\./g, "\\.").replace(/\*/g, "[^.]+") + "$"
+        );
+
+        if (regex.test(host)) {
+          return await Server.domainPattern[pattern].fetch(c.req.raw);
+        }
+      }
+    }
+    return await myError(c);
+  }
+
+  await next();
+}
+
 class Server {
   private static Hono = Hono;
   public static app: HonoType;
@@ -85,47 +128,7 @@ class Server {
     await Boot.init();
     this.app = this.generateNewApp({}, true);
 
-    this.app.use("*", logger(), async (c, next: Next) => {
-      const requestUrl = new URL(c.req.url);
-      const appUrl = env("APP_URL", "").toLowerCase();
-      const [protocol, domain] = requestUrl
-        .toString()
-        .toLowerCase()
-        .split("://");
-      const [incoming, uri] = domain.split("/");
-      let incomingUrl: string;
-      if (isset(env("DENO_DEPLOYMENT_ID"))) {
-        incomingUrl = `${protocol}://${incoming.replace(
-          `-${env("DENO_DEPLOYMENT_ID", "")}`,
-          ""
-        )}`;
-      } else {
-        incomingUrl = `${protocol}://${incoming}`;
-      }
-      incomingUrl = [incomingUrl, uri || ""].join("/");
-      if (!incomingUrl.startsWith(appUrl)) {
-        const host = c.req.raw.url.split("://")[1].split("/")[0];
-
-        if (keyExist(Server.domainPattern, host)) {
-          return await Server.domainPattern[host].fetch(c.req.raw);
-        }
-        // Check for patterns with wildcards
-        for (const pattern in Server.domainPattern) {
-          if (pattern.includes("*")) {
-            const regex = new RegExp(
-              "^" + pattern.replace(/\./g, "\\.").replace(/\*/g, "[^.]+") + "$"
-            );
-
-            if (regex.test(host)) {
-              return await Server.domainPattern[pattern].fetch(c.req.raw);
-            }
-          }
-        }
-        return await myError(c);
-      }
-
-      await next();
-    });
+    this.app.use("*", logger());
     await this.loadAndValidateRoutes();
     this.endInit();
   }
