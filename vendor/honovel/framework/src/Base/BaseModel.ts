@@ -3,7 +3,7 @@ import {
   PHPTimestampFormat,
   IStaticBaseModel,
   IBaseModelProperties,
-} from "../@hono-types/declaration/Base/IBaseModel.d.ts";
+} from "../../../@types/declaration/Base/IBaseModel.d.ts";
 import { staticImplements } from "../framework-utils/index.ts";
 export function schemaKeys<T extends Record<string, unknown>>(
   keys: (keyof T)[]

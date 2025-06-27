@@ -2,10 +2,10 @@
 
 import HonoClosure from "../framework/src/hono/Http/HonoClosure.ts";
 import { HttpStatusCodeValue } from "../framework/src/Maneuver/HonovelErrors.ts";
-import IHonoRequest from "../framework/src/@hono-types/declaration/IHonoRequest.d.ts";
-import IHonoResponse from "../framework/src/@hono-types/declaration/IHonoResponse.d.ts";
-import IHonoView from "../framework/src/@hono-types/declaration/IHonoView.d.ts";
-import { IConfigure } from "../framework/src/@hono-types/declaration/MyImports.d.ts";
+import IHonoRequest from "../@types/declaration/IHonoRequest.d.ts";
+import IHonoResponse from "../@types/declaration/IHonoResponse.d.ts";
+import IHonoView from "../@types/declaration/IHonoView.d.ts";
+import { IConfigure } from "../@types/declaration/MyImports.d.ts";
 
 export {};
 declare global {
