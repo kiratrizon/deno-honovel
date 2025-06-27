@@ -89,13 +89,22 @@ class WhereInterpolator {
       });
       if (type === "AND") {
         if (this.whereClauseFilled()) {
-          this.whereClauses.push([`AND (${callbackClause.join(" ")})`, callbackValues]);
+          this.whereClauses.push([
+            `AND (${callbackClause.join(" ")})`,
+            callbackValues,
+          ]);
         } else {
-          this.whereClauses.push([`(${callbackClause.join(" ")})`, callbackValues]);
+          this.whereClauses.push([
+            `(${callbackClause.join(" ")})`,
+            callbackValues,
+          ]);
         }
       } else if (type === "OR") {
         if (this.whereClauseFilled()) {
-          this.whereClauses.push([`OR (${callbackClause.join(" ")})`, callbackValues]);
+          this.whereClauses.push([
+            `OR (${callbackClause.join(" ")})`,
+            callbackValues,
+          ]);
         } else {
           throw new SQLError(
             "Provide a valid where clause first before using OR"
@@ -378,7 +387,10 @@ class JoinInterpolator extends WhereInterpolator {
         newWhereValues.push(...values);
       });
     }
-    const joinClause = this.joinClauses.concat(whereClauses).map(([clause]) => clause).join(" ");
+    const joinClause = this.joinClauses
+      .concat(whereClauses)
+      .map(([clause]) => clause)
+      .join(" ");
     return [joinClause, newWhereValues];
   }
 
@@ -404,14 +416,18 @@ class JoinInterpolator extends WhereInterpolator {
       if (!isString(col) || empty(col)) {
         throw new SQLError("Invalid column name for USING");
       }
-      this.on(`ON ${arrayLast(this.fromTable.split(" "))}.${col}`, "=", `${arrayLast(this.myTable.split(" "))}.${col}`);
+      this.on(
+        `ON ${arrayLast(this.fromTable.split(" "))}.${col}`,
+        "=",
+        `${arrayLast(this.myTable.split(" "))}.${col}`
+      );
     });
     return this;
   }
 }
 
 type OrderByDirection = "ASC" | "DESC";
-type SQLField = (string)
+type SQLField = string;
 export class Builder extends WhereInterpolator {
   private limitValue: number | null = null;
   private offsetValue: number | null = null;
@@ -591,7 +607,9 @@ export class Builder extends WhereInterpolator {
     }
     const join = new JoinInterpolator();
     // @ts-ignore //
-    join.setMyTable(myNewTable); join.setFromTable(this.table);
+    join.setMyTable(myNewTable);
+    // @ts-ignore //
+    join.setFromTable(this.table);
 
     fn(join);
     // @ts-ignore //
@@ -701,7 +719,6 @@ export class Builder extends WhereInterpolator {
     return `FROM ${this.table}${indexHint ? " " + indexHint : ""}`;
   }
 
-
   private toSqlWithValues() {
     const field = this.fields;
     const joins = this.joinClauses;
@@ -714,26 +731,38 @@ export class Builder extends WhereInterpolator {
     const values: unknown[] = [];
     let sql = `SELECT ${field.join(", ")} ${this.buildFromClause()}`;
     if (joins.length > 0) {
-      sql += " " + joins.map(([clause, val]) => {
-        values.push(...val);
-        return clause;
-      }).join(" ");
+      sql +=
+        " " +
+        joins
+          .map(([clause, val]) => {
+            values.push(...val);
+            return clause;
+          })
+          .join(" ");
     }
     if (where.length > 0) {
-      sql += " WHERE " + where.map(([clause, val]) => {
-        values.push(...val);
-        return clause;
-      }).join(" ");
+      sql +=
+        " WHERE " +
+        where
+          .map(([clause, val]) => {
+            values.push(...val);
+            return clause;
+          })
+          .join(" ");
     }
     if (groupBy.length > 0) {
       sql += " GROUP BY " + groupBy.join(", ");
     }
     if (orderBy.length > 0) {
-      sql += " ORDER BY " + orderBy.map((order) => {
-        const column = Object.keys(order)[0];
-        const direction = order[column];
-        return `${column} ${direction}`;
-      }).join(", ");
+      sql +=
+        " ORDER BY " +
+        orderBy
+          .map((order) => {
+            const column = Object.keys(order)[0];
+            const direction = order[column];
+            return `${column} ${direction}`;
+          })
+          .join(", ");
     }
     if (offset !== null) {
       sql += ` OFFSET ${offset}`;
@@ -745,7 +774,7 @@ export class Builder extends WhereInterpolator {
     return {
       sql,
       values,
-    }
+    };
   }
 
   public toSql() {
@@ -796,7 +825,6 @@ export class SQLError extends Error {
   }
 }
 
-
 export class SQLRaw extends String {
   constructor(query: string) {
     super(query);
@@ -837,6 +865,3 @@ export class SQLRaw extends String {
     return false;
   }
 }
-
-const myString = new SQLRaw("Hello");
-console.log(myString.toString())

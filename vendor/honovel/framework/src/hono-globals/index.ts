@@ -251,7 +251,7 @@ globalFn(
   }
 );
 
-import Constants from "Constants";
+import Constants from "../Maneuver/Constants.ts";
 
 globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
   const configData: Record<string, unknown> = {};
@@ -385,7 +385,7 @@ globalFn("getFileContents", function (fileString = "") {
   }
 });
 
-import Logger from "HonoLogger";
+import Logger from "../Maneuver/Logger.ts";
 
 globalFn(
   "log",

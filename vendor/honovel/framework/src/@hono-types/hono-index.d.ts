@@ -7,7 +7,7 @@ import IHonoResponse from "./declaration/IHonoResponse.d.ts";
 import IHonoView from "./declaration/IHonoView.d.ts";
 import { IConfigure } from "./declaration/MyImports.d.ts";
 
-export { };
+export {};
 declare global {
   /**
    * Instantiates a new HonoResponse object.
@@ -57,7 +57,7 @@ declare global {
      * Access the constant configuration data.
      * Read and write to the configuration store.
      */
-    get Config(): IConfigure;
+    get Configure(): IConfigure;
   }
 
   type HttpMiddleware = (
@@ -69,7 +69,6 @@ declare global {
     httpHono: HttpHono,
     // deno-lint-ignore no-explicit-any
     ...args: any[]
-    // deno-lint-ignore no-explicit-any
   ) => Promise<number | null | boolean | string | object | []>;
 
   // const storedRoutes: Record<string, unknown>;

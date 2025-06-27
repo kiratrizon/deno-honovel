@@ -7,7 +7,7 @@ import HonoDispatch from "../Http/HonoDispatch.ts";
 import { buildRequest, myError } from "../Http/builder.ts";
 import HonoRequest from "../Http/HonoRequest.ts";
 import MyHono from "../Http/HttpHono.ts";
-import Constants from "Constants";
+import Constants from "../../Maneuver/Constants.ts";
 import IHonoRequest from "../../@hono-types/declaration/IHonoRequest.d.ts";
 import { IConfigure } from "../../@hono-types/declaration/MyImports.d.ts";
 import { AbortError, DDError } from "../../Maneuver/HonovelErrors.ts";
