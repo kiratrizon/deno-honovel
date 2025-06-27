@@ -7,7 +7,7 @@ import { DB } from "Illuminate/Support/Facades";
 
 const myCommand = new Command();
 
-import { IMyArtisan } from "../@hono-types/IMyArtisan.d.ts";
+import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import path from "node:path";
 class MyArtisan {
   private static db = new Database();

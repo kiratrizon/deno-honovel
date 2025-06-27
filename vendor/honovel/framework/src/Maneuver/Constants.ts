@@ -1,4 +1,4 @@
-import { IConstants } from "../@hono-types/declaration/IConstants.d.ts";
+import { IConstants } from "../../../@types/declaration/IConstants.d.ts";
 
 class Constants implements IConstants {
   // deno-lint-ignore no-explicit-any

@@ -1,5 +1,3 @@
-import { HttpStatusCode } from "axios";
-
 export class DDError {
   constructor(private _data: unknown) {}
 
