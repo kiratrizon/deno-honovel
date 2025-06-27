@@ -1,4 +1,4 @@
-import { LogConfig } from "../vendor/honovel/framework/src/@hono-types/declaration/imain.d.ts";
+import { LogConfig } from "../vendor/honovel/@types/declaration/imain.d.ts";
 
 export default {
   default: env("LOG_CHANNEL", "stack"),
