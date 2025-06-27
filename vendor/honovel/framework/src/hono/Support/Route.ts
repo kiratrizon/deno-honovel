@@ -1,4 +1,4 @@
-import BaseController from "../../Base/BaseController.ts";
+import BaseController from "Illuminate/Routing/BaseController";
 import { plural, singular } from "https://deno.land/x/deno_plural/mod.ts";
 
 import {

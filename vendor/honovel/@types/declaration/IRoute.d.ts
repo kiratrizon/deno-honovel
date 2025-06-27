@@ -1,6 +1,7 @@
-import BaseController from "../../Base/BaseController.ts";
-import HonoClosure from "../../hono/Http/HonoClosure.ts";
+import BaseController from "Illuminate/Routing/BaseController";
+import HonoClosure from "../../framework/src/hono/Http/HonoClosure.ts";
 export type HonoNext = HonoClosure["next"];
+
 export interface IGroupParams {
   prefix?: string;
   middleware?: string | HttpMiddleware | (string | HttpMiddleware)[];
@@ -393,10 +394,10 @@ export declare class IERoute extends IRoute {
   ): void;
 }
 
-import MethodRoute from "../../hono/Support/MethodRoute.ts";
+import MethodRoute from "../../framework/src/hono/Support/MethodRoute.ts";
 import ResourceRoute, {
   ResourceKeys,
-} from "../../hono/Support/ResourceRoute.ts";
+} from "../../framework/src/hono/Support/ResourceRoute.ts";
 export interface IReferencesRoute {
   groups: Record<string, IEGroupRoute>;
   methods: Record<string, InstanceType<typeof MethodRoute>>;
