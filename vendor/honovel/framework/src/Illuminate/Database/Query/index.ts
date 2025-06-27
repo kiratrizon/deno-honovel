@@ -21,14 +21,9 @@ type WhereSeparator = "AND" | "OR";
 
 // where
 class WhereInterpolator {
-  protected whereValues: WhereValue[] = [];
+  protected fromJoin: boolean = false;
   protected whereClauses: [string, any[]][] = [];
-  protected callbackWhereClauses: string[] = [];
 
-  protected currentLengthValues: number = 0;
-  constructor(currentLengthValues: number = 0) {
-    this.currentLengthValues = currentLengthValues;
-  }
   public where(column: string, value: WherePrimitive): this;
   public where(
     column: string,
@@ -66,6 +61,12 @@ class WhereInterpolator {
     return this;
   }
 
+  private whereClauseFilled(): boolean {
+    if (this.fromJoin) {
+      return !!(this.joinClauses.length + this.whereClauses.length);
+    }
+    return !!this.whereClauses.length;
+  }
   private whereProcess(
     type: WhereSeparator,
     ...args: [
@@ -80,21 +81,25 @@ class WhereInterpolator {
       const qb = new WhereInterpolator();
       columnOrFn(qb);
       const getWhere = qb.getWhereClauses();
+      const callbackClause: string[] = [];
+      const callbackValues: WhereValue[] = [];
+      getWhere.forEach(([clause, values]) => {
+        callbackClause.push(clause);
+        callbackValues.push(...values);
+      });
       if (type === "AND") {
-        getWhere.forEach(([clause, values]) => {
-          if (this.whereClauses.length + this.joinClauses.length) {
-            this.whereClauses.push([`AND (${clause})`, [...values]]);
-          } else {
-            this.whereClauses.push([`(${clause})`, [...values]]);
-          }
-        });
-      } else if (type === "OR") {
-        if (this.whereClauses.length + this.joinClauses.length) {
-          getWhere.forEach(([clause, values]) => {
-            this.whereClauses.push([`OR (${clause})`, [...values]]);
-          });
+        if (this.whereClauseFilled()) {
+          this.whereClauses.push([`AND (${callbackClause.join(" ")})`, callbackValues]);
         } else {
-          throw new SQLError("Invalid where clause");
+          this.whereClauses.push([`(${callbackClause.join(" ")})`, callbackValues]);
+        }
+      } else if (type === "OR") {
+        if (this.whereClauseFilled()) {
+          this.whereClauses.push([`OR (${callbackClause.join(" ")})`, callbackValues]);
+        } else {
+          throw new SQLError(
+            "Provide a valid where clause first before using OR"
+          );
         }
       }
       return;
@@ -118,7 +123,7 @@ class WhereInterpolator {
       throw new SQLError("Unsupported database type for placeholder");
     }
     if (type === "AND") {
-      if (this.whereClauses.length + this.joinClauses.length) {
+      if (this.whereClauseFilled()) {
         this.whereClauses.push([
           `AND ${column} ${operator} ${placeHolderuse}`,
           [value],
@@ -130,7 +135,7 @@ class WhereInterpolator {
         ]);
       }
     } else {
-      if (this.whereClauses.length + this.joinClauses.length) {
+      if (this.whereClauseFilled()) {
         this.whereClauses.push([
           `OR ${column} ${operator} ${placeHolderuse}`,
           [value],
@@ -186,7 +191,7 @@ class WhereInterpolator {
     );
     switch (type) {
       case "AND": {
-        if (this.whereClauses.length + this.joinClauses.length) {
+        if (this.whereClauseFilled()) {
           this.whereClauses.push([
             `AND ${column} ${operator} (${values
               .map(() => placeHolderuse)
@@ -204,7 +209,7 @@ class WhereInterpolator {
         break;
       }
       case "OR": {
-        if (this.whereClauses.length + this.joinClauses.length) {
+        if (this.whereClauseFilled()) {
           this.whereClauses.push([
             `OR ${column} ${operator} (${values
               .map(() => placeHolderuse)
@@ -248,7 +253,7 @@ class WhereInterpolator {
   ): void {
     switch (type) {
       case "AND": {
-        if (this.whereClauses.length + this.joinClauses.length) {
+        if (this.whereClauseFilled()) {
           this.whereClauses.push([`AND ${column} ${operator}`, []]);
         } else {
           this.whereClauses.push([`${column} ${operator}`, []]);
@@ -256,7 +261,7 @@ class WhereInterpolator {
         break;
       }
       case "OR": {
-        if (this.whereClauses.length + this.joinClauses.length) {
+        if (this.whereClauseFilled()) {
           this.whereClauses.push([`OR ${column} ${operator}`, []]);
         } else {
           throw new SQLError(
@@ -318,7 +323,7 @@ class WhereInterpolator {
     }
     switch (type) {
       case "AND": {
-        if (this.whereClauses.length + this.joinClauses.length) {
+        if (this.whereClauseFilled()) {
           this.whereClauses.push([
             `AND ${column} ${operator} ${placeHolderuse} AND ${placeHolderuse}`,
             [start, end],
@@ -332,7 +337,7 @@ class WhereInterpolator {
         break;
       }
       case "OR": {
-        if (this.whereClauses.length + this.joinClauses.length) {
+        if (this.whereClauseFilled()) {
           this.whereClauses.push([
             `OR ${column} ${operator} ${placeHolderuse} AND ${placeHolderuse}`,
             [start, end],
@@ -352,10 +357,9 @@ class WhereInterpolator {
 
 // join
 class JoinInterpolator extends WhereInterpolator {
-  constructor(currentLengthValues: number = 0) {
-    super(currentLengthValues);
-  }
-
+  private fromTable: string = "";
+  private myTable: string = "";
+  protected override fromJoin = true;
   public on(...args: [string, WhereOperator, string]): this {
     if (args.length !== 3) {
       throw new SQLError("Invalid ON clause for JOIN");
@@ -364,14 +368,50 @@ class JoinInterpolator extends WhereInterpolator {
     return this;
   }
 
-  protected getJoinClauseAndJoinValues(): [string, any[]][] {
+  protected getJoinClauseAndJoinValues(): [string, any[]] {
     const whereClauses = this.getWhereClauses();
-    return this.joinClauses.concat(whereClauses);
+    const newWhereClauses: string[][] = [];
+    const newWhereValues: WhereValue[] = [];
+    if (!empty(whereClauses)) {
+      whereClauses.forEach(([clause, values]) => {
+        newWhereClauses.push([clause]);
+        newWhereValues.push(...values);
+      });
+    }
+    const joinClause = this.joinClauses.concat(whereClauses).map(([clause]) => clause).join(" ");
+    return [joinClause, newWhereValues];
+  }
+
+  protected setFromTable(table: string): void {
+    if (!isString(table) || empty(table)) {
+      throw new SQLError("Invalid table name for JOIN");
+    }
+    this.fromTable = table;
+  }
+
+  protected setMyTable(table: string): void {
+    if (!isString(table) || empty(table)) {
+      throw new SQLError("Invalid table name for JOIN");
+    }
+    this.myTable = table;
+  }
+
+  public using(...arg: string[]): this {
+    if (!arg.length) {
+      throw new SQLError("Using requires at least one column name");
+    }
+    arg.forEach((col) => {
+      if (!isString(col) || empty(col)) {
+        throw new SQLError("Invalid column name for USING");
+      }
+      this.on(`ON ${arrayLast(this.fromTable.split(" "))}.${col}`, "=", `${arrayLast(this.myTable.split(" "))}.${col}`);
+    });
+    return this;
   }
 }
 
 type OrderByDirection = "ASC" | "DESC";
-
+type SQLField = (string)
 export class Builder extends WhereInterpolator {
   private limitValue: number | null = null;
   private offsetValue: number | null = null;
@@ -379,8 +419,26 @@ export class Builder extends WhereInterpolator {
   private groupByValue: string[] = [];
   private havingClauses: string[] = [];
   private havingValues: WhereValue[] = [];
-  constructor(private table: string, private fields: string[] = ["*"]) {
+  private fields: SQLField[];
+  private table: string = "";
+  constructor(table: string, fields: (SQLField | SQLRaw)[] = ["*"]) {
     super();
+    if (!isString(table) || empty(table)) {
+      throw new SQLError("Invalid table name");
+    }
+    this.table = table.trim();
+    const newFields: SQLField[] = [];
+    fields.forEach((field) => {
+      if (field instanceof SQLRaw) {
+        newFields.push(field.toString()); // Accept raw SQL directly
+      } else if (isString(field)) {
+        const length = field.split(" ").length;
+        if (length === 1) {
+          newFields.push(field);
+        }
+      }
+    });
+    this.fields = newFields;
   }
 
   // join
@@ -527,15 +585,19 @@ export class Builder extends WhereInterpolator {
     table: string,
     fn: (join: JoinInterpolator) => void
   ): void {
+    const myNewTable = table.trim();
     if (!isFunction(fn)) {
       throw new SQLError("Join callback must be a function");
     }
-    const join = new JoinInterpolator(this.currentLengthValues);
+    const join = new JoinInterpolator();
+    // @ts-ignore //
+    join.setMyTable(myNewTable); join.setFromTable(this.table);
+
     fn(join);
     // @ts-ignore //
     const [joinClause, joinValues] = join.getJoinClauseAndJoinValues();
     this.joinClauses.push([
-      `${type} JOIN ${table} ON ${joinClause}`,
+      `${type} JOIN ${myNewTable} ON ${joinClause}`,
       joinValues,
     ]);
   }
@@ -580,24 +642,118 @@ export class Builder extends WhereInterpolator {
     return this;
   }
 
-  public toSql() {
-    return true;
+  private indexes = {
+    useIndex: [] as string[],
+    ignoreIndex: [] as string[],
+    forceIndex: [] as string[],
+  };
+
+  /**
+   * Adds USE INDEX hint to the query.
+   */
+  public useIndex(...indexes: string[]): this {
+    this.indexes.useIndex.push(...indexes);
+    return this;
   }
 
-  public toSqlWithValues() {
-    const dataReturn: Record<string, unknown> = {
-      table: this.table,
-      fields: this.fields,
-      where: this.whereClauses,
-      joins: this.joinClauses,
-      limit: this.limitValue,
-      offset: this.offsetValue,
-      orderBy: this.orderByValue,
-      groupBy: this.groupByValue,
-      having: this.havingClauses,
-      havingValues: this.havingValues,
-    };
-    return dataReturn;
+  /**
+   * Adds IGNORE INDEX hint to the query.
+   */
+  public ignoreIndex(...indexes: string[]): this {
+    this.indexes.ignoreIndex.push(...indexes);
+    return this;
+  }
+
+  /**
+   * Adds FORCE INDEX hint to the query.
+   */
+  public forceIndex(...indexes: string[]): this {
+    this.indexes.forceIndex.push(...indexes);
+    return this;
+  }
+
+  /**
+   * Build the index hint part of the SQL.
+   */
+  private buildIndexHint(): string {
+    const parts: string[] = [];
+
+    if (this.indexes.useIndex.length > 0) {
+      parts.push(`USE INDEX (${this.indexes.useIndex.join(", ")})`);
+    }
+
+    if (this.indexes.ignoreIndex.length > 0) {
+      parts.push(`IGNORE INDEX (${this.indexes.ignoreIndex.join(", ")})`);
+    }
+
+    if (this.indexes.forceIndex.length > 0) {
+      parts.push(`FORCE INDEX (${this.indexes.forceIndex.join(", ")})`);
+    }
+
+    return parts.join(" ");
+  }
+
+  /**
+   * Build the FROM clause with index hints.
+   */
+  private buildFromClause(): string {
+    const indexHint = this.buildIndexHint();
+    return `FROM ${this.table}${indexHint ? " " + indexHint : ""}`;
+  }
+
+
+  private toSqlWithValues() {
+    const field = this.fields;
+    const joins = this.joinClauses;
+    const where = this.whereClauses;
+    const limit = this.limitValue;
+    const offset = this.offsetValue;
+    const orderBy = this.orderByValue;
+    const groupBy = this.groupByValue;
+
+    const values: unknown[] = [];
+    let sql = `SELECT ${field.join(", ")} ${this.buildFromClause()}`;
+    if (joins.length > 0) {
+      sql += " " + joins.map(([clause, val]) => {
+        values.push(...val);
+        return clause;
+      }).join(" ");
+    }
+    if (where.length > 0) {
+      sql += " WHERE " + where.map(([clause, val]) => {
+        values.push(...val);
+        return clause;
+      }).join(" ");
+    }
+    if (groupBy.length > 0) {
+      sql += " GROUP BY " + groupBy.join(", ");
+    }
+    if (orderBy.length > 0) {
+      sql += " ORDER BY " + orderBy.map((order) => {
+        const column = Object.keys(order)[0];
+        const direction = order[column];
+        return `${column} ${direction}`;
+      }).join(", ");
+    }
+    if (offset !== null) {
+      sql += ` OFFSET ${offset}`;
+    }
+    if (limit !== null) {
+      sql += ` LIMIT ${limit}`;
+    }
+
+    return {
+      sql,
+      values,
+    }
+  }
+
+  public toSql() {
+    return this.toSqlWithValues().sql;
+  }
+
+  public getBindings() {
+    return this.toSqlWithValues().values;
   }
 }
 
@@ -639,3 +795,48 @@ export class SQLError extends Error {
     super(message);
   }
 }
+
+
+export class SQLRaw extends String {
+  constructor(query: string) {
+    super(query);
+  }
+
+  public needsBinding(): boolean {
+    const query = this.toString();
+
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+
+    for (let i = 0; i < query.length; i++) {
+      const char = query[i];
+      const nextChar = query[i + 1];
+
+      // Handle escaping
+      if (char === "\\" && (nextChar === "'" || nextChar === '"')) {
+        i++; // skip escaped char
+        continue;
+      }
+
+      if (char === "'" && !inDoubleQuote) {
+        inSingleQuote = !inSingleQuote;
+        continue;
+      }
+
+      if (char === '"' && !inSingleQuote) {
+        inDoubleQuote = !inDoubleQuote;
+        continue;
+      }
+
+      // If outside quotes and see ?
+      if (char === "?" && !inSingleQuote && !inDoubleQuote) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+}
+
+const myString = new SQLRaw("Hello");
+console.log(myString.toString())

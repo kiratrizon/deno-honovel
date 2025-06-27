@@ -18,15 +18,15 @@ import PgSQL from "./PGSQL.ts";
 export type QueryResult =
   | Record<string, unknown>[]
   | {
-      affected: number;
-      lastInsertRowId: number | null;
-      raw: unknown;
-    }
+    affected: number;
+    lastInsertRowId: number | null;
+    raw: unknown;
+  }
   | {
-      message: string;
-      affected?: number;
-      raw: unknown;
-    };
+    message: string;
+    affected?: number;
+    raw: unknown;
+  };
 type DDL = {
   message: string;
   affected?: number;
@@ -72,12 +72,13 @@ export class Database {
       pgsql: PgSQL,
       // sqlsrv: "sqlsrv",
     };
+    const newQuery = this.beforeQuery(query);
     const dbKeys = Object.keys(mappedDBType);
     if (dbKeys.includes(dbType.toLowerCase())) {
       // @ts-ignore //
       return await mappedDBType[dbType.toLowerCase()].query(
         Database.client,
-        query,
+        newQuery,
         params
       );
     }
@@ -147,14 +148,14 @@ export class Database {
               dbConn.ssl === true
                 ? {} // enable TLS with default options
                 : typeof dbConn.ssl === "object"
-                ? (dbConn.ssl as Partial<TLSOptions>)
-                : undefined, // if false or unset, disable TLS
+                  ? (dbConn.ssl as Partial<TLSOptions>)
+                  : undefined, // if false or unset, disable TLS
             applicationName: dbConn.application_name,
             searchPath: Array.isArray(dbConn.searchPath)
               ? dbConn.searchPath
               : dbConn.searchPath
-              ? [dbConn.searchPath]
-              : undefined,
+                ? [dbConn.searchPath]
+                : undefined,
           };
 
           const maxConn =
@@ -172,6 +173,65 @@ export class Database {
       }
     }
   }
+
+  private beforeQuery(query: string): string {
+    const dbType = env("DB_CONNECTION", "mysql");
+
+    let index = 0;
+    let result = "";
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+
+    for (let i = 0; i < query.length; i++) {
+      const char = query[i];
+      const nextChar = query[i + 1];
+
+      // Handle escape characters (e.g., 'It\'s')
+      if (char === "\\" && (nextChar === "'" || nextChar === '"')) {
+        result += char + nextChar;
+        i++; // Skip next character
+        continue;
+      }
+
+      // Toggle single quote
+      if (char === "'" && !inDoubleQuote) {
+        inSingleQuote = !inSingleQuote;
+        result += char;
+        continue;
+      }
+
+      // Toggle double quote
+      if (char === '"' && !inSingleQuote) {
+        inDoubleQuote = !inDoubleQuote;
+        result += char;
+        continue;
+      }
+
+      // Replace only unquoted ?
+      if (char === "?" && !inSingleQuote && !inDoubleQuote) {
+        switch (dbType) {
+          case "pgsql":
+            result += `$${++index}`;
+            break;
+          case "sqlsrv":
+            result += `@p${++index}`;
+            break;
+          case "mysql":
+          case "sqlite":
+          default:
+            result += "?";
+            break;
+        }
+        continue;
+      }
+
+      result += char;
+    }
+
+    return result;
+  }
+
+
 }
 
 export const dbCloser = async () => {

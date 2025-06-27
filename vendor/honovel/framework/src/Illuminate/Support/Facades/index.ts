@@ -31,7 +31,7 @@ export class Hash {
 }
 
 import { Database, QueryResultDerived } from "Database";
-import { Builder } from "../../Database/Query/index.ts";
+import { Builder, SQLRaw } from "../../Database/Query/index.ts";
 export class Schema {
   public static async create(
     table: string,
@@ -325,10 +325,17 @@ export class DB {
     const instance = new TableInstance(table);
     return await instance.insert<"insert">(...data);
   }
+
+  public static raw(query: string): SQLRaw {
+    if (empty(query) || !isString(query)) {
+      throw new Error("Raw query must be a non-empty string.");
+    }
+    return new SQLRaw(query);
+  }
 }
 
 class TableInstance {
-  constructor(private tableName: string) {}
+  constructor(private tableName: string) { }
 
   // for insert operation
   public async insert<T extends "insert">(
