@@ -4,7 +4,7 @@ import User, { UserSchema } from "../../Models/User.ts";
 
 class UserController extends Controller {
   // GET /resource
-  public index: HttpDispatch = async ({ request }) => {
+  public index: HttpDispatch = async ({ Configure }) => {
     const data = DB.table("users")
       .select("users.id", "users.name", "users.email")
       .join("profiles", "users.id", "profiles.user_id")
@@ -13,9 +13,11 @@ class UserController extends Controller {
       })
       .join("permissions as P", (join) => {
         join
-          .on("roles.id", "=", "P.role_id").using("is_active", "is_default", "not_admin")
+          .on("roles.id", "=", "P.role_id")
+          .using("is_active", "is_default", "not_admin")
           .where("P.status", 1);
-      }).useIndex("users_index", "users_email")
+      })
+      .useIndex("users_index", "users_email")
       .forceIndex("users_force_index", "users_name")
       .ignoreIndex("users_ignore_index", "users_id")
       .where("id", ">", 0)
@@ -24,12 +26,18 @@ class UserController extends Controller {
         query
           .where("name", "LIKE", "%John%")
           .orWhere("email", "LIKE", "%gmail%");
-      }).orWhere((query) => {
+      })
+      .orWhere((query) => {
         query
           .where("name", "LIKE", "%Doe%")
-          .orWhere("email", "LIKE", "%yahoo%").where(query2 => {
-            query2.where("id", ">", 0).where("status", 1).orWhereBetween("id", [1, 10]).orWhereNotNull("name");
-          })
+          .orWhere("email", "LIKE", "%yahoo%")
+          .where((query2) => {
+            query2
+              .where("id", ">", 0)
+              .where("status", 1)
+              .orWhereBetween("id", [1, 10])
+              .orWhereNotNull("name");
+          });
       })
       .where("id", "<", 100)
       .whereIn("id", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])

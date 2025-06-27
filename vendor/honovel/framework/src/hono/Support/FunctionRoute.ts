@@ -516,7 +516,7 @@ ${e.stack.replace(/</g, "&lt;")}
   `;
 }
 export const buildRequestInit = (): MiddlewareHandler => {
-  const configure = new Constants(myConfigData) as IConfigure;
+  const configure = new Constants(myConfigData) as unknown as typeof IConfigure;
   return async (c, next) => {
     const rawRequest = await buildRequest(c);
     const request: IHonoRequest = new HonoRequest(

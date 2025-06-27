@@ -57,7 +57,7 @@ declare global {
      * Access the constant configuration data.
      * Read and write to the configuration store.
      */
-    get Configure(): IConfigure;
+    get Configure(): typeof IConfigure;
   }
 
   type HttpMiddleware = (
