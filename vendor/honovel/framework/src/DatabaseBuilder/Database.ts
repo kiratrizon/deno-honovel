@@ -13,20 +13,20 @@ import {
   Pool as PPool,
   TLSOptions,
 } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
-import PgSQL from "./PGSQL.ts";
+import PgSQL from "./PostgreSQL.ts";
 
 export type QueryResult =
   | Record<string, unknown>[]
   | {
-    affected: number;
-    lastInsertRowId: number | null;
-    raw: unknown;
-  }
+      affected: number;
+      lastInsertRowId: number | null;
+      raw: unknown;
+    }
   | {
-    message: string;
-    affected?: number;
-    raw: unknown;
-  };
+      message: string;
+      affected?: number;
+      raw: unknown;
+    };
 type DDL = {
   message: string;
   affected?: number;
@@ -148,14 +148,14 @@ export class Database {
               dbConn.ssl === true
                 ? {} // enable TLS with default options
                 : typeof dbConn.ssl === "object"
-                  ? (dbConn.ssl as Partial<TLSOptions>)
-                  : undefined, // if false or unset, disable TLS
+                ? (dbConn.ssl as Partial<TLSOptions>)
+                : undefined, // if false or unset, disable TLS
             applicationName: dbConn.application_name,
             searchPath: Array.isArray(dbConn.searchPath)
               ? dbConn.searchPath
               : dbConn.searchPath
-                ? [dbConn.searchPath]
-                : undefined,
+              ? [dbConn.searchPath]
+              : undefined,
           };
 
           const maxConn =
@@ -230,8 +230,6 @@ export class Database {
 
     return result;
   }
-
-
 }
 
 export const dbCloser = async () => {
