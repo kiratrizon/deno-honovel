@@ -2,7 +2,7 @@ import Controller from "../../../../../../app/Http/Controllers/Controller.ts";
 import {
   IMethodRoute,
   IMFlagConfig,
-} from "../../@hono-types/declaration/IRoute.d.ts";
+} from "../../../../@types/declaration/IRoute.d.ts";
 import { regexObj } from "./FunctionRoute.ts";
 
 type argType = "function" | "controller";

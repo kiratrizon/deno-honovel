@@ -3,7 +3,7 @@ import IBaseModel, {
   IBaseModelProperties,
   IStaticBaseModel,
   PHPTimestampFormat,
-} from "../../../@hono-types/declaration/Base/IBaseModel.d.ts";
+} from "../../../../../@types/declaration/Base/IBaseModel.d.ts";
 import { staticImplements } from "../../../framework-utils/index.ts";
 
 export type ModelWithAttributes<
@@ -314,4 +314,4 @@ class BaseModel<T extends IBaseModelProperties> {
   }
 }
 
-export const Model = BaseModel as unknown as typeof IBaseModel
+export const Model = BaseModel as unknown as typeof IBaseModel;

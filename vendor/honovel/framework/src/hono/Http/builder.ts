@@ -3,7 +3,7 @@ import type {
   RequestData,
   RequestMethod,
   SERVER,
-} from "../../@hono-types/declaration/IHonoRequest.d.ts";
+} from "../../../../@types/declaration/IHonoRequest.d.ts";
 import { getSignedCookie } from "hono/cookie";
 import HonoView from "./HonoView.ts";
 import { getAppKey } from "./HonoSession.ts";

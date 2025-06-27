@@ -1,5 +1,5 @@
-import { IConstants } from "../../@hono-types/declaration/IConstants.d.ts";
-import IHonoRequest from "../../@hono-types/declaration/IHonoRequest.d.ts";
+import { IConstants } from "../../../../@types/declaration/IConstants.d.ts";
+import IHonoRequest from "../../../../@types/declaration/IHonoRequest.d.ts";
 
 class MyHono implements HttpHono {
   #request: IHonoRequest;

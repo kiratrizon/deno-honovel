@@ -2,7 +2,7 @@ import { Edge } from "edge.js";
 import {
   ViewEngine,
   ViewParams,
-} from "../../@hono-types/declaration/IHonoView.d.ts";
+} from "../../../../@types/declaration/IHonoView.d.ts";
 
 class HonoView {
   static #viewEngine: ViewEngine;
@@ -24,13 +24,14 @@ class HonoView {
       ...this.#data,
     };
 
-    const templatePath = viewPath(
-      `${viewName.split(".").join("/")}.edge`
-    );
+    const templatePath = viewPath(`${viewName.split(".").join("/")}.edge`);
     if (!pathExist(templatePath)) {
       throw new Error(`View not found: ${viewName}`);
     }
-    const rendered = await HonoView.#viewEngine.render(viewName.split(".").join("/"), this.#data);
+    const rendered = await HonoView.#viewEngine.render(
+      viewName.split(".").join("/"),
+      this.#data
+    );
     return rendered;
   }
   static init() {

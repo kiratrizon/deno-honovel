@@ -9,7 +9,7 @@ import {
   IReferencesRoute,
   IChildRoutes,
   IHeaderChildRoutes,
-} from "../../@hono-types/declaration/IRoute.d.ts";
+} from "../../../../@types/declaration/IRoute.d.ts";
 import MethodRoute from "./MethodRoute.ts";
 import GR from "./GroupRoute.ts";
 import { regexObj } from "./FunctionRoute.ts";

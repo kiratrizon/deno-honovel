@@ -2,7 +2,7 @@ import {
   IHeaderChildRoutes,
   IMethodRoute,
   IRoute,
-} from "../../@hono-types/declaration/IRoute.d.ts";
+} from "../../../../@types/declaration/IRoute.d.ts";
 
 export type ResourceKeys =
   | "index"

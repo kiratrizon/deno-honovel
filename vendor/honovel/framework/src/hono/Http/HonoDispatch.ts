@@ -2,7 +2,7 @@ import { Context } from "hono";
 import HonoClosure from "./HonoClosure.ts";
 import HonoView from "./HonoView.ts";
 import HonoRedirect from "./HonoRedirect.ts";
-import { IERedirectResponse } from "../../@hono-types/declaration/IHonoRedirect.d.ts";
+import { IERedirectResponse } from "../../../../@types/declaration/IHonoRedirect.d.ts";
 import HonoResponse from "./HonoResponse.ts";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 import { existsSync } from "https://deno.land/std/fs/mod.ts";
@@ -138,7 +138,8 @@ class HonoDispatch {
               headers.set("Content-Type", "application/octet-stream");
               headers.set(
                 "Content-Disposition",
-                `attachment; filename="${downloadName || path.basename(filePath)
+                `attachment; filename="${
+                  downloadName || path.basename(filePath)
                 }"`
               );
 

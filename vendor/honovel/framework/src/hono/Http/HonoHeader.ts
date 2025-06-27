@@ -1,5 +1,5 @@
 import { IncomingHttpHeaders } from "node:http";
-import IHonoHeader from "../../@hono-types/declaration/IHonoHeader.d.ts";
+import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";
 
 class HonoHeader implements IHonoHeader {
   private headers: IncomingHttpHeaders;

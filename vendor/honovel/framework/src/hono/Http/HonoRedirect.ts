@@ -1,7 +1,7 @@
 import IRedirectResponse, {
   FlashArg,
   IRedirectData,
-} from "../../@hono-types/declaration/IHonoRedirect.d.ts";
+} from "../../../../@types/declaration/IHonoRedirect.d.ts";
 
 class HonoRedirect implements IRedirectResponse {
   #type: keyof IRedirectData = "redirect";

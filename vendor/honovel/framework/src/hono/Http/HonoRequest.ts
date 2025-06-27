@@ -1,11 +1,11 @@
 import { CookieOptions } from "hono/utils/cookie";
-import IHonoHeader from "../../@hono-types/declaration/IHonoHeader.d.ts";
+import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";
 import IHonoRequest, {
   RequestData,
   RequestMethod,
   SERVER,
-} from "../../@hono-types/declaration/IHonoRequest.d.ts";
-import { SessionContract } from "../../@hono-types/declaration/ISession.d.ts";
+} from "../../../../@types/declaration/IHonoRequest.d.ts";
+import { SessionContract } from "../../../../@types/declaration/ISession.d.ts";
 import HonoHeader from "./HonoHeader.ts";
 import { isbot } from "isbot";
 import Macroable from "../../Maneuver/Macroable.ts";

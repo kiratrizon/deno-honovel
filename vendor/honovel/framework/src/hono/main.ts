@@ -13,10 +13,10 @@ import {
   Variables,
   HonoType,
   CorsConfig,
-} from "../@hono-types/declaration/imain.d.ts";
+} from "../../../@types/declaration/imain.d.ts";
 
 import { Context } from "hono";
-import { INRoute } from "../@hono-types/declaration/IRoute.d.ts";
+import { INRoute } from "../../../@types/declaration/IRoute.d.ts";
 import {
   buildRequestInit,
   regexToHono,

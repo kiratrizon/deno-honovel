@@ -795,7 +795,7 @@ globalFn(
 );
 
 import axios, { AxiosRequestConfig, AxiosError } from "axios";
-import { IFetchDataOption } from "../@hono-types/index.d.ts";
+import { IFetchDataOption } from "../../../@types/index.d.ts";
 
 globalFn(
   "fetchData",

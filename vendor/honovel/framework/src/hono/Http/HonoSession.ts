@@ -11,7 +11,7 @@ import {
 } from "https://deno.land/x/upstash_redis@v1.14.0/mod.ts";
 
 import { Redis as IORedis } from "ioredis";
-import { SessionContract } from "../../@hono-types/declaration/ISession.d.ts";
+import { SessionContract } from "../../../../@types/declaration/ISession.d.ts";
 
 export interface SessionConfig {
   // session lifetime in minutes
