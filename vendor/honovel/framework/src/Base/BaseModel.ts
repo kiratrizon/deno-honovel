@@ -11,7 +11,7 @@ export function schemaKeys<T extends Record<string, unknown>>(
   return keys;
 }
 @staticImplements<IStaticBaseModel>()
-abstract class BaseModel<T extends IBaseModelProperties> {
+class BaseModel<T extends IBaseModelProperties> {
   constructor(attributes: T["_attributes"] = {} as T["_attributes"]) {
     for (const key of Object.keys(attributes) as (keyof T["_attributes"])[]) {
       this.setAttribute(key, attributes[key]);

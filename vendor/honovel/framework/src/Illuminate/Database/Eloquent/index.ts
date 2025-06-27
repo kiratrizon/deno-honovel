@@ -1,4 +1,4 @@
-import {
+import IBaseModel, {
   AccessorMap,
   IBaseModelProperties,
   IStaticBaseModel,
@@ -17,7 +17,7 @@ export function schemaKeys<T extends Record<string, unknown>>(
   return keys;
 }
 @staticImplements<IStaticBaseModel>()
-export abstract class Model<T extends IBaseModelProperties> {
+class BaseModel<T extends IBaseModelProperties> {
   constructor(attributes: T["_attributes"] = {} as T["_attributes"]) {
     for (const key of Object.keys(attributes) as (keyof T["_attributes"])[]) {
       this.setAttribute(key, attributes[key]);
@@ -313,3 +313,5 @@ export abstract class Model<T extends IBaseModelProperties> {
     return true;
   }
 }
+
+export const Model = BaseModel as unknown as typeof IBaseModel
