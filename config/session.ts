@@ -1,5 +1,5 @@
 import { SessionConfig } from "../vendor/honovel/framework/src/hono/Http/HonoSession.ts";
-
+import { Str } from "Illuminate/Support";
 export default {
   driver: env("SESSION_DRIVER", "memory"),
 
@@ -9,9 +9,6 @@ export default {
   encrypt: true,
 
   files: storagePath("framework/sessions"),
-
-  // @ts-ignore //
-  cookie: env("SESSION_COOKIE", "honovel_session"),
 
   path: "/",
 
@@ -31,4 +28,6 @@ export default {
 
   // @ts-ignore //
   prefix: env("SESSION_PREFIX", "sess:"),
+
+  cookie: env('SESSION_COOKIE', Str.slug(env('APP_NAME', 'Honovel'), '_') + '_session')
 } as SessionConfig;

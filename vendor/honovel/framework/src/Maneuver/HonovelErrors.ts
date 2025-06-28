@@ -1,5 +1,5 @@
 export class DDError {
-  constructor(private _data: unknown) {}
+  constructor(private _data: unknown) { }
 
   public get data(): unknown {
     return this._data;
@@ -168,34 +168,6 @@ export class AbortError {
         "Content-Type": "application/json",
       },
     });
-  }
-
-  public toHtml(): Response {
-    return new Response(
-      `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>${this.statusCode} ${this.message}</title>
-        <script src="/system-assets/js/tailwind.js"></script>
-      </head>
-      <body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen">
-        <div class="text-center p-6 bg-white rounded-2xl shadow-xl">
-          <h1 class="text-5xl font-bold text-red-600 mb-4">${this.statusCode}</h1>
-          <p class="text-xl">${this.message}</p>
-        </div>
-      </body>
-      </html>
-      `,
-      {
-        status: this.statusCode,
-        headers: {
-          "Content-Type": "text/html",
-        },
-      }
-    );
   }
 
   public get code(): HttpStatusCodeValue {

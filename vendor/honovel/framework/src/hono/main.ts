@@ -174,6 +174,7 @@ class Server {
       const routePrefix = key === "web" ? "" : key;
       let route: typeof INRoute | undefined = undefined;
 
+      const mainMiddleware = [key];
       try {
         if (file === "web.ts") {
           const module = await import("../../../../../routes/web.ts");
@@ -263,7 +264,7 @@ class Server {
               );
               const allBuilds = [
                 buildRequestInit(),
-                ...toMiddleware(flagMiddleware),
+                ...toMiddleware([...mainMiddleware, ...flagMiddleware]),
                 returnedDispatch as MiddlewareHandler,
               ];
               if (methodarr.length === 1 && arrayFirst(methodarr) === "head") {
@@ -370,7 +371,7 @@ class Server {
                   ...groupMiddleware,
                 ];
 
-                newGroupMiddleware.push(...toMiddleware(middleware));
+                newGroupMiddleware.push(...toMiddleware([...mainMiddleware, ...middleware]));
                 const flagWhere = flag.where || {};
                 const splittedUri = URLArranger.generateOptionalParamRoutes(
                   newMethodUri,

@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "dev": "deno run -A --watch vendor/honovel/framework/src/hono/run-server.ts",
+    "dev": "deno run -A --watch=mode=poll vendor/honovel/framework/src/hono/run-server.ts",
     "help": "deno run -A novel --help",
     "migrate": "deno run -A novel migrate",
     "migrate:fresh": "deno run -A novel migrate:fresh",
@@ -32,7 +32,8 @@
     "Illuminate/Database/Migrations": "./vendor/honovel/framework/src/Illuminate/Database/Migrations/index.ts",
     "Illuminate/Database/Schema": "./vendor/honovel/framework/src/Illuminate/Database/Schema/index.ts",
     "Illuminate/Support/Facades": "./vendor/honovel/framework/src/Illuminate/Support/Facades/index.ts",
-    "Illuminate/Database/Eloquent": "./vendor/honovel/framework/src/Illuminate/Database/Eloquent/index.ts"
+    "Illuminate/Database/Eloquent": "./vendor/honovel/framework/src/Illuminate/Database/Eloquent/index.ts",
+    "Illuminate/Support": "./vendor/honovel/framework/src/Illuminate/Support/index.ts"
   },
   "lint": {
     "rules": {

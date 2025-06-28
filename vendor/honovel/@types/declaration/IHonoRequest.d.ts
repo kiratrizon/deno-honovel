@@ -2,6 +2,7 @@ import IHonoHeader from "./IHonoHeader.d.ts";
 import { IncomingHttpHeaders } from "node:http";
 import { SessionContract } from "./ISession.d.ts";
 import { CookieOptions } from "hono/utils/cookie";
+import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
 
 export type RequestMethod =
   | "GET"
@@ -27,7 +28,7 @@ export interface RequestData {
   protocol?: string;
   userAgent?: string;
   timestamp?: number; // request time (ms since epoch)
-  files: Record<string, File[]>;
+  files: Record<string, FormFile[]>;
   server: SERVER;
   params: Record<string, string | null>;
 }

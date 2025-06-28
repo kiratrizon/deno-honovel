@@ -7,6 +7,8 @@ import type {
 import { getSignedCookie } from "hono/cookie";
 import HonoView from "./HonoView.ts";
 import { getAppKey } from "./HonoSession.ts";
+import { ContentfulStatusCode } from "hono/utils/http-status";
+import { multiParser, FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
 
 export async function buildRequest(c: Context): Promise<RequestData> {
   const toStr = (val: string | string[] | undefined): string =>
@@ -47,18 +49,22 @@ export async function buildRequest(c: Context): Promise<RequestData> {
   const methodType = c.req.method.toUpperCase() as RequestMethod;
   const contentType = (c.req.header("content-type") || "").toLowerCase();
 
-  const files: Record<string, File[]> = {};
+  const files: Record<string, FormFile[]> = {};
   let body: Record<string, unknown> = {};
 
   if (contentType.includes("multipart/form-data")) {
-    const formData = await c.req.raw.formData();
-    for (const [key, val] of formData.entries()) {
-      if (val instanceof File) {
-        files[key] = [val];
-      } else if (isArray(val) && val.every((v) => v instanceof File)) {
-        files[key] = val;
-      } else {
-        body[key] = val;
+    const parsed = await multiParser(c.req.raw);
+
+    if (parsed) {
+      // Get only fields
+      body = parsed.fields ?? {};
+
+      // Store files if needed
+      if (parsed.files) {
+        for (const [key, file] of Object.entries(parsed.files)) {
+          // multiparser supports both single and multiple files
+          files[key] = Array.isArray(file) ? file : [file];
+        }
       }
     }
   } else if (contentType.includes("application/x-www-form-urlencoded")) {
@@ -140,19 +146,24 @@ function generateRequestId() {
   return crypto.randomUUID?.() || "req-" + Math.random().toString(36).slice(2);
 }
 
-export async function myError(c: Context) {
+export async function myError(c: Context, code: ContentfulStatusCode = 404, message: string = "Not Found") {
   if (c.req.header("accept")?.includes("application/json")) {
     return c.json(
       {
-        message: "Not Found",
+        message,
       },
-      404
+      code
     );
   }
 
   // this is for html
-  if (!pathExist(viewPath(`error/404.edge`))) {
-    return c.html(getFileContents(honovelPath("hono/defaults/404.stub")), 404);
+  if (!pathExist(viewPath(`error/${code}.edge`))) {
+    const content = getFileContents(honovelPath("hono/defaults/abort.stub"));
+    const finalContent = content
+      .replace(/{{ code }}/g, code.toString())
+      .replace(/{{ message }}/g, message);
+
+    return c.html(finalContent, code);
   }
   const html404 = new HonoView();
   const render = await html404.element("error/404", {});

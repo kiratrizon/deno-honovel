@@ -32,6 +32,7 @@ export class Hash {
 
 import { Database, QueryResultDerived } from "Database";
 import { Builder, SQLRaw } from "../../Database/Query/index.ts";
+import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
 export class Schema {
   public static async create(
     table: string,
@@ -416,6 +417,7 @@ export class Validator {
     "unique",
     "confirmed",
     "regex",
+    "file"
   ];
   #regex = {
     digit: "\\d+",
@@ -484,10 +486,43 @@ export class Validator {
         if (typeof v !== "string" || v.length < parseInt(val as string))
           e.push(`Minimum length is ${val}.`);
         break;
-      case "max":
-        if (typeof v !== "string" || v.length > parseInt(val as string))
-          e.push(`Maximum length is ${val}.`);
+      case "max": {
+        const max = parseInt(val as string);
+
+        // String
+        if (typeof v === "string") {
+          if (v.length > max) {
+            e.push(`Maximum length is ${max} characters.`);
+          }
+
+          // FormFile
+        } else if (
+          isObject(v) &&
+          v.content instanceof Uint8Array
+        ) {
+          const sizeKB = v.content.length / 1024;
+          if (sizeKB > max) {
+            e.push(`Maximum file size is ${max} KB.`);
+          }
+
+          // Array of FormFiles (multiple uploads)
+        } else if (isArray((v as FormFile[])) && (v as FormFile[]).every((f) => f?.content instanceof Uint8Array)) {
+          for (const f of (v as FormFile[])) {
+            const sizeKB = f.content.length / 1024;
+            if (sizeKB > max) {
+              e.push(`Each file must be less than ${max} KB.`);
+              break;
+            }
+          }
+
+          // Fallback for unsupported types
+        } else {
+          e.push(`The field type is unsupported for max rule.`);
+        }
+
         break;
+      }
+
       case "unique": {
         const [table, column] = (val as string).split(",");
         // const exists = await DB.table(table).where(column, v).get();
@@ -506,6 +541,12 @@ export class Validator {
           e.push(`Invalid format for ${key}.`);
         break;
       }
+      case "file": {
+        if ((v as FormFile[])[0]?.size === 0) {
+          e.push("File is required.");
+        }
+      }
+        break;
     }
   }
 }

@@ -11,7 +11,7 @@ import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import path from "node:path";
 class MyArtisan {
   private static db = new Database();
-  constructor() {}
+  constructor() { }
   private async createConfig(options: { force?: boolean }, name: string) {
     const stubPath = honovelPath("stubs/ConfigDefault.stub");
     const stubContent = getFileContents(stubPath);
@@ -314,7 +314,7 @@ class MyArtisan {
     const serverPath = "vendor/honovel/framework/src/hono/run-server.ts";
 
     const cmd = new Deno.Command("deno", {
-      args: ["run", "-A", "--watch", serverPath],
+      args: ["run", "-A", "--watch=mode=poll", serverPath],
       stdout: "inherit",
       stderr: "inherit",
       env: {

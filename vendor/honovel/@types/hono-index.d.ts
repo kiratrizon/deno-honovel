@@ -6,8 +6,9 @@ import IHonoRequest from "../@types/declaration/IHonoRequest.d.ts";
 import IHonoResponse from "../@types/declaration/IHonoResponse.d.ts";
 import IHonoView from "../@types/declaration/IHonoView.d.ts";
 import { IConfigure } from "../@types/declaration/MyImports.d.ts";
+import { ContentfulStatusCode } from "hono/utils/http-status";
 
-export {};
+export { };
 declare global {
   /**
    * Instantiates a new HonoResponse object.
@@ -95,5 +96,5 @@ declare global {
    * @param message - Optional message to include in the response.
    * @returns Never returns;
    */
-  function abort(statusCode: HttpStatusCodeValue, message?: string): never;
+  function abort(statusCode: ContentfulStatusCode, message?: string): never;
 }

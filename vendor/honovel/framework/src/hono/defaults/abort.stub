@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>404 Not Found</title>
+<title>{{ code }} {{ message }}</title>
 <style>
     body {
     background-color: #f8fafc;
@@ -38,8 +38,8 @@
 </style>
 </head>
 <body>
-<h1>404</h1>
-<p>Sorry, the page you are looking for could not be found.</p>
+<h1>{{ code }}</h1>
+<p>{{ message }}</p>
 <a href="/">Go Home</a>
 </body>
 </html>
