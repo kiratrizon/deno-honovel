@@ -26,8 +26,10 @@ export default {
   // @ts-ignore //
   connection: env("SESSION_CONNECTION", "default"),
 
-  // @ts-ignore //
   prefix: env("SESSION_PREFIX", "sess:"),
 
-  cookie: env('SESSION_COOKIE', Str.slug(env('APP_NAME', 'Honovel'), '_') + '_session')
+  cookie: env(
+    "SESSION_COOKIE",
+    Str.slug(env("APP_NAME", "Honovel"), "_") + "_session"
+  ),
 } as SessionConfig;

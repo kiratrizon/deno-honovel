@@ -51,13 +51,13 @@ export class Schema {
       // @ts-ignore //
       columns: blueprint.columns,
     };
-    const dbType = env("DB_CONNECTION", "mysql");
+    const dbType = staticConfig("database").default || "mysql";
     const stringedQuery = generateCreateTableSQL(tableSchema, dbType);
     await DB.statement(stringedQuery);
   }
 
   public static async dropIfExists(table: string): Promise<void> {
-    const dbType = env("DB_CONNECTION", "mysql");
+    const dbType = staticConfig("database").default || "mysql";
 
     let sql: string;
 
@@ -92,7 +92,7 @@ export class Schema {
       columns,
       table,
     };
-    const dbType = env("DB_CONNECTION", "mysql");
+    const dbType = staticConfig("database").default || "mysql";
     const stringedQuery = generateAlterTableSQL(tableSchema, dbType);
     await DB.statement(stringedQuery);
   }
@@ -336,7 +336,7 @@ export class DB {
 }
 
 class TableInstance {
-  constructor(private tableName: string) { }
+  constructor(private tableName: string) {}
 
   // for insert operation
   public async insert<T extends "insert">(
@@ -368,7 +368,7 @@ type TInsertBuilder = {
 };
 
 function insertBuilder(input: TInsertBuilder): [string, unknown[]] {
-  const dbType = env("DB_CONNECTION", "mysql"); // mysql | sqlite | pgsql | sqlsrv
+  const dbType = staticConfig("database").default || "mysql"; // mysql | sqlite | pgsql | sqlsrv
 
   if (!Array.isArray(input.data) || input.data.length === 0) {
     throw new Error("Insert data must be a non-empty array.");
@@ -417,7 +417,7 @@ export class Validator {
     "unique",
     "confirmed",
     "regex",
-    "file"
+    "file",
   ];
   #regex = {
     digit: "\\d+",
@@ -496,18 +496,18 @@ export class Validator {
           }
 
           // FormFile
-        } else if (
-          isObject(v) &&
-          v.content instanceof Uint8Array
-        ) {
+        } else if (isObject(v) && v.content instanceof Uint8Array) {
           const sizeKB = v.content.length / 1024;
           if (sizeKB > max) {
             e.push(`Maximum file size is ${max} KB.`);
           }
 
           // Array of FormFiles (multiple uploads)
-        } else if (isArray((v as FormFile[])) && (v as FormFile[]).every((f) => f?.content instanceof Uint8Array)) {
-          for (const f of (v as FormFile[])) {
+        } else if (
+          isArray(v as FormFile[]) &&
+          (v as FormFile[]).every((f) => f?.content instanceof Uint8Array)
+        ) {
+          for (const f of v as FormFile[]) {
             const sizeKB = f.content.length / 1024;
             if (sizeKB > max) {
               e.push(`Each file must be less than ${max} KB.`);
@@ -541,11 +541,12 @@ export class Validator {
           e.push(`Invalid format for ${key}.`);
         break;
       }
-      case "file": {
-        if ((v as FormFile[])[0]?.size === 0) {
-          e.push("File is required.");
+      case "file":
+        {
+          if ((v as FormFile[])[0]?.size === 0) {
+            e.push("File is required.");
+          }
         }
-      }
         break;
     }
   }

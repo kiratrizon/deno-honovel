@@ -17,6 +17,6 @@ export interface ImportEnvConfig {
    */
   readonly TIMEZONE: string;
   readonly JWT_SECRET_KEY: string;
-  readonly SESSION_COOKIE?: string;
+  readonly SESSION_COOKIE: string;
   readonly PORT: number;
 }

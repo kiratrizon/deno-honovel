@@ -1,9 +1,12 @@
+import { ConfigItems } from "../../../../config/@types/index.d.ts";
+
 export declare class IConfigure {
   /**
    * Reads configuration values from the config store based on a dot-notation string.
    * @param key - Dot-separated string indicating the config path.
    * @returns The requested configuration value or null if not found.
    */
+  public static read<T extends keyof ConfigItems>(key: string): ConfigItems[T];
   public static read(key: string): unknown;
 
   /**

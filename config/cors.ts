@@ -1,4 +1,4 @@
-import { CorsConfig } from "../vendor/honovel/@types/declaration/imain.d.ts";
+import { CorsConfig } from "./@types/index.d.ts";
 
 const constant: CorsConfig = {
   paths: ["api/*"],

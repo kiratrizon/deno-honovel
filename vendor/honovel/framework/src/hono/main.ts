@@ -9,11 +9,7 @@ import * as path from "https://deno.land/std/path/mod.ts";
 import { Hono, MiddlewareHandler, Next } from "hono";
 import Boot from "../Maneuver/Boot.ts";
 
-import {
-  Variables,
-  HonoType,
-  CorsConfig,
-} from "../../../@types/declaration/imain.d.ts";
+import { Variables, HonoType } from "../../../@types/declaration/imain.d.ts";
 
 import { Context } from "hono";
 import { INRoute } from "../../../@types/declaration/IRoute.d.ts";
@@ -79,10 +75,7 @@ const myStaticDefaults: MiddlewareHandler[] = [
 const _forDomain: MiddlewareHandler = async (c, next: Next) => {
   const requestUrl = new URL(c.req.url);
   const appUrl = env("APP_URL", "").toLowerCase();
-  const [protocol, domain] = requestUrl
-    .toString()
-    .toLowerCase()
-    .split("://");
+  const [protocol, domain] = requestUrl.toString().toLowerCase().split("://");
   const [incoming, uri] = domain.split("/");
   let incomingUrl: string;
   if (isset(env("DENO_DEPLOYMENT_ID"))) {
@@ -116,7 +109,7 @@ const _forDomain: MiddlewareHandler = async (c, next: Next) => {
   }
 
   await next();
-}
+};
 
 class Server {
   private static Hono = Hono;
@@ -195,7 +188,7 @@ class Server {
           });
         }
         byEndpointsRouter.use("*", honoSession());
-        const corsConfig = (staticConfig("cors") as CorsConfig) || {};
+        const corsConfig = staticConfig("cors") || {};
         const corsPaths = corsConfig.paths || [];
         corsPaths.forEach((cpath) => {
           if (cpath.startsWith(key + "/")) {
@@ -371,7 +364,9 @@ class Server {
                   ...groupMiddleware,
                 ];
 
-                newGroupMiddleware.push(...toMiddleware([...mainMiddleware, ...middleware]));
+                newGroupMiddleware.push(
+                  ...toMiddleware([...mainMiddleware, ...middleware])
+                );
                 const flagWhere = flag.where || {};
                 const splittedUri = URLArranger.generateOptionalParamRoutes(
                   newMethodUri,

@@ -1,4 +1,3 @@
-import { IConstants } from "../../../../@types/declaration/IConstants.d.ts";
 import IHonoRequest from "../../../../@types/declaration/IHonoRequest.d.ts";
 import { IConfigure } from "../../../../@types/declaration/MyImports.d.ts";
 

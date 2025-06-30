@@ -1,4 +1,3 @@
-import { DatabaseConfig } from "../../../../../config/@types/database.d.ts";
 // mysql
 import mysql, {
   ConnectionOptions,
@@ -95,7 +94,7 @@ export class Database {
 
   private async init(): Promise<void> {
     if (!isset(Database.client)) {
-      const databaseObj = staticConfig("database") as DatabaseConfig;
+      const databaseObj = staticConfig("database");
       const dbType = env(
         "DB_CONNECTION",
         empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql"
@@ -186,7 +185,7 @@ export class Database {
   }
 
   private beforeQuery(query: string): string {
-    const dbType = env("DB_CONNECTION", "mysql");
+    const dbType = staticConfig("database").default || "mysql";
 
     let index = 0;
     let result = "";

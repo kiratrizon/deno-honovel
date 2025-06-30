@@ -11,7 +11,7 @@ import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import path from "node:path";
 class MyArtisan {
   private static db = new Database();
-  constructor() { }
+  constructor() {}
   private async createConfig(options: { force?: boolean }, name: string) {
     const stubPath = honovelPath("stubs/ConfigDefault.stub");
     const stubContent = getFileContents(stubPath);
@@ -175,7 +175,7 @@ class MyArtisan {
   }
 
   private async createMigrationTable() {
-    const dbType = env("DB_CONNECTION", "mysql");
+    const dbType = staticConfig("database").default || "mysql";
     let sql = "";
 
     switch (dbType) {
@@ -231,7 +231,7 @@ class MyArtisan {
   }
 
   private async dropAllTables(): Promise<void> {
-    const dbType = env("DB_CONNECTION", "mysql").toLowerCase();
+    const dbType = staticConfig("database").default || "mysql";
     let tables: string[] = [];
 
     switch (dbType) {
