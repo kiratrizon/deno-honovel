@@ -6,7 +6,7 @@ export declare class IConfigure {
    * @param key - Dot-separated string indicating the config path.
    * @returns The requested configuration value or null if not found.
    */
-  public static read<T extends keyof ConfigItems>(key: string): ConfigItems[T];
+  public static read<T extends keyof ConfigItems>(key: T): ConfigItems[T];
   public static read(key: string): unknown;
 
   /**

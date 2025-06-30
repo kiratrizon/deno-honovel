@@ -4,11 +4,14 @@ import type {
   RequestMethod,
   SERVER,
 } from "../../../../@types/declaration/IHonoRequest.d.ts";
-import { getSignedCookie } from "hono/cookie";
 import HonoView from "./HonoView.ts";
-import { getAppKey } from "./HonoSession.ts";
 import { ContentfulStatusCode } from "hono/utils/http-status";
-import { multiParser, FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
+import {
+  multiParser,
+  FormFile,
+} from "https://deno.land/x/multiparser@0.114.0/mod.ts";
+import { Str } from "Illuminate/Support";
+import { getMyCookie } from "./HonoCookie.ts";
 
 export async function buildRequest(c: Context): Promise<RequestData> {
   const toStr = (val: string | string[] | undefined): string =>
@@ -107,10 +110,15 @@ export async function buildRequest(c: Context): Promise<RequestData> {
   const headers = Object.fromEntries(c.req.raw.headers.entries());
   const query = c.req.query() || {};
   const rawQuery = c.req.url.split("?")[1] || "";
-  const cookies = (await getSignedCookie(c, getAppKey())) || {};
-  if (keyExist(cookies, "sid")) {
-    // Remove session ID from cookies if it exists
-    delete cookies.sid;
+  const signedCookies = getMyCookie(c) || {};
+  const sessionConfig = staticConfig("session");
+
+  const cookieKey =
+    sessionConfig.cookie ||
+    Str.slug(env("APP_NAME", "Honovel"), "_") + "_session";
+  if (keyExist(signedCookies, cookieKey)) {
+    // Remove session ID from signedCookies if it exists
+    delete signedCookies[cookieKey];
   }
   const cookieHeader = c.req.header("cookie") || "";
   const path = c.req.path;
@@ -128,7 +136,7 @@ export async function buildRequest(c: Context): Promise<RequestData> {
     body,
     query,
     rawQuery,
-    cookies,
+    cookies: signedCookies,
     cookieHeader,
     path,
     originalUrl,
@@ -146,7 +154,11 @@ function generateRequestId() {
   return crypto.randomUUID?.() || "req-" + Math.random().toString(36).slice(2);
 }
 
-export async function myError(c: Context, code: ContentfulStatusCode = 404, message: string = "Not Found") {
+export async function myError(
+  c: Context,
+  code: ContentfulStatusCode = 404,
+  message: string = "Not Found"
+) {
   if (c.req.header("accept")?.includes("application/json")) {
     return c.json(
       {

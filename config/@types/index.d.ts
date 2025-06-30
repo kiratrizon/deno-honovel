@@ -116,6 +116,22 @@ export interface CorsConfig {
   supports_credentials?: boolean;
 }
 
+export interface SessionConfig {
+  // session lifetime in minutes
+  driver: "file" | "redis" | "database" | "memory";
+  lifetime: number;
+  encrypt: boolean; // whether to encrypt session data
+  files: string; // path to session files (if file driver)
+  cookie: string; // session cookie name
+  path: string; // cookie path
+  domain: string | null; // cookie domain (nullable)
+  secure: boolean; // send cookie only over HTTPS
+  httpOnly: boolean; // cookie not accessible via JS
+  sameSite: "lax" | "strict" | "none"; // sameSite policy
+  connection: string; // connection name for redis/db
+  prefix: string; // prefix for cache/redis keys
+}
+
 // this is the basis for the config items
 // example staticConfig("database") will return this type
 // or from Configure inside the function of route
@@ -129,4 +145,5 @@ export interface ConfigItems {
   database: DatabaseConfig;
   logging: LogConfig;
   cors: CorsConfig;
+  session: SessionConfig;
 }

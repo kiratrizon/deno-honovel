@@ -8,6 +8,7 @@ import { ContentfulStatusCode } from "hono/utils/http-status";
 import { existsSync } from "https://deno.land/std/fs/mod.ts";
 import * as path from "https://deno.land/std/path/mod.ts";
 import { contentType } from "https://deno.land/std@0.224.0/media_types/mod.ts";
+import { HonoSession } from "./HonoSession.ts";
 
 class HonoDispatch {
   #type: "dispatch" | "middleware";
@@ -30,9 +31,9 @@ class HonoDispatch {
     }
   }
   public async build(request: HttpHono["request"], c: Context) {
-    if (c.get("from_web")) {
+    const session = c.get("session");
+    if (c.get("from_web") && isset(session) && session instanceof HonoSession) {
       const sessionValue = c.get("sessionInstance").values;
-      const session = c.get("session");
       session.update(sessionValue);
       await session.dispose();
     }

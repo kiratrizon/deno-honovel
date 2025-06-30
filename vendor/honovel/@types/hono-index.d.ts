@@ -7,8 +7,9 @@ import IHonoResponse from "../@types/declaration/IHonoResponse.d.ts";
 import IHonoView from "../@types/declaration/IHonoView.d.ts";
 import { IConfigure } from "../@types/declaration/MyImports.d.ts";
 import { ContentfulStatusCode } from "hono/utils/http-status";
+import { SessionVar } from "../framework/src/hono/Http/HonoSession.ts";
 
-export { };
+export {};
 declare global {
   /**
    * Instantiates a new HonoResponse object.
@@ -59,6 +60,12 @@ declare global {
      * Read and write to the configuration store.
      */
     get Configure(): typeof IConfigure;
+
+    /**
+     * Access the session data.
+     * This is used to manage user sessions and store session variables.
+     */
+    get session(): SessionVar;
   }
 
   type HttpMiddleware = (

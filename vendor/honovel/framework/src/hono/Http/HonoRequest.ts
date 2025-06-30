@@ -1,4 +1,3 @@
-import { CookieOptions } from "hono/utils/cookie";
 import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";
 import IHonoRequest, {
   RequestData,
@@ -10,12 +9,13 @@ import HonoHeader from "./HonoHeader.ts";
 import { isbot } from "isbot";
 import Macroable from "../../Maneuver/Macroable.ts";
 import { Validator } from "Illuminate/Support/Facades";
+import { myProtectedCookieKeys } from "./HonoCookie.ts";
 
 class HonoRequest extends Macroable implements IHonoRequest {
   private raw: RequestData;
   private myAll: Record<string, unknown> = {};
   #sessionInstance: SessionContract;
-  #myCookie: Record<string, [string, CookieOptions]> = {};
+  #myCookie: Record<string, unknown> = {};
   constructor(req: RequestData, sessionInstance: SessionContract) {
     super();
     (this.constructor as typeof Macroable).applyMacrosTo(this);
@@ -157,46 +157,16 @@ class HonoRequest extends Macroable implements IHonoRequest {
     return null;
   }
 
-  public cookie(
-    key: string,
-    value: Exclude<unknown, undefined>,
-    config: CookieOptions
-  ): void;
   public cookie(key: string): Exclude<unknown, undefined>;
   public cookie(): Record<string, Exclude<unknown, undefined>>;
-  public cookie(
-    key?: string,
-    value?: Exclude<unknown, undefined>,
-    config?: CookieOptions
-  ): unknown {
-    if (isString(key) && key === "sid") {
-      throw new Error(
-        `The 'sid' cookie is reserved for session management and cannot be set directly.`
-      );
+  public cookie(key?: string): unknown {
+    const protectedCookieKeys = myProtectedCookieKeys();
+    if (isString(key) && protectedCookieKeys.includes(key)) {
+      // Do not allow setting or getting protected cookies
+      return null;
     }
-    if (isset(key) && isset(value) && isString(key)) {
-      this.#myCookie[key] = [jsonEncode(value), config || {}];
-      return;
-    }
-    if (isString(key) && !isset(value)) {
-      if (keyExist(this.#myCookie, key) && isset(this.#myCookie[key])) {
-        return jsonDecode(this.#myCookie[key][0]);
-      } else if (keyExist(this.raw.cookies, key)) {
-        return this.raw.cookies[key];
-      }
-    }
-    if (!isset(key)) {
-      const fromMyCookie: Record<
-        string,
-        Exclude<unknown, undefined>
-      > = Object.entries(this.#myCookie).reduce((acc, [k, v]) => {
-        acc[k] = jsonDecode(v[0]);
-        return acc;
-      }, {} as Record<string, Exclude<unknown, undefined>>);
-      return {
-        ...this.raw.cookies,
-        ...fromMyCookie,
-      };
+    if (isString(key) && keyExist(this.raw.cookies, key)) {
+      return this.raw.cookies[key];
     }
     return null;
   }

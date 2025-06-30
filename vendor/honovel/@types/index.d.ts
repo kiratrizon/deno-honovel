@@ -59,13 +59,13 @@ declare global {
    * @returns {string | T | null} The environment variable's value, or the fallback, or `null` if not set.
    */
   function env<K extends keyof EnvConfig>(key: K): string;
-  function env<K extends string>(key: K): string | null;
+  function env(key: string): string | null;
   function env<K extends keyof EnvConfig>(
     key: K,
     fallback: EnvConfig[K]
   ): EnvConfig[K];
   // deno-lint-ignore no-explicit-any
-  function env<K extends any>(key: string, fallback: K): string | null | K;
+  function env<K extends any>(key: string, fallback: K): string | K;
 
   /**
    * Defines a global variable on `global` with the specified name and value.
