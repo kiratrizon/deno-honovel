@@ -63,6 +63,7 @@ export function getMyCookie(c: Context): Record<string, string>;
 export function getMyCookie(
   c: Context,
   key: string
+  // deno-lint-ignore no-explicit-any
 ): Exclude<any, undefined> | null;
 
 // Implementation
@@ -134,7 +135,7 @@ class HonoCookie {
     setMyCookie(this.#c, key, value, options);
   }
 
-  delete(key: string, options: CookieOptions = {}) {
+  public delete(key: string, options: CookieOptions = {}) {
     if (!isString(key)) {
       throw new Error("Invalid key for deleting cookie.");
     }
@@ -143,6 +144,7 @@ class HonoCookie {
     }
     deleteCookie(this.#c, key, options);
   }
+
 }
 
 export default HonoCookie;
