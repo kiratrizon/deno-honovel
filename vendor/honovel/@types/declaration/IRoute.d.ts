@@ -23,7 +23,7 @@ export interface IHeaderChildRoutes extends IChildRoutes {
 }
 
 // deno-lint-ignore no-explicit-any
-export type ICallback = (httpObj: HttpHono, ...args: any[]) => Promise<unknown>;
+export type ICallback = (httpObj: IMyHono, ...args: any[]) => Promise<unknown>;
 
 type KeysWithICallback<T> = {
   [P in keyof T]: T[P] extends ICallback ? P : never;

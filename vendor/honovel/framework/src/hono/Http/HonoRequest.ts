@@ -4,21 +4,20 @@ import IHonoRequest, {
   RequestMethod,
   SERVER,
 } from "../../../../@types/declaration/IHonoRequest.d.ts";
-import { SessionContract } from "../../../../@types/declaration/ISession.d.ts";
+import { ISession } from "../../../../@types/declaration/ISession.d.ts";
 import HonoHeader from "./HonoHeader.ts";
 import { isbot } from "isbot";
 import Macroable from "../../Maneuver/Macroable.ts";
 import { Validator } from "Illuminate/Support/Facades";
 import { myProtectedCookieKeys } from "./HonoCookie.ts";
 import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
-import { Context } from "hono";
 
 class HonoRequest extends Macroable implements IHonoRequest {
-  #c: Context;
+  #c: MyContext;
   #raw: RequestData;
   #myAll: Record<string, unknown> = {};
-  #sessionInstance: SessionContract;
-  constructor(c: Context, req: RequestData) {
+  #session: ISession;
+  constructor(c: MyContext, req: RequestData) {
     super();
     this.#c = c;
     (this.constructor as typeof HonoRequest).applyMacrosTo(this);
@@ -27,8 +26,8 @@ class HonoRequest extends Macroable implements IHonoRequest {
       ...req.query,
       ...req.body,
     };
-    const sessionInstance = this.#c.get("sessionInstance") as SessionContract;
-    this.#sessionInstance = sessionInstance;
+    const session = this.#c.get("session") as ISession;
+    this.#session = session;
   }
 
   public all(): Record<string, unknown> {
@@ -283,8 +282,8 @@ class HonoRequest extends Macroable implements IHonoRequest {
     return this.header("x-requested-with")?.toLowerCase() === "xmlhttprequest";
   }
 
-  public session(): SessionContract {
-    return this.#sessionInstance;
+  public session(): ISession {
+    return this.#session;
   }
 
   public async validate(

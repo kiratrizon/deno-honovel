@@ -1,4 +1,4 @@
-import type { Context, MiddlewareHandler } from "hono";
+import type { MiddlewareHandler } from "hono";
 import path from "node:path";
 import ChildKernel from "./ChildKernel.ts";
 import HonoClosure from "../Http/HonoClosure.ts";
@@ -22,8 +22,8 @@ export function regexToHono(
   where: Record<string, RegExp[]>,
   params: string[] = []
 ): MiddlewareHandler {
-  return async (c: Context, next) => {
-    const { request } = c.get("httpHono") as HttpHono;
+  return async (c: MyContext, next) => {
+    const { request } = c.get("myHono");
     for (const key of Object.keys(where)) {
       if (!params.includes(key)) continue;
       const regexValues = where[key] as RegExp[];
@@ -255,9 +255,8 @@ export function toMiddleware(
                 >)();
               if (methodExist(middlewareInstance, "handle")) {
                 middlewareCallback.push({
-                  debugString: `// class ${
-                    middlewareClass.name
-                  }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+                  debugString: `// class ${middlewareClass.name
+                    }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
                   middleware: middlewareInstance.handle.bind(
                     middlewareInstance
                   ) as HttpMiddleware,
@@ -268,9 +267,8 @@ export function toMiddleware(
             const middlewareInstance = new middleware();
             if (methodExist(middlewareInstance, "handle")) {
               middlewareCallback.push({
-                debugString: `// class ${
-                  middleware.name
-                }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+                debugString: `// class ${middleware.name
+                  }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
                 middleware: middlewareInstance.handle.bind(
                   middlewareInstance
                 ) as HttpMiddleware,
@@ -284,12 +282,11 @@ export function toMiddleware(
           // deno-lint-ignore no-explicit-any
           ...args: any[]
         ) => // deno-lint-ignore no-explicit-any
-        any)();
+          any)();
         if (methodExist(middlewareInstance, "handle")) {
           middlewareCallback.push({
-            debugString: `// class ${
-              middlewareClass.name
-            }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+            debugString: `// class ${middlewareClass.name
+              }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
             middleware: middlewareInstance.handle.bind(
               middlewareInstance
             ) as HttpMiddleware,
@@ -330,9 +327,9 @@ function generateMiddlewareOrDispatch(
   objArgs: MiddlewareOrDispatch,
   sequenceParams: string[] = []
 ): MiddlewareHandler {
-  return async (c: Context, next) => {
-    const httpHono = c.get("httpHono") as HttpHono;
-    const request = httpHono.request;
+  return async (c: MyContext, next) => {
+    const myHono = c.get("myHono");
+    const request = myHono.request;
     let middlewareResp;
     const { args, debugString } = objArgs;
     if (!isFunction(args)) {
@@ -342,11 +339,11 @@ function generateMiddlewareOrDispatch(
       if (type === "middleware") {
         const honoClosure = new HonoClosure();
         middlewareResp = await (args as HttpMiddleware)(
-          httpHono,
+          myHono,
           honoClosure.next.bind(honoClosure)
         );
       } else {
-        const params = httpHono.request.route() as Record<string, string>;
+        const params = myHono.request.route() as Record<string, string>;
         const newParams: Record<string, unknown> = {};
         sequenceParams.forEach((param) => {
           if (keyExist(params, param)) {
@@ -355,7 +352,7 @@ function generateMiddlewareOrDispatch(
             newParams[param] = null;
           }
         });
-        middlewareResp = await args(httpHono, ...Object.values(newParams));
+        middlewareResp = await args(myHono, ...Object.values(newParams));
       }
       if (isNull(middlewareResp) && type === "dispatch") {
         return c.json(null);
@@ -383,8 +380,8 @@ function generateMiddlewareOrDispatch(
           `Request URI ${request
             .method()
             .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-            "HTTP_X_REQUEST_ID"
-          )}`
+              "HTTP_X_REQUEST_ID"
+            )}`
         );
         let errorHtml: string;
         if (env("APP_DEBUG", true)) {
@@ -428,7 +425,7 @@ function generateMiddlewareOrDispatch(
           return c.html(data.html, 200);
         }
       } else if (e instanceof AbortError) {
-        if (httpHono.request.expectsJson()) {
+        if (myHono.request.expectsJson()) {
           return e.toJson();
         } else {
           return myError(c, e.code as ContentfulStatusCode, e.message);
@@ -459,8 +456,8 @@ function generateMiddlewareOrDispatch(
       `Request URI ${request
         .method()
         .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-        "HTTP_X_REQUEST_ID"
-      )}`
+          "HTTP_X_REQUEST_ID"
+        )}`
     );
     return c.json(
       {
@@ -498,15 +495,14 @@ export function renderErrorHtml(e: Error): string {
           ${e.message}
         </p>
 
-        ${
-          e.stack
-            ? `
+        ${e.stack
+      ? `
             <h2 class="text-xl font-semibold text-gray-800 mb-2">🧱 Stack Trace</h2>
             <pre class="text-xs leading-relaxed font-mono bg-gray-900 text-green-400 p-4 rounded-lg border border-gray-700 overflow-x-auto whitespace-pre-wrap hover:scale-[1.01] transition-transform duration-200 ease-out shadow-inner">
 ${e.stack.replace(/</g, "&lt;")}
             </pre>`
-            : ""
-        }
+      : ""
+    }
       </div>
     </div>
   </body>
@@ -516,7 +512,7 @@ ${e.stack.replace(/</g, "&lt;")}
 export const buildRequestInit = (): MiddlewareHandler => {
   return async (c, next) => {
     const req = await buildRequest(c);
-    c.set("httpHono", new MyHono(c, req));
+    c.set("myHono", new MyHono(c, req));
     await next();
   };
 };
@@ -579,8 +575,8 @@ function renderDebugErrorPage(
 
       <div class="bg-gray-900 text-green-300 text-sm font-mono p-4 rounded-lg overflow-auto max-h-[400px] border border-gray-700">
         <pre class="whitespace-pre-wrap"><code>${formatDebugString(
-          escapeHtml(debugString)
-        )}</code></pre>
+    escapeHtml(debugString)
+  )}</code></pre>
       </div>
 
       <p class="text-xs text-gray-400 mt-6">
@@ -650,27 +646,23 @@ function tracingLocation(
     const isErrorLine = lineNumber === line;
 
     return `
-      <div id="${
-        isErrorLine ? "error-line" : ""
-      }" class="group flex items-start ${
-      isErrorLine ? "bg-rose-100" : "hover:bg-gray-100"
-    } rounded px-4 py-1">
+      <div id="${isErrorLine ? "error-line" : ""
+      }" class="group flex items-start ${isErrorLine ? "bg-rose-100" : "hover:bg-gray-100"
+      } rounded px-4 py-1">
         <div class="w-14 text-right pr-4 text-white-400 select-none">${lineNumber}</div>
-        <pre class="flex-1 text-sm overflow-auto whitespace-pre-wrap ${
-          isErrorLine
-            ? "text-rose-600"
-            : "group-hover:text-emerald-600 text-white-800"
-        }">${escapeHtml(contentLine)}</pre>
+        <pre class="flex-1 text-sm overflow-auto whitespace-pre-wrap ${isErrorLine
+        ? "text-rose-600"
+        : "group-hover:text-emerald-600 text-white-800"
+      }">${escapeHtml(contentLine)}</pre>
       </div>
-      ${
-        isErrorLine
-          ? `<div class="flex items-start">
+      ${isErrorLine
+        ? `<div class="flex items-start">
               <div class="w-14"></div>
               <pre class="text-sm text-rose-500 pl-4 leading-tight">${" ".repeat(
-                column - 1
-              )}^</pre>
+          column - 1
+        )}^</pre>
             </div>`
-          : ""
+        : ""
       }
     `;
   });
@@ -698,8 +690,8 @@ function tracingLocation(
         <div class="bg-white shadow-lg border border-gray-200 rounded-lg overflow-hidden">
           <div class="px-6 py-4 border-b border-gray-100 bg-rose-50">
             <h1 class="text-xl font-semibold text-rose-600">${escapeHtml(
-              errorDescription
-            )}</h1>
+    errorDescription
+  )}</h1>
           </div>
 
           <div class="max-h-[500px] overflow-y-auto bg-gray-900 text-gray-100">

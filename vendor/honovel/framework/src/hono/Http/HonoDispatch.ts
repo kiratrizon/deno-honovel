@@ -1,4 +1,3 @@
-import { Context } from "hono";
 import HonoClosure from "./HonoClosure.ts";
 import HonoView from "./HonoView.ts";
 import HonoRedirect from "./HonoRedirect.ts";
@@ -8,7 +7,6 @@ import { ContentfulStatusCode } from "hono/utils/http-status";
 import { existsSync } from "https://deno.land/std/fs/mod.ts";
 import * as path from "https://deno.land/std/path/mod.ts";
 import { contentType } from "https://deno.land/std@0.224.0/media_types/mod.ts";
-import { HonoSession } from "./HonoSession.ts";
 
 class HonoDispatch {
   #type: "dispatch" | "middleware";
@@ -30,12 +28,13 @@ class HonoDispatch {
       this.#forNext = true;
     }
   }
-  public async build(request: HttpHono["request"], c: Context) {
-    const session = c.get("session");
-    if (c.get("from_web") && isset(session) && session instanceof HonoSession) {
-      const sessionValue = c.get("sessionInstance").values;
-      session.update(sessionValue);
-      await session.dispose();
+  public async build(request: IMyHono["request"], c: MyContext) {
+    const HonoSession = c.get("HonoSession");
+    if (c.get("from_web") && isset(HonoSession)) {
+      // @ts-ignore //
+      const sessionValue = c.get("session").values;
+      HonoSession.update(sessionValue);
+      await HonoSession.dispose();
     }
     if (
       request.isMethod("HEAD") &&
@@ -139,8 +138,7 @@ class HonoDispatch {
               headers.set("Content-Type", "application/octet-stream");
               headers.set(
                 "Content-Disposition",
-                `attachment; filename="${
-                  downloadName || path.basename(filePath)
+                `attachment; filename="${downloadName || path.basename(filePath)
                 }"`
               );
 

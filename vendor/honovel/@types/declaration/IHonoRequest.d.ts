@@ -1,6 +1,6 @@
 import IHonoHeader from "./IHonoHeader.d.ts";
 import { IncomingHttpHeaders } from "node:http";
-import { SessionContract } from "./ISession.d.ts";
+import { ISession } from "./ISession.d.ts";
 import { CookieOptions } from "hono/utils/cookie";
 import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
 
@@ -374,7 +374,7 @@ declare class IHonoRequest {
   public ajax(): boolean;
 
   // start 🔹 Miscellaneous
-  public session(): SessionContract;
+  public session(): ISession;
 
   /**
    * Validate the request data against a set of rules.

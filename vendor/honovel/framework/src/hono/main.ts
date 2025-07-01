@@ -11,7 +11,6 @@ import Boot from "../Maneuver/Boot.ts";
 
 import { Variables, HonoType } from "../../../@types/declaration/imain.d.ts";
 
-import { Context } from "hono";
 import { INRoute } from "../../../@types/declaration/IRoute.d.ts";
 import {
   buildRequestInit,
@@ -24,8 +23,8 @@ import { IMyConfig } from "./Support/MethodRoute.ts";
 import { honoSession } from "./Http/HonoSession.ts";
 import { myError } from "./Http/builder.ts";
 
-const headFunction: MiddlewareHandler = async (c, next) => {
-  const { request } = c.get("httpHono") as HttpHono;
+const headFunction: MiddlewareHandler = async (c: MyContext, next) => {
+  const { request } = c.get("myHono");
   if (!request.isMethod("HEAD")) {
     return await myError(c);
   }
@@ -39,7 +38,7 @@ function domainGroup(
     sequenceParams: string[];
   }
 ): MiddlewareHandler {
-  return async (c: Context, next) => {
+  return async (c: MyContext, next) => {
     const workingParams = [...sequenceParams];
     const host = c.req.raw.url.split("://")[1].split("/")[0];
     const domainParts = host.split(".");
@@ -121,6 +120,7 @@ class Server {
     await Boot.init();
     this.app = this.generateNewApp({}, true);
 
+    // initialize the app
     this.app.use("*", logger());
     await this.loadAndValidateRoutes();
     this.endInit();

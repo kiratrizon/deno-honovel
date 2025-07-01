@@ -1,4 +1,3 @@
-import type { Context } from "hono";
 import type {
   RequestData,
   RequestMethod,
@@ -13,7 +12,7 @@ import {
 import { Str } from "Illuminate/Support";
 import { getMyCookie } from "./HonoCookie.ts";
 
-export async function buildRequest(c: Context): Promise<RequestData> {
+export async function buildRequest(c: MyContext): Promise<RequestData> {
   const toStr = (val: string | string[] | undefined): string =>
     Array.isArray(val) ? val.join(", ") : (val || "unknown").toString();
 
@@ -155,7 +154,7 @@ function generateRequestId() {
 }
 
 export async function myError(
-  c: Context,
+  c: MyContext,
   code: ContentfulStatusCode = 404,
   message: string = "Not Found"
 ) {

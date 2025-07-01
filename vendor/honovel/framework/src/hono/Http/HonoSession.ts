@@ -1,4 +1,4 @@
-import { Context, MiddlewareHandler } from "hono";
+import { MiddlewareHandler } from "hono";
 import * as path from "https://deno.land/std/path/mod.ts";
 import {
   connect,
@@ -10,7 +10,7 @@ import {
 } from "https://deno.land/x/upstash_redis@v1.14.0/mod.ts";
 
 import { Redis as IORedis } from "ioredis";
-import { SessionContract } from "../../../../@types/declaration/ISession.d.ts";
+import { ISession } from "../../../../@types/declaration/ISession.d.ts";
 import { Str } from "Illuminate/Support";
 import { getAppKey, getMyCookie, setMyCookie } from "./HonoCookie.ts";
 
@@ -56,9 +56,7 @@ type NonFunction<T> = T extends (...args: any[]) => any
   ? { [K in keyof T]: NonFunction<T[K]> }
   : T;
 
-export class HonoSession<
-  T extends Record<string, unknown> = Record<string, unknown>
-> {
+export class HonoSession {
   public id: string;
   values: Record<string, NonFunction<unknown>>;
   constructor(id: string, values: Record<string, NonFunction<unknown>>) {
@@ -116,8 +114,8 @@ export class HonoSession<
   }
 }
 
-class Session implements SessionContract {
-  constructor(private values: Record<string, NonFunction<unknown>> = {}) {}
+class Session implements ISession {
+  constructor(private values: Record<string, NonFunction<unknown>> = {}) { }
   public put(key: string, value: NonFunction<unknown>) {
     this.values[key] = value;
   }
@@ -186,7 +184,7 @@ class HonoSessionMemory {
 }
 
 export function honoSession(): MiddlewareHandler {
-  return async (c, next) => {
+  return async (c: MyContext, next) => {
     // deno-lint-ignore no-explicit-any
     let value: Record<string, NonFunction<any>> = {};
     const sessionConfig = staticConfig("session");
@@ -295,10 +293,10 @@ export function honoSession(): MiddlewareHandler {
             break;
           }
         }
-        c.set("session", new HonoSession(sid, value));
+        c.set("HonoSession", new HonoSession(sid, value));
       }
     }
-    c.set("sessionInstance", new Session(value));
+    c.set("session", new Session(value));
     await next();
   };
 }
@@ -530,12 +528,12 @@ async function writeSessionFile({
 }
 
 export class SessionVar {
-  #c: Context;
+  #c: MyContext;
   #canTouch = false;
 
-  constructor(c: Context) {
+  constructor(c: MyContext) {
     this.#c = c;
-    this.#canTouch = c.get("from_web") || false;
+    this.#canTouch = this.#c.get("from_web") || false;
   }
 
   // give a cookie to start a session
@@ -665,7 +663,7 @@ export class SessionVar {
             break;
           }
         }
-        this.#c.set("session", new HonoSession(sid, value));
+        this.#c.set("HonoSession", new HonoSession(sid, value));
       }
     }
   }
@@ -686,7 +684,7 @@ export class SessionVar {
     if (!this.#canTouch) {
       return; // Cannot end session if not started
     }
-    const sid = this.#c.get("session")?.id;
+    const sid = this.#c.get("HonoSession")?.id;
     if (!isset(sid) || empty(sid) || !isString(sid)) {
       return; // No session to end
     }

@@ -1,4 +1,3 @@
-import { Context } from "hono";
 import { CookieOptions } from "hono/utils/cookie";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { Hash } from "Illuminate/Support/Facades";
@@ -28,7 +27,7 @@ export function generateAppKey(): string {
 }
 
 export const setMyCookie = (
-  c: Context,
+  c: MyContext,
   key: string,
   // deno-lint-ignore no-explicit-any
   value: Exclude<any, undefined>,
@@ -59,16 +58,16 @@ export function myProtectedCookieKeys(): string[] {
 }
 
 // Overloads
-export function getMyCookie(c: Context): Record<string, string>;
+export function getMyCookie(c: MyContext): Record<string, string>;
 export function getMyCookie(
-  c: Context,
+  c: MyContext,
   key: string
   // deno-lint-ignore no-explicit-any
 ): Exclude<any, undefined> | null;
 
 // Implementation
 export function getMyCookie(
-  c: Context,
+  c: MyContext,
   key?: string
 ): string | null | Record<string, string> {
   const appKey = getAppKey();
@@ -116,9 +115,9 @@ export function getMyCookie(
 }
 
 class HonoCookie {
-  #c: Context;
+  #c: MyContext;
 
-  constructor(c: Context) {
+  constructor(c: MyContext) {
     this.#c = c;
   }
   public set(

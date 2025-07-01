@@ -17,7 +17,7 @@ import ResourceRoute, { IResourceRouteConf } from "./ResourceRoute.ts";
 
 const GroupRoute = GR as typeof IEGroupRoute;
 export type ICallback = (
-  httpObj: HttpHono,
+  httpObj: IMyHono,
   ...args: unknown[]
 ) => Promise<unknown>;
 

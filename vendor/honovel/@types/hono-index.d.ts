@@ -9,8 +9,10 @@ import { IConfigure } from "../@types/declaration/MyImports.d.ts";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 import { SessionVar } from "../framework/src/hono/Http/HonoSession.ts";
 import HonoCookie from "../framework/src/hono/Http/HonoCookie.ts";
+import { Context } from "hono";
+import { HonoTypeImport } from "./declaration/imain.d.ts";
 
-export {};
+export { };
 declare global {
   /**
    * Instantiates a new HonoResponse object.
@@ -47,11 +49,11 @@ declare global {
   function route(name: string, params?: Record<string, unknown>): string;
 
   /**
-   * HttpHono interface with all the request data.
+   * IMyHono interface with all the request data.
    * This interface is used to pass the request data to the controller methods.
    * It contains the HonoRequest object that encapsulates the HTTP request data.
    */
-  interface HttpHono {
+  interface IMyHono {
     /**
      * The HonoRequest object that encapsulates the HTTP request data.
      */
@@ -72,12 +74,12 @@ declare global {
   }
 
   type HttpMiddleware = (
-    httpHono: HttpHono,
+    myHono: IMyHono,
     next: HonoClosure["next"]
   ) => Promise<unknown>;
 
   type HttpDispatch = (
-    httpHono: HttpHono,
+    myHono: IMyHono,
     // deno-lint-ignore no-explicit-any
     ...args: any[]
   ) => Promise<number | null | boolean | string | object | []>;
@@ -107,4 +109,6 @@ declare global {
    * @returns Never returns;
    */
   function abort(statusCode: ContentfulStatusCode, message?: string): never;
+
+  interface MyContext extends Context<HonoTypeImport> { }
 }

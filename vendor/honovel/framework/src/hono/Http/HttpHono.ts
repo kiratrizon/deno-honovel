@@ -1,4 +1,3 @@
-import { Context } from "hono";
 import IHonoRequest, {
   RequestData,
 } from "../../../../@types/declaration/IHonoRequest.d.ts";
@@ -8,14 +7,14 @@ import HonoRequest from "./HonoRequest.ts";
 import Constants from "Constants";
 import HonoCookie from "./HonoCookie.ts";
 
-class MyHono implements HttpHono {
+class MyHono implements IMyHono {
   #request: IHonoRequest;
   #config: typeof IConfigure;
   #session: SessionVar;
   #raw: RequestData;
-  #c: Context;
+  #c: MyContext;
   #cookie: HonoCookie;
-  constructor(c: Context, req: RequestData) {
+  constructor(c: MyContext, req: RequestData) {
     this.#c = c;
     this.#raw = req;
     this.#request = new HonoRequest(this.#c, this.#raw);
