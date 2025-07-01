@@ -4,16 +4,12 @@ import ChildKernel from "./ChildKernel.ts";
 import HonoClosure from "../Http/HonoClosure.ts";
 import { IMyConfig } from "./MethodRoute.ts";
 import HonoDispatch from "../Http/HonoDispatch.ts";
-import { buildRequest, myError } from "../Http/builder.ts";
-import HonoRequest from "../Http/HonoRequest.ts";
 import MyHono from "../Http/HttpHono.ts";
-import Constants from "Constants";
-import IHonoRequest from "../../../../@types/declaration/IHonoRequest.d.ts";
-import { IConfigure } from "../../../../@types/declaration/MyImports.d.ts";
 import { AbortError, DDError } from "../../Maneuver/HonovelErrors.ts";
 import util from "node:util";
 import { ContentfulStatusCode } from "hono/utils/http-status";
-import { SessionVar } from "../Http/HonoSession.ts";
+import { myError } from "../Http/builder.ts";
+import { buildRequest } from "../Http/builder.ts";
 
 export const regexObj = {
   number: /^\d+$/,
@@ -518,19 +514,9 @@ ${e.stack.replace(/</g, "&lt;")}
   `;
 }
 export const buildRequestInit = (): MiddlewareHandler => {
-  const configure = new Constants(myConfigData) as unknown as typeof IConfigure;
   return async (c, next) => {
-    const rawRequest = await buildRequest(c);
-    const request: IHonoRequest = new HonoRequest(
-      rawRequest,
-      c.get("sessionInstance")
-    );
-    const constructorObj = {
-      request,
-      config: configure,
-      session: new SessionVar(c),
-    };
-    c.set("httpHono", new MyHono(constructorObj));
+    const req = await buildRequest(c);
+    c.set("httpHono", new MyHono(c, req));
     await next();
   };
 };

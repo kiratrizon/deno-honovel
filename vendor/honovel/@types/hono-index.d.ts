@@ -8,6 +8,7 @@ import IHonoView from "../@types/declaration/IHonoView.d.ts";
 import { IConfigure } from "../@types/declaration/MyImports.d.ts";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 import { SessionVar } from "../framework/src/hono/Http/HonoSession.ts";
+import HonoCookie from "../framework/src/hono/Http/HonoCookie.ts";
 
 export {};
 declare global {
@@ -66,6 +67,8 @@ declare global {
      * This is used to manage user sessions and store session variables.
      */
     get session(): SessionVar;
+
+    get cookie(): HonoCookie;
   }
 
   type HttpMiddleware = (

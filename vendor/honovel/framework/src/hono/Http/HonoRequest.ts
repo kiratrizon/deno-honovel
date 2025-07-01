@@ -10,53 +10,57 @@ import { isbot } from "isbot";
 import Macroable from "../../Maneuver/Macroable.ts";
 import { Validator } from "Illuminate/Support/Facades";
 import { myProtectedCookieKeys } from "./HonoCookie.ts";
+import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
+import { Context } from "hono";
 
 class HonoRequest extends Macroable implements IHonoRequest {
-  private raw: RequestData;
-  private myAll: Record<string, unknown> = {};
+  #c: Context;
+  #raw: RequestData;
+  #myAll: Record<string, unknown> = {};
   #sessionInstance: SessionContract;
-  #myCookie: Record<string, unknown> = {};
-  constructor(req: RequestData, sessionInstance: SessionContract) {
+  constructor(c: Context, req: RequestData) {
     super();
-    (this.constructor as typeof Macroable).applyMacrosTo(this);
-    this.raw = req;
-    this.myAll = {
+    this.#c = c;
+    (this.constructor as typeof HonoRequest).applyMacrosTo(this);
+    this.#raw = req;
+    this.#myAll = {
       ...req.query,
       ...req.body,
     };
+    const sessionInstance = this.#c.get("sessionInstance") as SessionContract;
     this.#sessionInstance = sessionInstance;
   }
 
   public all(): Record<string, unknown> {
-    return this.myAll;
+    return this.#myAll;
   }
 
   public input(key: string): unknown {
-    return this.myAll[key] ?? null;
+    return this.#myAll[key] ?? null;
   }
 
   public only(keys: string[]): Record<string, unknown> {
-    const result: Record<string, unknown> = only(this.myAll, keys);
+    const result: Record<string, unknown> = only(this.#myAll, keys);
     return result;
   }
 
   public except(keys: string[]): Record<string, unknown> {
-    const result: Record<string, unknown> = except(this.myAll, keys);
+    const result: Record<string, unknown> = except(this.#myAll, keys);
     return result;
   }
 
   public query(key: string) {
     if (isset(key)) {
-      return (this.raw.query![key] as unknown) ?? null;
+      return (this.#raw.query![key] as unknown) ?? null;
     }
-    return this.raw.query as Record<string, unknown>;
+    return this.#raw.query as Record<string, unknown>;
   }
 
   public has(key: string): boolean {
-    return keyExist(this.myAll, key);
+    return keyExist(this.#myAll, key);
   }
   public filled(key: string): boolean {
-    return isset(this.myAll[key]) && !empty(this.myAll[key]);
+    return isset(this.#myAll[key]) && !empty(this.#myAll[key]);
   }
 
   public boolean(key: string): boolean {
@@ -105,15 +109,15 @@ class HonoRequest extends Macroable implements IHonoRequest {
   }
 
   public path(): string {
-    return this.raw.path || "";
+    return this.#raw.path || "";
   }
 
   public url(): string {
-    return this.raw.originalUrl || "";
+    return this.#raw.originalUrl || "";
   }
 
   public method(): RequestMethod {
-    return this.raw.method as RequestMethod;
+    return this.#raw.method as RequestMethod;
   }
 
   public isMethod(method: RequestMethod): boolean {
@@ -131,14 +135,14 @@ class HonoRequest extends Macroable implements IHonoRequest {
   }
 
   public header(key: string): string | null {
-    if (keyExist(this.raw.headers, key) && isset(this.raw.headers[key])) {
-      return this.raw.headers[key] as string;
+    if (keyExist(this.#raw.headers, key) && isset(this.#raw.headers[key])) {
+      return this.#raw.headers[key] as string;
     }
     return null;
   }
 
   public get headers(): IHonoHeader {
-    const headers = new HonoHeader(this.raw.headers);
+    const headers = new HonoHeader(this.#raw.headers);
     return headers;
   }
 
@@ -165,23 +169,23 @@ class HonoRequest extends Macroable implements IHonoRequest {
       // Do not allow setting or getting protected cookies
       return null;
     }
-    if (isString(key) && keyExist(this.raw.cookies, key)) {
-      return this.raw.cookies[key];
+    if (isString(key) && keyExist(this.#raw.cookies, key)) {
+      return this.#raw.cookies[key];
     }
     return null;
   }
 
-  public allFiles(): Record<string, unknown> {
-    return this.raw.files;
+  public allFiles(): Record<string, FormFile[]> {
+    return this.#raw.files;
   }
-  public file(key: string): unknown {
-    if (keyExist(this.raw.files, key) && isset(this.raw.files[key])) {
-      return this.raw.files[key] as unknown;
+  public file(key: string): FormFile[] | null {
+    if (keyExist(this.#raw.files, key) && isset(this.#raw.files[key])) {
+      return this.#raw.files[key] as FormFile[];
     }
     return null;
   }
   public hasFile(key: string): boolean {
-    return keyExist(this.raw.files, key) && isset(this.raw.files[key]);
+    return keyExist(this.#raw.files, key) && isset(this.#raw.files[key]);
   }
 
   public ip(): string {
@@ -202,9 +206,9 @@ class HonoRequest extends Macroable implements IHonoRequest {
 
   public server(key: keyof SERVER): SERVER | string | number | null {
     if (isset(key)) {
-      return this.raw.server[key] ?? null;
+      return this.#raw.server[key] ?? null;
     }
-    return this.raw.server;
+    return this.#raw.server;
   }
 
   public getHost(): string {
@@ -255,12 +259,12 @@ class HonoRequest extends Macroable implements IHonoRequest {
   public route(key: string) {
     if (
       isset(key) &&
-      keyExist(this.raw.params, key) &&
-      isset(this.raw.params[key])
+      keyExist(this.#raw.params, key) &&
+      isset(this.#raw.params[key])
     ) {
-      return this.raw.params[key];
+      return this.#raw.params[key];
     } else if (!isset(key)) {
-      return this.raw.params;
+      return this.#raw.params;
     }
     return null;
   }

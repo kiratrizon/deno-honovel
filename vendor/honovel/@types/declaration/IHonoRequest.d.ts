@@ -281,11 +281,11 @@ declare class IHonoRequest {
   /**
    * Get all uploaded files.
    */
-  public allFiles(): Record<string, unknown>;
+  public allFiles(): Record<string, FormFile[]>;
   /**
    * Get a specific uploaded file by key.
    */
-  public file(key: string): unknown;
+  public file(key: string): FormFile[] | null;
   /**
    * Check if a file exists in the request.
    */
