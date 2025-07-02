@@ -1,7 +1,7 @@
 import "../hono-globals/hono-index.ts";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
-import { secureHeaders } from "hono/secure-headers";
+// import { secureHeaders } from "hono/secure-headers";
 import { serveStatic } from "hono/deno";
 import fs from "node:fs";
 import * as path from "https://deno.land/std/path/mod.ts";
@@ -187,7 +187,7 @@ class Server {
             await next();
           });
         }
-        byEndpointsRouter.use("*", honoSession());
+        byEndpointsRouter.use("*", honoSession(), buildRequestInit());
         const corsConfig = staticConfig("cors") || {};
         const corsPaths = corsConfig.paths || [];
         corsPaths.forEach((cpath) => {
@@ -256,7 +256,6 @@ class Server {
                 arrangerDispatch.sequenceParams
               );
               const allBuilds = [
-                buildRequestInit(),
                 ...toMiddleware([...mainMiddleware, ...flagMiddleware]),
                 returnedDispatch as MiddlewareHandler,
               ];
@@ -377,7 +376,6 @@ class Server {
                 const flagMiddleware = flag.middleware || [];
                 newGroupMiddleware.push(...toMiddleware(flagMiddleware));
                 const allBuilds = [
-                  buildRequestInit(),
                   ...newGroupMiddleware,
                   returnedDispatch as MiddlewareHandler,
                 ];
@@ -422,7 +420,11 @@ class Server {
                     }
                   );
                 }
-                Server.domainPattern[domainName].use("*", honoSession());
+                Server.domainPattern[domainName].use(
+                  "*",
+                  honoSession(),
+                  buildRequestInit()
+                );
                 corsPaths.forEach((cpath) => {
                   if (cpath.startsWith(key + "/")) {
                     Server.domainPattern[domainName].use(
