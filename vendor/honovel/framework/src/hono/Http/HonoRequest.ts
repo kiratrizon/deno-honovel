@@ -296,6 +296,10 @@ class HonoRequest extends Macroable implements IHonoRequest {
     }
     return data;
   }
+
+  private resetRoute(params = {}): void {
+    this.#raw.params = params;
+  }
 }
 
 export default HonoRequest;

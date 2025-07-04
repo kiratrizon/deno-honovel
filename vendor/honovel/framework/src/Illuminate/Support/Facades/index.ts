@@ -1,4 +1,5 @@
 import {
+  genSaltSync,
   hashSync,
   compareSync,
 } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
@@ -18,8 +19,8 @@ export class Hash {
    * Hash a value with optional rounds (cost factor).
    */
   public static make(value: string, options: HashOptions = {}): string {
-    const rounds = options.rounds ?? 10;
-    return hashSync(value, String(rounds));
+    const rounds = genSaltSync(options.rounds || 10);
+    return hashSync(value, rounds);
   }
 
   /**
@@ -51,13 +52,13 @@ export class Schema {
       // @ts-ignore //
       columns: blueprint.columns,
     };
-    const dbType = staticConfig("database").default || "mysql";
+    const dbType = env("DB_CONNECTION", "mysql");
     const stringedQuery = generateCreateTableSQL(tableSchema, dbType);
     await DB.statement(stringedQuery);
   }
 
   public static async dropIfExists(table: string): Promise<void> {
-    const dbType = staticConfig("database").default || "mysql";
+    const dbType = env("DB_CONNECTION", "mysql");
 
     let sql: string;
 
@@ -92,7 +93,7 @@ export class Schema {
       columns,
       table,
     };
-    const dbType = staticConfig("database").default || "mysql";
+    const dbType = env("DB_CONNECTION", "mysql");
     const stringedQuery = generateAlterTableSQL(tableSchema, dbType);
     await DB.statement(stringedQuery);
   }
@@ -368,7 +369,7 @@ type TInsertBuilder = {
 };
 
 function insertBuilder(input: TInsertBuilder): [string, unknown[]] {
-  const dbType = staticConfig("database").default || "mysql"; // mysql | sqlite | pgsql | sqlsrv
+  const dbType = env("DB_CONNECTION", "mysql"); // mysql | sqlite | pgsql | sqlsrv
 
   if (!Array.isArray(input.data) || input.data.length === 0) {
     throw new Error("Insert data must be a non-empty array.");

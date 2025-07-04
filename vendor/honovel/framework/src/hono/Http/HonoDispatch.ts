@@ -29,13 +29,13 @@ class HonoDispatch {
     }
   }
   public async build(request: IMyHono["request"], c: MyContext) {
-    const HonoSession = c.get("HonoSession");
-    if (c.get("from_web") && isset(HonoSession)) {
-      // @ts-ignore //
-      const sessionValue = c.get("session").values;
-      HonoSession.update(sessionValue);
-      await HonoSession.dispose();
-    }
+    // const HonoSession = c.get("HonoSession");
+    // if (c.get("from_web") && isset(HonoSession)) {
+    //   // @ts-ignore //
+    //   const sessionValue = c.get("session").values;
+    //   HonoSession.update(sessionValue);
+    //   await HonoSession.dispose();
+    // }
     if (
       request.isMethod("HEAD") &&
       isObject(this.#returnedData) &&
@@ -138,7 +138,8 @@ class HonoDispatch {
               headers.set("Content-Type", "application/octet-stream");
               headers.set(
                 "Content-Disposition",
-                `attachment; filename="${downloadName || path.basename(filePath)
+                `attachment; filename="${
+                  downloadName || path.basename(filePath)
                 }"`
               );
 

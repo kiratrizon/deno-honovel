@@ -102,7 +102,7 @@ export function getMyCookie(
   const [value, ...signature] = cookieValue.split(".");
   const signatureKey = signature.join(".");
 
-  if (Hash.check(appKey, signatureKey) || !value) {
+  if (!Hash.check(appKey, signatureKey) || !value) {
     return null;
   }
 
@@ -143,7 +143,6 @@ class HonoCookie {
     }
     deleteCookie(this.#c, key, options);
   }
-
 }
 
 export default HonoCookie;

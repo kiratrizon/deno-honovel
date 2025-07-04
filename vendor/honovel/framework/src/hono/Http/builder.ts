@@ -145,7 +145,7 @@ export async function buildRequest(c: MyContext): Promise<RequestData> {
     timestamp,
     files,
     server: forServer,
-    params: { ...c.get("subdomain"), ...(c.req.param() || {}) },
+    params: {},
   };
   return REQUEST;
 }

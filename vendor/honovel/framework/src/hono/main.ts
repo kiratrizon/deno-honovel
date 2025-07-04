@@ -86,21 +86,25 @@ const _forDomain: MiddlewareHandler = async (c, next: Next) => {
     incomingUrl = `${protocol}://${incoming}`;
   }
   incomingUrl = [incomingUrl, uri || ""].join("/");
+  let key: string = "web";
+  if (c.req.raw.url.startsWith("/api/")) {
+    key = "api";
+  }
   if (!incomingUrl.startsWith(appUrl)) {
     const host = c.req.raw.url.split("://")[1].split("/")[0];
 
-    if (keyExist(Server.domainPattern, host)) {
-      return await Server.domainPattern[host].fetch(c.req.raw);
+    if (keyExist(Server.domainPattern[key], host)) {
+      return await Server.domainPattern[key][host].fetch(c.req.raw);
     }
     // Check for patterns with wildcards
-    for (const pattern in Server.domainPattern) {
+    for (const pattern in Server.domainPattern[key]) {
       if (pattern.includes("*")) {
         const regex = new RegExp(
           "^" + pattern.replace(/\./g, "\\.").replace(/\*/g, "[^.]+") + "$"
         );
 
         if (regex.test(host)) {
-          return await Server.domainPattern[pattern].fetch(c.req.raw);
+          return await Server.domainPattern[key][pattern].fetch(c.req.raw);
         }
       }
     }
@@ -113,7 +117,7 @@ const _forDomain: MiddlewareHandler = async (c, next: Next) => {
 class Server {
   private static Hono = Hono;
   public static app: HonoType;
-  public static domainPattern: Record<string, HonoType> = {};
+  public static domainPattern: Record<string, Record<string, HonoType>> = {};
 
   private routes: Record<string, unknown> = {};
   public static async init() {
@@ -165,7 +169,7 @@ class Server {
     for (const file of routeFiles) {
       const key = file.replace(".ts", "");
       const routePrefix = key === "web" ? "" : key;
-      let route: typeof INRoute | undefined = undefined;
+      let route: typeof INRoute | undefined;
 
       const mainMiddleware = [key];
       try {
@@ -180,6 +184,7 @@ class Server {
         console.warn(`Route file "${file}" could not be loaded.`, err);
       }
       if (isset(route)) {
+        Server.domainPattern[key] = {};
         const byEndpointsRouter = this.generateNewApp();
         if (file === "web.ts") {
           byEndpointsRouter.use("*", async (c, next: Next) => {
@@ -187,29 +192,14 @@ class Server {
             await next();
           });
         }
-        byEndpointsRouter.use("*", honoSession(), buildRequestInit());
+        this.useCors(key, byEndpointsRouter);
+        byEndpointsRouter.use(
+          "*",
+          buildRequestInit(),
+          ...toMiddleware(mainMiddleware)
+        );
         const corsConfig = staticConfig("cors") || {};
         const corsPaths = corsConfig.paths || [];
-        corsPaths.forEach((cpath) => {
-          if (cpath.startsWith(key + "/")) {
-            byEndpointsRouter.use(
-              cpath.replace(key, ""),
-              cors({
-                origin: corsConfig.allowed_origins || "*",
-                allowMethods: corsConfig.allowed_methods || [
-                  "GET",
-                  "POST",
-                  "PUT",
-                  "DELETE",
-                ],
-                allowHeaders: corsConfig.allowed_headers || ["*"],
-                exposeHeaders: corsConfig.exposed_headers || [],
-                maxAge: corsConfig.max_age || 3600,
-                credentials: corsConfig.supports_credentials || false,
-              })
-            );
-          }
-        });
         const instancedRoute = new route();
         const allGroup = instancedRoute.getAllGroupsAndMethods();
 
@@ -256,7 +246,7 @@ class Server {
                 arrangerDispatch.sequenceParams
               );
               const allBuilds = [
-                ...toMiddleware([...mainMiddleware, ...flagMiddleware]),
+                ...toMiddleware([...flagMiddleware]),
                 returnedDispatch as MiddlewareHandler,
               ];
               if (methodarr.length === 1 && arrayFirst(methodarr) === "head") {
@@ -303,8 +293,6 @@ class Server {
                 name = "",
               } = myGroup.flagConfig;
 
-              middleware.unshift(key);
-
               const domainParam: string[] = [];
               const groupMiddleware: MiddlewareHandler[] = [];
 
@@ -322,7 +310,7 @@ class Server {
                 myNewGroup.use("*", domainGroup(domainName, domainArranger));
                 domainParam.push(...domainArranger.sequenceParams);
                 hasDomain = true;
-                Server.domainPattern[domainName] = this.generateNewApp(
+                Server.domainPattern[key][domainName] = this.generateNewApp(
                   {},
                   true
                 );
@@ -363,9 +351,6 @@ class Server {
                   ...groupMiddleware,
                 ];
 
-                newGroupMiddleware.push(
-                  ...toMiddleware([...mainMiddleware, ...middleware])
-                );
                 const flagWhere = flag.where || {};
                 const splittedUri = URLArranger.generateOptionalParamRoutes(
                   newMethodUri,
@@ -403,8 +388,10 @@ class Server {
                 where
               );
 
+              const myGroupMiddleware = [...toMiddleware(middleware)];
               generatedopts.forEach((grp) => {
                 // apply the middlewares here
+                newAppGroup.use("*", ...myGroupMiddleware);
                 newAppGroup.route(grp, myNewGroup);
               });
 
@@ -412,7 +399,7 @@ class Server {
                 byEndpointsRouter.route("/", newAppGroup);
               } else if (isset(domain) && !empty(domain)) {
                 if (file === "web.ts") {
-                  Server.domainPattern[domainName].use(
+                  Server.domainPattern[key][domainName].use(
                     "*",
                     async (c, next: Next) => {
                       c.set("from_web", true);
@@ -420,38 +407,22 @@ class Server {
                     }
                   );
                 }
-                Server.domainPattern[domainName].use(
+                Server.useCors(key, Server.domainPattern[key][domainName]);
+                Server.domainPattern[key][domainName].use(
                   "*",
-                  honoSession(),
                   buildRequestInit()
                 );
-                corsPaths.forEach((cpath) => {
-                  if (cpath.startsWith(key + "/")) {
-                    Server.domainPattern[domainName].use(
-                      cpath.replace(key, ""),
-                      cors({
-                        origin: corsConfig.allowed_origins || "*",
-                        allowMethods: corsConfig.allowed_methods || [
-                          "GET",
-                          "POST",
-                          "PUT",
-                          "DELETE",
-                        ],
-                        allowHeaders: corsConfig.allowed_headers || ["*"],
-                        exposeHeaders: corsConfig.exposed_headers || [],
-                        maxAge: corsConfig.max_age || 3600,
-                        credentials: corsConfig.supports_credentials || false,
-                      })
-                    );
-                  }
-                });
-                Server.domainPattern[domainName].route(
+
+                Server.domainPattern[key][domainName].route(
                   routePrefix,
                   newAppGroup
                 );
-                Server.domainPattern[domainName].use("*", async function (c) {
-                  return await myError(c);
-                });
+                Server.domainPattern[key][domainName].use(
+                  "*",
+                  async function (c) {
+                    return await myError(c);
+                  }
+                );
               }
             }
             this.app.route(routePrefix, byEndpointsRouter);
@@ -459,6 +430,32 @@ class Server {
         }
       }
     }
+  }
+
+  private static useCors(key: string, router: HonoType) {
+    const corsConfig = staticConfig("cors") || {};
+    const corsPaths = corsConfig.paths || [];
+
+    corsPaths.forEach((cpath) => {
+      if (cpath.startsWith(key + "/")) {
+        router.use(
+          cpath.replace(key, ""),
+          cors({
+            origin: corsConfig.allowed_origins || "*",
+            allowMethods: corsConfig.allowed_methods || [
+              "GET",
+              "POST",
+              "PUT",
+              "DELETE",
+            ],
+            allowHeaders: corsConfig.allowed_headers || ["*"],
+            exposeHeaders: corsConfig.exposed_headers || [],
+            maxAge: corsConfig.max_age || 3600,
+            credentials: corsConfig.supports_credentials || false,
+          })
+        );
+      }
+    });
   }
 
   private static endInit() {

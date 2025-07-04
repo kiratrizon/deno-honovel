@@ -115,7 +115,7 @@ export class HonoSession {
 }
 
 class Session implements ISession {
-  constructor(private values: Record<string, NonFunction<unknown>> = {}) { }
+  constructor(private values: Record<string, NonFunction<unknown>> = {}) {}
   public put(key: string, value: NonFunction<unknown>) {
     this.values[key] = value;
   }
@@ -388,10 +388,9 @@ export async function dataEncryption(
   appKey: string
 ): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(16));
-
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(appKey), // Convert string to Uint8Array
+    new TextEncoder().encode(appKey).slice(0, 32), // limit key length
     { name: "AES-CBC" },
     false,
     ["encrypt"]
@@ -422,7 +421,7 @@ export async function dataDecryption(
 
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(appKey), // Convert string to Uint8Array
+    new TextEncoder().encode(appKey).slice(0, 32), // limit key length
     { name: "AES-CBC" },
     false,
     ["decrypt"]
@@ -668,6 +667,8 @@ export class SessionVar {
     }
   }
 
+  private started = false;
+
   isStarted(): boolean {
     if (!this.#canTouch) {
       return false;
@@ -676,8 +677,12 @@ export class SessionVar {
     const key =
       sessionConfig.cookie ||
       Str.slug(env("APP_NAME", "Honovel"), "_") + "_session";
+    if (this.started) {
+      return true; // Session already started
+    }
     const sid = getMyCookie(this.#c, key) || "";
-    return isset(sid) && !empty(sid) && isString(sid);
+    this.started = isset(sid) && !empty(sid) && isString(sid);
+    return this.started;
   }
 
   async end() {
