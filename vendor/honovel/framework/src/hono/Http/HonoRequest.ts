@@ -9,25 +9,134 @@ import HonoHeader from "./HonoHeader.ts";
 import { isbot } from "isbot";
 import Macroable from "../../Maneuver/Macroable.ts";
 import { Validator } from "Illuminate/Support/Facades";
-import { myProtectedCookieKeys } from "./HonoCookie.ts";
+import { getMyCookie, myProtectedCookieKeys, setMyCookie } from "./HonoCookie.ts";
 import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
+import { multiParser } from "https://deno.land/x/multiparser@0.114.0/lib/multiParserV2.ts";
 
-class HonoRequest extends Macroable implements IHonoRequest {
+import { CookieOptions } from "hono/utils/cookie";
+import { deleteCookie } from "hono/cookie";
+import { SessionModifier } from "./HonoSession.ts";
+
+class HonoRequest extends Macroable {
   #c: MyContext;
-  #raw: RequestData;
+  #files: Record<string, FormFile[]> = {};
   #myAll: Record<string, unknown> = {};
-  #session: ISession;
-  constructor(c: MyContext, req: RequestData) {
+  #myHeader: HonoHeader;
+  #routeParams: Record<string, string | null> = {};
+  #built: boolean = false;
+  #sessionMod: SessionModifier;
+  // @ts-ignore //
+  #server: SERVER = {};
+  constructor(c: MyContext) {
     super();
     this.#c = c;
     (this.constructor as typeof HonoRequest).applyMacrosTo(this);
-    this.#raw = req;
-    this.#myAll = {
-      ...req.query,
-      ...req.body,
+    this.#myHeader = new HonoHeader(this.#c);
+    this.#sessionMod = new SessionModifier(this.#c);
+  }
+
+  public async buildRequest() {
+    if (this.#built) {
+      return;
+    }
+    const c = this.#c;
+    const files: Record<string, FormFile[]> = {};
+    let body: Record<string, unknown> = {};
+    const contentType = (c.req.header("content-type") || "").toLowerCase();
+    if (contentType.includes("multipart/form-data")) {
+      const parsed = await multiParser(c.req.raw);
+
+      if (parsed) {
+        // Get only fields
+        body = parsed.fields ?? {};
+
+        // Store files if needed
+        if (parsed.files) {
+          for (const [key, file] of Object.entries(parsed.files)) {
+            // multiparser supports both single and multiple files
+            files[key] = Array.isArray(file) ? file : [file];
+          }
+        }
+      }
+    } else if (contentType.includes("application/x-www-form-urlencoded")) {
+      const text = await c.req.text();
+      const params = new URLSearchParams(text);
+      params.forEach((value, key) => {
+        if (body[key]) {
+          if (isArray(body[key])) {
+            (body[key] as string[]).push(value);
+          } else {
+            body[key] = [body[key] as string, value];
+          }
+        } else {
+          body[key] = value;
+        }
+      });
+    } else if (contentType.includes("application/json")) {
+      try {
+        body = await c.req.json();
+      } catch {
+        body = {};
+      }
+    } else if (contentType.includes("text/plain")) {
+      const text = await c.req.text();
+      body = { text };
+    } else if (contentType.includes("application/octet-stream")) {
+      const buffer = await c.req.arrayBuffer();
+      body = { buffer }; // you can handle it differently depending on use case
+    } else {
+      // fallback for unknown or missing content type
+      const text = await c.req.text();
+      body = { text };
+    }
+    this.#files = files;
+    this.#myAll = body;
+
+    const params = { ...this.#c.get("subdomain"), ...this.#c.req.param() };
+    this.#routeParams = params;
+
+    // for server data
+    const toStr = (val: string | string[] | undefined): string =>
+      Array.isArray(val) ? val.join(", ") : (val || "unknown").toString();
+    const req = c.req;
+    const url = new URL(req.url);
+
+    const forServer: SERVER = {
+      SERVER_NAME: c.req.header("host")?.split(":")[0] || "unknown",
+      SERVER_ADDR: "unknown", // Not available directly
+      SERVER_PORT: c.req.header("host")?.split(":")[1] || "unknown", // Not available directly
+      SERVER_PROTOCOL: url.protocol.replace(":", "") || "http",
+      REQUEST_METHOD: c.req.method,
+      QUERY_STRING: url.searchParams.toString() || "",
+      REQUEST_URI: url.pathname + url.search,
+      DOCUMENT_ROOT: basePath?.() || "unknown",
+      HTTP_USER_AGENT: toStr(c.req.header("user-agent")),
+      HTTP_REFERER: toStr(c.req.header("referer")),
+      REMOTE_ADDR:
+        c.req.header("x-forwarded-for")?.split(",")[0].trim() || "unknown",
+      REMOTE_PORT: "unknown", // Not available
+      SCRIPT_NAME: url.pathname,
+      HTTPS: url.protocol === "https:" ? "on" : "off",
+      HTTP_X_FORWARDED_PROTO: toStr(c.req.header("x-forwarded-proto")),
+      HTTP_X_FORWARDED_FOR: toStr(c.req.header("x-forwarded-for")),
+      REQUEST_TIME: date("Y-m-d H:i:s"), // your global function
+      REQUEST_TIME_FLOAT: Date.now(),
+      GATEWAY_INTERFACE: "CGI/1.1",
+      SERVER_SIGNATURE: "X-Powered-By: Throy Tower",
+      PATH_INFO: url.pathname,
+      HTTP_ACCEPT: toStr(c.req.header("accept")),
+      HTTP_X_REQUEST_ID: toStr(
+        c.req.header("x-request-id") || this.#generateRequestId()
+      ),
     };
-    const session = this.#c.get("session") as ISession;
-    this.#session = session;
+
+    this.#server = forServer;
+    this.#built = true;
+
+  }
+
+  #generateRequestId(): string {
+    return crypto.randomUUID?.() || "req-" + Math.random().toString(36).slice(2);
   }
 
   public all(): Record<string, unknown> {
@@ -48,11 +157,12 @@ class HonoRequest extends Macroable implements IHonoRequest {
     return result;
   }
 
-  public query(key: string) {
+  // GET Data
+  public query(key?: string) {
     if (isset(key)) {
-      return (this.#raw.query![key] as unknown) ?? null;
+      return this.#c.req.query(key) ?? null;
     }
-    return this.#raw.query as Record<string, unknown>;
+    return this.#c.req.query() || {};
   }
 
   public has(key: string): boolean {
@@ -108,15 +218,15 @@ class HonoRequest extends Macroable implements IHonoRequest {
   }
 
   public path(): string {
-    return this.#raw.path || "";
+    return this.#c.req.path || "";
   }
 
   public url(): string {
-    return this.#raw.originalUrl || "";
+    return this.#c.req.url || "";
   }
 
   public method(): RequestMethod {
-    return this.#raw.method as RequestMethod;
+    return this.#c.req.method.toUpperCase() as RequestMethod;
   }
 
   public isMethod(method: RequestMethod): boolean {
@@ -134,15 +244,19 @@ class HonoRequest extends Macroable implements IHonoRequest {
   }
 
   public header(key: string): string | null {
-    if (keyExist(this.#raw.headers, key) && isset(this.#raw.headers[key])) {
-      return this.#raw.headers[key] as string;
+    const headers = this.headers.all();
+    const value = headers[key.toLowerCase()];
+    if (value === undefined || value === null) {
+      return null;
     }
-    return null;
+    if (isArray(value)) {
+      return value.length > 0 ? value[0] : null;
+    }
+    return value as string;
   }
 
-  public get headers(): IHonoHeader {
-    const headers = new HonoHeader(this.#raw.headers);
-    return headers;
+  public get headers(): HonoHeader {
+    return this.#myHeader;
   }
 
   public hasHeader(key: string): boolean {
@@ -162,29 +276,39 @@ class HonoRequest extends Macroable implements IHonoRequest {
 
   public cookie(key: string): Exclude<unknown, undefined>;
   public cookie(): Record<string, Exclude<unknown, undefined>>;
-  public cookie(key?: string): unknown {
-    const protectedCookieKeys = myProtectedCookieKeys();
-    if (isString(key) && protectedCookieKeys.includes(key)) {
-      // Do not allow setting or getting protected cookies
-      return null;
+  public cookie(key: string, value: Exclude<unknown, undefined>, options?: CookieOptions): void;
+  public cookie(key?: string, value?: Exclude<unknown, undefined>, options?: CookieOptions): unknown {
+    if (isset(key) && isset(value)) {
+      const newOpts = isset(options) && !empty(options) && isObject(options) ? options : {};
+      setMyCookie(this.#c, key, value, newOpts);
+      return;
     }
-    if (isString(key) && keyExist(this.#raw.cookies, key)) {
-      return this.#raw.cookies[key];
+    if (isset(key) && !isset(value)) {
+      return getMyCookie(this.#c, key);
+    }
+    if (!isset(key) && !isset(value)) {
+      return getMyCookie(this.#c);
+    }
+  }
+
+  public deleteCookie(key: string, options?: CookieOptions): void {
+    const opts = isset(options) && !empty(options) && isObject(options) ? options : {};
+    deleteCookie(this.#c, key, opts);
+  }
+
+  public allFiles(): Record<string, FormFile[]> {
+    return this.#files;
+  }
+
+  public file(key: string): FormFile[] | null {
+    if (keyExist(this.#files, key) && isset(this.#files[key])) {
+      return this.#files[key];
     }
     return null;
   }
 
-  public allFiles(): Record<string, FormFile[]> {
-    return this.#raw.files;
-  }
-  public file(key: string): FormFile[] | null {
-    if (keyExist(this.#raw.files, key) && isset(this.#raw.files[key])) {
-      return this.#raw.files[key] as FormFile[];
-    }
-    return null;
-  }
   public hasFile(key: string): boolean {
-    return keyExist(this.#raw.files, key) && isset(this.#raw.files[key]);
+    return keyExist(this.#files, key) && isset(this.#files[key]) && this.#files[key].length > 0;
   }
 
   public ip(): string {
@@ -204,10 +328,10 @@ class HonoRequest extends Macroable implements IHonoRequest {
   }
 
   public server(key: keyof SERVER): SERVER | string | number | null {
-    if (isset(key)) {
-      return this.#raw.server[key] ?? null;
+    if (keyExist(this.#server, key)) {
+      return this.#server[key] ?? null;
     }
-    return this.#raw.server;
+    return null;
   }
 
   public getHost(): string {
@@ -255,17 +379,11 @@ class HonoRequest extends Macroable implements IHonoRequest {
     return false;
   }
 
-  public route(key: string) {
-    if (
-      isset(key) &&
-      keyExist(this.#raw.params, key) &&
-      isset(this.#raw.params[key])
-    ) {
-      return this.#raw.params[key];
-    } else if (!isset(key)) {
-      return this.#raw.params;
+  public route(key?: string) {
+    if (isString(key) && key.length > 0) {
+      return this.#routeParams[key] ?? null;
     }
-    return null;
+    return this.#routeParams;
   }
 
   public isBot(): boolean {
@@ -282,8 +400,16 @@ class HonoRequest extends Macroable implements IHonoRequest {
     return this.header("x-requested-with")?.toLowerCase() === "xmlhttprequest";
   }
 
-  public session(): ISession {
-    return this.#session;
+  public get session(): ISession {
+    return this.#c.get("session");
+  }
+
+  public async sessionStart(): Promise<void> {
+    await this.#sessionMod.start();
+  }
+
+  public async sessionEnd(): Promise<void> {
+    await this.#sessionMod.end();
   }
 
   public async validate(
@@ -297,8 +423,8 @@ class HonoRequest extends Macroable implements IHonoRequest {
     return data;
   }
 
-  private resetRoute(params = {}): void {
-    this.#raw.params = params;
+  protected resetRoute(params = {}): void {
+    this.#routeParams = params;
   }
 }
 

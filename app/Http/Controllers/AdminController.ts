@@ -5,7 +5,7 @@ class AdminController extends Controller {
     public index: HttpDispatch = async ({ request }) => {
         // List all resources
         return response().json({
-            message:"index"
+            message: "index"
         })
     };
 
@@ -13,7 +13,7 @@ class AdminController extends Controller {
     public show: HttpDispatch = async ({ request }, id) => {
         // Show a single resource by ID
         return response().json({
-            message:`show ${id}`
+            message: `show ${id}`
         })
     };
 
@@ -21,7 +21,7 @@ class AdminController extends Controller {
     public create: HttpDispatch = async ({ request }) => {
         // Return form or data for creating resource
         return response().json({
-            message:`create`
+            message: `create`
         })
     };
 
@@ -29,7 +29,7 @@ class AdminController extends Controller {
     public store: HttpDispatch = async ({ request }) => {
         // Create a new resource
         return response().json({
-            message:`store`
+            message: `store`
         })
     };
 
@@ -37,7 +37,7 @@ class AdminController extends Controller {
     public edit: HttpDispatch = async ({ request }, id) => {
         // Return form or data for editing resource
         return response().json({
-            message:`edit ${id}`
+            message: `edit ${id}`
         })
     };
 
@@ -45,7 +45,7 @@ class AdminController extends Controller {
     public update: HttpDispatch = async ({ request }, id) => {
         // Update a resource by ID
         return response().json({
-            message:`update ${id}`
+            message: `update ${id}`
         })
     };
 
@@ -53,7 +53,7 @@ class AdminController extends Controller {
     public destroy: HttpDispatch = async ({ request }, id) => {
         // Delete a resource by ID
         return response().json({
-            message:`delete ${id}`
+            message: `delete ${id}`
         })
     };
 }

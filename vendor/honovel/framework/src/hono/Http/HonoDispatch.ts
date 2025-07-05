@@ -7,6 +7,7 @@ import { ContentfulStatusCode } from "hono/utils/http-status";
 import { existsSync } from "https://deno.land/std/fs/mod.ts";
 import * as path from "https://deno.land/std/path/mod.ts";
 import { contentType } from "https://deno.land/std@0.224.0/media_types/mod.ts";
+import HttpHono from "HttpHono";
 
 class HonoDispatch {
   #type: "dispatch" | "middleware";
@@ -28,14 +29,16 @@ class HonoDispatch {
       this.#forNext = true;
     }
   }
-  public async build(request: IMyHono["request"], c: MyContext) {
-    // const HonoSession = c.get("HonoSession");
-    // if (c.get("from_web") && isset(HonoSession)) {
-    //   // @ts-ignore //
-    //   const sessionValue = c.get("session").values;
-    //   HonoSession.update(sessionValue);
-    //   await HonoSession.dispose();
-    // }
+  public async build(request: HttpHono["request"], c: MyContext) {
+    const HonoSession = c.get("HonoSession");
+    if (c.get("from_web") && isset(HonoSession)) {
+      if (!c.get("logged_out")) {
+        // @ts-ignore //
+        const sessionValue = c.get("session").values;
+        HonoSession.update(sessionValue);
+        await HonoSession.dispose();
+      }
+    }
     if (
       request.isMethod("HEAD") &&
       isObject(this.#returnedData) &&
@@ -138,8 +141,7 @@ class HonoDispatch {
               headers.set("Content-Type", "application/octet-stream");
               headers.set(
                 "Content-Disposition",
-                `attachment; filename="${
-                  downloadName || path.basename(filePath)
+                `attachment; filename="${downloadName || path.basename(filePath)
                 }"`
               );
 

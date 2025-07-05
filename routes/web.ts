@@ -1,8 +1,9 @@
 import Route from "Illuminate/Support/Facades/Route";
 import UserController from "../app/Http/Controllers/UserController.ts";
 
-Route.resource("users", UserController).whereNumber("user");
-Route.get("/", async () => {
+// Route.resource("users", UserController).whereNumber("user");
+Route.get("/", async ({ request }) => {
+  await request.sessionEnd();
   return response().json({
     id: env("DENO_DEPLOYMENT_ID"),
     region: env("DENO_REGION"),

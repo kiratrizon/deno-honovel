@@ -23,7 +23,7 @@ export interface IHeaderChildRoutes extends IChildRoutes {
 }
 
 // deno-lint-ignore no-explicit-any
-export type ICallback = (httpObj: IMyHono, ...args: any[]) => Promise<unknown>;
+export type ICallback = (httpObj: HttpHono, ...args: any[]) => Promise<unknown>;
 
 type KeysWithICallback<T> = {
   [P in keyof T]: T[P] extends ICallback ? P : never;
@@ -398,6 +398,7 @@ import MethodRoute from "../../framework/src/hono/Support/MethodRoute.ts";
 import ResourceRoute, {
   ResourceKeys,
 } from "../../framework/src/hono/Support/ResourceRoute.ts";
+import HttpHono from "HttpHono";
 export interface IReferencesRoute {
   groups: Record<string, IEGroupRoute>;
   methods: Record<string, InstanceType<typeof MethodRoute>>;

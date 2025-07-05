@@ -26,6 +26,17 @@ export function generateAppKey(): string {
   return `base64:${base64Key}`;
 }
 
+export function myProtectedCookieKeys(): string[] {
+  const mainKey =
+    staticConfig("session").cookie ||
+    env(
+      "SESSION_COOKIE",
+      Str.slug(env("APP_NAME", "Honovel"), "_") + "_session"
+    );
+
+  return [mainKey, "csrf_token", "XSRF-TOKEN"];
+}
+
 export const setMyCookie = (
   c: MyContext,
   key: string,
@@ -45,17 +56,6 @@ export const setMyCookie = (
   const signedValue = `${newValue}.${myKey}`;
   setCookie(c, key, signedValue, options);
 };
-
-export function myProtectedCookieKeys(): string[] {
-  const mainKey =
-    staticConfig("session").cookie ||
-    env(
-      "SESSION_COOKIE",
-      Str.slug(env("APP_NAME", "Honovel"), "_") + "_session"
-    );
-
-  return [mainKey, "csrf_token", "XSRF-TOKEN"];
-}
 
 // Overloads
 export function getMyCookie(c: MyContext): Record<string, string>;

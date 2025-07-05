@@ -1,26 +1,15 @@
-import IHonoRequest, {
-  RequestData,
-} from "../../../../@types/declaration/IHonoRequest.d.ts";
 import { IConfigure } from "../../../../@types/declaration/MyImports.d.ts";
-import { SessionVar } from "./HonoSession.ts";
 import HonoRequest from "./HonoRequest.ts";
 import Constants from "Constants";
-import HonoCookie from "./HonoCookie.ts";
 
-class MyHono implements IMyHono {
-  #request: IHonoRequest;
+class HttpHono {
+  #request: HonoRequest;
   #config: typeof IConfigure;
-  #session: SessionVar;
-  #raw: RequestData;
   #c: MyContext;
-  #cookie: HonoCookie;
-  constructor(c: MyContext, req: RequestData) {
+  constructor(c: MyContext) {
     this.#c = c;
-    this.#raw = req;
-    this.#request = new HonoRequest(this.#c, this.#raw);
+    this.#request = new HonoRequest(this.#c);
     this.#config = new Constants(myConfigData) as unknown as typeof IConfigure;
-    this.#session = new SessionVar(this.#c);
-    this.#cookie = new HonoCookie(this.#c);
   }
 
   public get request() {
@@ -29,13 +18,6 @@ class MyHono implements IMyHono {
   public get Configure() {
     return this.#config;
   }
-
-  public get session() {
-    return this.#session;
-  }
-  public get cookie() {
-    return this.#cookie;
-  }
 }
 
-export default MyHono;
+export default HttpHono;

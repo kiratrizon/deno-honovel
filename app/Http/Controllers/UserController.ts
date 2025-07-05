@@ -4,7 +4,7 @@ import User, { UserSchema } from "../../Models/User.ts";
 
 class UserController extends Controller {
   // GET /resource
-  public index: HttpDispatch = async ({ Configure, session }) => {
+  public index: HttpDispatch = async (myHono) => {
     const data = DB.table("users")
       .select("users.id", "users.name", "users.email")
       .join("profiles", "users.id", "profiles.user_id")

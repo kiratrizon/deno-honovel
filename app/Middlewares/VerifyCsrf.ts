@@ -1,8 +1,5 @@
 class VerifyCsrf {
-  public handle: HttpMiddleware = async ({ request, session }, next) => {
-    if (!session.isStarted()) {
-      await session.start();
-    }
+  public handle: HttpMiddleware = async ({ request }, next) => {
     if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
       const tokenFromInput = request.input("_token");
       const tokenFromCookie = request.cookie("XSRF-TOKEN");

@@ -7,10 +7,12 @@ import IHonoResponse from "../@types/declaration/IHonoResponse.d.ts";
 import IHonoView from "../@types/declaration/IHonoView.d.ts";
 import { IConfigure } from "../@types/declaration/MyImports.d.ts";
 import { ContentfulStatusCode } from "hono/utils/http-status";
-import { SessionVar } from "../framework/src/hono/Http/HonoSession.ts";
+import { SessionModifier } from "../framework/src/hono/Http/HonoSession.ts";
 import HonoCookie from "../framework/src/hono/Http/HonoCookie.ts";
 import { Context } from "hono";
 import { HonoTypeImport } from "./declaration/imain.d.ts";
+
+import HttpHono from "HttpHono";
 
 export { };
 declare global {
@@ -49,11 +51,11 @@ declare global {
   function route(name: string, params?: Record<string, unknown>): string;
 
   /**
-   * IMyHono interface with all the request data.
+   * HttpHono interface with all the request data.
    * This interface is used to pass the request data to the controller methods.
    * It contains the HonoRequest object that encapsulates the HTTP request data.
    */
-  interface IMyHono {
+  interface IHttpHono {
     /**
      * The HonoRequest object that encapsulates the HTTP request data.
      */
@@ -68,18 +70,18 @@ declare global {
      * Access the session data.
      * This is used to manage user sessions and store session variables.
      */
-    get session(): SessionVar;
+    get session(): SessionModifier;
 
     get cookie(): HonoCookie;
   }
 
   type HttpMiddleware = (
-    myHono: IMyHono,
+    myHono: HttpHono,
     next: HonoClosure["next"]
   ) => Promise<unknown>;
 
   type HttpDispatch = (
-    myHono: IMyHono,
+    myHono: HttpHono,
     // deno-lint-ignore no-explicit-any
     ...args: any[]
   ) => Promise<number | null | boolean | string | object | []>;

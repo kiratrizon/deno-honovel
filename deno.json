@@ -33,7 +33,8 @@
     "Illuminate/Database/Schema": "./vendor/honovel/framework/src/Illuminate/Database/Schema/index.ts",
     "Illuminate/Support/Facades": "./vendor/honovel/framework/src/Illuminate/Support/Facades/index.ts",
     "Illuminate/Database/Eloquent": "./vendor/honovel/framework/src/Illuminate/Database/Eloquent/index.ts",
-    "Illuminate/Support": "./vendor/honovel/framework/src/Illuminate/Support/index.ts"
+    "Illuminate/Support": "./vendor/honovel/framework/src/Illuminate/Support/index.ts",
+    "HttpHono": "./vendor/honovel/framework/src/hono/Http/HttpHono.ts"
   },
   "lint": {
     "rules": {

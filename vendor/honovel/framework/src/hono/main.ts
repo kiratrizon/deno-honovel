@@ -9,7 +9,7 @@ import * as path from "https://deno.land/std/path/mod.ts";
 import { Hono, MiddlewareHandler, Next } from "hono";
 import Boot from "../Maneuver/Boot.ts";
 
-import { Variables, HonoType } from "../../../@types/declaration/imain.d.ts";
+import { HonoType } from "../../../@types/declaration/imain.d.ts";
 
 import { INRoute } from "../../../@types/declaration/IRoute.d.ts";
 import {
@@ -136,10 +136,31 @@ class Server {
   ): HonoType {
     let app: HonoType;
     if (isset(config) && !empty(config)) {
-      app = new this.Hono<{ Variables: Variables }>(config);
+      app = new this.Hono(config);
     } else {
-      app = new this.Hono<{ Variables: Variables }>();
+      app = new this.Hono();
     }
+    const defaultUrls = ["favicon.ico", "robots.txt"];
+
+    defaultUrls.forEach((url) => {
+      app.get(`/${url}`, async (c) => {
+        const checkFile = publicPath(url);
+
+        if (pathExist(checkFile)) {
+          const fileContent = await Deno.readFile(checkFile);
+          const contentType = url.endsWith('.ico') ? 'image/x-icon' : 'text/plain';
+          return new Response(fileContent, {
+            status: 200,
+            headers: {
+              'Content-Type': contentType,
+            },
+          });
+        }
+
+        // If file doesn't exist → send empty 204 (like Laravel returning no favicon)
+        return new Response(null, { status: 204 });
+      });
+    });
 
     if (withDefaults) {
       app.use(...myStaticDefaults);
@@ -177,8 +198,8 @@ class Server {
           const module = await import("../../../../../routes/web.ts");
           route = module.default as typeof INRoute;
         } else if (file === "api.ts") {
-          const module = await import("../../../../../routes/api.ts");
-          route = module.default as typeof INRoute;
+          // const module = await import("../../../../../routes/api.ts");
+          // route = module.default as typeof INRoute;
         }
       } catch (err) {
         console.warn(`Route file "${file}" could not be loaded.`, err);
@@ -193,13 +214,14 @@ class Server {
           });
         }
         this.useCors(key, byEndpointsRouter);
+        const buildMainMiddleware = [...toMiddleware(mainMiddleware)];
+        // console.log(buildMainMiddleware)
         byEndpointsRouter.use(
           "*",
+          honoSession(),
           buildRequestInit(),
-          ...toMiddleware(mainMiddleware)
+          ...buildMainMiddleware
         );
-        const corsConfig = staticConfig("cors") || {};
-        const corsPaths = corsConfig.paths || [];
         const instancedRoute = new route();
         const allGroup = instancedRoute.getAllGroupsAndMethods();
 
@@ -263,7 +285,6 @@ class Server {
               }
               byEndpointsRouter.route("/", newApp);
             }
-            this.app.route(routePrefix, byEndpointsRouter);
           }
 
           // for groups
@@ -410,6 +431,7 @@ class Server {
                 Server.useCors(key, Server.domainPattern[key][domainName]);
                 Server.domainPattern[key][domainName].use(
                   "*",
+                  honoSession(),
                   buildRequestInit()
                 );
 
@@ -425,8 +447,9 @@ class Server {
                 );
               }
             }
-            this.app.route(routePrefix, byEndpointsRouter);
           }
+
+          this.app.route(routePrefix, byEndpointsRouter);
         }
       }
     }

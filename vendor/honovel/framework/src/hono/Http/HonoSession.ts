@@ -13,6 +13,7 @@ import { Redis as IORedis } from "ioredis";
 import { ISession } from "../../../../@types/declaration/ISession.d.ts";
 import { Str } from "Illuminate/Support";
 import { getAppKey, getMyCookie, setMyCookie } from "./HonoCookie.ts";
+import { deleteCookie } from "hono/cookie";
 
 type SessionEncrypt = {
   encrypt: string; // encrypted session data
@@ -74,7 +75,7 @@ export class HonoSession {
     switch (type) {
       case "file": {
         await writeSessionFile({
-          filePath: path.join(pathDefault, `${this.id}.json`),
+          filePath: path.join(pathDefault, `${this.id.replace(sessionConfig.prefix || "sess:", "")}.json`),
           value: this.values,
           isEncrypt,
           appKey,
@@ -115,7 +116,7 @@ export class HonoSession {
 }
 
 class Session implements ISession {
-  constructor(private values: Record<string, NonFunction<unknown>> = {}) {}
+  constructor(private values: Record<string, NonFunction<unknown>> = {}) { }
   public put(key: string, value: NonFunction<unknown>) {
     this.values[key] = value;
   }
@@ -208,7 +209,7 @@ export function honoSession(): MiddlewareHandler {
             if (!pathExist(pathDefault)) {
               makeDir(pathDefault);
             }
-            const filePath = path.join(pathDefault, `${sid}.json`);
+            const filePath = path.join(pathDefault, `${sid.replace(sessionConfig.prefix || "sess:", "")}.json`);
             if (pathExist(filePath)) {
               try {
                 const data = JSON.parse(await Deno.readTextFile(filePath));
@@ -526,7 +527,7 @@ async function writeSessionFile({
   }
 }
 
-export class SessionVar {
+export class SessionModifier {
   #c: MyContext;
   #canTouch = false;
 
@@ -538,6 +539,7 @@ export class SessionVar {
   // give a cookie to start a session
   // this is the first step to start a session
   async start() {
+    console.log(this.isStarted())
     if (this.isStarted()) {
       return; // Session already started
     }
@@ -577,7 +579,7 @@ export class SessionVar {
             if (!pathExist(pathDefault)) {
               makeDir(pathDefault);
             }
-            const filePath = path.join(pathDefault, `${sid}.json`);
+            const filePath = path.join(pathDefault, `${sid.replace(sessionConfig.prefix || "sess:", "")}.json`);
             if (pathExist(filePath)) {
               try {
                 const data = JSON.parse(await Deno.readTextFile(filePath));
@@ -665,6 +667,8 @@ export class SessionVar {
         this.#c.set("HonoSession", new HonoSession(sid, value));
       }
     }
+
+    this.#c.set("session", new Session(value));
   }
 
   private started = false;
@@ -681,6 +685,7 @@ export class SessionVar {
       return true; // Session already started
     }
     const sid = getMyCookie(this.#c, key) || "";
+    console.log(sid)
     this.started = isset(sid) && !empty(sid) && isString(sid);
     return this.started;
   }
@@ -689,17 +694,29 @@ export class SessionVar {
     if (!this.#canTouch) {
       return; // Cannot end session if not started
     }
-    const sid = this.#c.get("HonoSession")?.id;
-    if (!isset(sid) || empty(sid) || !isString(sid)) {
-      return; // No session to end
-    }
+
     const sessionConfig = staticConfig("session");
     const type = sessionConfig.driver || "file";
     const pathDefault: string =
       sessionConfig.files || storagePath("framework/sessions");
+    const key = sessionConfig.cookie || env("SESSION_COOKIE", Str.slug(env("APP_NAME", "Honovel"), "_") + "_session");
+    const sid = getMyCookie(this.#c, key);
+    if (!isset(sid) || empty(sid) || !isString(sid)) {
+      return; // No session to end
+    }
+    // Clear session data
+    deleteCookie(this.#c, key, {
+      maxAge: 0,
+      sameSite: sessionConfig.sameSite || "lax",
+      httpOnly: sessionConfig.httpOnly || true,
+      path: sessionConfig.path || "/",
+      secure: sessionConfig.secure || false,
+    });
+    this.#c.set("logged_out", true);
+    this.started = false; // Reset started state
     switch (type) {
       case "file": {
-        const filePath = path.join(pathDefault, `${sid}.json`);
+        const filePath = path.join(pathDefault, `${sid.replace(sessionConfig.prefix || "sess:", "")}.json`);
         if (pathExist(filePath)) {
           await Deno.remove(filePath);
         }
