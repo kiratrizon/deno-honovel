@@ -1,4 +1,4 @@
-class VerifyCsrf {
+export class VerifyCsrf {
   public handle: HttpMiddleware = async ({ request }, next) => {
     if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
       const tokenFromInput = request.input("_token");
@@ -12,5 +12,3 @@ class VerifyCsrf {
     return true;
   }
 }
-
-export default VerifyCsrf;

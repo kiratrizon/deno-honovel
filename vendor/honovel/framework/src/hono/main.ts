@@ -22,7 +22,8 @@ import {
 import { IMyConfig } from "./Support/MethodRoute.ts";
 import { honoSession } from "./Http/HonoSession.ts";
 import { myError } from "./Http/builder.ts";
-
+import { default as Router } from "Illuminate/Support/Facades/Route";
+const Route = Router as typeof INRoute;
 const headFunction: MiddlewareHandler = async (c: MyContext, next) => {
   const { request } = c.get("myHono");
   if (!request.isMethod("HEAD")) {
@@ -148,11 +149,13 @@ class Server {
 
         if (pathExist(checkFile)) {
           const fileContent = await Deno.readFile(checkFile);
-          const contentType = url.endsWith('.ico') ? 'image/x-icon' : 'text/plain';
+          const contentType = url.endsWith(".ico")
+            ? "image/x-icon"
+            : "text/plain";
           return new Response(fileContent, {
             status: 200,
             headers: {
-              'Content-Type': contentType,
+              "Content-Type": contentType,
             },
           });
         }
@@ -170,6 +173,31 @@ class Server {
       });
     }
     return app;
+  }
+
+  private static applyMainMiddleware(key: string, app: HonoType) {
+    const mainMiddleware = [key];
+    const buildMainMiddleware = [...toMiddleware(mainMiddleware)];
+    if (key === "web") {
+      app.use("*", async (c, next: Next) => {
+        c.set("from_web", true);
+        await next();
+      });
+    }
+    this.useCors(key, app);
+    const parsePayload = async (c: MyContext, next: Next) => {
+      const { request } = c.get("myHono");
+      // @ts-ignore //
+      await request.buildRequest();
+      return await next();
+    };
+    app.use(
+      "*",
+      honoSession(),
+      buildRequestInit(),
+      parsePayload,
+      ...buildMainMiddleware
+    );
   }
 
   private static async loadAndValidateRoutes() {
@@ -190,39 +218,24 @@ class Server {
     for (const file of routeFiles) {
       const key = file.replace(".ts", "");
       const routePrefix = key === "web" ? "" : key;
-      let route: typeof INRoute | undefined;
+      // let route: typeof INRoute;
 
-      const mainMiddleware = [key];
       try {
         if (file === "web.ts") {
-          const module = await import("../../../../../routes/web.ts");
-          route = module.default as typeof INRoute;
+          await import("../../../../../routes/web.ts");
+          // route = Route as typeof INRoute;
         } else if (file === "api.ts") {
-          // const module = await import("../../../../../routes/api.ts");
-          // route = module.default as typeof INRoute;
+          await import("../../../../../routes/api.ts");
+          // route = Route as typeof INRoute;
         }
       } catch (err) {
         console.warn(`Route file "${file}" could not be loaded.`, err);
       }
-      if (isset(route)) {
+      if (isset(Route)) {
         Server.domainPattern[key] = {};
         const byEndpointsRouter = this.generateNewApp();
-        if (file === "web.ts") {
-          byEndpointsRouter.use("*", async (c, next: Next) => {
-            c.set("from_web", true);
-            await next();
-          });
-        }
-        this.useCors(key, byEndpointsRouter);
-        const buildMainMiddleware = [...toMiddleware(mainMiddleware)];
-        // console.log(buildMainMiddleware)
-        byEndpointsRouter.use(
-          "*",
-          honoSession(),
-          buildRequestInit(),
-          ...buildMainMiddleware
-        );
-        const instancedRoute = new route();
+        this.applyMainMiddleware(key, byEndpointsRouter);
+        const instancedRoute = new Route();
         const allGroup = instancedRoute.getAllGroupsAndMethods();
 
         const {
@@ -419,36 +432,17 @@ class Server {
               if (!hasDomain) {
                 byEndpointsRouter.route("/", newAppGroup);
               } else if (isset(domain) && !empty(domain)) {
-                if (file === "web.ts") {
-                  Server.domainPattern[key][domainName].use(
-                    "*",
-                    async (c, next: Next) => {
-                      c.set("from_web", true);
-                      await next();
-                    }
-                  );
-                }
-                Server.useCors(key, Server.domainPattern[key][domainName]);
-                Server.domainPattern[key][domainName].use(
-                  "*",
-                  honoSession(),
-                  buildRequestInit()
+                this.applyMainMiddleware(
+                  key,
+                  Server.domainPattern[key][domainName]
                 );
-
                 Server.domainPattern[key][domainName].route(
                   routePrefix,
                   newAppGroup
                 );
-                Server.domainPattern[key][domainName].use(
-                  "*",
-                  async function (c) {
-                    return await myError(c);
-                  }
-                );
               }
             }
           }
-
           this.app.route(routePrefix, byEndpointsRouter);
         }
       }
@@ -484,6 +478,18 @@ class Server {
   private static endInit() {
     this.app.use("*", async function (c) {
       return await myError(c);
+    });
+
+    const ServerDomainKeys = Object.keys(this.domainPattern); // ["web", "api"]
+    ServerDomainKeys.forEach((key) => {
+      const allApp = this.domainPattern[key];
+      const allDomainKeys = Object.keys(allApp); // ["example.com", "api.example.com"]
+      allDomainKeys.forEach((domainKey) => {
+        const app = allApp[domainKey];
+        app.use("*", async function (c) {
+          return await myError(c);
+        });
+      });
     });
   }
 }

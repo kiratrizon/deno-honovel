@@ -9,7 +9,11 @@ import HonoHeader from "./HonoHeader.ts";
 import { isbot } from "isbot";
 import Macroable from "../../Maneuver/Macroable.ts";
 import { Validator } from "Illuminate/Support/Facades";
-import { getMyCookie, myProtectedCookieKeys, setMyCookie } from "./HonoCookie.ts";
+import {
+  getMyCookie,
+  myProtectedCookieKeys,
+  setMyCookie,
+} from "./HonoCookie.ts";
 import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
 import { multiParser } from "https://deno.land/x/multiparser@0.114.0/lib/multiParserV2.ts";
 
@@ -35,7 +39,7 @@ class HonoRequest extends Macroable {
     this.#sessionMod = new SessionModifier(this.#c);
   }
 
-  public async buildRequest() {
+  protected async buildRequest() {
     if (this.#built) {
       return;
     }
@@ -132,11 +136,12 @@ class HonoRequest extends Macroable {
 
     this.#server = forServer;
     this.#built = true;
-
   }
 
   #generateRequestId(): string {
-    return crypto.randomUUID?.() || "req-" + Math.random().toString(36).slice(2);
+    return (
+      crypto.randomUUID?.() || "req-" + Math.random().toString(36).slice(2)
+    );
   }
 
   public all(): Record<string, unknown> {
@@ -276,10 +281,19 @@ class HonoRequest extends Macroable {
 
   public cookie(key: string): Exclude<unknown, undefined>;
   public cookie(): Record<string, Exclude<unknown, undefined>>;
-  public cookie(key: string, value: Exclude<unknown, undefined>, options?: CookieOptions): void;
-  public cookie(key?: string, value?: Exclude<unknown, undefined>, options?: CookieOptions): unknown {
+  public cookie(
+    key: string,
+    value: Exclude<unknown, undefined>,
+    options?: CookieOptions
+  ): void;
+  public cookie(
+    key?: string,
+    value?: Exclude<unknown, undefined>,
+    options?: CookieOptions
+  ): unknown {
     if (isset(key) && isset(value)) {
-      const newOpts = isset(options) && !empty(options) && isObject(options) ? options : {};
+      const newOpts =
+        isset(options) && !empty(options) && isObject(options) ? options : {};
       setMyCookie(this.#c, key, value, newOpts);
       return;
     }
@@ -292,7 +306,8 @@ class HonoRequest extends Macroable {
   }
 
   public deleteCookie(key: string, options?: CookieOptions): void {
-    const opts = isset(options) && !empty(options) && isObject(options) ? options : {};
+    const opts =
+      isset(options) && !empty(options) && isObject(options) ? options : {};
     deleteCookie(this.#c, key, opts);
   }
 
@@ -308,7 +323,11 @@ class HonoRequest extends Macroable {
   }
 
   public hasFile(key: string): boolean {
-    return keyExist(this.#files, key) && isset(this.#files[key]) && this.#files[key].length > 0;
+    return (
+      keyExist(this.#files, key) &&
+      isset(this.#files[key]) &&
+      this.#files[key].length > 0
+    );
   }
 
   public ip(): string {

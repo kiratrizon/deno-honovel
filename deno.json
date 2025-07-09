@@ -25,7 +25,7 @@
     "luxon": "npm:luxon@^3.6.1",
     "redis": "npm:redis@^5.5.5",
     "Illuminate/Support/Facades/Route": "./vendor/honovel/framework/src/hono/Support/Route.ts",
-    "Illuminate/Foundation/Http/HttpKernel": "./vendor/honovel/framework/src/hono/Http/HttpKernel.ts",
+    "Illuminate/Foundation/Http": "./vendor/honovel/framework/src/Illuminate/Foundation/Http/index.ts",
     "Illuminate/Routing/BaseController":"./vendor/honovel/framework/src/Base/BaseController.ts",
     "MyArtisan": "./vendor/honovel/framework/src/Maneuver/Honovel-CLI.ts",
     "Database": "./vendor/honovel/framework/src/DatabaseBuilder/Database.ts",
@@ -34,7 +34,10 @@
     "Illuminate/Support/Facades": "./vendor/honovel/framework/src/Illuminate/Support/Facades/index.ts",
     "Illuminate/Database/Eloquent": "./vendor/honovel/framework/src/Illuminate/Database/Eloquent/index.ts",
     "Illuminate/Support": "./vendor/honovel/framework/src/Illuminate/Support/index.ts",
-    "HttpHono": "./vendor/honovel/framework/src/hono/Http/HttpHono.ts"
+    "Illuminate/Session/Middleware": "./vendor/honovel/framework/src/Illuminate/Session/Middleware/index.ts",
+    "Illuminate/Foundation/Http/Middleware": "./vendor/honovel/framework/src/Illuminate/Foundation/Http/Middleware/index.ts",
+    "HttpHono": "./vendor/honovel/framework/src/hono/Http/HttpHono.ts",
+    "TestIlluminate": "./vendor/honovel/framework/src/Illuminate/*"
   },
   "lint": {
     "rules": {

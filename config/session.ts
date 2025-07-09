@@ -5,7 +5,7 @@ export default {
 
   lifetime: env("SESSION_LIFETIME", 120),
 
-  encrypt: true,
+  encrypt: false,
 
   files: storagePath("framework/sessions"),
 

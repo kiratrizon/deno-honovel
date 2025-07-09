@@ -8,10 +8,8 @@ export interface MiddlewareLikeClass {
 
 export type MiddlewareLike = string | MiddlewareLikeClass;
 
-class HttpKernel {
+export class HttpKernel {
   protected middlewareGroups: Record<string, MiddlewareLike[]> = {};
 
   protected routeMiddleware: Record<string, MiddlewareLikeClass> = {};
 }
-
-export default HttpKernel;
