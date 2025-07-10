@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "dev": "deno run -A --watch=mode=poll vendor/honovel/framework/src/hono/run-server.ts",
+    "dev": "deno run -A --watch --env-file=.env vendor/honovel/framework/src/hono/run-server.ts",
     "help": "deno run -A novel --help",
     "migrate": "deno run -A novel migrate",
     "migrate:fresh": "deno run -A novel migrate:fresh",
@@ -13,6 +13,7 @@
     "serve": "deno run -A novel serve"
   },
   "imports": {
+    "@upstash/redis": "npm:@upstash/redis@^1.35.1",
     "axios": "npm:axios@^1.9.0",
     "edge.js": "npm:edge.js@^6.2.1",
     "hono-sessions": "jsr:@jcs224/hono-sessions@^0.7.2",
@@ -36,8 +37,7 @@
     "Illuminate/Support": "./vendor/honovel/framework/src/Illuminate/Support/index.ts",
     "Illuminate/Session/Middleware": "./vendor/honovel/framework/src/Illuminate/Session/Middleware/index.ts",
     "Illuminate/Foundation/Http/Middleware": "./vendor/honovel/framework/src/Illuminate/Foundation/Http/Middleware/index.ts",
-    "HttpHono": "./vendor/honovel/framework/src/hono/Http/HttpHono.ts",
-    "TestIlluminate": "./vendor/honovel/framework/src/Illuminate/*"
+    "HttpHono": "./vendor/honovel/framework/src/hono/Http/HttpHono.ts"
   },
   "lint": {
     "rules": {

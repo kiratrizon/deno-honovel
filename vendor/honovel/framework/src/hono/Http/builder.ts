@@ -113,8 +113,7 @@ export async function buildRequest(c: MyContext): Promise<RequestData> {
   const sessionConfig = staticConfig("session");
 
   const cookieKey =
-    sessionConfig.cookie ||
-    Str.slug(env("APP_NAME", "Honovel"), "_") + "_session";
+    sessionConfig.cookie || Str.snake(env("APP_NAME", "honovel") + "_session");
   if (keyExist(signedCookies, cookieKey)) {
     // Remove session ID from signedCookies if it exists
     delete signedCookies[cookieKey];

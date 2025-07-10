@@ -57,6 +57,46 @@ export class Schema {
     await DB.statement(stringedQuery);
   }
 
+  public static async hasTable(table: string): Promise<boolean> {
+    const dbType = env("DB_CONNECTION", "mysql").toLowerCase();
+    let query = "";
+
+    switch (dbType) {
+      case "mysql":
+        query = `SHOW TABLES LIKE '${table}'`;
+        break;
+      case "sqlite":
+        query = `SELECT name FROM sqlite_master WHERE type='table' AND name='${table}'`;
+        break;
+      case "postgres":
+      case "pgsql":
+      case "postgresql":
+        query = `SELECT to_regclass('${table}')`;
+        break;
+      case "sqlserver":
+        query = `SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '${table}'`;
+        break;
+      default:
+        throw new Error(`Unsupported DB_CONNECTION: ${dbType}`);
+    }
+
+    const result = await DB.select(query);
+
+    if (!result || result.length === 0) {
+      return false;
+    }
+
+    // Special handling for PostgreSQL because to_regclass can return null
+    if (
+      dbType.includes("postgres") &&
+      (!result[0] || Object.values(result[0])[0] === null)
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
   public static async dropIfExists(table: string): Promise<void> {
     const dbType = env("DB_CONNECTION", "mysql");
 

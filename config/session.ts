@@ -1,30 +1,38 @@
 import { Str } from "Illuminate/Support";
 import { SessionConfig } from "./@types/index.d.ts";
 export default {
-  driver: env("SESSION_DRIVER", "memory"),
+  driver: env("SESSION_DRIVER", "database"),
 
   lifetime: env("SESSION_LIFETIME", 120),
 
-  encrypt: false,
+  expireOnClose: env("SESSION_EXPIRE_ON_CLOSE", false),
+
+  encrypt: env("SESSION_ENCRYPT", false),
 
   files: storagePath("framework/sessions"),
 
-  path: "/",
+  connection: env("SESSION_CONNECTION"),
 
-  domain: env("SESSION_DOMAIN", null),
+  table: env("SESSION_TABLE", "sessions"),
 
-  secure: env("SESSION_SECURE_COOKIE", false),
+  store: env("SESSION_STORE"),
 
-  httpOnly: true,
-
-  sameSite: env("SESSION_SAME_SITE", "lax"),
-
-  connection: env("SESSION_CONNECTION", "default"),
-
-  prefix: env("SESSION_PREFIX", "sess:"),
+  lottery: [2, 100],
 
   cookie: env(
     "SESSION_COOKIE",
-    Str.slug(env("APP_NAME", "Honovel"), "_") + "_session"
+    Str.snake(env("APP_NAME", "honovel")) + "_session"
   ),
+
+  path: env("SESSION_PATH", "/"),
+
+  domain: env("SESSION_DOMAIN"),
+
+  secure: env("SESSION_SECURE_COOKIE", true),
+
+  httpOnly: env("SESSION_HTTP_ONLY", true),
+
+  sameSite: env("SESSION_SAME_SITE", "lax"),
+
+  partitioned: env("SESSION_PARTITIONED_COOKIE", false),
 } as SessionConfig;

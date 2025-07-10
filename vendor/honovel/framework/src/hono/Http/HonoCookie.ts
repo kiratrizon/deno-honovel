@@ -3,6 +3,22 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { Hash } from "Illuminate/Support/Facades";
 import { Str } from "Illuminate/Support";
 
+export class MyCachedHashedApp {
+  static #cachedAppKey: string | null = null;
+  static init() {
+    if (!this.#cachedAppKey) {
+      this.#cachedAppKey = getAppKey();
+    }
+  }
+
+  static getCachedAppKey(): string {
+    if (!this.#cachedAppKey) {
+      throw new Error("App key is not initialized. Call init() first.");
+    }
+    return this.#cachedAppKey;
+  }
+}
+
 export function getAppKey(): string {
   const appKey = env("APP_KEY", "");
   if (!appKey) {
@@ -26,17 +42,6 @@ export function generateAppKey(): string {
   return `base64:${base64Key}`;
 }
 
-export function myProtectedCookieKeys(): string[] {
-  const mainKey =
-    staticConfig("session").cookie ||
-    env(
-      "SESSION_COOKIE",
-      Str.slug(env("APP_NAME", "Honovel"), "_") + "_session"
-    );
-
-  return [mainKey, "csrf_token", "XSRF-TOKEN"];
-}
-
 export const setMyCookie = (
   c: MyContext,
   key: string,
@@ -44,7 +49,7 @@ export const setMyCookie = (
   value: Exclude<any, undefined>,
   options: CookieOptions = {}
 ) => {
-  const myKey = Hash.make(getAppKey());
+  const myKey = MyCachedHashedApp.getCachedAppKey();
   if (value === undefined || !isString(key)) {
     throw new Error("Invalid arguments for setting cookie.");
   }
@@ -70,79 +75,36 @@ export function getMyCookie(
   c: MyContext,
   key?: string
 ): string | null | Record<string, string> {
-  const appKey = getAppKey();
+  const appKeyHash = MyCachedHashedApp.getCachedAppKey();
 
   if (isUndefined(key)) {
     const cookies = getCookie(c) || {};
-    const entries = Object.entries(cookies);
     const newCookies: Record<string, string> = {};
 
-    for (const [cookieKey, cookieValue] of entries) {
-      const [value, ...signature] = cookieValue.split(".");
-      const signatureKey = signature.join(".");
-      if (Hash.check(appKey, signatureKey) && value) {
+    for (const [cookieKey, cookieValue] of Object.entries(cookies)) {
+      const [value, signatureKey] = cookieValue.split(".");
+      if (signatureKey === appKeyHash && value) {
         try {
           newCookies[cookieKey] = jsonDecode(base64decode(value));
         } catch {
-          // skip invalid cookie
+          // skip invalid
         }
       }
     }
-
     return newCookies;
   }
 
-  if (!isString(key)) {
-    throw new Error("Invalid key for getting cookie.");
-  }
+  if (!isString(key)) throw new Error("Invalid key for getting cookie.");
 
   const cookieValue = getCookie(c, key);
   if (!cookieValue) return null;
 
-  const [value, ...signature] = cookieValue.split(".");
-  const signatureKey = signature.join(".");
-
-  if (!Hash.check(appKey, signatureKey) || !value) {
-    return null;
-  }
+  const [value, signatureKey] = cookieValue.split(".");
+  if (signatureKey !== appKeyHash || !value) return null;
 
   try {
     return jsonDecode(base64decode(value));
-  } catch (error) {
-    console.error("Error decoding cookie value:", error);
+  } catch {
     return null;
   }
 }
-
-class HonoCookie {
-  #c: MyContext;
-
-  constructor(c: MyContext) {
-    this.#c = c;
-  }
-  public set(
-    key: string,
-    value: Exclude<unknown, undefined>,
-    options: CookieOptions = {}
-  ) {
-    if (isUndefined(value) || !isString(key)) {
-      throw new Error("Invalid arguments for setting cookie.");
-    }
-    if (myProtectedCookieKeys().includes(key)) {
-      return;
-    }
-    setMyCookie(this.#c, key, value, options);
-  }
-
-  public delete(key: string, options: CookieOptions = {}) {
-    if (!isString(key)) {
-      throw new Error("Invalid key for deleting cookie.");
-    }
-    if (myProtectedCookieKeys().includes(key)) {
-      return;
-    }
-    deleteCookie(this.#c, key, options);
-  }
-}
-
-export default HonoCookie;

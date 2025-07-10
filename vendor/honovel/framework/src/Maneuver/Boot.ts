@@ -1,6 +1,8 @@
 import IHonoRequest from "../../../@types/declaration/IHonoRequest.d.ts";
+import { MyCachedHashedApp } from "../hono/Http/HonoCookie.ts";
 import HonoRequest from "../hono/Http/HonoRequest.ts";
 import HonoView from "../hono/Http/HonoView.ts";
+import RedisClient from "./RedisClient.ts";
 
 class Boot {
   /**
@@ -17,6 +19,10 @@ class Boot {
       const accept = (this as IHonoRequest).header("accept") ?? "";
       return accept.includes("application/xml") || accept.includes("text/xml");
     });
+
+    MyCachedHashedApp.init();
+
+    await RedisClient.init();
   }
 }
 

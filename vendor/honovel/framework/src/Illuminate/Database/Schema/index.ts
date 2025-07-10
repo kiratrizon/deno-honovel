@@ -124,6 +124,11 @@ export class Blueprint {
     return this;
   }
 
+  notNullable() {
+    this.lastColumn()!.options!.nullable = false;
+    return this;
+  }
+
   default(value: unknown) {
     this.lastColumn()!.options!.default = value;
     return this;

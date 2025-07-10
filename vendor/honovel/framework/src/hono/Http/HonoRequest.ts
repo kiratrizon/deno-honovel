@@ -9,11 +9,7 @@ import HonoHeader from "./HonoHeader.ts";
 import { isbot } from "isbot";
 import Macroable from "../../Maneuver/Macroable.ts";
 import { Validator } from "Illuminate/Support/Facades";
-import {
-  getMyCookie,
-  myProtectedCookieKeys,
-  setMyCookie,
-} from "./HonoCookie.ts";
+import { getMyCookie, setMyCookie } from "./HonoCookie.ts";
 import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
 import { multiParser } from "https://deno.land/x/multiparser@0.114.0/lib/multiParserV2.ts";
 

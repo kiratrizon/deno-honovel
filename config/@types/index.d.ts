@@ -117,19 +117,47 @@ export interface CorsConfig {
 }
 
 export interface SessionConfig {
-  // session lifetime in minutes
-  driver: "file" | "redis" | "database" | "memory";
-  lifetime: number;
-  encrypt: boolean; // whether to encrypt session data
-  files: string; // path to session files (if file driver)
-  cookie: string; // session cookie name
+  driver:
+    | "file"
+    | "cookie"
+    | "database"
+    | "memcached"
+    | "redis"
+    | "dynamodb"
+    | "array"
+    | "memory";
+
+  lifetime: number; // session lifetime in minutes
+
+  expireOnClose: boolean; // expire when browser closes
+
+  encrypt: boolean; // encrypt session data
+
+  files: string; // file session storage path
+
+  connection?: string; // database or redis connection name
+
+  table?: string; // database table name for sessions
+
+  store?: string; // cache store name for cache-based drivers
+
+  lottery: [number, number]; // sweeping lottery odds
+
+  cookie: string; // cookie name
+
   path: string; // cookie path
-  domain: string | null; // cookie domain (nullable)
-  secure: boolean; // send cookie only over HTTPS
-  httpOnly: boolean; // cookie not accessible via JS
-  sameSite: "lax" | "strict" | "none"; // sameSite policy
-  connection: string; // connection name for redis/db
-  prefix: string; // prefix for cache/redis keys
+
+  domain?: string | null; // cookie domain
+
+  secure?: boolean; // HTTPS only
+
+  httpOnly?: boolean; // accessible only via HTTP
+
+  sameSite?: "lax" | "strict" | "none" | null; // same-site policy
+
+  partitioned?: boolean; // partitioned cookie flag
+
+  prefix?: string; // session key prefix (for redis, etc.)
 }
 
 // this is the basis for the config items

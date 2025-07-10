@@ -8,13 +8,12 @@ import IHonoView from "../@types/declaration/IHonoView.d.ts";
 import { IConfigure } from "../@types/declaration/MyImports.d.ts";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 import { SessionModifier } from "../framework/src/hono/Http/HonoSession.ts";
-import HonoCookie from "../framework/src/hono/Http/HonoCookie.ts";
 import { Context } from "hono";
 import { HonoTypeImport } from "./declaration/imain.d.ts";
 
 import HttpHono from "HttpHono";
 
-export { };
+export {};
 declare global {
   /**
    * Instantiates a new HonoResponse object.
@@ -71,8 +70,6 @@ declare global {
      * This is used to manage user sessions and store session variables.
      */
     get session(): SessionModifier;
-
-    get cookie(): HonoCookie;
   }
 
   type HttpMiddleware = (
@@ -112,5 +109,5 @@ declare global {
    */
   function abort(statusCode: ContentfulStatusCode, message?: string): never;
 
-  interface MyContext extends Context<HonoTypeImport> { }
+  interface MyContext extends Context<HonoTypeImport> {}
 }

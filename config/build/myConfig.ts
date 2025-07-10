@@ -1,7 +1,6 @@
 import jwt from "../jwt.ts";
 import app from "../app.ts";
 import debug from "../debug.ts";
-import redis from "../redis.ts";
 import view from "../view.ts";
 import factory from "../factory.ts";
 import test from "../test.ts";
@@ -16,7 +15,6 @@ export default {
   jwt,
   app,
   debug,
-  redis,
   view,
   factory,
   test,

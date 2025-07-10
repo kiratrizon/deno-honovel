@@ -367,9 +367,21 @@ function generateMiddlewareOrDispatch(
       }
       const dispatch = new HonoDispatch(middlewareResp, type);
       if ((type === "middleware" && !dispatch.isNext) || type === "dispatch") {
-        const result = (await dispatch.build(request, c)) as Response;
-        if (!isUndefined(result) && result instanceof Response) {
-          return result;
+        try {
+          const result = (await dispatch.build(request, c)) as Response;
+          if (!isUndefined(result) && result instanceof Response) {
+            return result;
+          }
+        } finally {
+          const HonoSession = c.get("HonoSession");
+          if (c.get("from_web") && isset(HonoSession)) {
+            if (!c.get("logged_out")) {
+              // @ts-ignore //
+              const sessionValue = c.get("session").values;
+              HonoSession.update(sessionValue);
+              await HonoSession.dispose();
+            }
+          }
         }
       }
     } catch (e: unknown) {

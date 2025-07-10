@@ -3,5 +3,10 @@ import UserController from "../app/Http/Controllers/UserController.ts";
 
 // Route.resource("users", UserController).whereNumber("user");
 Route.post("/", async ({ request }) => {
+  return response().json({
+    data: request.all(),
+  });
+});
+Route.get("/", async ({ request }) => {
   return "hello";
 });

@@ -1,32 +1,18 @@
 import { MiddlewareHandler } from "hono";
 import * as path from "https://deno.land/std/path/mod.ts";
-import {
-  connect,
-  RedisCommands,
-} from "https://deno.land/x/redis@v0.29.4/mod.ts";
-import {
-  Redis as UpstashRedis,
-  RedisConfigDeno,
-} from "https://deno.land/x/upstash_redis@v1.14.0/mod.ts";
 
-import { Redis as IORedis } from "ioredis";
 import { ISession } from "../../../../@types/declaration/ISession.d.ts";
 import { Str } from "Illuminate/Support";
 import { getAppKey, getMyCookie, setMyCookie } from "./HonoCookie.ts";
 import { deleteCookie } from "hono/cookie";
+import { SessionConfig } from "../../../../../../config/@types/index.d.ts";
+import RedisClient from "../../Maneuver/RedisClient.ts";
+import { Migration } from "Illuminate/Database/Migrations";
+import { Schema, DB } from "Illuminate/Support/Facades";
 
 type SessionEncrypt = {
   encrypt: string; // encrypted session data
 };
-
-interface RedisConnection {
-  host: string;
-  port: number;
-  password: string;
-  db?: number;
-  url?: string | null;
-  upstash?: RedisConfigDeno;
-}
 
 interface SaveSessionConfig {
   value: Record<string, unknown>;
@@ -40,13 +26,6 @@ interface SaveDBorRedisSessionConfig extends SaveSessionConfig {
 
 interface SaveFileSessionConfig extends SaveSessionConfig {
   filePath: string;
-}
-
-export interface RedisConfig {
-  default: string;
-  connections: {
-    [key: string]: RedisConnection;
-  };
 }
 
 // Recursive type to exclude functions from any nested property
@@ -86,14 +65,12 @@ export class HonoSession {
         break;
       }
       case "redis": {
-        if (isset(MyRedis.client)) {
-          await writeSessionRedis({
-            sid: this.id,
-            value: this.values,
-            isEncrypt,
-            appKey,
-          });
-        }
+        await writeSessionRedis({
+          sid: this.id,
+          value: this.values,
+          isEncrypt,
+          appKey,
+        });
         break;
       }
       case "database":
@@ -135,54 +112,6 @@ class Session implements ISession {
   }
 }
 
-class MyRedis {
-  public static client: RedisCommands | IORedis | UpstashRedis;
-
-  public static setClient(client: RedisCommands | IORedis | UpstashRedis) {
-    MyRedis.client = client;
-  }
-
-  public static async set(
-    key: string,
-    value: string,
-    options?: { ex?: number }
-  ) {
-    if (!isset(MyRedis.client)) {
-      throw new Error("Redis client is not set");
-    }
-    const ex = options?.ex ?? 120 * 60;
-    if (MyRedis.client instanceof UpstashRedis) {
-      await MyRedis.client.set(key, value, { ex });
-    } else if (MyRedis.client instanceof IORedis) {
-      await MyRedis.client.set(key, value, "EX", ex); // default to 120 minutes
-    } else {
-      await (MyRedis.client as RedisCommands).set(key, value, {
-        ex,
-      });
-    }
-  }
-
-  public static async get(key: string): Promise<string | null> {
-    if (!isset(MyRedis.client)) {
-      throw new Error("Redis client is not set");
-    }
-    if (MyRedis.client instanceof UpstashRedis) {
-      return await MyRedis.client.get(key);
-    } else if (MyRedis.client instanceof IORedis) {
-      return await MyRedis.client.get(key);
-    } else {
-      return await (MyRedis.client as RedisCommands).get(key);
-    }
-  }
-
-  public static async exists(key: string): Promise<number> {
-    if (!isset(MyRedis.client)) {
-      throw new Error("Redis client is not set");
-    }
-    return await MyRedis.client.exists(key);
-  }
-}
-
 class HonoSessionMemory {
   public static sessions: Record<string, Record<string, unknown>> = {};
 }
@@ -190,119 +119,7 @@ class HonoSessionMemory {
 export function honoSession(): MiddlewareHandler {
   return async (c: MyContext, next) => {
     // deno-lint-ignore no-explicit-any
-    let value: Record<string, NonFunction<any>> = {};
-    const sessionConfig = staticConfig("session");
-
-    const key =
-      sessionConfig.cookie ||
-      Str.slug(env("APP_NAME", "Honovel"), "_") + "_session";
-    if (c.get("from_web")) {
-      const appKey = getAppKey();
-      const sid = getMyCookie(c, key) || "";
-
-      const isEncrypt = sessionConfig.encrypt || false;
-
-      // sid is validated store the session with value
-      if (isset(sid) && !empty(sid) && sid) {
-        const pathDefault: string =
-          sessionConfig.files || storagePath("framework/sessions");
-        // deno-lint(no-case-declarations)
-        switch (sessionConfig.driver || "file") {
-          case "file": {
-            if (!pathExist(pathDefault)) {
-              makeDir(pathDefault);
-            }
-            const filePath = path.join(
-              pathDefault,
-              `${sid.replace(sessionConfig.prefix || "sess:", "")}.json`
-            );
-            if (pathExist(filePath)) {
-              try {
-                const data = JSON.parse(await Deno.readTextFile(filePath));
-                if (isEncrypt) {
-                  value = await dataDecryption(
-                    (data as SessionEncrypt)["encrypt"],
-                    appKey
-                  );
-                } else {
-                  value = data;
-                }
-              } catch (e) {
-                console.error("Failed to parse session data:", e);
-                value = {};
-              }
-            } else {
-              await writeSessionFile({
-                filePath,
-                value,
-                isEncrypt,
-                appKey,
-              });
-            }
-            break;
-          }
-          case "redis": {
-            const redisConfig = staticConfig("redis") as RedisConfig;
-            const connectionName = sessionConfig.connection || "default";
-            if (!redisConfig) {
-              throw new Error("Redis configuration not found");
-            }
-            // use url first
-            const redisConnection = redisConfig.connections[connectionName];
-            if (!isset(redisConnection)) {
-              throw new Error(`Redis connection "${connectionName}" not found`);
-            }
-            if (!isset(MyRedis.client)) {
-              await createRedisConnection(redisConnection);
-            }
-            const redisData = (await MyRedis.client.get(sid)) as
-              | Record<string, unknown>
-              | string
-              | null;
-            const data = isString(redisData)
-              ? JSON.parse(redisData)
-              : redisData;
-            if (isset(data)) {
-              try {
-                if (isEncrypt) {
-                  value = await dataDecryption(
-                    (data as SessionEncrypt)["encrypt"],
-                    appKey
-                  );
-                } else {
-                  value = data;
-                }
-              } catch (_e) {
-                value = {};
-              }
-            } else {
-              await writeSessionRedis({
-                sid,
-                value,
-                isEncrypt,
-                appKey,
-              });
-            }
-            break;
-          }
-          case "database": {
-            // For database, we would typically use an ORM or direct SQL queries
-          }
-          case "memory": {
-            // For memory, we can use a simple in-memory store
-            // Note: This is not persistent and will be lost on server restart
-            // For production, use file or redis
-            if (keyExist(HonoSessionMemory.sessions, sid)) {
-              value = HonoSessionMemory.sessions[sid];
-            } else {
-              HonoSessionMemory.sessions[sid] = value;
-            }
-            break;
-          }
-        }
-        c.set("HonoSession", new HonoSession(sid, value));
-      }
-    }
+    const value: Record<string, NonFunction<any>> = {};
     c.set("session", new Session(value));
     await next();
   };
@@ -310,70 +127,14 @@ export function honoSession(): MiddlewareHandler {
 
 export async function sessionIdRecursive(): Promise<string> {
   const sessionConfig = staticConfig("session");
-  const type = sessionConfig.driver || "file";
-  let sessionId: string;
   const prefix = sessionConfig.prefix || "sess:";
-  const pathDefault: string =
-    sessionConfig.files || storagePath("framework/sessions");
-  switch (type) {
-    case "file": {
-      if (!pathExist(pathDefault)) {
-        makeDir(pathDefault);
-      }
-      do {
-        const array = crypto.getRandomValues(new Uint8Array(16));
-        sessionId =
-          prefix +
-          Array.from(array)
-            .map((b) => b.toString(16).padStart(2, "0"))
-            .join("");
-      } while (
-        pathExist(path.join(pathDefault, `${sessionId}.json`)) ||
-        !isset(sessionId)
-      );
-      return sessionId;
-    }
-    case "redis": {
-      const redisConfig = staticConfig("redis") as RedisConfig;
-      const connectionName = sessionConfig.connection || "default";
-      const redisConnection = redisConfig.connections[connectionName];
-      if (!isset(redisConnection)) {
-        throw new Error(`Redis connection "${connectionName}" not found`);
-      }
-      if (!isset(MyRedis.client)) {
-        await createRedisConnection(redisConnection);
-      }
-
-      do {
-        const array = crypto.getRandomValues(new Uint8Array(16));
-        sessionId =
-          prefix +
-          Array.from(array)
-            .map((b) => b.toString(16).padStart(2, "0"))
-            .join("");
-      } while ((await MyRedis.exists(sessionId)) || !isset(sessionId));
-      return sessionId;
-    }
-
-    case "database": {
-      break;
-    }
-    case "memory": {
-      do {
-        const array = crypto.getRandomValues(new Uint8Array(16));
-        sessionId =
-          prefix +
-          Array.from(array)
-            .map((b) => b.toString(16).padStart(2, "0"))
-            .join("");
-      } while (
-        keyExist(HonoSessionMemory.sessions, sessionId) ||
-        !isset(sessionId)
-      );
-      return sessionId;
-    }
-  }
-  throw new Error(`Unsupported session driver: ${type}`);
+  const array = crypto.getRandomValues(new Uint8Array(16));
+  const sessionId =
+    prefix +
+    Array.from(array)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  return sessionId;
 }
 
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -444,58 +205,6 @@ export async function dataDecryption(
   return JSON.parse(decoded);
 }
 
-function parseUpstashEnv(obj: {
-  host: string;
-  password: string;
-  port: number;
-  db?: number;
-}) {
-  const rawHost = obj.host || "";
-  const rawPassword = obj.password || "";
-  const rawPort = obj.port || 6379;
-
-  let tls = false;
-  if (rawHost.startsWith("tls://") || rawHost.startsWith("rediss://")) {
-    tls = true;
-  }
-  // Remove protocol (tls://) from host
-  const hostname = rawHost
-    .replace(/^tls:\/\//, "")
-    .replace(/^rediss:\/\//, "")
-    .replace(/^redis:\/\//, "");
-
-  // According to your data, REDIS_PASSWORD holds port, REDIS_PORT holds password (token)
-  // Swap these to proper variables
-  const port = Number(rawPort); // 6379
-  const password = rawPassword; // the long token string
-
-  return { hostname, port, password, db: obj.db, tls };
-}
-
-async function createRedisConnection(redisConnection: RedisConnection) {
-  if (
-    isset(redisConnection.upstash) &&
-    isObject(redisConnection.upstash) &&
-    Object.entries(redisConnection.upstash).every(
-      ([, value]) => isset(value) && !empty(value)
-    )
-  ) {
-    MyRedis.setClient(new UpstashRedis(redisConnection.upstash));
-  } else if (
-    isset(redisConnection.url) &&
-    !empty(redisConnection.url) &&
-    isString(redisConnection.url)
-  ) {
-    MyRedis.setClient(new IORedis(redisConnection.url));
-  } else {
-    const connectRedis = parseUpstashEnv(redisConnection);
-    MyRedis.setClient(await connect(connectRedis));
-  }
-  if (!isset(MyRedis.client)) {
-    throw new Error("Failed to connect to Redis");
-  }
-}
-
 async function writeSessionRedis({
   sid,
   value,
@@ -503,17 +212,19 @@ async function writeSessionRedis({
   appKey = getAppKey(),
 }: SaveDBorRedisSessionConfig) {
   const sessionConfig = staticConfig("session");
+  let newData = jsonEncode(value);
   if (isEncrypt) {
     const encryptedContent = await dataEncryption(value, appKey);
     const stringified = jsonEncode({ encrypt: encryptedContent });
-    await MyRedis.set(sid, stringified, {
-      ex: (sessionConfig.lifetime || 120) * 60, // default to 120 minutes
-    });
-  } else {
-    await MyRedis.set(sid, jsonEncode(value), {
-      ex: (sessionConfig.lifetime || 120) * 60, // default to 120 minutes
-    });
+    newData = stringified;
   }
+  let time = sessionConfig.lifetime || undefined;
+  if (time) {
+    time *= 60; // convert minutes to seconds
+  }
+  await RedisClient.set(sid, newData, {
+    ex: time, // default to 120 minutes
+  });
 }
 
 async function writeSessionFile({
@@ -534,221 +245,246 @@ async function writeSessionFile({
 }
 
 export class SessionModifier {
+  static #dbAlreadyMigrated: boolean = false;
+  static #keyExist: boolean = false;
   #c: MyContext;
   #canTouch = false;
+  #started = false;
+  #sessionId = "";
+  // deno-lint-ignore no-explicit-any
+  #value: Record<string, NonFunction<any>> = {};
 
   constructor(c: MyContext) {
     this.#c = c;
-    this.#canTouch = this.#c.get("from_web") || false;
+    this.#canTouch = !!this.#c.get("from_web");
   }
 
-  // give a cookie to start a session
-  // this is the first step to start a session
   async start() {
-    if (this.isStarted()) {
-      return; // Session already started
-    }
-    // deno-lint-ignore no-explicit-any
-    let value: Record<string, NonFunction<any>> = {};
+    if (!this.#canTouch || this.#started) return;
+
     const sessionConfig = staticConfig("session");
+    const key = this.#getSessionCookieKey(sessionConfig);
+    const appKey = getAppKey();
+    const isEncrypt = !!sessionConfig.encrypt;
+    const driver = sessionConfig.driver || "file";
 
-    const key =
-      sessionConfig.cookie ||
-      Str.slug(env("APP_NAME", "Honovel"), "_") + "_session";
-    if (this.#canTouch) {
-      const appKey = getAppKey();
-      let sid = getMyCookie(this.#c, key) || "";
-
-      const isEncrypt = sessionConfig.encrypt || false;
-
-      // getting sid
-      if (!isset(sid) || empty(sid) || !sid || !isString(sid)) {
-        const sessionId = await sessionIdRecursive();
-        setMyCookie(this.#c, key, sessionId, {
-          maxAge: (sessionConfig.lifetime || 120) * 60,
-          sameSite: sessionConfig.sameSite || "lax",
-          httpOnly: sessionConfig.httpOnly || true,
-          path: sessionConfig.path || "/",
-          secure: sessionConfig.secure || false,
-        });
-
-        sid = sessionId;
-      }
-      // sid is validated store the session with value
-      if (isset(sid) && !empty(sid) && sid) {
-        const pathDefault: string =
-          sessionConfig.files || storagePath("framework/sessions");
-        // deno-lint(no-case-declarations)
-        switch (sessionConfig.driver || "file") {
-          case "file": {
-            if (!pathExist(pathDefault)) {
-              makeDir(pathDefault);
-            }
-            const filePath = path.join(
-              pathDefault,
-              `${sid.replace(sessionConfig.prefix || "sess:", "")}.json`
-            );
-            if (pathExist(filePath)) {
-              try {
-                const data = JSON.parse(await Deno.readTextFile(filePath));
-                if (isEncrypt) {
-                  value = await dataDecryption(
-                    (data as SessionEncrypt)["encrypt"],
-                    appKey
-                  );
-                } else {
-                  value = data;
-                }
-              } catch (e) {
-                console.error("Failed to parse session data:", e);
-                value = {};
-              }
-            } else {
-              await writeSessionFile({
-                filePath,
-                value,
-                isEncrypt,
-                appKey,
-              });
-            }
-            break;
-          }
-          case "redis": {
-            const redisConfig = staticConfig("redis") as RedisConfig;
-            const connectionName = sessionConfig.connection || "default";
-            if (!redisConfig) {
-              throw new Error("Redis configuration not found");
-            }
-            // use url first
-            const redisConnection = redisConfig.connections[connectionName];
-            if (!isset(redisConnection)) {
-              throw new Error(`Redis connection "${connectionName}" not found`);
-            }
-            if (!isset(MyRedis.client)) {
-              await createRedisConnection(redisConnection);
-            }
-            const redisData = (await MyRedis.client.get(sid)) as
-              | Record<string, unknown>
-              | string
-              | null;
-            const data = isString(redisData)
-              ? JSON.parse(redisData)
-              : redisData;
-            if (isset(data)) {
-              try {
-                if (isEncrypt) {
-                  value = await dataDecryption(
-                    (data as SessionEncrypt)["encrypt"],
-                    appKey
-                  );
-                } else {
-                  value = data;
-                }
-              } catch (_e) {
-                value = {};
-              }
-            } else {
-              await writeSessionRedis({
-                sid,
-                value,
-                isEncrypt,
-                appKey,
-              });
-            }
-            break;
-          }
-          case "database": {
-            // For database, we would typically use an ORM or direct SQL queries
-          }
-          case "memory": {
-            // For memory, we can use a simple in-memory store
-            // Note: This is not persistent and will be lost on server restart
-            // For production, use file or redis
-            if (keyExist(HonoSessionMemory.sessions, sid)) {
-              value = HonoSessionMemory.sessions[sid];
-            } else {
-              HonoSessionMemory.sessions[sid] = value;
-            }
-            break;
-          }
-        }
-        this.#c.set("HonoSession", new HonoSession(sid, value));
-      }
+    this.#sessionId = this.#getSessionIdFromCookie(key);
+    if (!this.#sessionId) {
+      this.#sessionId = await sessionIdRecursive();
+      this.#setSessionCookie(key, this.#sessionId, sessionConfig);
     }
-  }
 
-  private started = false;
-
-  isStarted(): boolean {
-    if (!this.#canTouch) {
-      return false;
-    }
-    const sessionConfig = staticConfig("session");
-    const key =
-      sessionConfig.cookie ||
-      Str.slug(env("APP_NAME", "Honovel"), "_") + "_session";
-    if (this.started) {
-      return true; // Session already started
-    }
-    const sid = getMyCookie(this.#c, key) || "";
-    this.started = isset(sid) && !empty(sid) && isString(sid);
-    return this.started;
+    this.#value =
+      (await this.#loadSessionData(
+        driver,
+        this.#sessionId,
+        appKey,
+        isEncrypt,
+        sessionConfig
+      )) || {};
+    this.#c.set("HonoSession", new HonoSession(this.#sessionId, this.#value));
+    this.#c.set("session", new Session(this.#value));
+    this.#started = true;
   }
 
   async end() {
-    if (!this.#canTouch) {
-      return; // Cannot end session if not started
-    }
+    if (!this.#canTouch || !this.#sessionId) return;
 
     const sessionConfig = staticConfig("session");
-    const type = sessionConfig.driver || "file";
-    const pathDefault: string =
-      sessionConfig.files || storagePath("framework/sessions");
-    const key =
-      sessionConfig.cookie ||
-      env(
-        "SESSION_COOKIE",
-        Str.slug(env("APP_NAME", "Honovel"), "_") + "_session"
-      );
-    const sid = getMyCookie(this.#c, key);
-    if (!isset(sid) || empty(sid) || !isString(sid)) {
-      return; // No session to end
-    }
-    // Clear session data
+    const key = this.#getSessionCookieKey(sessionConfig);
+    const driver = sessionConfig.driver || "file";
+
+    this.#clearSessionCookie(key, sessionConfig);
+    await this.#deleteSessionData(driver, this.#sessionId, sessionConfig);
+
+    this.#c.set("logged_out", true);
+    this.#started = false;
+  }
+
+  #getSessionCookieKey(sessionConfig: SessionConfig): string {
+    return (
+      sessionConfig.cookie || Str.snake(env("APP_NAME", "honovel") + "_session")
+    );
+  }
+
+  #getSessionIdFromCookie(key: string): string {
+    const sid = getMyCookie(this.#c, key) || "";
+    return sid && typeof sid === "string" ? sid : "";
+  }
+
+  #setSessionCookie(key: string, sid: string, sessionConfig: SessionConfig) {
+    setMyCookie(this.#c, key, sid, {
+      maxAge: (sessionConfig.lifetime ?? 120) * 60,
+      sameSite: sessionConfig.sameSite ?? "lax",
+      httpOnly: sessionConfig.httpOnly ?? true,
+      path: sessionConfig.path ?? "/",
+      secure: sessionConfig.secure ?? false,
+    });
+  }
+
+  #clearSessionCookie(key: string, sessionConfig: SessionConfig) {
     deleteCookie(this.#c, key, {
       maxAge: 0,
-      sameSite: sessionConfig.sameSite || "lax",
-      httpOnly: sessionConfig.httpOnly || true,
-      path: sessionConfig.path || "/",
-      secure: sessionConfig.secure || false,
+      sameSite: sessionConfig.sameSite ?? "lax",
+      httpOnly: sessionConfig.httpOnly ?? true,
+      path: sessionConfig.path ?? "/",
+      secure: sessionConfig.secure ?? false,
     });
-    this.#c.set("logged_out", true);
-    this.started = false; // Reset started state
-    switch (type) {
+  }
+
+  async #loadSessionData(
+    driver: string,
+    sid: string,
+    appKey: string,
+    isEncrypt: boolean,
+    config: SessionConfig
+  ) {
+    switch (driver) {
+      case "file":
+        return await this.#loadFromFile(sid, appKey, isEncrypt, config);
+      case "redis":
+        return await this.#loadFromRedis(sid, appKey, isEncrypt);
+      case "memory":
+        return (
+          HonoSessionMemory.sessions[sid] ??
+          (HonoSessionMemory.sessions[sid] = {})
+        );
+      case "database":
+        return await this.#loadFromDatabase(sid, appKey, isEncrypt);
+      default:
+        return {};
+    }
+  }
+
+  // deno-lint-ignore no-explicit-any
+  async #deleteSessionData(driver: string, sid: string, config: any) {
+    switch (driver) {
       case "file": {
         const filePath = path.join(
-          pathDefault,
-          `${sid.replace(sessionConfig.prefix || "sess:", "")}.json`
+          config.files || storagePath("framework/sessions"),
+          `${sid.replace(config.prefix || "sess:", "")}.json`
         );
-        if (pathExist(filePath)) {
-          await Deno.remove(filePath);
-        }
+        if (pathExist(filePath)) await Deno.remove(filePath);
         break;
       }
       case "redis": {
-        if (isset(MyRedis.client)) {
-          await MyRedis.client.del(sid);
-        }
+        await RedisClient.del(sid);
         break;
       }
-      case "database":
       case "memory": {
-        // For memory, we can just remove the session from the in-memory store
-        if (keyExist(HonoSessionMemory.sessions, sid)) {
-          delete HonoSessionMemory.sessions[sid];
-        }
+        delete HonoSessionMemory.sessions[sid];
         break;
       }
+      case "database": {
+        const tableSession = config.table || "sessions";
+        await DB.statement(`DELETE FROM ${tableSession} WHERE sid = ?`, [sid]);
+        break;
+      }
+    }
+  }
+
+  async #loadFromFile(
+    sid: string,
+    appKey: string,
+    isEncrypt: boolean,
+    config: SessionConfig
+  ) {
+    const dir = config.files || storagePath("framework/sessions");
+    const filePath = path.join(
+      dir,
+      `${sid.replace(config.prefix || "sess:", "")}.json`
+    );
+
+    if (!pathExist(dir)) makeDir(dir);
+
+    if (SessionModifier.#keyExist || pathExist(filePath)) {
+      try {
+        const content = getFileContents(filePath);
+        const data = jsonDecode(content);
+        if (!isEncrypt) {
+          return data;
+        }
+        const encryptedData = (data as SessionEncrypt)["encrypt"];
+        return await dataDecryption(encryptedData, appKey);
+      } catch {
+        return {};
+      }
+    } else {
+      await writeSessionFile({ filePath, value: {}, isEncrypt, appKey });
+      SessionModifier.#keyExist = true;
+      return {};
+    }
+  }
+
+  async #loadFromRedis(sid: string, appKey: string, isEncrypt: boolean) {
+    const raw = await RedisClient.get(sid);
+    const data = isString(raw) ? JSON.parse(raw) : raw;
+    if (data) {
+      try {
+        if (!isEncrypt) {
+          return data;
+        }
+        const encryptedData = (data as SessionEncrypt)["encrypt"];
+        return await dataDecryption(encryptedData, appKey);
+      } catch {
+        return {};
+      }
+    } else {
+      await writeSessionRedis({ sid, value: {}, isEncrypt, appKey });
+      return {};
+    }
+  }
+
+  async #loadFromDatabase(sid: string, appKey: string, isEncrypt: boolean) {
+    // Not implemented yet
+
+    const tableSession = staticConfig("session").table || "sessions";
+    const schemaClass = new (class extends Migration {
+      async up() {
+        // Implement the migration logic here
+        if (!(await Schema.hasTable(tableSession))) {
+          await Schema.create(tableSession, (table) => {
+            table.id();
+            table.string("sid").unique();
+            table.text("data");
+            table.timestamps();
+          });
+        }
+      }
+
+      async down() {
+        // Implement the rollback logic here
+      }
+    })();
+
+    if (!SessionModifier.#dbAlreadyMigrated) {
+      await schemaClass.up();
+      SessionModifier.#dbAlreadyMigrated = true;
+    }
+
+    // Fetch the session data from the database
+    const data = await DB.select(
+      `SELECT data FROM ${tableSession} WHERE sid = ?`,
+      [sid]
+    );
+    if (data.length > 0) {
+      const sessionData = data[0].data as string;
+      if (!isEncrypt) {
+        return jsonDecode(sessionData);
+      }
+      const encryptedData = (jsonDecode(sessionData) as SessionEncrypt)[
+        "encrypt"
+      ];
+      return await dataDecryption(encryptedData, appKey);
+    } else {
+      // If session does not exist, create a new one
+      await DB.insert(tableSession, {
+        sid,
+        data: isEncrypt
+          ? jsonEncode({ encrypt: await dataEncryption({}, appKey) })
+          : jsonEncode({}),
+      });
+      return {};
     }
   }
 }
