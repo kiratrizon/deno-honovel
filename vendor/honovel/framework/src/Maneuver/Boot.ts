@@ -1,3 +1,4 @@
+import environment from "../../../../../environment.ts";
 import IHonoRequest from "../../../@types/declaration/IHonoRequest.d.ts";
 import { MyCachedHashedApp } from "../hono/Http/HonoCookie.ts";
 import HonoRequest from "../hono/Http/HonoRequest.ts";
@@ -21,8 +22,9 @@ class Boot {
     });
 
     MyCachedHashedApp.init();
-
-    await RedisClient.init();
+    if (env("SESSION_DRIVER", "redis") === "redis") {
+      await RedisClient.init();
+    }
   }
 }
 
