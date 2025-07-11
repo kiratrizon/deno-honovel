@@ -1,12 +1,13 @@
-import { IConstants } from "../../../../@types/declaration/IConstants.d.ts";
-import IHonoRequest from "../../../../@types/declaration/IHonoRequest.d.ts";
+import { IConfigure } from "../../../../@types/declaration/MyImports.d.ts";
+import HonoRequest from "./HonoRequest.ts";
+import Constants from "Constants";
 
-class MyHono implements HttpHono {
-  #request: IHonoRequest;
-  #config: IConstants;
-  constructor(obj: { request: IHonoRequest; config: IConstants }) {
-    this.#request = obj.request;
-    this.#config = obj.config;
+class HttpHono {
+  #request: HonoRequest;
+  #config: typeof IConfigure;
+  constructor(c: MyContext) {
+    this.#request = new HonoRequest(c);
+    this.#config = new Constants(myConfigData) as unknown as typeof IConfigure;
   }
 
   public get request() {
@@ -17,4 +18,4 @@ class MyHono implements HttpHono {
   }
 }
 
-export default MyHono;
+export default HttpHono;

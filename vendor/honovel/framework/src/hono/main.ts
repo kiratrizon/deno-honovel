@@ -1,7 +1,7 @@
 import "../hono-globals/hono-index.ts";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
-import { secureHeaders } from "hono/secure-headers";
+// import { secureHeaders } from "hono/secure-headers";
 import { serveStatic } from "hono/deno";
 import fs from "node:fs";
 import * as path from "https://deno.land/std/path/mod.ts";
@@ -9,13 +9,8 @@ import * as path from "https://deno.land/std/path/mod.ts";
 import { Hono, MiddlewareHandler, Next } from "hono";
 import Boot from "../Maneuver/Boot.ts";
 
-import {
-  Variables,
-  HonoType,
-  CorsConfig,
-} from "../../../@types/declaration/imain.d.ts";
+import { HonoType } from "../../../@types/declaration/imain.d.ts";
 
-import { Context } from "hono";
 import { INRoute } from "../../../@types/declaration/IRoute.d.ts";
 import {
   buildRequestInit,
@@ -27,9 +22,10 @@ import {
 import { IMyConfig } from "./Support/MethodRoute.ts";
 import { honoSession } from "./Http/HonoSession.ts";
 import { myError } from "./Http/builder.ts";
-
-const headFunction: MiddlewareHandler = async (c, next) => {
-  const { request } = c.get("httpHono") as HttpHono;
+import { default as Router } from "Illuminate/Support/Facades/Route";
+const Route = Router as typeof INRoute;
+const headFunction: MiddlewareHandler = async (c: MyContext, next) => {
+  const { request } = c.get("myHono");
   if (!request.isMethod("HEAD")) {
     return await myError(c);
   }
@@ -43,7 +39,7 @@ function domainGroup(
     sequenceParams: string[];
   }
 ): MiddlewareHandler {
-  return async (c: Context, next) => {
+  return async (c: MyContext, next) => {
     const workingParams = [...sequenceParams];
     const host = c.req.raw.url.split("://")[1].split("/")[0];
     const domainParts = host.split(".");
@@ -75,57 +71,62 @@ const myStaticDefaults: MiddlewareHandler[] = [
   }),
 ];
 
+// domain on beta test
+const _forDomain: MiddlewareHandler = async (c, next: Next) => {
+  const requestUrl = new URL(c.req.url);
+  const appUrl = env("APP_URL", "").toLowerCase();
+  const [protocol, domain] = requestUrl.toString().toLowerCase().split("://");
+  const [incoming, uri] = domain.split("/");
+  let incomingUrl: string;
+  if (isset(env("DENO_DEPLOYMENT_ID"))) {
+    incomingUrl = `${protocol}://${incoming.replace(
+      `-${env("DENO_DEPLOYMENT_ID", "")}`,
+      ""
+    )}`;
+  } else {
+    incomingUrl = `${protocol}://${incoming}`;
+  }
+  incomingUrl = [incomingUrl, uri || ""].join("/");
+  let key: string = "web";
+  if (c.req.raw.url.startsWith("/api/")) {
+    key = "api";
+  }
+  if (!incomingUrl.startsWith(appUrl)) {
+    const host = c.req.raw.url.split("://")[1].split("/")[0];
+
+    if (keyExist(Server.domainPattern[key], host)) {
+      return await Server.domainPattern[key][host].fetch(c.req.raw);
+    }
+    // Check for patterns with wildcards
+    for (const pattern in Server.domainPattern[key]) {
+      if (pattern.includes("*")) {
+        const regex = new RegExp(
+          "^" + pattern.replace(/\./g, "\\.").replace(/\*/g, "[^.]+") + "$"
+        );
+
+        if (regex.test(host)) {
+          return await Server.domainPattern[key][pattern].fetch(c.req.raw);
+        }
+      }
+    }
+    return await myError(c);
+  }
+
+  await next();
+};
+
 class Server {
   private static Hono = Hono;
   public static app: HonoType;
-  public static domainPattern: Record<string, HonoType> = {};
+  public static domainPattern: Record<string, Record<string, HonoType>> = {};
 
   private routes: Record<string, unknown> = {};
   public static async init() {
     await Boot.init();
     this.app = this.generateNewApp({}, true);
 
-    this.app.use("*", logger(), async (c, next: Next) => {
-      const requestUrl = new URL(c.req.url);
-      const appUrl = env("APP_URL", "").toLowerCase();
-      const [protocol, domain] = requestUrl
-        .toString()
-        .toLowerCase()
-        .split("://");
-      const [incoming, uri] = domain.split("/");
-      let incomingUrl: string;
-      if (isset(env("DENO_DEPLOYMENT_ID"))) {
-        incomingUrl = `${protocol}://${incoming.replace(
-          `-${env("DENO_DEPLOYMENT_ID", "")}`,
-          ""
-        )}`;
-      } else {
-        incomingUrl = `${protocol}://${incoming}`;
-      }
-      incomingUrl = [incomingUrl, uri || ""].join("/");
-      if (!incomingUrl.startsWith(appUrl)) {
-        const host = c.req.raw.url.split("://")[1].split("/")[0];
-
-        if (keyExist(Server.domainPattern, host)) {
-          return await Server.domainPattern[host].fetch(c.req.raw);
-        }
-        // Check for patterns with wildcards
-        for (const pattern in Server.domainPattern) {
-          if (pattern.includes("*")) {
-            const regex = new RegExp(
-              "^" + pattern.replace(/\./g, "\\.").replace(/\*/g, "[^.]+") + "$"
-            );
-
-            if (regex.test(host)) {
-              return await Server.domainPattern[pattern].fetch(c.req.raw);
-            }
-          }
-        }
-        return await myError(c);
-      }
-
-      await next();
-    });
+    // initialize the app
+    this.app.use("*", logger());
     await this.loadAndValidateRoutes();
     this.endInit();
   }
@@ -136,10 +137,33 @@ class Server {
   ): HonoType {
     let app: HonoType;
     if (isset(config) && !empty(config)) {
-      app = new this.Hono<{ Variables: Variables }>(config);
+      app = new this.Hono(config);
     } else {
-      app = new this.Hono<{ Variables: Variables }>();
+      app = new this.Hono();
     }
+    const defaultUrls = ["favicon.ico", "robots.txt"];
+
+    defaultUrls.forEach((url) => {
+      app.get(`/${url}`, async (c) => {
+        const checkFile = publicPath(url);
+
+        if (pathExist(checkFile)) {
+          const fileContent = await Deno.readFile(checkFile);
+          const contentType = url.endsWith(".ico")
+            ? "image/x-icon"
+            : "text/plain";
+          return new Response(fileContent, {
+            status: 200,
+            headers: {
+              "Content-Type": contentType,
+            },
+          });
+        }
+
+        // If file doesn't exist → send empty 204 (like Laravel returning no favicon)
+        return new Response(null, { status: 204 });
+      });
+    });
 
     if (withDefaults) {
       app.use(...myStaticDefaults);
@@ -149,6 +173,31 @@ class Server {
       });
     }
     return app;
+  }
+
+  private static applyMainMiddleware(key: string, app: HonoType) {
+    const mainMiddleware = [key];
+    const buildMainMiddleware = [...toMiddleware(mainMiddleware)];
+    if (key === "web") {
+      app.use("*", async (c, next: Next) => {
+        c.set("from_web", true);
+        await next();
+      });
+    }
+    this.useCors(key, app);
+    const parsePayload = async (c: MyContext, next: Next) => {
+      const { request } = c.get("myHono");
+      // @ts-ignore //
+      await request.buildRequest();
+      return await next();
+    };
+    app.use(
+      "*",
+      honoSession(),
+      buildRequestInit(),
+      parsePayload,
+      ...buildMainMiddleware
+    );
   }
 
   private static async loadAndValidateRoutes() {
@@ -169,51 +218,24 @@ class Server {
     for (const file of routeFiles) {
       const key = file.replace(".ts", "");
       const routePrefix = key === "web" ? "" : key;
-      let route: typeof INRoute | undefined = undefined;
+      // let route: typeof INRoute;
 
       try {
         if (file === "web.ts") {
-          const module = await import("../../../../../routes/web.ts");
-          route = module.default as typeof INRoute;
+          await import("../../../../../routes/web.ts");
+          // route = Route as typeof INRoute;
         } else if (file === "api.ts") {
-          const module = await import("../../../../../routes/api.ts");
-          route = module.default as typeof INRoute;
+          await import("../../../../../routes/api.ts");
+          // route = Route as typeof INRoute;
         }
       } catch (err) {
         console.warn(`Route file "${file}" could not be loaded.`, err);
       }
-      if (isset(route)) {
+      if (isset(Route)) {
+        Server.domainPattern[key] = {};
         const byEndpointsRouter = this.generateNewApp();
-        if (file === "web.ts") {
-          byEndpointsRouter.use("*", async (c, next: Next) => {
-            c.set("from_web", true);
-            await next();
-          });
-        }
-        byEndpointsRouter.use("*", honoSession());
-        const corsConfig = (staticConfig("cors") as CorsConfig) || {};
-        const corsPaths = corsConfig.paths || [];
-        corsPaths.forEach((cpath) => {
-          if (cpath.startsWith(key + "/")) {
-            byEndpointsRouter.use(
-              cpath.replace(key, ""),
-              cors({
-                origin: corsConfig.allowed_origins || "*",
-                allowMethods: corsConfig.allowed_methods || [
-                  "GET",
-                  "POST",
-                  "PUT",
-                  "DELETE",
-                ],
-                allowHeaders: corsConfig.allowed_headers || ["*"],
-                exposeHeaders: corsConfig.exposed_headers || [],
-                maxAge: corsConfig.max_age || 3600,
-                credentials: corsConfig.supports_credentials || false,
-              })
-            );
-          }
-        });
-        const instancedRoute = new route();
+        this.applyMainMiddleware(key, byEndpointsRouter);
+        const instancedRoute = new Route();
         const allGroup = instancedRoute.getAllGroupsAndMethods();
 
         const {
@@ -259,8 +281,7 @@ class Server {
                 arrangerDispatch.sequenceParams
               );
               const allBuilds = [
-                buildRequestInit(),
-                ...toMiddleware(flagMiddleware),
+                ...toMiddleware([...flagMiddleware]),
                 returnedDispatch as MiddlewareHandler,
               ];
               if (methodarr.length === 1 && arrayFirst(methodarr) === "head") {
@@ -277,7 +298,6 @@ class Server {
               }
               byEndpointsRouter.route("/", newApp);
             }
-            this.app.route(routePrefix, byEndpointsRouter);
           }
 
           // for groups
@@ -307,8 +327,6 @@ class Server {
                 name = "",
               } = myGroup.flagConfig;
 
-              middleware.unshift(key);
-
               const domainParam: string[] = [];
               const groupMiddleware: MiddlewareHandler[] = [];
 
@@ -326,7 +344,7 @@ class Server {
                 myNewGroup.use("*", domainGroup(domainName, domainArranger));
                 domainParam.push(...domainArranger.sequenceParams);
                 hasDomain = true;
-                Server.domainPattern[domainName] = this.generateNewApp(
+                Server.domainPattern[key][domainName] = this.generateNewApp(
                   {},
                   true
                 );
@@ -367,7 +385,6 @@ class Server {
                   ...groupMiddleware,
                 ];
 
-                newGroupMiddleware.push(...toMiddleware(middleware));
                 const flagWhere = flag.where || {};
                 const splittedUri = URLArranger.generateOptionalParamRoutes(
                   newMethodUri,
@@ -378,7 +395,6 @@ class Server {
                 const flagMiddleware = flag.middleware || [];
                 newGroupMiddleware.push(...toMiddleware(flagMiddleware));
                 const allBuilds = [
-                  buildRequestInit(),
                   ...newGroupMiddleware,
                   returnedDispatch as MiddlewareHandler,
                 ];
@@ -406,63 +422,74 @@ class Server {
                 where
               );
 
+              const myGroupMiddleware = [...toMiddleware(middleware)];
               generatedopts.forEach((grp) => {
                 // apply the middlewares here
+                newAppGroup.use("*", ...myGroupMiddleware);
                 newAppGroup.route(grp, myNewGroup);
               });
 
               if (!hasDomain) {
                 byEndpointsRouter.route("/", newAppGroup);
               } else if (isset(domain) && !empty(domain)) {
-                if (file === "web.ts") {
-                  Server.domainPattern[domainName].use(
-                    "*",
-                    async (c, next: Next) => {
-                      c.set("from_web", true);
-                      await next();
-                    }
-                  );
-                }
-                Server.domainPattern[domainName].use("*", honoSession());
-                corsPaths.forEach((cpath) => {
-                  if (cpath.startsWith(key + "/")) {
-                    Server.domainPattern[domainName].use(
-                      cpath.replace(key, ""),
-                      cors({
-                        origin: corsConfig.allowed_origins || "*",
-                        allowMethods: corsConfig.allowed_methods || [
-                          "GET",
-                          "POST",
-                          "PUT",
-                          "DELETE",
-                        ],
-                        allowHeaders: corsConfig.allowed_headers || ["*"],
-                        exposeHeaders: corsConfig.exposed_headers || [],
-                        maxAge: corsConfig.max_age || 3600,
-                        credentials: corsConfig.supports_credentials || false,
-                      })
-                    );
-                  }
-                });
-                Server.domainPattern[domainName].route(
+                this.applyMainMiddleware(
+                  key,
+                  Server.domainPattern[key][domainName]
+                );
+                Server.domainPattern[key][domainName].route(
                   routePrefix,
                   newAppGroup
                 );
-                Server.domainPattern[domainName].use("*", async function (c) {
-                  return await myError(c);
-                });
               }
             }
-            this.app.route(routePrefix, byEndpointsRouter);
           }
+          this.app.route(routePrefix, byEndpointsRouter);
         }
       }
     }
   }
 
+  private static useCors(key: string, router: HonoType) {
+    const corsConfig = staticConfig("cors") || {};
+    const corsPaths = corsConfig.paths || [];
+
+    corsPaths.forEach((cpath) => {
+      if (cpath.startsWith(key + "/")) {
+        router.use(
+          cpath.replace(key, ""),
+          cors({
+            origin: corsConfig.allowed_origins || "*",
+            allowMethods: corsConfig.allowed_methods || [
+              "GET",
+              "POST",
+              "PUT",
+              "DELETE",
+            ],
+            allowHeaders: corsConfig.allowed_headers || ["*"],
+            exposeHeaders: corsConfig.exposed_headers || [],
+            maxAge: corsConfig.max_age || 3600,
+            credentials: corsConfig.supports_credentials || false,
+          })
+        );
+      }
+    });
+  }
+
   private static endInit() {
     this.app.use("*", async function (c) {
       return await myError(c);
+    });
+
+    const ServerDomainKeys = Object.keys(this.domainPattern); // ["web", "api"]
+    ServerDomainKeys.forEach((key) => {
+      const allApp = this.domainPattern[key];
+      const allDomainKeys = Object.keys(allApp); // ["example.com", "api.example.com"]
+      allDomainKeys.forEach((domainKey) => {
+        const app = allApp[domainKey];
+        app.use("*", async function (c) {
+          return await myError(c);
+        });
+      });
     });
   }
 }

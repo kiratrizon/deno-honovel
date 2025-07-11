@@ -1,4 +1,5 @@
 import { ResponseType } from "axios";
+import { ConfigItems } from "../../../config/@types/index.d.ts";
 
 export {};
 export interface IFetchDataOption {
@@ -57,11 +58,14 @@ declare global {
    * @param {T} [fallback] - An optional fallback value to return (and type to infer) if the variable is not set.
    * @returns {string | T | null} The environment variable's value, or the fallback, or `null` if not set.
    */
-  function env<K extends keyof EnvConfig>(key: K): string | null;
+  function env<K extends keyof EnvConfig>(key: K): string;
+  function env(key: string): string | null;
   function env<K extends keyof EnvConfig>(
     key: K,
     fallback: EnvConfig[K]
   ): EnvConfig[K];
+  // deno-lint-ignore no-explicit-any
+  function env<K extends any>(key: string, fallback: K): string | K;
 
   /**
    * Defines a global variable on `global` with the specified name and value.
@@ -110,6 +114,7 @@ declare global {
    * @param {string} key - The configuration key, which can use dot notation for nested values.
    * @returns {unknown} The value of the configuration option, or `undefined` if the key does not exist.
    */
+  function staticConfig<T extends keyof ConfigItems>(key: T): ConfigItems[T];
   function staticConfig(key: string): unknown;
   /**
    * Initializes the configuration store by reading all configuration files in the config directory.

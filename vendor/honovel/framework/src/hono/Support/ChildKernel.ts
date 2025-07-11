@@ -2,7 +2,7 @@ import Kernel from "../../../../../../app/Http/Kernel.ts";
 import {
   MiddlewareLike,
   MiddlewareLikeClass,
-} from "Illuminate/Foundation/Http/HttpKernel";
+} from "Illuminate/Foundation/Http";
 
 class ChildKernel extends Kernel {
   public get MiddlewareGroups(): Record<string, MiddlewareLike[]> {

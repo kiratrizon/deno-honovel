@@ -7,7 +7,7 @@ class MySQL {
     query: string,
     params: unknown[] = []
   ): Promise<QueryResultDerived[T]> {
-    const queryType = query.trim().split(" ")[0].toLowerCase();
+    const queryType = query.trim().split(/\s+/)[0].toLowerCase();
 
     try {
       const [result] = (await client.query(query, params)) as [
@@ -27,7 +27,7 @@ class MySQL {
         }
       }
 
-      // DDL: Data Definition (CREATE, ALTER, DROP, etc.)
+      // DDL: Data Definition (CREATE, ALTER, DROP, TRUNCATE, RENAME)
       if (
         ["create", "alter", "drop", "truncate", "rename"].includes(queryType)
       ) {
@@ -39,7 +39,24 @@ class MySQL {
         } as QueryResultDerived[T];
       }
 
-      // SELECT and other queries
+      // TCL: Transaction Control (BEGIN, COMMIT, ROLLBACK, SAVEPOINT)
+      if (
+        [
+          "begin",
+          "start",
+          "commit",
+          "rollback",
+          "savepoint",
+          "release",
+        ].includes(queryType)
+      ) {
+        return {
+          message: `${queryType.toUpperCase()} executed`,
+          raw: result,
+        } as QueryResultDerived[T];
+      }
+
+      // DQL: Data Queries (SELECT, SHOW, PRAGMA)
       return (result as QueryResultDerived[T]) || [];
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));

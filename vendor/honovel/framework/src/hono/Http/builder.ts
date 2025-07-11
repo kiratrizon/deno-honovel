@@ -1,14 +1,18 @@
-import type { Context } from "hono";
 import type {
   RequestData,
   RequestMethod,
   SERVER,
 } from "../../../../@types/declaration/IHonoRequest.d.ts";
-import { getSignedCookie } from "hono/cookie";
 import HonoView from "./HonoView.ts";
-import { getAppKey } from "./HonoSession.ts";
+import { ContentfulStatusCode } from "hono/utils/http-status";
+import {
+  multiParser,
+  FormFile,
+} from "https://deno.land/x/multiparser@0.114.0/mod.ts";
+import { Str } from "Illuminate/Support";
+import { getMyCookie } from "./HonoCookie.ts";
 
-export async function buildRequest(c: Context): Promise<RequestData> {
+export async function buildRequest(c: MyContext): Promise<RequestData> {
   const toStr = (val: string | string[] | undefined): string =>
     Array.isArray(val) ? val.join(", ") : (val || "unknown").toString();
 
@@ -47,18 +51,22 @@ export async function buildRequest(c: Context): Promise<RequestData> {
   const methodType = c.req.method.toUpperCase() as RequestMethod;
   const contentType = (c.req.header("content-type") || "").toLowerCase();
 
-  const files: Record<string, File[]> = {};
+  const files: Record<string, FormFile[]> = {};
   let body: Record<string, unknown> = {};
 
   if (contentType.includes("multipart/form-data")) {
-    const formData = await c.req.raw.formData();
-    for (const [key, val] of formData.entries()) {
-      if (val instanceof File) {
-        files[key] = [val];
-      } else if (isArray(val) && val.every((v) => v instanceof File)) {
-        files[key] = val;
-      } else {
-        body[key] = val;
+    const parsed = await multiParser(c.req.raw);
+
+    if (parsed) {
+      // Get only fields
+      body = parsed.fields ?? {};
+
+      // Store files if needed
+      if (parsed.files) {
+        for (const [key, file] of Object.entries(parsed.files)) {
+          // multiparser supports both single and multiple files
+          files[key] = Array.isArray(file) ? file : [file];
+        }
       }
     }
   } else if (contentType.includes("application/x-www-form-urlencoded")) {
@@ -101,10 +109,14 @@ export async function buildRequest(c: Context): Promise<RequestData> {
   const headers = Object.fromEntries(c.req.raw.headers.entries());
   const query = c.req.query() || {};
   const rawQuery = c.req.url.split("?")[1] || "";
-  const cookies = (await getSignedCookie(c, getAppKey())) || {};
-  if (keyExist(cookies, "sid")) {
-    // Remove session ID from cookies if it exists
-    delete cookies.sid;
+  const signedCookies = getMyCookie(c) || {};
+  const sessionConfig = staticConfig("session");
+
+  const cookieKey =
+    sessionConfig.cookie || Str.snake(env("APP_NAME", "honovel") + "_session");
+  if (keyExist(signedCookies, cookieKey)) {
+    // Remove session ID from signedCookies if it exists
+    delete signedCookies[cookieKey];
   }
   const cookieHeader = c.req.header("cookie") || "";
   const path = c.req.path;
@@ -122,7 +134,7 @@ export async function buildRequest(c: Context): Promise<RequestData> {
     body,
     query,
     rawQuery,
-    cookies,
+    cookies: signedCookies,
     cookieHeader,
     path,
     originalUrl,
@@ -132,7 +144,7 @@ export async function buildRequest(c: Context): Promise<RequestData> {
     timestamp,
     files,
     server: forServer,
-    params: { ...c.get("subdomain"), ...(c.req.param() || {}) },
+    params: {},
   };
   return REQUEST;
 }
@@ -140,19 +152,28 @@ function generateRequestId() {
   return crypto.randomUUID?.() || "req-" + Math.random().toString(36).slice(2);
 }
 
-export async function myError(c: Context) {
+export async function myError(
+  c: MyContext,
+  code: ContentfulStatusCode = 404,
+  message: string = "Not Found"
+) {
   if (c.req.header("accept")?.includes("application/json")) {
     return c.json(
       {
-        message: "Not Found",
+        message,
       },
-      404
+      code
     );
   }
 
   // this is for html
-  if (!pathExist(viewPath(`error/404.edge`))) {
-    return c.html(getFileContents(honovelPath("hono/defaults/404.stub")), 404);
+  if (!pathExist(viewPath(`error/${code}.edge`))) {
+    const content = getFileContents(honovelPath("hono/defaults/abort.stub"));
+    const finalContent = content
+      .replace(/{{ code }}/g, code.toString())
+      .replace(/{{ message }}/g, message);
+
+    return c.html(finalContent, code);
   }
   const html404 = new HonoView();
   const render = await html404.element("error/404", {});

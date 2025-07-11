@@ -1,4 +1,4 @@
-// import User from "../models/User.ts";
+import User from "../app/Models/User.ts";
 
 const constant = {
   default: {
@@ -21,10 +21,7 @@ const constant = {
   providers: {
     users: {
       driver: "eloquent",
-      model: "User",
-    },
-    admins: {
-      driver: "eloquent",
+      model: User,
     },
   },
 };

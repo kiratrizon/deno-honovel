@@ -2,10 +2,10 @@ import { IConstants } from "../../../@types/declaration/IConstants.d.ts";
 
 class Constants implements IConstants {
   // deno-lint-ignore no-explicit-any
-  private configStore: Record<string, any>;
+  #configStore: Record<string, any>;
   // deno-lint-ignore no-explicit-any
   constructor(configStore: Record<string, any>) {
-    this.configStore = { ...configStore };
+    this.#configStore = { ...configStore };
   }
 
   /**
@@ -17,7 +17,7 @@ class Constants implements IConstants {
    */
   // deno-lint-ignore no-explicit-any
   public read(key: string): any {
-    if (this.configStore === undefined) {
+    if (this.#configStore === undefined) {
       throw new Error("Config store is not initialized");
     }
 
@@ -26,11 +26,11 @@ class Constants implements IConstants {
       return null;
     }
     const firstKey: string = keys.shift()!;
-    if (!this.configStore[firstKey]) {
+    if (!this.#configStore[firstKey]) {
       return null;
     }
     // deno-lint-ignore no-explicit-any
-    let currentValue: any = this.configStore[firstKey];
+    let currentValue: any = this.#configStore[firstKey];
 
     while (
       keys.length &&
@@ -61,7 +61,7 @@ class Constants implements IConstants {
    */
   // deno-lint-ignore no-explicit-any
   public write(key: string, data: any): void {
-    if (!this.configStore) {
+    if (!this.#configStore) {
       throw new Error("Config store is not initialized");
     }
 
@@ -74,12 +74,12 @@ class Constants implements IConstants {
     }
 
     const firstKey: string = keys.shift()!;
-    if (!this.configStore[firstKey]) {
-      this.configStore[firstKey] = {}; // Create if it doesn't exist
+    if (!this.#configStore[firstKey]) {
+      this.#configStore[firstKey] = {}; // Create if it doesn't exist
     }
 
     // Traverse the object and assign the value
-    let current = this.configStore[firstKey];
+    let current = this.#configStore[firstKey];
     while (keys.length > 1) {
       const nextKey = keys.shift()!;
       if (

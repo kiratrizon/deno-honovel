@@ -36,6 +36,19 @@ class SQLite {
         } as QueryResultDerived[T];
       }
 
+      // TCL: BEGIN, COMMIT, ROLLBACK, SAVEPOINT, RELEASE
+      if (
+        ["begin", "commit", "rollback", "savepoint", "release"].includes(
+          queryType
+        )
+      ) {
+        db.exec(query);
+        return {
+          message: `${queryType.toUpperCase()} executed`,
+          raw: {},
+        } as QueryResultDerived[T];
+      }
+
       // fallback generic execution with run
       const stmt = db.prepare(query);
       const result = stmt.run(...(params as RestBindParameters));

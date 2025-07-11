@@ -1,34 +1,38 @@
-import { SessionConfig } from "../vendor/honovel/framework/src/hono/Http/HonoSession.ts";
-
+import { Str } from "Illuminate/Support";
+import { SessionConfig } from "./@types/index.d.ts";
 export default {
-  driver: env("SESSION_DRIVER", "memory"),
+  driver: env("SESSION_DRIVER", "database"),
 
   lifetime: env("SESSION_LIFETIME", 120),
 
-  // @ts-ignore //
-  encrypt: true,
+  expireOnClose: env("SESSION_EXPIRE_ON_CLOSE", false),
+
+  encrypt: env("SESSION_ENCRYPT", false),
 
   files: storagePath("framework/sessions"),
 
-  // @ts-ignore //
-  cookie: env("SESSION_COOKIE", "honovel_session"),
+  connection: env("SESSION_CONNECTION"),
 
-  path: "/",
+  table: env("SESSION_TABLE", "sessions"),
 
-  // @ts-ignore //
-  domain: env("SESSION_DOMAIN", null),
+  store: env("SESSION_STORE"),
 
-  // @ts-ignore //
-  secure: env("SESSION_SECURE_COOKIE", false),
+  lottery: [2, 100],
 
-  httpOnly: true,
+  cookie: env(
+    "SESSION_COOKIE",
+    Str.snake(env("APP_NAME", "honovel")) + "_session"
+  ),
 
-  // @ts-ignore //
+  path: env("SESSION_PATH", "/"),
+
+  domain: env("SESSION_DOMAIN"),
+
+  secure: env("SESSION_SECURE_COOKIE", true),
+
+  httpOnly: env("SESSION_HTTP_ONLY", true),
+
   sameSite: env("SESSION_SAME_SITE", "lax"),
 
-  // @ts-ignore //
-  connection: env("SESSION_CONNECTION", "default"),
-
-  // @ts-ignore //
-  prefix: env("SESSION_PREFIX", "sess:"),
+  partitioned: env("SESSION_PARTITIONED_COOKIE", false),
 } as SessionConfig;

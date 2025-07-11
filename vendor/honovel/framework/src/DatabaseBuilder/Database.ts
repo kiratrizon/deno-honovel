@@ -1,4 +1,3 @@
-import { DatabaseConfig } from "../../../../../config/@types/database.d.ts";
 // mysql
 import mysql, {
   ConnectionOptions,
@@ -43,17 +42,42 @@ type DML = {
   raw: unknown;
 };
 
+type DQL = Record<string, unknown>[] | [];
+
+type TCL = {
+  message: string;
+  raw: unknown;
+};
+
 export interface QueryResultDerived {
-  select: Record<string, unknown>[] | [];
-  pragma: Record<string, unknown>[] | [];
+  // DQL: Data Query Language
+  select: DQL;
+  pragma: DQL;
+  explain: DQL;
+  show: DQL;
+  describe: DQL;
+
+  // DML: Data Manipulation Language
   insert: DML;
   update: DML;
   delete: DML;
+  replace: DML;
+  merge: DML;
+
+  // DDL: Data Definition Language
   create: DDL;
   alter: DDL;
   drop: DDL;
   truncate: DDL;
   rename: DDL;
+
+  // TCL: Transaction Control Language
+  begin: TCL;
+  commit: TCL;
+  rollback: TCL;
+  savepoint: TCL;
+  release: TCL;
+  set: TCL; // e.g., SET AUTOCOMMIT=0;
 }
 
 // This is for RDBMS like MySQL, PostgreSQL, etc.
@@ -95,7 +119,7 @@ export class Database {
 
   private async init(): Promise<void> {
     if (!isset(Database.client)) {
-      const databaseObj = staticConfig("database") as DatabaseConfig;
+      const databaseObj = staticConfig("database");
       const dbType = env(
         "DB_CONNECTION",
         empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql"
@@ -186,7 +210,7 @@ export class Database {
   }
 
   private beforeQuery(query: string): string {
-    const dbType = env("DB_CONNECTION", "mysql");
+    const dbType = staticConfig("database").default || "mysql";
 
     let index = 0;
     let result = "";

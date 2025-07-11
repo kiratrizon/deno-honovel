@@ -91,7 +91,7 @@ export class Blueprint {
   }
 
   timestamps() {
-    const dbType = env("DB_CONNECTION", "mysql") as DBType;
+    const dbType = staticConfig("database").default || "mysql";
 
     const createdAtOptions: ColumnOptions = {};
     const updatedAtOptions: ColumnOptions = { nullable: true };
@@ -121,6 +121,11 @@ export class Blueprint {
 
   nullable() {
     this.lastColumn()!.options!.nullable = true;
+    return this;
+  }
+
+  notNullable() {
+    this.lastColumn()!.options!.nullable = false;
     return this;
   }
 

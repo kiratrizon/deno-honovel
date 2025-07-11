@@ -1,17 +1,15 @@
-import type { Context, MiddlewareHandler } from "hono";
+import type { MiddlewareHandler } from "hono";
 import path from "node:path";
 import ChildKernel from "./ChildKernel.ts";
 import HonoClosure from "../Http/HonoClosure.ts";
 import { IMyConfig } from "./MethodRoute.ts";
 import HonoDispatch from "../Http/HonoDispatch.ts";
-import { buildRequest, myError } from "../Http/builder.ts";
-import HonoRequest from "../Http/HonoRequest.ts";
-import MyHono from "../Http/HttpHono.ts";
-import Constants from "Constants";
-import IHonoRequest from "../../../../@types/declaration/IHonoRequest.d.ts";
-import { IConfigure } from "../../../../@types/declaration/MyImports.d.ts";
+import HttpHono from "HttpHono";
 import { AbortError, DDError } from "../../Maneuver/HonovelErrors.ts";
 import util from "node:util";
+import { ContentfulStatusCode } from "hono/utils/http-status";
+import { myError } from "../Http/builder.ts";
+import { buildRequest } from "../Http/builder.ts";
 
 export const regexObj = {
   number: /^\d+$/,
@@ -24,8 +22,8 @@ export function regexToHono(
   where: Record<string, RegExp[]>,
   params: string[] = []
 ): MiddlewareHandler {
-  return async (c: Context, next) => {
-    const { request } = c.get("httpHono") as HttpHono;
+  return async (c: MyContext, next) => {
+    const { request } = c.get("myHono");
     for (const key of Object.keys(where)) {
       if (!params.includes(key)) continue;
       const regexValues = where[key] as RegExp[];
@@ -332,10 +330,15 @@ function generateMiddlewareOrDispatch(
   objArgs: MiddlewareOrDispatch,
   sequenceParams: string[] = []
 ): MiddlewareHandler {
-  return async (c: Context, next) => {
-    const httpHono = c.get("httpHono") as HttpHono;
-    const request = httpHono.request;
+  return async (c: MyContext, next) => {
+    const myHono = c.get("myHono");
+    const request = myHono.request;
     let middlewareResp;
+    // @ts-ignore //
+    request.resetRoute({
+      ...c.get("subdomain"),
+      ...c.req.param(),
+    });
     const { args, debugString } = objArgs;
     if (!isFunction(args)) {
       return myError(c);
@@ -344,12 +347,12 @@ function generateMiddlewareOrDispatch(
       if (type === "middleware") {
         const honoClosure = new HonoClosure();
         middlewareResp = await (args as HttpMiddleware)(
-          httpHono,
+          myHono,
           honoClosure.next.bind(honoClosure)
         );
       } else {
-        const params = httpHono.request.route() as Record<string, string>;
-        const newParams: Record<string, unknown> = {};
+        const params = request.route() as Record<string, string | null>;
+        const newParams: Record<string, string | null> = {};
         sequenceParams.forEach((param) => {
           if (keyExist(params, param)) {
             newParams[param] = params[param] ?? null;
@@ -357,16 +360,28 @@ function generateMiddlewareOrDispatch(
             newParams[param] = null;
           }
         });
-        middlewareResp = await args(httpHono, ...Object.values(newParams));
+        middlewareResp = await args(myHono, ...Object.values(newParams));
       }
       if (isNull(middlewareResp) && type === "dispatch") {
         return c.json(null);
       }
       const dispatch = new HonoDispatch(middlewareResp, type);
       if ((type === "middleware" && !dispatch.isNext) || type === "dispatch") {
-        const result = (await dispatch.build(request, c)) as Response;
-        if (!isUndefined(result) && result instanceof Response) {
-          return result;
+        try {
+          const result = (await dispatch.build(request, c)) as Response;
+          if (!isUndefined(result) && result instanceof Response) {
+            return result;
+          }
+        } finally {
+          const HonoSession = c.get("HonoSession");
+          if (c.get("from_web") && isset(HonoSession)) {
+            if (!c.get("logged_out")) {
+              // @ts-ignore //
+              const sessionValue = c.get("session").values;
+              HonoSession.update(sessionValue);
+              await HonoSession.dispose();
+            }
+          }
         }
       }
     } catch (e: unknown) {
@@ -430,10 +445,10 @@ function generateMiddlewareOrDispatch(
           return c.html(data.html, 200);
         }
       } else if (e instanceof AbortError) {
-        if (httpHono.request.expectsJson()) {
+        if (request.expectsJson()) {
           return e.toJson();
         } else {
-          return e.toHtml();
+          return myError(c, e.code as ContentfulStatusCode, e.message);
         }
       }
       return c.json({ message: "Internal server error" }, 500);
@@ -516,18 +531,8 @@ ${e.stack.replace(/</g, "&lt;")}
   `;
 }
 export const buildRequestInit = (): MiddlewareHandler => {
-  const configure = new Constants(myConfigData) as IConfigure;
-  return async (c, next) => {
-    const rawRequest = await buildRequest(c);
-    const request: IHonoRequest = new HonoRequest(
-      rawRequest,
-      c.get("sessionInstance")
-    );
-    const constructorObj = {
-      request,
-      config: configure,
-    };
-    c.set("httpHono", new MyHono(constructorObj));
+  return async (c: MyContext, next) => {
+    c.set("myHono", new HttpHono(c));
     await next();
   };
 };

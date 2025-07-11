@@ -4,8 +4,17 @@ import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";
 class HonoHeader implements IHonoHeader {
   private headers: IncomingHttpHeaders;
 
-  constructor(headers: IncomingHttpHeaders) {
-    this.headers = headers || {};
+  constructor(c: MyContext) {
+    const headers = c.req.raw.headers as unknown as IncomingHttpHeaders;
+
+    // Normalize headers to lowercase keys
+    const normalizedHeaders: IncomingHttpHeaders = {};
+    for (const [key, value] of Object.entries(headers)) {
+      if (value !== undefined && value !== null) {
+        normalizedHeaders[key.toLowerCase()] = value;
+      }
+    }
+    this.headers = normalizedHeaders;
   }
 
   all(): IncomingHttpHeaders {

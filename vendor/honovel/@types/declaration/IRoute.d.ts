@@ -398,6 +398,7 @@ import MethodRoute from "../../framework/src/hono/Support/MethodRoute.ts";
 import ResourceRoute, {
   ResourceKeys,
 } from "../../framework/src/hono/Support/ResourceRoute.ts";
+import HttpHono from "HttpHono";
 export interface IReferencesRoute {
   groups: Record<string, IEGroupRoute>;
   methods: Record<string, InstanceType<typeof MethodRoute>>;

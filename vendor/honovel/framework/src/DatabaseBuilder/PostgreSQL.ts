@@ -12,57 +12,73 @@ class PgSQL {
     params: unknown[] = []
   ): Promise<QueryResultDerived[T]> {
     const client = await pool.connect();
-    const queryType = query.trim().split(/\s+/)[0].toLowerCase();
+    const cleanedQuery = query.trim().toLowerCase();
+    const queryType = cleanedQuery.startsWith("with")
+      ? "select"
+      : cleanedQuery.split(/\s+/)[0];
 
     try {
-      if (queryType === "select" || queryType === "pragma") {
-        const result: QueryObjectResult = await client.queryObject(
-          query,
-          params as QueryArguments
-        );
-        return (result.rows as QueryResultDerived[T]) || [];
-      }
+      const result: QueryObjectResult = await client.queryObject(
+        query,
+        params as QueryArguments
+      );
 
-      if (["insert", "update", "delete"].includes(queryType)) {
-        const result = await client.queryObject(
-          query,
-          params as QueryArguments
-        );
-        let lastInsertRowId: number | null = null;
+      switch (queryType) {
+        case "select":
+        case "show":
+        case "pragma":
+          return (result.rows as QueryResultDerived[T]) || [];
 
-        if (queryType === "insert") {
+        case "insert": {
           const firstRow = result.rows[0] as
             | Record<string, unknown>
             | undefined;
-          if (firstRow && "id" in firstRow) {
-            lastInsertRowId = Number(firstRow.id);
-          }
+          const lastInsertRowId =
+            firstRow && "id" in firstRow ? Number(firstRow.id) : null;
+          return {
+            affected: result.rowCount ?? 0,
+            lastInsertRowId,
+            raw: result,
+          } as QueryResultDerived[T];
         }
 
-        return {
-          affected: result.rowCount,
-          lastInsertRowId,
-          raw: result,
-        } as QueryResultDerived[T];
-      }
+        case "update":
+        case "delete":
+          return {
+            affected: result.rowCount ?? 0,
+            lastInsertRowId: null,
+            raw: result,
+          } as QueryResultDerived[T];
 
-      if (
-        ["create", "alter", "drop", "truncate", "rename"].includes(queryType)
-      ) {
-        const result = await client.queryObject(query);
-        return {
-          message: "Executed",
-          affected: result.rowCount,
-          raw: result,
-        } as QueryResultDerived[T];
-      }
+        case "create":
+        case "alter":
+        case "drop":
+        case "truncate":
+        case "rename":
+          return {
+            message: "Executed",
+            affected: result.rowCount ?? 0,
+            raw: result,
+          } as QueryResultDerived[T];
 
-      // fallback
-      const result = await client.queryObject(query, params as QueryArguments);
-      return {
-        message: "Query executed",
-        raw: result,
-      } as QueryResultDerived[T];
+        case "begin":
+        case "start":
+        case "commit":
+        case "rollback":
+        case "savepoint":
+        case "release":
+          return {
+            message: `${queryType.toUpperCase()} executed`,
+            raw: result,
+          } as QueryResultDerived[T];
+
+        default:
+          return {
+            message: "Query executed",
+            affected: result.rowCount ?? 0,
+            raw: result,
+          } as QueryResultDerived[T];
+      }
     } finally {
       client.release();
     }

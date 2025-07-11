@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import { HonoSession } from "../../framework/src/hono/Http/HonoSession.ts";
+import { ISession } from "./ISession.d.ts";
+import HttpHono from "HttpHono";
 
 type SessionDataTypes = {
   id: string;
@@ -7,65 +9,15 @@ type SessionDataTypes = {
 
 // for Context
 export type Variables = {
-  httpHono: HttpHono;
-  session: HonoSession<SessionDataTypes>;
+  myHono: HttpHono;
+  HonoSession: HonoSession;
   from_web: boolean;
   subdomain: Record<string, string | null>;
+  session: ISession,
+  logged_out: boolean;
 };
 
-export type HonoType = Hono<{
+export type HonoTypeImport = {
   Variables: Variables;
-}>;
-
-export interface CorsConfig {
-  paths?: string[];
-  allowed_methods?: string[];
-  allowed_origins: string[] | null;
-  allowed_origins_patterns?: string[];
-  allowed_headers?: string[];
-  exposed_headers?: string[];
-  max_age?: number;
-  supports_credentials?: boolean;
 }
-
-interface ChannelBase {
-  driver: string;
-}
-
-interface SingleChannel extends ChannelBase {
-  driver: "single";
-  path: string;
-}
-
-interface DailyChannel extends ChannelBase {
-  driver: "daily";
-  path: string;
-  days: number;
-}
-
-interface StackChannel extends ChannelBase {
-  driver: "stack";
-  channels: string[];
-}
-
-interface StderrChannel extends ChannelBase {
-  driver: "stderr";
-}
-
-interface ConsoleChannel extends ChannelBase {
-  driver: "console";
-}
-
-type Channel =
-  | SingleChannel
-  | DailyChannel
-  | StackChannel
-  | StderrChannel
-  | ConsoleChannel;
-
-type Channels = Record<string, Channel>;
-
-export interface LogConfig {
-  default: string;
-  channels: Channels;
-}
+export type HonoType = Hono<HonoTypeImport>;

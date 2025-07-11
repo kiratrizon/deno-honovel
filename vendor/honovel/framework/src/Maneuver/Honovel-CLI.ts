@@ -175,7 +175,7 @@ class MyArtisan {
   }
 
   private async createMigrationTable() {
-    const dbType = env("DB_CONNECTION", "mysql");
+    const dbType = staticConfig("database").default || "mysql";
     let sql = "";
 
     switch (dbType) {
@@ -231,7 +231,7 @@ class MyArtisan {
   }
 
   private async dropAllTables(): Promise<void> {
-    const dbType = env("DB_CONNECTION", "mysql").toLowerCase();
+    const dbType = staticConfig("database").default || "mysql";
     let tables: string[] = [];
 
     switch (dbType) {
@@ -309,6 +309,29 @@ class MyArtisan {
     );
   }
 
+  private async serve(options: { port: number; host: string }) {
+    const port = options.port;
+    const serverPath = "vendor/honovel/framework/src/hono/run-server.ts";
+
+    const cmd = new Deno.Command("deno", {
+      args: ["run", "-A", "--watch=mode=poll", serverPath],
+      stdout: "inherit",
+      stderr: "inherit",
+      env: {
+        PORT: String(port),
+        HOSTNAME: options.host,
+        ...Deno.env.toObject(), // preserve existing env
+        APP_URL: `http://${options.host}:${port}`,
+      },
+    });
+
+    // console.log(`http://${options.host}:${port}`);
+
+    const process = cmd.spawn();
+    const status = await process.status;
+    Deno.exit(status.code);
+  }
+
   public async command(args: string[]): Promise<void> {
     await myCommand
       .name("Honovel")
@@ -369,6 +392,16 @@ class MyArtisan {
         "Build your configs in config/build/myConfig.ts"
       )
       .action(() => this.publishConfig.bind(this)())
+
+      .command("serve", "Start the Honovel server")
+      .option("--port <port:number>", "Port to run the server on", {
+        default: env("PORT", 2000),
+      })
+      .option("--host <host:string>", "Host to run the server on", {
+        default: "0.0.0.0",
+      })
+      .action((options) => this.serve.bind(this)(options))
+
       .parse(args);
   }
 }

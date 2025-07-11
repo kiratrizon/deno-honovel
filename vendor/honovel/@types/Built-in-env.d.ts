@@ -35,9 +35,6 @@ declare global {
     readonly SESSION_DRIVER: string;
     readonly SESSION_LIFETIME: number;
     readonly MEMCACHED_HOST: string;
-    readonly REDIS_HOST: string;
-    readonly REDIS_PASSWORD: string | null;
-    readonly REDIS_PORT: number;
     readonly MAIL_MAILER: string;
     readonly MAIL_HOST: string;
     readonly MAIL_PORT: number;

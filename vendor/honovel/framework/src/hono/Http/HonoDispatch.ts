@@ -1,4 +1,3 @@
-import { Context } from "hono";
 import HonoClosure from "./HonoClosure.ts";
 import HonoView from "./HonoView.ts";
 import HonoRedirect from "./HonoRedirect.ts";
@@ -8,6 +7,7 @@ import { ContentfulStatusCode } from "hono/utils/http-status";
 import { existsSync } from "https://deno.land/std/fs/mod.ts";
 import * as path from "https://deno.land/std/path/mod.ts";
 import { contentType } from "https://deno.land/std@0.224.0/media_types/mod.ts";
+import HttpHono from "HttpHono";
 
 class HonoDispatch {
   #type: "dispatch" | "middleware";
@@ -29,13 +29,7 @@ class HonoDispatch {
       this.#forNext = true;
     }
   }
-  public async build(request: HttpHono["request"], c: Context) {
-    if (c.get("from_web")) {
-      const sessionValue = c.get("sessionInstance").values;
-      const session = c.get("session");
-      session.update(sessionValue);
-      await session.dispose();
-    }
+  public async build(request: HttpHono["request"], c: MyContext) {
     if (
       request.isMethod("HEAD") &&
       isObject(this.#returnedData) &&

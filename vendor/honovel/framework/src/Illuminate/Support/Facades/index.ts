@@ -1,4 +1,5 @@
 import {
+  genSaltSync,
   hashSync,
   compareSync,
 } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
@@ -18,8 +19,8 @@ export class Hash {
    * Hash a value with optional rounds (cost factor).
    */
   public static make(value: string, options: HashOptions = {}): string {
-    const rounds = options.rounds ?? 10;
-    return hashSync(value, String(rounds));
+    const rounds = genSaltSync(options.rounds || 10);
+    return hashSync(value, rounds);
   }
 
   /**
@@ -32,6 +33,7 @@ export class Hash {
 
 import { Database, QueryResultDerived } from "Database";
 import { Builder, SQLRaw } from "../../Database/Query/index.ts";
+import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
 export class Schema {
   public static async create(
     table: string,
@@ -53,6 +55,46 @@ export class Schema {
     const dbType = env("DB_CONNECTION", "mysql");
     const stringedQuery = generateCreateTableSQL(tableSchema, dbType);
     await DB.statement(stringedQuery);
+  }
+
+  public static async hasTable(table: string): Promise<boolean> {
+    const dbType = env("DB_CONNECTION", "mysql").toLowerCase();
+    let query = "";
+
+    switch (dbType) {
+      case "mysql":
+        query = `SHOW TABLES LIKE '${table}'`;
+        break;
+      case "sqlite":
+        query = `SELECT name FROM sqlite_master WHERE type='table' AND name='${table}'`;
+        break;
+      case "postgres":
+      case "pgsql":
+      case "postgresql":
+        query = `SELECT to_regclass('${table}')`;
+        break;
+      case "sqlserver":
+        query = `SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '${table}'`;
+        break;
+      default:
+        throw new Error(`Unsupported DB_CONNECTION: ${dbType}`);
+    }
+
+    const result = await DB.select(query);
+
+    if (!result || result.length === 0) {
+      return false;
+    }
+
+    // Special handling for PostgreSQL because to_regclass can return null
+    if (
+      dbType.includes("postgres") &&
+      (!result[0] || Object.values(result[0])[0] === null)
+    ) {
+      return false;
+    }
+
+    return true;
   }
 
   public static async dropIfExists(table: string): Promise<void> {
@@ -301,8 +343,8 @@ export class DB {
       throw new Error("Query must be a non-empty string.");
     }
     const queryType = query.trim().split(" ")[0].toLowerCase();
-    if (queryType !== "select") {
-      throw new Error("Query must be a SELECT statement.");
+    if (["select", "show", "pragma"].indexOf(queryType) === -1) {
+      throw new Error("Only SELECT, SHOW, and PRAGMA queries are allowed.");
     }
     const db = new Database();
 
@@ -335,7 +377,7 @@ export class DB {
 }
 
 class TableInstance {
-  constructor(private tableName: string) { }
+  constructor(private tableName: string) {}
 
   // for insert operation
   public async insert<T extends "insert">(
@@ -416,6 +458,7 @@ export class Validator {
     "unique",
     "confirmed",
     "regex",
+    "file",
   ];
   #regex = {
     digit: "\\d+",
@@ -484,10 +527,43 @@ export class Validator {
         if (typeof v !== "string" || v.length < parseInt(val as string))
           e.push(`Minimum length is ${val}.`);
         break;
-      case "max":
-        if (typeof v !== "string" || v.length > parseInt(val as string))
-          e.push(`Maximum length is ${val}.`);
+      case "max": {
+        const max = parseInt(val as string);
+
+        // String
+        if (typeof v === "string") {
+          if (v.length > max) {
+            e.push(`Maximum length is ${max} characters.`);
+          }
+
+          // FormFile
+        } else if (isObject(v) && v.content instanceof Uint8Array) {
+          const sizeKB = v.content.length / 1024;
+          if (sizeKB > max) {
+            e.push(`Maximum file size is ${max} KB.`);
+          }
+
+          // Array of FormFiles (multiple uploads)
+        } else if (
+          isArray(v as FormFile[]) &&
+          (v as FormFile[]).every((f) => f?.content instanceof Uint8Array)
+        ) {
+          for (const f of v as FormFile[]) {
+            const sizeKB = f.content.length / 1024;
+            if (sizeKB > max) {
+              e.push(`Each file must be less than ${max} KB.`);
+              break;
+            }
+          }
+
+          // Fallback for unsupported types
+        } else {
+          e.push(`The field type is unsupported for max rule.`);
+        }
+
         break;
+      }
+
       case "unique": {
         const [table, column] = (val as string).split(",");
         // const exists = await DB.table(table).where(column, v).get();
@@ -506,6 +582,13 @@ export class Validator {
           e.push(`Invalid format for ${key}.`);
         break;
       }
+      case "file":
+        {
+          if ((v as FormFile[])[0]?.size === 0) {
+            e.push("File is required.");
+          }
+        }
+        break;
     }
   }
 }

@@ -8,7 +8,7 @@ type NonFunction<T> = T extends (...args: any[]) => any
   ? { [K in keyof T]: NonFunction<T[K]> }
   : T;
 
-export declare class SessionContract {
+export declare class ISession {
   /**
    * Store a key-value pair in the session.
    *
