@@ -343,8 +343,8 @@ export class DB {
       throw new Error("Query must be a non-empty string.");
     }
     const queryType = query.trim().split(" ")[0].toLowerCase();
-    if (queryType !== "select") {
-      throw new Error("Query must be a SELECT statement.");
+    if (["select", "show", "pragma"].indexOf(queryType) === -1) {
+      throw new Error("Only SELECT, SHOW, and PRAGMA queries are allowed.");
     }
     const db = new Database();
 

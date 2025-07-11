@@ -25,6 +25,7 @@ class PgSQL {
 
       switch (queryType) {
         case "select":
+        case "show":
         case "pragma":
           return (result.rows as QueryResultDerived[T]) || [];
 
@@ -35,7 +36,7 @@ class PgSQL {
           const lastInsertRowId =
             firstRow && "id" in firstRow ? Number(firstRow.id) : null;
           return {
-            affected: result.rowCount,
+            affected: result.rowCount ?? 0,
             lastInsertRowId,
             raw: result,
           } as QueryResultDerived[T];
@@ -44,7 +45,7 @@ class PgSQL {
         case "update":
         case "delete":
           return {
-            affected: result.rowCount,
+            affected: result.rowCount ?? 0,
             lastInsertRowId: null,
             raw: result,
           } as QueryResultDerived[T];
@@ -57,6 +58,17 @@ class PgSQL {
           return {
             message: "Executed",
             affected: result.rowCount ?? 0,
+            raw: result,
+          } as QueryResultDerived[T];
+
+        case "begin":
+        case "start":
+        case "commit":
+        case "rollback":
+        case "savepoint":
+        case "release":
+          return {
+            message: `${queryType.toUpperCase()} executed`,
             raw: result,
           } as QueryResultDerived[T];
 
