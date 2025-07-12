@@ -1,19 +1,19 @@
 import * as path from "https://deno.land/std/path/mod.ts";
-// import { load } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
-import { config } from "npm:dotenv";
-config();
+import { load } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
+// import { config } from "npm:dotenv";
+// config();
 
-// try {
-//   const envObj = (await import("../../../../../environment.ts")).default;
-//   const data = await load(envObj);
-//   if (data) {
-//     for (const [key, value] of Object.entries(data)) {
-//       Deno.env.set(key, value);
-//     }
-//   }
-// } catch (_) {
-//   console.warn(`Env not loaded, please check your environment.ts file.`);
-// }
+try {
+  const envObj = (await import("../../../../../environment.ts")).default;
+  const data = await load(envObj);
+  if (data) {
+    for (const [key, value] of Object.entries(data)) {
+      Deno.env.set(key, value);
+    }
+  }
+} catch (_) {
+  console.warn(`Env not loaded, please check your environment.ts file.`);
+}
 
 Object.defineProperty(globalThis, "globalFn", {
   // deno-lint-ignore no-explicit-any
@@ -525,7 +525,8 @@ globalFn("strtotime", function (time, now) {
 });
 
 globalFn("date", function (format: string, unixTimestamp = null) {
-  return Carbon.createFromTimestamp(unixTimestamp, format);
+  const result = Carbon.createFromTimestamp(unixTimestamp, format);
+  return result.toString();
 });
 
 globalFn("time", () => {

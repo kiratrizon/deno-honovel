@@ -1,4 +1,89 @@
-// types/DatabaseConfig.d.ts
+// app.d.ts
+
+interface AppMaintenanceConfig {
+  /**
+   * Maintenance Mode Driver (e.g., 'file', 'database')
+   */
+  driver: string;
+
+  /**
+   * Maintenance Store Name
+   */
+  store: string;
+}
+
+export interface AppConfig {
+  /**
+   * Application Name
+   * Example: "Honovel"
+   */
+  name: string;
+
+  /**
+   * Application Environment
+   * Example: "production", "development"
+   */
+  env: string;
+
+  /**
+   * Application Debug Mode
+   * Enables or disables debug mode
+   */
+  debug: boolean;
+
+  /**
+   * Application URL
+   * Example: "http://localhost:2000"
+   */
+  url: string;
+
+  /**
+   * Application Timezone
+   * Example: "Asia/Tokyo"
+   */
+  timezone: string;
+
+  /**
+   * Application Locale
+   * Example: "en"
+   */
+  locale: string;
+
+  /**
+   * Application Fallback Locale
+   * Example: "en"
+   */
+  fallback_locale: string;
+
+  /**
+   * Faker Locale
+   * Example: "en_US"
+   */
+  faker_locale: string;
+
+  /**
+   * Encryption Cipher
+   * Example: "AES-256-CBC"
+   */
+  cipher: "AES-128-CBC" | "AES-192-CBC" | "AES-256-CBC" | "AES-128-GCM" | "AES-256-GCM";
+
+  /**
+   * Encryption Key
+   */
+  key?: string;
+
+  /**
+   * Previous Encryption Keys
+   */
+  previous_keys: string[];
+
+  /**
+   * Maintenance Configuration
+   */
+  maintenance: AppMaintenanceConfig;
+}
+
+
 
 import { SslOptions } from "npm:mysql2@^2.3.3";
 
@@ -118,14 +203,14 @@ export interface CorsConfig {
 
 export interface SessionConfig {
   driver:
-    | "file"
-    | "cookie"
-    | "database"
-    | "memcached"
-    | "redis"
-    | "dynamodb"
-    | "array"
-    | "memory";
+  | "file"
+  | "memory"
+  | "redis"
+  | "database"
+  | "cookie"
+  | "memcached"
+  | "dynamodb"
+  | "array";
 
   lifetime: number; // session lifetime in minutes
 
@@ -170,6 +255,7 @@ export interface SessionConfig {
 // })
 
 export interface ConfigItems {
+  app: AppConfig;
   database: DatabaseConfig;
   logging: LogConfig;
   cors: CorsConfig;

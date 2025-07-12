@@ -144,9 +144,18 @@ class HonoRequest extends Macroable {
     return this.#myAll;
   }
 
-  public input(key: string): unknown {
+  // Overloads
+  public input(): Record<string, unknown>;
+  public input(key: string): unknown | null;
+
+  // Implementation
+  public input(key?: string): unknown | null | Record<string, unknown> {
+    if (!isset(key)) {
+      return this.#myAll;
+    }
     return this.#myAll[key] ?? null;
   }
+
 
   public only(keys: string[]): Record<string, unknown> {
     const result: Record<string, unknown> = only(this.#myAll, keys);
@@ -380,12 +389,23 @@ class HonoRequest extends Macroable {
     return false;
   }
 
-  public json(key: string): unknown {
-    if (this.isJson()) {
-      return this.input(key) ?? null;
+
+  public json(): Record<string, unknown> | null;
+  public json(key: string): unknown | null;
+
+  public json(key?: string): unknown | null | Record<string, unknown> {
+    if (!this.isJson()) {
+      return null;
     }
-    return null;
+
+    if (!isset(key)) {
+      return this.#myAll;
+    }
+
+    return this.input(key);
   }
+
+
   public expectsJson(): boolean {
     const acceptHeader = this.header("accept");
     if (acceptHeader) {
@@ -415,8 +435,41 @@ class HonoRequest extends Macroable {
     return this.header("x-requested-with")?.toLowerCase() === "xmlhttprequest";
   }
 
-  public get session(): ISession {
+  public get session() {
     return this.#c.get("session");
+  }
+
+  public get $_SESSION() {
+    // @ts-ignore //
+    return this.#c.get("session").values;
+  }
+
+  public get $_COOKIE() {
+    // @ts-ignore //
+    return getMyCookie(this.#c);
+  }
+
+  public get $_SERVER(): SERVER {
+    return this.#server;
+  }
+
+  public get $_FILES(): Record<string, FormFile[]> {
+    return this.#files;
+  }
+
+  public get $_REQUEST(): Record<string, unknown> {
+    return this.#myAll;
+  }
+
+  public get $_GET(): Record<string, unknown> {
+    return this.query() as Record<string, unknown>;
+  }
+
+  public get $_POST(): Record<string, unknown> {
+    if (this.isJson()) {
+      return this.json("") as Record<string, unknown>;
+    }
+    return this.#myAll
   }
 
   public async sessionStart(): Promise<void> {

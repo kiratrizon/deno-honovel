@@ -1,8 +1,10 @@
 import environment from "../../../../../environment.ts";
 import IHonoRequest from "../../../@types/declaration/IHonoRequest.d.ts";
+import { Database } from "Database";
 import { Carbon } from "../framework-utils/index.ts";
-import { MyCachedHashedApp } from "../hono/Http/HonoCookie.ts";
+import { CookieKeysCache } from "../hono/Http/HonoCookie.ts";
 import HonoRequest from "../hono/Http/HonoRequest.ts";
+import { SessionInitializer } from "../hono/Http/HonoSession.ts";
 import HonoView from "../hono/Http/HonoView.ts";
 import RedisClient from "./RedisClient.ts";
 
@@ -21,12 +23,10 @@ class Boot {
       const accept = (this as IHonoRequest).header("accept") ?? "";
       return accept.includes("application/xml") || accept.includes("text/xml");
     });
+    await Database.init();
 
-    MyCachedHashedApp.init();
-    if (env("SESSION_DRIVER", "redis") === "redis") {
-      await RedisClient.init();
-    }
-
+    await SessionInitializer.init();
+    CookieKeysCache.init();
     Carbon.setCarbonTimezone((staticConfig("app.timezone") as string) || "UTC");
   }
 }

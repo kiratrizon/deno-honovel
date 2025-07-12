@@ -51,6 +51,7 @@ export default class RedisClient {
     options?: { ex?: number }
   ) {
     const redisClient = env("REDIS_CLIENT", "ioredis");
+    if (empty(env("REDIS_CLIENT", ""))) console.warn("REDIS_CLIENT is not set, defaulting to ioredis.");
     if (!this.#client) {
       throw new Error("Redis client is not initialized. Call init() first.");
     }

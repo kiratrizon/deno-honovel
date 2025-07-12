@@ -39,4 +39,9 @@ export declare class ISession {
    * @param key - The key to remove.
    */
   forget(key: string): void;
+
+  /**
+   * Get the session ID.
+   */
+  getId(): string | null;
 }

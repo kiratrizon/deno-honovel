@@ -4,11 +4,8 @@ import { Carbon } from "../vendor/honovel/framework/src/framework-utils/index.ts
 
 // Route.resource("users", UserController).whereNumber("user");
 Route.post("/", async ({ request }) => {
-  return response().json({
-    data: request.all(),
-  });
+  return date("Y-m-d H:i:s");
 });
 Route.get("/", async ({ request }) => {
-  const timeNow = Carbon.yesterday();
-  return timeNow;
+  return request.session.get("user");
 });
