@@ -30,22 +30,21 @@ export const setMyCookie = (
   if (empty(appConfig.key) || !isString(appConfig.key)) {
     throw new Error("APP_KEY is not set. Please set it in your environment variables.");
   }
-  const myKey = resolveAppKey(appConfig.key);
   if (value === undefined || !isString(key)) {
     throw new Error("Invalid arguments for setting cookie.");
   }
   const newValue = `${base64encode(jsonEncode(value))}`;
-  if (isUndefined(newValue) || !isString(key) || !isset(myKey)) {
+  if (isUndefined(newValue) || !isString(key) || !isset(CookieKeysCache.mainKey)) {
     throw new Error("Invalid arguments for setting cookie.");
   }
-  const signedValue = `${newValue}.${createHmac("sha256", myKey).update(newValue).digest("base64url")}`;
+  const signedValue = `${newValue}.${createHmac("sha256", CookieKeysCache.mainKey).update(newValue).digest("base64url")}`;
 
   setCookie(c, key, signedValue, options);
 };
 
 export class CookieKeysCache {
   public static keys: Buffer[] = [];
-
+  public static mainKey: Buffer;
   public static init() {
     const appConfig = staticConfig("app");
     const allKeys = [appConfig.key, ...appConfig.previous_keys].filter((k) => isset(k) && !empty(k) && isString(k)).map(resolveAppKey);
@@ -53,6 +52,7 @@ export class CookieKeysCache {
       throw new Error("APP_KEY is not set. Please set it in your environment variables.");
     }
     this.keys = allKeys;
+    this.mainKey = this.keys[0];
   }
 }
 

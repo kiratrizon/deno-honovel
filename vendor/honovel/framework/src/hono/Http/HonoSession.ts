@@ -9,6 +9,8 @@ import RedisClient from "../../Maneuver/RedisClient.ts";
 import { Migration } from "Illuminate/Database/Migrations";
 import { Schema, DB } from "Illuminate/Support/Facades";
 import { Carbon } from "honovel:helpers";
+import { init } from "https://deno.land/x/base64@v0.2.1/base.ts";
+import { SessionConfig } from "../../../../../../config/@types/index.d.ts";
 
 type SessionEncrypt = {
   encrypt: string; // encrypted session data
@@ -93,11 +95,9 @@ export function honoSession(): MiddlewareHandler {
 
 
 export function sessionIdRecursive(): string {
-  const sessionConfig = staticConfig("session");
-  const prefix = sessionConfig.prefix || "sess:";
+  const prefix = SessionModifier.sesConfig.prefix || "sess:";
 
-  const milli = new Date().getMilliseconds().toString().padStart(3, '0');
-  const timestamp = date("YmdHis") + milli;  // using your existing date()
+  const timestamp = date("YmdHis");
 
   const array = crypto.getRandomValues(new Uint8Array(16));
   const randomPart = Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -122,6 +122,7 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
 
 
 export class SessionModifier {
+  public static sesConfig: SessionConfig;
   #c: MyContext;
   #canTouch = false;
   #started = false;
@@ -134,11 +135,17 @@ export class SessionModifier {
     this.#canTouch = !!this.#c.get("from_web");
   }
 
+  public static init() {
+    SessionModifier.sesConfig = staticConfig("session");
+    if (!SessionModifier.sesConfig) {
+      throw new Error("Session configuration is not set.");
+    }
+  }
+
   async start() {
     if (!this.#canTouch || this.#started) return;
 
-    const sessionConfig = staticConfig("session");
-    const key = sessionConfig.cookie || Str.snake(env("APP_NAME", "honovel") + "_session");
+    const key = SessionModifier.sesConfig.cookie || Str.snake(env("APP_NAME", "honovel") + "_session");
 
     this.#sessionId = getMyCookie(this.#c, key);
     if (!isset(this.#sessionId)) {
@@ -146,11 +153,11 @@ export class SessionModifier {
       this.#sessionId = sessionIdRecursive();
     }
     setMyCookie(this.#c, key, this.#sessionId, {
-      maxAge: sessionConfig.expireOnClose ? undefined : sessionConfig.lifetime * 60, // convert minutes to seconds
-      sameSite: sessionConfig.sameSite || "lax",
-      secure: sessionConfig.secure || false,
-      httpOnly: sessionConfig.httpOnly || true,
-      partitioned: sessionConfig.partitioned || false,
+      maxAge: SessionModifier.sesConfig.expireOnClose ? undefined : SessionModifier.sesConfig.lifetime * 60, // convert minutes to seconds
+      sameSite: SessionModifier.sesConfig.sameSite || "lax",
+      secure: SessionModifier.sesConfig.secure || false,
+      httpOnly: SessionModifier.sesConfig.httpOnly || true,
+      partitioned: SessionModifier.sesConfig.partitioned || false,
     })
 
 
@@ -166,8 +173,7 @@ export class SessionModifier {
   async end() {
     if (!this.#canTouch || !this.#sessionId) return;
 
-    const sessionConfig = staticConfig("session");
-    deleteCookie(this.#c, sessionConfig.cookie || Str.snake(env("APP_NAME", "honovel") + "_session"));
+    deleteCookie(this.#c, SessionModifier.sesConfig.cookie || Str.snake(env("APP_NAME", "honovel") + "_session"));
     await deleteSession(this.#sessionId);
 
     this.#c.set("logged_out", true);
@@ -176,19 +182,18 @@ export class SessionModifier {
 }
 
 async function saveSession(sid: string, data: Record<string, unknown>) {
-  const sessionConfig = staticConfig("session");
-  if (!isset(sessionConfig.lifetime)) throw new Error("Session lifetime is not set in configuration");
-  const type = sessionConfig.driver || "file";
+  if (!isset(SessionModifier.sesConfig.lifetime)) throw new Error("Session lifetime is not set in configuration");
+  const type = SessionModifier.sesConfig.driver || "file";
 
-  const isEncrypt = sessionConfig.encrypt || false;
+  const isEncrypt = SessionModifier.sesConfig.encrypt || false;
   if (isEncrypt) {
     data = { encrypt: await encrypt(data) };
   }
   const dataToString = jsonEncode(data);
   switch (type) {
     case "database": {
-      const tableSession = sessionConfig.table || "sessions";
-      const expires = Carbon.now().addSeconds(sessionConfig.lifetime * 60);
+      const tableSession = SessionModifier.sesConfig.table || "sessions";
+      const expires = Carbon.now().addSeconds(SessionModifier.sesConfig.lifetime * 60);
       if (staticConfig("database").default === "sqlite") {
         // SQLite requires a different handling for upsert
         const dataExists = await DB.select(
@@ -226,10 +231,10 @@ async function saveSession(sid: string, data: Record<string, unknown>) {
     }
     case "file": {
       const pathDefault: string =
-        sessionConfig.files || storagePath("framework/sessions");
+        SessionModifier.sesConfig.files || storagePath("framework/sessions");
       const filePath = path.join(
         pathDefault,
-        `${sid.replace(sessionConfig.prefix || "sess:", "")}.json`
+        `${sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")}.json`
       );
       writeFile(filePath, dataToString);
       break;
@@ -237,7 +242,7 @@ async function saveSession(sid: string, data: Record<string, unknown>) {
     case "redis": {
       await RedisClient.set(sid, dataToString,
         {
-          "ex": sessionConfig.lifetime, // convert minutes to seconds
+          "ex": SessionModifier.sesConfig.lifetime, // convert minutes to seconds
         }
       )
       break;
@@ -260,17 +265,16 @@ async function saveSession(sid: string, data: Record<string, unknown>) {
 }
 
 async function loadSession(sid: string) {
-  const sessionConfig = staticConfig("session");
 
-  const type = sessionConfig.driver || "file";
-  const isEncrypt = sessionConfig.encrypt || false;
+  const type = SessionModifier.sesConfig.driver || "file";
+  const isEncrypt = SessionModifier.sesConfig.encrypt || false;
   switch (type) {
     case "file": {
       const pathDefault: string =
-        sessionConfig.files || storagePath("framework/sessions");
+        SessionModifier.sesConfig.files || storagePath("framework/sessions");
       const filePath = path.join(
         pathDefault,
-        `${sid.replace(sessionConfig.prefix || "sess:", "")}.json`
+        `${sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")}.json`
       );
       if (pathExist(filePath)) {
         const content = getFileContents(filePath);
@@ -299,7 +303,7 @@ async function loadSession(sid: string) {
       return HonoSessionMemory.sessions[sid] || {};
     }
     case "database": {
-      const tableSession = sessionConfig.table || "sessions";
+      const tableSession = SessionModifier.sesConfig.table || "sessions";
       const now = Carbon.now();
       const data = await DB.select(
         `SELECT data FROM ${tableSession} WHERE sid = ? and expires > ?`,
@@ -325,16 +329,15 @@ async function loadSession(sid: string) {
 
 async function deleteSession(sid: string) {
 
-  const sessionConfig = staticConfig("session");
-  const type = sessionConfig.driver || "file";
+  const type = SessionModifier.sesConfig.driver || "file";
 
   switch (type) {
     case "file": {
       const pathDefault: string =
-        sessionConfig.files || storagePath("framework/sessions");
+        SessionModifier.sesConfig.files || storagePath("framework/sessions");
       const filePath = path.join(
         pathDefault,
-        `${sid.replace(sessionConfig.prefix || "sess:", "")}.json`
+        `${sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")}.json`
       );
       if (pathExist(filePath)) {
         await Deno.remove(filePath);
@@ -350,7 +353,7 @@ async function deleteSession(sid: string) {
       break;
     }
     case "database": {
-      const tableSession = sessionConfig.table || "sessions";
+      const tableSession = SessionModifier.sesConfig.table || "sessions";
       await DB.statement(`DELETE FROM ${tableSession} WHERE sid = ?`, [sid]);
       break;
     }
@@ -453,10 +456,10 @@ export class SessionInitializer {
   public static async init() {
 
     const sessionConfig = staticConfig("session");
-    const type = sessionConfig.driver || "file";
+    const type = SessionModifier.sesConfig.driver || "file";
     switch (type) {
       case "database": {
-        const tableSession = sessionConfig.table || "sessions";
+        const tableSession = SessionModifier.sesConfig.table || "sessions";
         const migrationClass = new class extends Migration {
           async up() {
             if (!(await Schema.hasTable(tableSession))) {
@@ -478,7 +481,7 @@ export class SessionInitializer {
       }
       case "file": {
         const pathDefault: string =
-          sessionConfig.files || storagePath("framework/sessions");
+          SessionModifier.sesConfig.files || storagePath("framework/sessions");
         if (!pathExist(pathDefault)) {
           makeDir(pathDefault);
         }

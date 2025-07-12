@@ -394,7 +394,7 @@ export class DB {
   }
 
   public static async reconnect(): Promise<void> {
-    await Database.init(true)
+    await Database.init(true);
   }
 }
 

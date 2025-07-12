@@ -121,7 +121,7 @@ export class Database {
   }
 
   public static async init(force: boolean = false): Promise<void> {
-    if (!isset(Database.client) && !force) {
+    if (!isset(Database.client) || force) {
       const databaseObj = staticConfig("database");
       const dbType = env(
         "DB_CONNECTION",

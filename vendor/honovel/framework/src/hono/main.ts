@@ -125,6 +125,9 @@ class Server {
     await Boot.init();
     this.app = this.generateNewApp({}, true);
     if (isset(env("PHPMYADMIN_HOST"))) {
+      this.app.get("/myadmin", async (c) => {
+        return c.redirect("/myadmin/", 301);
+      })
       this.app.all('/myadmin/*', async (c) => {
         const targetUrl = `${env("PHPMYADMIN_HOST")}${c.req.path.replace('/myadmin', '')}${c.req.query() ? `?${c.req.raw.url.split('?')[1]}` : ''}`;
 
@@ -157,7 +160,6 @@ class Server {
 
 
     // initialize the app
-    this.app.use("*", logger());
     await this.loadAndValidateRoutes();
     this.endInit();
   }

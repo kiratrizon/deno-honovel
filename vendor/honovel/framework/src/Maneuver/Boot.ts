@@ -4,7 +4,7 @@ import { Database } from "Database";
 import { Carbon } from "../framework-utils/index.ts";
 import { CookieKeysCache } from "../hono/Http/HonoCookie.ts";
 import HonoRequest from "../hono/Http/HonoRequest.ts";
-import { SessionInitializer } from "../hono/Http/HonoSession.ts";
+import { SessionInitializer, SessionModifier } from "../hono/Http/HonoSession.ts";
 import HonoView from "../hono/Http/HonoView.ts";
 import RedisClient from "./RedisClient.ts";
 
@@ -17,16 +17,16 @@ class Boot {
    */
   static async init() {
     //
+    SessionModifier.init();
+    await Database.init();
+    await SessionInitializer.init();
+    CookieKeysCache.init();
     HonoView.init();
 
     HonoRequest.macro("expectsXml", function () {
       const accept = (this as IHonoRequest).header("accept") ?? "";
       return accept.includes("application/xml") || accept.includes("text/xml");
     });
-    await Database.init();
-
-    await SessionInitializer.init();
-    CookieKeysCache.init();
     Carbon.setCarbonTimezone((staticConfig("app.timezone") as string) || "UTC");
   }
 }

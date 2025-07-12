@@ -450,7 +450,7 @@ class MyArtisan {
 
       .command("serve", "Start the Honovel server")
       .option("--port <port:number>", "Port to run the server on", {
-        default: env("PORT", 2000),
+        default: env("PORT", 80),
       })
       .option("--host <host:string>", "Host to run the server on", {
         default: "0.0.0.0",

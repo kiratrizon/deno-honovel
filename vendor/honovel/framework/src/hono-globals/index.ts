@@ -382,7 +382,7 @@ globalFn("getFileContents", function (fileString = "") {
     // Read and return the file content as a UTF-8 string
     return fs.readFileSync(fileString, "utf8");
   } catch (_e) {
-    log(_e, "error", arguments.callee.name);
+    // log(_e, "error", arguments.callee.name);
     return ""; // Return empty string if there's an error
   }
 });
