@@ -392,6 +392,10 @@ export class DB {
     }
     return new SQLRaw(query);
   }
+
+  public static async reconnect(): Promise<void> {
+    await Database.init(true)
+  }
 }
 
 class TableInstance {

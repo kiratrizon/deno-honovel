@@ -120,8 +120,8 @@ export class Database {
     throw new Error(`Unsupported database type: ${dbType}`);
   }
 
-  public static async init(): Promise<void> {
-    if (!isset(Database.client)) {
+  public static async init(force: boolean = false): Promise<void> {
+    if (!isset(Database.client) && !force) {
       const databaseObj = staticConfig("database");
       const dbType = env(
         "DB_CONNECTION",
