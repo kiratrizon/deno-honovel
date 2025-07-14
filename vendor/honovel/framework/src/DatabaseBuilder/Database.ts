@@ -12,6 +12,7 @@ import {
   TLSOptions,
 } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
 import PgSQL from "./PostgreSQL.ts";
+import { Carbon } from "honovel:helpers";
 
 const mappedDBType: Record<string, unknown> = {
   mysql: MySQL,
@@ -21,15 +22,15 @@ const mappedDBType: Record<string, unknown> = {
 export type QueryResult =
   | Record<string, unknown>[]
   | {
-      affected: number;
-      lastInsertRowId: number | null;
-      raw: unknown;
-    }
+    affected: number;
+    lastInsertRowId: number | null;
+    raw: unknown;
+  }
   | {
-      message: string;
-      affected?: number;
-      raw: unknown;
-    };
+    message: string;
+    affected?: number;
+    raw: unknown;
+  };
 type DDL = {
   message: string;
   affected?: number;
@@ -83,12 +84,14 @@ export interface QueryResultDerived {
 // This is for RDBMS like MySQL, PostgreSQL, etc.
 export class Database {
   public static client: MPool | PPool | undefined;
-
+  private static bindings: any[] = [
+    Carbon
+  ];
   public async runQuery<T extends keyof QueryResultDerived>(
     query: string,
     params: unknown[] = []
   ): Promise<QueryResultDerived[T]> {
-    await this.init();
+    await Database.init();
     const dbType = env(
       "DB_CONNECTION",
       empty(env("DENO_DEPLOYMENT_ID")) ? "sqlite" : "mysql"
@@ -104,21 +107,21 @@ export class Database {
       mappedDBType.sqlite = SQlite;
     }
 
-    const newQuery = this.beforeQuery(query);
+    const [newQuery, newParams] = this.beforeQuery(query, params);
     const dbKeys = Object.keys(mappedDBType);
     if (dbKeys.includes(dbType.toLowerCase())) {
       // @ts-ignore //
       return await mappedDBType[dbType.toLowerCase()].query(
         Database.client,
         newQuery,
-        params
+        newParams
       );
     }
     throw new Error(`Unsupported database type: ${dbType}`);
   }
 
-  private async init(): Promise<void> {
-    if (!isset(Database.client)) {
+  public static async init(force: boolean = false): Promise<void> {
+    if (!isset(Database.client) || force) {
       const databaseObj = staticConfig("database");
       const dbType = env(
         "DB_CONNECTION",
@@ -183,14 +186,14 @@ export class Database {
               dbConn.ssl === true
                 ? {} // enable TLS with default options
                 : typeof dbConn.ssl === "object"
-                ? (dbConn.ssl as Partial<TLSOptions>)
-                : undefined, // if false or unset, disable TLS
+                  ? (dbConn.ssl as Partial<TLSOptions>)
+                  : undefined, // if false or unset, disable TLS
             applicationName: dbConn.application_name,
             searchPath: Array.isArray(dbConn.searchPath)
               ? dbConn.searchPath
               : dbConn.searchPath
-              ? [dbConn.searchPath]
-              : undefined,
+                ? [dbConn.searchPath]
+                : undefined,
           };
 
           const maxConn =
@@ -209,7 +212,7 @@ export class Database {
     }
   }
 
-  private beforeQuery(query: string): string {
+  private beforeQuery(query: string, params: any[] = []): [string, any[]] {
     const dbType = staticConfig("database").default || "mysql";
 
     let index = 0;
@@ -262,8 +265,16 @@ export class Database {
 
       result += char;
     }
-
-    return result;
+    const newParams = params.map((param) => {
+      const isBinded = Database.bindings.some((binding) => {
+        return param instanceof binding;
+      });
+      if (isBinded) {
+        return param.toString();
+      }
+      return param;
+    })
+    return [result, newParams];
   }
 }
 

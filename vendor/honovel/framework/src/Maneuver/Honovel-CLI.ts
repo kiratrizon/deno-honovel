@@ -1,9 +1,13 @@
+import mysql, { Pool, PoolConnection } from "npm:mysql2@^2.3.3/promise";
 import "../hono-globals/index.ts";
 import { Command } from "https://deno.land/x/cliffy@v1.0.0-rc.4/command/mod.ts";
 import { Database, dbCloser, QueryResultDerived } from "Database";
 import { join } from "https://deno.land/std@0.224.0/path/mod.ts";
 import { Migration } from "Illuminate/Database/Migrations";
 import { DB } from "Illuminate/Support/Facades";
+import { Confirm } from "https://deno.land/x/cliffy@v1.0.0-rc.3/prompt/confirm.ts"
+
+import MySQL from "../DatabaseBuilder/MySQL.ts"
 
 const myCommand = new Command();
 
@@ -11,7 +15,7 @@ import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import path from "node:path";
 class MyArtisan {
   private static db = new Database();
-  constructor() {}
+  constructor() { }
   private async createConfig(options: { force?: boolean }, name: string) {
     const stubPath = honovelPath("stubs/ConfigDefault.stub");
     const stubContent = getFileContents(stubPath);
@@ -114,7 +118,56 @@ class MyArtisan {
     }
   }
 
+  private async askIfDBNotExist() {
+    const dbType = staticConfig("database").default || "mysql";
+    switch (dbType) {
+      case "mysql": {
+        const config = staticConfig("database").connections.mysql || {};
+        const pool = mysql.createPool({
+          host: config.host,
+          port: Number(config.port || 3306),
+          user: config.user,
+          password: config.password,
+          waitForConnections: true,
+        });
+
+        const dbName = config.database;
+        const rows = await MySQL.query<"select">(
+          pool,
+          `SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`,
+          [dbName]
+        );
+
+        if (!rows || Array.isArray(rows) && rows.length === 0) {
+          const confirmed = await Confirm.prompt(`❗ Database "${dbName}" does not exist. Do you want to create it now?`);
+
+          if (confirmed) {
+            await MySQL.query(pool, `CREATE DATABASE \`${dbName}\``);
+            console.log(`✅ Database "${dbName}" has been created.`);
+          } else {
+            console.log(`⚠️ Operation aborted. Database "${dbName}" does not exist.`);
+            await pool.end();
+            Deno.exit(1);
+          }
+        }
+
+        await pool.end();
+        break;
+      }
+      case "pgsql": {
+        break;
+      }
+      case "sqlite": {
+        break;
+      }
+      case "sqlsrv": {
+        break;
+      }
+    }
+  }
+
   private async runMigrations(options: { seed?: boolean; path?: string }) {
+    await this.askIfDBNotExist();
     await this.createMigrationTable();
     const modules = await loadMigrationModules();
     const batchNumber = await this.getBatchNumber();
@@ -140,6 +193,7 @@ class MyArtisan {
   }
 
   private async freshMigrations(options: { seed?: boolean; path?: string }) {
+    await this.askIfDBNotExist();
     await this.dropAllTables();
     await this.createMigrationTable();
     const modules = await loadMigrationModules();
@@ -169,6 +223,7 @@ class MyArtisan {
     step?: number;
     path?: string;
   }) {
+    await this.askIfDBNotExist();
     await this.createMigrationTable();
 
     // Logic to rollback and re-run migrations
@@ -395,7 +450,7 @@ class MyArtisan {
 
       .command("serve", "Start the Honovel server")
       .option("--port <port:number>", "Port to run the server on", {
-        default: env("PORT", 2000),
+        default: env("PORT", 80),
       })
       .option("--host <host:string>", "Host to run the server on", {
         default: "0.0.0.0",

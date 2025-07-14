@@ -52,13 +52,13 @@ export class Schema {
       // @ts-ignore //
       columns: blueprint.columns,
     };
-    const dbType = env("DB_CONNECTION", "mysql");
+    const dbType = staticConfig("database").default;
     const stringedQuery = generateCreateTableSQL(tableSchema, dbType);
     await DB.statement(stringedQuery);
   }
 
   public static async hasTable(table: string): Promise<boolean> {
-    const dbType = env("DB_CONNECTION", "mysql").toLowerCase();
+    const dbType = staticConfig("database").default.toLowerCase();
     let query = "";
 
     switch (dbType) {
@@ -98,7 +98,7 @@ export class Schema {
   }
 
   public static async dropIfExists(table: string): Promise<void> {
-    const dbType = env("DB_CONNECTION", "mysql");
+    const dbType = staticConfig("database").default;
 
     let sql: string;
 
@@ -133,7 +133,7 @@ export class Schema {
       columns,
       table,
     };
-    const dbType = env("DB_CONNECTION", "mysql");
+    const dbType = staticConfig("database").default;
     const stringedQuery = generateAlterTableSQL(tableSchema, dbType);
     await DB.statement(stringedQuery);
   }
@@ -368,16 +368,38 @@ export class DB {
     return await instance.insert<"insert">(...data);
   }
 
+  public static async insertOrUpdate(
+    table: string,
+    data: Record<string, unknown>,
+    uniqueKeys: string[] = []
+  ) {
+    if (empty(table) || !isString(table)) {
+      throw new Error("Table name must be a non-empty string.");
+    }
+    if (empty(data) || !isObject(data)) {
+      throw new Error("Data must be a non-empty objects.");
+    }
+
+    const db = new Database();
+    const [sql, values] = insertOrUpdateBuilder({ table, data }, uniqueKeys);
+    const result = await db.runQuery<"insert">(sql, values);
+    return result;
+  }
+
   public static raw(query: string): SQLRaw {
     if (empty(query) || !isString(query)) {
       throw new Error("Raw query must be a non-empty string.");
     }
     return new SQLRaw(query);
   }
+
+  public static async reconnect(): Promise<void> {
+    await Database.init(true);
+  }
 }
 
 class TableInstance {
-  constructor(private tableName: string) {}
+  constructor(private tableName: string) { }
 
   // for insert operation
   public async insert<T extends "insert">(
@@ -409,7 +431,7 @@ type TInsertBuilder = {
 };
 
 function insertBuilder(input: TInsertBuilder): [string, unknown[]] {
-  const dbType = env("DB_CONNECTION", "mysql"); // mysql | sqlite | pgsql | sqlsrv
+  const dbType = staticConfig("database").default; // mysql | sqlite | pgsql | sqlsrv
 
   if (!Array.isArray(input.data) || input.data.length === 0) {
     throw new Error("Insert data must be a non-empty array.");
@@ -440,6 +462,57 @@ function insertBuilder(input: TInsertBuilder): [string, unknown[]] {
 
   return [sql, values];
 }
+
+type TInsertOrUpdateBuilder = {
+  table: string;
+  data: Record<string, unknown>;
+};
+
+export function insertOrUpdateBuilder(
+  input: TInsertOrUpdateBuilder,
+  uniqueKeys: string[]
+): [string, unknown[]] {
+  const dbType = staticConfig("database").default;
+
+  const columns = Object.keys(input.data);
+  const values = columns.map((col) => input.data[col]);
+
+  const placeholders = dbType === "pgsql"
+    ? `(${columns.map((_, idx) => `$${idx + 1}`).join(", ")})`
+    : `(${columns.map(() => "?").join(", ")})`;
+
+  let sql = `INSERT INTO ${input.table} (${columns.join(", ")}) VALUES ${placeholders}`;
+
+  if (dbType === "mysql") {
+    const updates = columns
+      .filter((col) => !uniqueKeys.includes(col))
+      .map((col) => `${col}=VALUES(${col})`)
+      .join(", ");
+
+    sql += ` ON DUPLICATE KEY UPDATE ${updates}`;
+  } else if (dbType === "pgsql") {
+    const conflictTargets = uniqueKeys.join(", ");
+    const updates = columns
+      .filter((col) => !uniqueKeys.includes(col))
+      .map((col) => `${col}=EXCLUDED.${col}`)
+      .join(", ");
+
+    sql += ` ON CONFLICT (${conflictTargets}) DO UPDATE SET ${updates} RETURNING *`;
+  } else if (dbType === "sqlite") {
+    const updates = columns
+      .filter((col) => !uniqueKeys.includes(col))
+      .map((col) => `${col}=excluded.${col}`)
+      .join(", ");
+
+    sql += ` ON CONFLICT (${uniqueKeys.join(", ")}) DO UPDATE SET ${updates}`;
+  } else if (dbType === "sqlsrv") {
+    throw new Error("Insert or Update is not natively supported in SQL Server in this builder.");
+  }
+
+  return [sql, values];
+}
+
+
 
 interface IRegex {
   digit: string;

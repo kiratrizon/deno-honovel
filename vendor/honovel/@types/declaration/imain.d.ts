@@ -1,6 +1,5 @@
 import { Hono } from "hono";
-import { HonoSession } from "../../framework/src/hono/Http/HonoSession.ts";
-import { ISession } from "./ISession.d.ts";
+import { HonoSession, Session } from "../../framework/src/hono/Http/HonoSession.ts";
 import HttpHono from "HttpHono";
 
 type SessionDataTypes = {
@@ -13,7 +12,7 @@ export type Variables = {
   HonoSession: HonoSession;
   from_web: boolean;
   subdomain: Record<string, string | null>;
-  session: ISession,
+  session: Session,
   logged_out: boolean;
 };
 

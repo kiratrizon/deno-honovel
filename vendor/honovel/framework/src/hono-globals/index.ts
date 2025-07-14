@@ -1,19 +1,19 @@
 import * as path from "https://deno.land/std/path/mod.ts";
-// import { load } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
-import { config } from "npm:dotenv";
-config();
+import { load } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
+// import { config } from "npm:dotenv";
+// config();
 
-// try {
-//   const envObj = (await import("../../../../../environment.ts")).default;
-//   const data = await load(envObj);
-//   if (data) {
-//     for (const [key, value] of Object.entries(data)) {
-//       Deno.env.set(key, value);
-//     }
-//   }
-// } catch (_) {
-//   console.warn(`Env not loaded, please check your environment.ts file.`);
-// }
+try {
+  const envObj = (await import("../../../../../environment.ts")).default;
+  const data = await load(envObj);
+  if (data) {
+    for (const [key, value] of Object.entries(data)) {
+      Deno.env.set(key, value);
+    }
+  }
+} catch (_) {
+  console.warn(`Env not loaded, please check your environment.ts file.`);
+}
 
 Object.defineProperty(globalThis, "globalFn", {
   // deno-lint-ignore no-explicit-any
@@ -382,7 +382,7 @@ globalFn("getFileContents", function (fileString = "") {
     // Read and return the file content as a UTF-8 string
     return fs.readFileSync(fileString, "utf8");
   } catch (_e) {
-    log(_e, "error", arguments.callee.name);
+    // log(_e, "error", arguments.callee.name);
     return ""; // Return empty string if there's an error
   }
 });
@@ -436,7 +436,7 @@ globalFn("base64decode", function (str = "", safe = false) {
   }
   return Buffer.from(str, "base64").toString("utf8");
 });
-import { DateTime, DurationLike } from "luxon";
+import { DateTime } from "luxon";
 
 const getRelativeTime = (
   expression: string,
@@ -524,150 +524,9 @@ globalFn("strtotime", function (time, now) {
   return null;
 });
 
-const configApp = staticConfig("app") as {
-  timezone?: string;
-  datetime_format?: string;
-  date_format?: string;
-  time_format?: string;
-};
-
-class Carbon {
-  private static formatMapping: Record<string, string> = {
-    Y: "yyyy",
-    y: "yy",
-    m: "MM",
-    n: "M",
-    d: "dd",
-    j: "d",
-    H: "HH",
-    h: "hh",
-    i: "mm",
-    s: "ss",
-    A: "a",
-    T: "z",
-    e: "ZZ",
-    o: "yyyy",
-    P: "ZZ",
-    c: "yyyy-MM-dd'T'HH:mm:ssZZ",
-    r: "EEE, dd MMM yyyy HH:mm:ss Z",
-    u: "yyyy-MM-dd HH:mm:ss.SSS",
-    W: "W",
-    N: "E",
-    z: "o",
-  };
-
-  private timeAlters: DurationLike = {
-    years: 0,
-    months: 0,
-    weeks: 0,
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-  };
-
-  public addDays(days: number = 0): this {
-    this.timeAlters.days! += days;
-    return this;
-  }
-
-  public addHours(hours: number = 0): this {
-    this.timeAlters.hours! += hours;
-    return this;
-  }
-
-  public addMinutes(minutes: number = 0): this {
-    this.timeAlters.minutes! += minutes;
-    return this;
-  }
-
-  public addSeconds(seconds: number = 0): this {
-    this.timeAlters.seconds! += seconds;
-    return this;
-  }
-
-  public addYears(years: number = 0): this {
-    this.timeAlters.years! += years;
-    return this;
-  }
-
-  public addMonths(months: number = 0): this {
-    this.timeAlters.months! += months;
-    return this;
-  }
-
-  public addWeeks(weeks: number = 0): this {
-    this.timeAlters.weeks! += weeks;
-    return this;
-  }
-
-  private generateDateTime(): DateTime {
-    return DateTime.now()
-      .plus(this.timeAlters)
-      .setZone(configApp.timezone || "UTC");
-  }
-
-  public getByFormat(format: string): string {
-    if (typeof format !== "string") {
-      throw new Error("Invalid format");
-    }
-
-    const time = this.generateDateTime();
-    const formattings = Object.keys(Carbon.formatMapping);
-    let newFormat = "";
-
-    for (let i = 0; i < format.length; i++) {
-      if (formattings.includes(format[i])) {
-        newFormat += Carbon.formatMapping[format[i]];
-      } else {
-        newFormat += format[i];
-      }
-    }
-
-    return time.toFormat(newFormat);
-  }
-
-  getDateTime(): string {
-    return this.getByFormat(configApp.datetime_format || "Y-m-d H:i:s");
-  }
-
-  getDate(): string {
-    return this.getByFormat(configApp.date_format || "Y-m-d");
-  }
-
-  getTime(): string {
-    return this.getByFormat(configApp.time_format || "H:i:s");
-  }
-
-  getByUnixTimestamp(unixTimestamp: number, format: string): string {
-    if (typeof unixTimestamp !== "number") {
-      return this.getByFormat(format);
-    }
-    if (typeof format !== "string") {
-      throw new Error(`Invalid format: ${format}`);
-    }
-
-    const time = DateTime.fromSeconds(unixTimestamp).setZone(
-      configApp.timezone || "GMT+08:00"
-    );
-    const formattings = Object.keys(Carbon.formatMapping);
-    let newFormat = "";
-
-    for (let i = 0; i < format.length; i++) {
-      if (formattings.includes(format[i])) {
-        newFormat += Carbon.formatMapping[format[i]];
-      } else {
-        newFormat += format[i];
-      }
-    }
-
-    return time.toFormat(newFormat);
-  }
-}
-
 globalFn("date", function (format: string, unixTimestamp = null) {
-  const carbon = new Carbon();
-  return carbon.getByUnixTimestamp(unixTimestamp, format);
+  const result = Carbon.createFromTimestamp(unixTimestamp, format);
+  return result.toString();
 });
 
 globalFn("time", () => {
@@ -798,6 +657,7 @@ globalFn(
 
 import axios, { AxiosRequestConfig, AxiosError } from "axios";
 import { IFetchDataOption } from "../../../@types/index.d.ts";
+import { Carbon } from "honovel:helpers";
 
 globalFn(
   "fetchData",

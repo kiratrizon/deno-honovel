@@ -2,33 +2,10 @@ import { CookieOptions } from "hono/utils/cookie";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { Hash } from "Illuminate/Support/Facades";
 import { Str } from "Illuminate/Support";
+import { Buffer } from "node:buffer";
+import { createHmac } from "node:crypto";
+import { init } from "https://deno.land/x/base64@v0.2.1/base.ts";
 
-export class MyCachedHashedApp {
-  static #cachedAppKey: string | null = null;
-  static init() {
-    if (!this.#cachedAppKey) {
-      this.#cachedAppKey = getAppKey();
-    }
-  }
-
-  static getCachedAppKey(): string {
-    if (!this.#cachedAppKey) {
-      throw new Error("App key is not initialized. Call init() first.");
-    }
-    return this.#cachedAppKey;
-  }
-}
-
-export function getAppKey(): string {
-  const appKey = env("APP_KEY", "");
-  if (!appKey) {
-    throw new Error("APP_KEY is not set in the environment variables.");
-  }
-  if (!appKey.startsWith("base64:")) {
-    throw new Error("APP_KEY must be a base64 encoded string.");
-  }
-  return base64decode(appKey.slice(7)); // Remove 'base64:' prefix
-}
 
 export function generateAppKey(): string {
   const key = crypto.getRandomValues(new Uint8Array(32));
@@ -49,18 +26,35 @@ export const setMyCookie = (
   value: Exclude<any, undefined>,
   options: CookieOptions = {}
 ) => {
-  const myKey = MyCachedHashedApp.getCachedAppKey();
+  const appConfig = staticConfig("app");
+  if (empty(appConfig.key) || !isString(appConfig.key)) {
+    throw new Error("APP_KEY is not set. Please set it in your environment variables.");
+  }
   if (value === undefined || !isString(key)) {
     throw new Error("Invalid arguments for setting cookie.");
   }
   const newValue = `${base64encode(jsonEncode(value))}`;
-  if (isUndefined(newValue) || !isString(key) || myKey === "") {
+  if (isUndefined(newValue) || !isString(key) || !isset(CookieKeysCache.mainKey)) {
     throw new Error("Invalid arguments for setting cookie.");
   }
+  const signedValue = `${newValue}.${createHmac("sha256", CookieKeysCache.mainKey).update(newValue).digest("base64url")}`;
 
-  const signedValue = `${newValue}.${myKey}`;
   setCookie(c, key, signedValue, options);
 };
+
+export class CookieKeysCache {
+  public static keys: Buffer[] = [];
+  public static mainKey: Buffer;
+  public static init() {
+    const appConfig = staticConfig("app");
+    const allKeys = [appConfig.key, ...appConfig.previous_keys].filter((k) => isset(k) && !empty(k) && isString(k)).map(resolveAppKey);
+    if (empty(allKeys)) {
+      throw new Error("APP_KEY is not set. Please set it in your environment variables.");
+    }
+    this.keys = allKeys;
+    this.mainKey = this.keys[0];
+  }
+}
 
 // Overloads
 export function getMyCookie(c: MyContext): Record<string, string>;
@@ -75,36 +69,65 @@ export function getMyCookie(
   c: MyContext,
   key?: string
 ): string | null | Record<string, string> {
-  const appKeyHash = MyCachedHashedApp.getCachedAppKey();
 
-  if (isUndefined(key)) {
-    const cookies = getCookie(c) || {};
-    const newCookies: Record<string, string> = {};
-
+  if (!isset(key)) {
+    const cookies = getCookie(c);
+    const allCookies: Record<string, string> = {};
     for (const [cookieKey, cookieValue] of Object.entries(cookies)) {
-      const [value, signatureKey] = cookieValue.split(".");
-      if (signatureKey === appKeyHash && value) {
+      CookieKeysCache.keys.forEach((myKey) => {
+        const parts = cookieValue.split(".");
+        if (parts.length !== 2) return;  // invalid format → skip
+
+        const [base64Value, signature] = parts;
+
+        const expectedSignature = createHmac("sha256", myKey).update(base64Value).digest("base64url");
+
+        if (signature === expectedSignature) {
+          const decodedValue = base64decode(base64Value);
+          try {
+            const json = jsonDecode(decodedValue);
+            allCookies[cookieKey] = json;
+            // Here: you can return immediately (if key is provided) or collect result (if not)
+          } catch {
+            // Invalid JSON → skip
+          }
+        }
+      })
+    }
+    return allCookies;
+  }
+  if (!isString(key) || empty(key)) {
+    throw new Error("Invalid key for getting cookie.");
+  }
+
+  const cookieValue = getCookie(c, key);
+  if (isset(cookieValue) && !empty(cookieValue)) {
+    for (const myKey of CookieKeysCache.keys) {
+      const parts = cookieValue.split(".");
+      if (parts.length !== 2) continue;  // invalid format → skip
+
+      const [base64Value, signature] = parts;
+
+      const expectedSignature = createHmac("sha256", myKey).update(base64Value).digest("base64url");
+
+      if (signature === expectedSignature) {
+        const decodedValue = base64decode(base64Value);
         try {
-          newCookies[cookieKey] = jsonDecode(base64decode(value));
+          return jsonDecode(decodedValue);
         } catch {
-          // skip invalid
+          // Invalid JSON → skip
         }
       }
     }
-    return newCookies;
   }
 
-  if (!isString(key)) throw new Error("Invalid key for getting cookie.");
+  return null;
+}
 
-  const cookieValue = getCookie(c, key);
-  if (!cookieValue) return null;
-
-  const [value, signatureKey] = cookieValue.split(".");
-  if (signatureKey !== appKeyHash || !value) return null;
-
-  try {
-    return jsonDecode(base64decode(value));
-  } catch {
-    return null;
+function resolveAppKey(rawKey: string): Buffer {
+  if (rawKey.startsWith("base64:")) {
+    rawKey = Buffer.from(rawKey.slice(7), "base64").toString("utf-8");
   }
+
+  return Buffer.from(rawKey, "utf-8");
 }

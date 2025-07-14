@@ -1,10 +1,73 @@
-const constant = {
-  timezone: env("TIMEZONE", "Asia/Tokyo"),
-  datetime_format: "Y-m-d H:i:s",
-  date_format: "Y-m-d",
-  time_format: "H:i:s",
-  redis: {
-    url: env("REDIS_URL", ""),
-  }
-};
-export default constant;
+// config/app.ts
+
+import { AppConfig } from "./@types/index.d.ts";
+
+export default {
+  /*
+  |--------------------------------------------------------------------------
+  | Application Name
+  |--------------------------------------------------------------------------
+  */
+  name: env("APP_NAME", "Honovel"),
+
+  /*
+  |--------------------------------------------------------------------------
+  | Application Environment
+  |--------------------------------------------------------------------------
+  */
+  env: env("APP_ENV", "production"),
+
+  /*
+  |--------------------------------------------------------------------------
+  | Application Debug Mode
+  |--------------------------------------------------------------------------
+  */
+  debug: env("APP_DEBUG", false),
+
+  /*
+  |--------------------------------------------------------------------------
+  | Application URL
+  |--------------------------------------------------------------------------
+  */
+  url: env("APP_URL", "http://localhost"),
+
+  /*
+  |--------------------------------------------------------------------------
+  | Application Timezone
+  |--------------------------------------------------------------------------
+  */
+  timezone: "Asia/Tokyo",
+
+  /*
+  |--------------------------------------------------------------------------
+  | Application Locale Configuration
+  |--------------------------------------------------------------------------
+  */
+  locale: env("APP_LOCALE", "en"),
+  fallback_locale: env("APP_FALLBACK_LOCALE", "en"),
+  faker_locale: env("APP_FAKER_LOCALE", "en_US"),
+
+  /*
+  |--------------------------------------------------------------------------
+  | Encryption Key
+  |--------------------------------------------------------------------------
+  */
+  cipher: "AES-256-CBC",
+  key: env("APP_KEY"),
+
+  previous_keys: env("APP_PREVIOUS_KEYS", "")
+    .split(",")
+    .filter((key) => {
+      return key.trim() !== "";
+    }),
+
+  /*
+  |--------------------------------------------------------------------------
+  | Maintenance Mode Driver
+  |--------------------------------------------------------------------------
+  */
+  maintenance: {
+    driver: env("APP_MAINTENANCE_DRIVER", "file"),
+    store: env("APP_MAINTENANCE_STORE", "database"),
+  },
+} as AppConfig;
