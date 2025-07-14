@@ -6,9 +6,11 @@ const port = env("PORT", 80);
 // @ts-ignore //
 const HOSTNAME = String(env("HOSTNAME", ""));
 
-let serveObj: (Deno.ServeTcpOptions & Deno.TlsCertifiedKeyPem) | Deno.ServeTcpOptions = {
+let serveObj:
+  | (Deno.ServeTcpOptions & Deno.TlsCertifiedKeyPem)
+  | Deno.ServeTcpOptions = {
   port,
-}
+};
 
 if (!empty(HOSTNAME)) {
   serveObj.hostname = HOSTNAME;
@@ -42,11 +44,35 @@ async function isPortAvailable(port: number): Promise<boolean> {
 }
 
 if (!(await isPortAvailable(port))) {
-  console.error(`Port ${port} is already in use. Please choose a different port.`);
+  console.error(
+    `Port ${port} is already in use. Please choose a different port.`
+  );
   Deno.exit(1);
 }
+function buildAppUrl(
+  hostname: string,
+  port: number,
+  hasCert: boolean,
+  path: string = "/__warmup"
+): string {
+  const protocol = hasCert ? "https" : "http";
+  const host = hostname || "localhost";
 
-Deno.serve(
-  serveObj,
-  app.fetch
-);
+  const defaultPort = hasCert ? 443 : 80;
+  const portPart = port === defaultPort ? "" : `:${port}`;
+
+  return `${protocol}://${host}${portPart}${path}`;
+}
+const hasCert = !empty(key) && !empty(cert);
+
+const baseWarmup = (path: string) => buildAppUrl(HOSTNAME, port, hasCert, path);
+
+const warmups = ["/__warmup", "/api/__warmup"];
+
+for (const path of warmups) {
+  const url = baseWarmup(path);
+  // console.log("🔥 Warming up:", url);
+  await Server.app.fetch(new Request(url));
+}
+
+Deno.serve(serveObj, app.fetch);

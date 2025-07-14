@@ -127,15 +127,18 @@ class Server {
     if (isset(env("PHPMYADMIN_HOST"))) {
       this.app.get("/myadmin", async (c) => {
         return c.redirect("/myadmin/", 301);
-      })
-      this.app.all('/myadmin/*', async (c) => {
-        const targetUrl = `${env("PHPMYADMIN_HOST")}${c.req.path.replace('/myadmin', '')}${c.req.query() ? `?${c.req.raw.url.split('?')[1]}` : ''}`;
+      });
+      this.app.all("/myadmin/*", async (c) => {
+        const targetUrl = `${env("PHPMYADMIN_HOST")}${c.req.path.replace(
+          "/myadmin",
+          ""
+        )}${c.req.query() ? `?${c.req.raw.url.split("?")[1]}` : ""}`;
 
         const headers = new Headers(c.req.raw.headers);
 
         // Clone body safely (handle GET without body)
         let body: BodyInit | null = null;
-        if (c.req.method !== 'GET' && c.req.method !== 'HEAD') {
+        if (c.req.method !== "GET" && c.req.method !== "HEAD") {
           const rawBody = await c.req.raw.arrayBuffer();
           body = rawBody.byteLength > 0 ? rawBody : null;
         }
@@ -143,12 +146,12 @@ class Server {
         const response = await fetch(targetUrl, {
           method: c.req.method,
           headers,
-          body
+          body,
         });
 
         // Clone response headers safely (some need to be removed)
         const responseHeaders = new Headers(response.headers);
-        responseHeaders.delete('content-encoding');  // remove problematic headers if needed
+        responseHeaders.delete("content-encoding"); // remove problematic headers if needed
 
         const responseBody = await response.arrayBuffer();
         return new Response(responseBody, {
@@ -157,7 +160,6 @@ class Server {
         });
       });
     }
-
 
     // initialize the app
     await this.loadAndValidateRoutes();
@@ -476,6 +478,9 @@ class Server {
               }
             }
           }
+          this.app.get(`${routePrefix}/__warmup`, async (c) => {
+            return c.text("");
+          });
           this.app.route(routePrefix, byEndpointsRouter);
         }
       }

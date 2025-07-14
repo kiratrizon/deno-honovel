@@ -42,12 +42,15 @@ export class HonoSession {
 
 export class Session {
   #id: string | null = null;
-  constructor(private values: Record<string, NonFunction<unknown>> = {}) { }
+  constructor(private values: Record<string, NonFunction<unknown>> = {}) {}
   public put(key: string, value: NonFunction<unknown>) {
     this.values[key] = value;
   }
 
-  public get(key: string, defaultValue: NonFunction<unknown> | null = null): NonFunction<unknown> | null {
+  public get(
+    key: string,
+    defaultValue: NonFunction<unknown> | null = null
+  ): NonFunction<unknown> | null {
     return this.values[key] ?? defaultValue;
   }
 
@@ -92,19 +95,18 @@ export function honoSession(): MiddlewareHandler {
   };
 }
 
-
-
 export function sessionIdRecursive(): string {
   const prefix = SessionModifier.sesConfig.prefix || "sess:";
 
   const timestamp = date("YmdHis");
 
   const array = crypto.getRandomValues(new Uint8Array(16));
-  const randomPart = Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('');
+  const randomPart = Array.from(array)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 
   return `${prefix}${timestamp}${randomPart}`;
 }
-
 
 function base64ToUint8Array(base64: string): Uint8Array {
   const binaryString = atob(base64);
@@ -119,7 +121,6 @@ function base64ToUint8Array(base64: string): Uint8Array {
 function uint8ArrayToBase64(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes));
 }
-
 
 export class SessionModifier {
   public static sesConfig: SessionConfig;
@@ -145,21 +146,23 @@ export class SessionModifier {
   async start() {
     if (!this.#canTouch || this.#started) return;
 
-    const key = SessionModifier.sesConfig.cookie || Str.snake(env("APP_NAME", "honovel") + "_session");
+    const key =
+      SessionModifier.sesConfig.cookie ||
+      Str.snake(env("APP_NAME", "honovel") + "_session");
 
     this.#sessionId = getMyCookie(this.#c, key);
     if (!isset(this.#sessionId)) {
-      console.log("no session id found, creating a new one");
       this.#sessionId = sessionIdRecursive();
     }
     setMyCookie(this.#c, key, this.#sessionId, {
-      maxAge: SessionModifier.sesConfig.expireOnClose ? undefined : SessionModifier.sesConfig.lifetime * 60, // convert minutes to seconds
+      maxAge: SessionModifier.sesConfig.expireOnClose
+        ? undefined
+        : SessionModifier.sesConfig.lifetime * 60, // convert minutes to seconds
       sameSite: SessionModifier.sesConfig.sameSite || "lax",
       secure: SessionModifier.sesConfig.secure || false,
       httpOnly: SessionModifier.sesConfig.httpOnly || true,
       partitioned: SessionModifier.sesConfig.partitioned || false,
-    })
-
+    });
 
     this.#value = await loadSession(this.#sessionId);
     this.#c.set("HonoSession", new HonoSession(this.#sessionId, this.#value));
@@ -173,7 +176,11 @@ export class SessionModifier {
   async end() {
     if (!this.#canTouch || !this.#sessionId) return;
 
-    deleteCookie(this.#c, SessionModifier.sesConfig.cookie || Str.snake(env("APP_NAME", "honovel") + "_session"));
+    deleteCookie(
+      this.#c,
+      SessionModifier.sesConfig.cookie ||
+        Str.snake(env("APP_NAME", "honovel") + "_session")
+    );
     await deleteSession(this.#sessionId);
 
     this.#c.set("logged_out", true);
@@ -182,7 +189,8 @@ export class SessionModifier {
 }
 
 async function saveSession(sid: string, data: Record<string, unknown>) {
-  if (!isset(SessionModifier.sesConfig.lifetime)) throw new Error("Session lifetime is not set in configuration");
+  if (!isset(SessionModifier.sesConfig.lifetime))
+    throw new Error("Session lifetime is not set in configuration");
   const type = SessionModifier.sesConfig.driver || "file";
 
   const isEncrypt = SessionModifier.sesConfig.encrypt || false;
@@ -193,7 +201,9 @@ async function saveSession(sid: string, data: Record<string, unknown>) {
   switch (type) {
     case "database": {
       const tableSession = SessionModifier.sesConfig.table || "sessions";
-      const expires = Carbon.now().addSeconds(SessionModifier.sesConfig.lifetime * 60);
+      const expires = Carbon.now().addSeconds(
+        SessionModifier.sesConfig.lifetime * 60
+      );
       if (staticConfig("database").default === "sqlite") {
         // SQLite requires a different handling for upsert
         const dataExists = await DB.select(
@@ -213,7 +223,7 @@ async function saveSession(sid: string, data: Record<string, unknown>) {
               data: dataToString,
               expires,
             },
-            ["sid"],
+            ["sid"]
           );
         }
       } else {
@@ -224,8 +234,8 @@ async function saveSession(sid: string, data: Record<string, unknown>) {
             data: dataToString,
             expires,
           },
-          ["sid"],
-        )
+          ["sid"]
+        );
       }
       break;
     }
@@ -240,11 +250,9 @@ async function saveSession(sid: string, data: Record<string, unknown>) {
       break;
     }
     case "redis": {
-      await RedisClient.set(sid, dataToString,
-        {
-          "ex": SessionModifier.sesConfig.lifetime, // convert minutes to seconds
-        }
-      )
+      await RedisClient.set(sid, dataToString, {
+        ex: SessionModifier.sesConfig.lifetime, // convert minutes to seconds
+      });
       break;
     }
     case "memory": {
@@ -265,7 +273,6 @@ async function saveSession(sid: string, data: Record<string, unknown>) {
 }
 
 async function loadSession(sid: string) {
-
   const type = SessionModifier.sesConfig.driver || "file";
   const isEncrypt = SessionModifier.sesConfig.encrypt || false;
   switch (type) {
@@ -328,7 +335,6 @@ async function loadSession(sid: string) {
 }
 
 async function deleteSession(sid: string) {
-
   const type = SessionModifier.sesConfig.driver || "file";
 
   switch (type) {
@@ -366,17 +372,16 @@ async function deleteSession(sid: string) {
 function resolveAppKey(rawKey: string, keyBytes: number): Uint8Array {
   let keyData = rawKey;
 
-  if (keyData.startsWith('base64:')) {
-    keyData = atob(keyData.slice(7));  // Decode base64 to binary string
+  if (keyData.startsWith("base64:")) {
+    keyData = atob(keyData.slice(7)); // Decode base64 to binary string
   }
 
   const encoder = new TextEncoder();
   return encoder.encode(keyData).slice(0, keyBytes);
 }
 
-
 export async function encrypt(data: Record<string, unknown>): Promise<string> {
-  const appConfig = staticConfig('app');
+  const appConfig = staticConfig("app");
   const appKey = appConfig.key;
   const cipher = appConfig.cipher;
 
@@ -401,7 +406,11 @@ export async function encrypt(data: Record<string, unknown>): Promise<string> {
 
   const encoded = new TextEncoder().encode(JSON.stringify(data));
 
-  const encrypted = await crypto.subtle.encrypt({ name: mode, iv }, key, encoded);
+  const encrypted = await crypto.subtle.encrypt(
+    { name: mode, iv },
+    key,
+    encoded
+  );
 
   const combined = new Uint8Array(iv.length + encrypted.byteLength);
   combined.set(iv, 0);
@@ -410,9 +419,10 @@ export async function encrypt(data: Record<string, unknown>): Promise<string> {
   return uint8ArrayToBase64(combined);
 }
 
-
-export async function decrypt(data: string): Promise<Record<string, unknown> | null> {
-  const appConfig = staticConfig('app');
+export async function decrypt(
+  data: string
+): Promise<Record<string, unknown> | null> {
+  const appConfig = staticConfig("app");
   const keys = SessionInitializer.appKeys;
   const cipher = appConfig.cipher;
 
@@ -427,7 +437,6 @@ export async function decrypt(data: string): Promise<Record<string, unknown> | n
 
   for (const keyMaterial of keys) {
     try {
-
       const key = await crypto.subtle.importKey(
         "raw",
         keyMaterial,
@@ -436,7 +445,11 @@ export async function decrypt(data: string): Promise<Record<string, unknown> | n
         ["decrypt"]
       );
 
-      const decrypted = await crypto.subtle.decrypt({ name: mode, iv }, key, encryptedContent);
+      const decrypted = await crypto.subtle.decrypt(
+        { name: mode, iv },
+        key,
+        encryptedContent
+      );
       const decoded = new TextDecoder().decode(decrypted);
       return JSON.parse(decoded);
     } catch {
@@ -447,20 +460,15 @@ export async function decrypt(data: string): Promise<Record<string, unknown> | n
   return null;
 }
 
-
-
 export class SessionInitializer {
-
   public static appKeys: Uint8Array[] = [];
 
   public static async init() {
-
-    const sessionConfig = staticConfig("session");
     const type = SessionModifier.sesConfig.driver || "file";
     switch (type) {
       case "database": {
         const tableSession = SessionModifier.sesConfig.table || "sessions";
-        const migrationClass = new class extends Migration {
+        const migrationClass = new (class extends Migration {
           async up() {
             if (!(await Schema.hasTable(tableSession))) {
               await Schema.create(tableSession, (table) => {
@@ -468,6 +476,7 @@ export class SessionInitializer {
                 table.string("sid").unique();
                 table.text("data");
                 table.timestamp("expires");
+                table.timestamps();
               });
             }
           }
@@ -475,7 +484,7 @@ export class SessionInitializer {
           async down() {
             // await Schema.dropIfExists(tableSession);
           }
-        }();
+        })();
         await migrationClass.up();
         break;
       }
@@ -505,14 +514,17 @@ export class SessionInitializer {
     const cipher = appConfig.cipher || "AES-256-CBC";
     const keySize = parseInt(cipher.match(/AES-(\d+)-/)?.[1] || "256", 10);
     const keyBytes = keySize / 8;
-    const keys = [appConfig.key, ...(appConfig.previous_keys || [])].filter((k) => isset(k) && !empty(k) && isString(k)).map((k => resolveAppKey(k, keyBytes)));
+    const keys = [appConfig.key, ...(appConfig.previous_keys || [])]
+      .filter((k) => isset(k) && !empty(k) && isString(k))
+      .map((k) => resolveAppKey(k, keyBytes));
     if (keys.length === 0) {
-      throw new Error("APP_KEY is not set. Please set it in your environment variables.");
+      throw new Error(
+        "APP_KEY is not set. Please set it in your environment variables."
+      );
     }
     this.appKeys = keys;
   }
 }
-
 
 Deno.addSignalListener("SIGINT", async () => {
   console.log("Gracefully shutting down...");
