@@ -1,6 +1,6 @@
-import { Migration } from "Illuminate/Database/Migrations";
-import { Schema } from "Illuminate/Support/Facades";
-import { Blueprint } from "Illuminate/Database/Schema";
+import { Migration } from "Illuminate/Database/Migrations/index.ts";
+import { Schema } from "Illuminate/Support/Facades/index.ts";
+import { Blueprint } from "Illuminate/Database/Schema/index.ts";
 
 export default new (class extends Migration {
   public async up() {

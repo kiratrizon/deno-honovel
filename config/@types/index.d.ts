@@ -11,7 +11,6 @@ interface AppMaintenanceConfig {
    */
   store: string;
 }
-
 export interface AppConfig {
   /**
    * Application Name
@@ -65,7 +64,12 @@ export interface AppConfig {
    * Encryption Cipher
    * Example: "AES-256-CBC"
    */
-  cipher: "AES-128-CBC" | "AES-192-CBC" | "AES-256-CBC" | "AES-128-GCM" | "AES-256-GCM";
+  cipher:
+    | "AES-128-CBC"
+    | "AES-192-CBC"
+    | "AES-256-CBC"
+    | "AES-128-GCM"
+    | "AES-256-GCM";
 
   /**
    * Encryption Key
@@ -83,9 +87,47 @@ export interface AppConfig {
   maintenance: AppMaintenanceConfig;
 }
 
+/**
+ * A provider config structure (like 'users', 'admins').
+ */
+interface AuthProvider {
+  driver: "eloquent";
+  model: typeof Authenticatable;
+  /**
+   * This is the key used to check in database for the model.
+   */
+  credentialKey?: string;
+  /**
+   * This is the key used to check password in database for the model.
+   */
+  passwordKey?: string;
+}
 
+type AuthProviders = Record<string, AuthProvider>;
+
+/**
+ * A guard config structure (like 'jwt_user', 'session_admin').
+ */
+interface AuthGuard {
+  driver: "jwt" | "session" | "token";
+  provider: string; // Can keep `keyof AuthProviders` if you want strict linking
+}
+
+type AuthGuards = Record<string, AuthGuard>;
+
+/**
+ * The full auth config (like Laravel's config/auth.php).
+ */
+export interface AuthConfig {
+  default: {
+    guard: keyof AuthGuards;
+  };
+  guards: AuthGuards;
+  providers: AuthProviders;
+}
 
 import { SslOptions } from "npm:mysql2@^2.3.3";
+import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 
 type SupportedDrivers = "mysql" | "pgsql" | "sqlite" | "sqlsrv";
 
@@ -203,14 +245,14 @@ export interface CorsConfig {
 
 export interface SessionConfig {
   driver:
-  | "file"
-  | "memory"
-  | "redis"
-  | "database"
-  | "cookie"
-  | "memcached"
-  | "dynamodb"
-  | "array";
+    | "file"
+    | "memory"
+    | "redis"
+    | "database"
+    | "cookie"
+    | "memcached"
+    | "dynamodb"
+    | "array";
 
   lifetime: number; // session lifetime in minutes
 
@@ -256,6 +298,7 @@ export interface SessionConfig {
 
 export interface ConfigItems {
   app: AppConfig;
+  auth: AuthConfig;
   database: DatabaseConfig;
   logging: LogConfig;
   cors: CorsConfig;

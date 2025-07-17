@@ -2,7 +2,7 @@
 import mysql, {
   ConnectionOptions,
   Pool as MPool,
-} from "npm:mysql2@^2.3.3/promise";
+} from "npm:mysql2@^3.6.0/promise";
 // sqlite
 import MySQL from "./MySQL.ts";
 
@@ -22,15 +22,15 @@ const mappedDBType: Record<string, unknown> = {
 export type QueryResult =
   | Record<string, unknown>[]
   | {
-    affected: number;
-    lastInsertRowId: number | null;
-    raw: unknown;
-  }
+      affected: number;
+      lastInsertRowId: number | null;
+      raw: unknown;
+    }
   | {
-    message: string;
-    affected?: number;
-    raw: unknown;
-  };
+      message: string;
+      affected?: number;
+      raw: unknown;
+    };
 type DDL = {
   message: string;
   affected?: number;
@@ -84,9 +84,7 @@ export interface QueryResultDerived {
 // This is for RDBMS like MySQL, PostgreSQL, etc.
 export class Database {
   public static client: MPool | PPool | undefined;
-  private static bindings: any[] = [
-    Carbon
-  ];
+  private static bindings: any[] = [Carbon];
   public async runQuery<T extends keyof QueryResultDerived>(
     query: string,
     params: unknown[] = []
@@ -186,14 +184,14 @@ export class Database {
               dbConn.ssl === true
                 ? {} // enable TLS with default options
                 : typeof dbConn.ssl === "object"
-                  ? (dbConn.ssl as Partial<TLSOptions>)
-                  : undefined, // if false or unset, disable TLS
+                ? (dbConn.ssl as Partial<TLSOptions>)
+                : undefined, // if false or unset, disable TLS
             applicationName: dbConn.application_name,
             searchPath: Array.isArray(dbConn.searchPath)
               ? dbConn.searchPath
               : dbConn.searchPath
-                ? [dbConn.searchPath]
-                : undefined,
+              ? [dbConn.searchPath]
+              : undefined,
           };
 
           const maxConn =
@@ -273,7 +271,7 @@ export class Database {
         return param.toString();
       }
       return param;
-    })
+    });
     return [result, newParams];
   }
 }

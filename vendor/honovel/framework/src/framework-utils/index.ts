@@ -250,4 +250,3 @@ export class Carbon extends String {
     return new this(date.setZone(this.defaultTimezone));
   }
 }
-

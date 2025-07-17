@@ -28,14 +28,6 @@ export type CastType = "string" | "int" | "boolean" | "array" | "object";
 /**
  * Static methods for model operations
  */
-export declare class IStaticBaseModel {
-  /**
-   * @param attributes Attributes to create a new model instance
-   */
-  public static create(attributes: Record<string, unknown>): Promise<boolean>;
-}
-
-
 
 /**
  * BaseModel class provides structure and behavior for working with data models
@@ -79,7 +71,10 @@ declare class IBaseModel<T extends IBaseModelProperties> {
   protected _attributes: T["_attributes"];
 
   /** Attribute cast map (string, int, boolean, array, object) */
-  protected _casts: Record<keyof T["_attributes"], "string" | "boolean" | "object" | "int" | "array">;
+  protected _casts: Record<
+    keyof T["_attributes"],
+    "string" | "boolean" | "object" | "int" | "array"
+  >;
 
   /** Tuple of fields used for created_at and updated_at */
   protected _timestampsFields: [string, string];
@@ -109,13 +104,18 @@ declare class IBaseModel<T extends IBaseModelProperties> {
   public usesTimestamps(): boolean;
 
   /** Retrieve a specific attribute, with casting and accessor applied */
-  public getAttribute<K extends keyof T["_attributes"]>(key: K): T["_attributes"][K] | null;
+  public getAttribute<K extends keyof T["_attributes"]>(
+    key: K
+  ): T["_attributes"][K] | null;
 
   /** Retrieve all attributes, passed through accessors and casts */
   public getAttributes(): Record<string, unknown>;
 
   /** Set a specific attribute value with mutator applied */
-  public setAttribute<K extends keyof T["_attributes"]>(key: K, value: T["_attributes"][K]): void;
+  public setAttribute<K extends keyof T["_attributes"]>(
+    key: K,
+    value: T["_attributes"][K]
+  ): void;
 
   /** Fill the model with attributes (only fillable ones or unguarded) */
   public fill(attributes: T["_attributes"]): this;
@@ -163,7 +163,15 @@ declare class IBaseModel<T extends IBaseModelProperties> {
   ): void;
 
   /** Static factory method for model creation (not implemented) */
-  public static create<Attr extends Record<string, unknown>>(attributes?: Attr): boolean;
+  public static create<Attr extends Record<string, unknown>>(
+    attributes?: Attr
+  ): boolean;
+
+  /**
+   * Find a model by its primary key
+   * @param id Primary key value
+   */
+  public static find(id: string | number): Promise<any>;
 }
 
 export default IBaseModel;

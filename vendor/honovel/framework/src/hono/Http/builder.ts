@@ -9,7 +9,7 @@ import {
   multiParser,
   FormFile,
 } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
-import { Str } from "Illuminate/Support";
+import { Str } from "Illuminate/Support/index.ts";
 import { getMyCookie } from "./HonoCookie.ts";
 
 export async function buildRequest(c: MyContext): Promise<RequestData> {

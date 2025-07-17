@@ -2,12 +2,12 @@ import { MiddlewareHandler } from "hono";
 import * as path from "https://deno.land/std/path/mod.ts";
 
 import { ISession } from "../../../../@types/declaration/ISession.d.ts";
-import { Str } from "Illuminate/Support";
+import { Str } from "Illuminate/Support/index.ts";
 import { getMyCookie, setMyCookie } from "./HonoCookie.ts";
 import { deleteCookie } from "hono/cookie";
 import RedisClient from "../../Maneuver/RedisClient.ts";
-import { Migration } from "Illuminate/Database/Migrations";
-import { Schema, DB } from "Illuminate/Support/Facades";
+import { Migration } from "Illuminate/Database/Migrations/index.ts";
+import { Schema, DB } from "Illuminate/Support/Facades/index.ts";
 import { Carbon } from "honovel:helpers";
 import { init } from "https://deno.land/x/base64@v0.2.1/base.ts";
 import { SessionConfig } from "../../../../../../config/@types/index.d.ts";
@@ -370,31 +370,29 @@ async function deleteSession(sid: string) {
 }
 
 function resolveAppKey(rawKey: string, keyBytes: number): Uint8Array {
-  let keyData = rawKey;
-
-  if (keyData.startsWith("base64:")) {
-    keyData = atob(keyData.slice(7)); // Decode base64 to binary string
+  if (rawKey.startsWith("base64:")) {
+    const decoded = Uint8Array.from(atob(rawKey.slice(7)), (c) =>
+      c.charCodeAt(0)
+    );
+    return decoded.slice(0, keyBytes);
   }
 
   const encoder = new TextEncoder();
-  return encoder.encode(keyData).slice(0, keyBytes);
+  return encoder.encode(rawKey).slice(0, keyBytes);
 }
 
 export async function encrypt(data: Record<string, unknown>): Promise<string> {
   const appConfig = staticConfig("app");
-  const appKey = appConfig.key;
   const cipher = appConfig.cipher;
 
-  if (!appKey) throw new Error("Missing app key in configuration");
-  if (!cipher) throw new Error("Missing cipher in configuration");
-
   const mode = cipher.toUpperCase().includes("GCM") ? "AES-GCM" : "AES-CBC";
-  const keySize = parseInt(cipher.match(/AES-(\d+)-/)?.[1] || "256", 10);
-  const keyBytes = keySize / 8;
   const ivLength = mode === "AES-GCM" ? 12 : 16;
 
   const iv = crypto.getRandomValues(new Uint8Array(ivLength));
-  const keyMaterial = resolveAppKey(appKey, keyBytes);
+  const keyMaterial = SessionInitializer.appKeys[0];
+  if (!keyMaterial) {
+    throw new Error("No app key available for encryption");
+  }
 
   const key = await crypto.subtle.importKey(
     "raw",

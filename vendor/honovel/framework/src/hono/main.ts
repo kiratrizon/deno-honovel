@@ -22,7 +22,7 @@ import {
 import { IMyConfig } from "./Support/MethodRoute.ts";
 import { honoSession } from "./Http/HonoSession.ts";
 import { myError } from "./Http/builder.ts";
-import { default as Router } from "Illuminate/Support/Facades/Route";
+import { Route as Router } from "Illuminate/Support/Facades/index.ts";
 const Route = Router as typeof INRoute;
 const headFunction: MiddlewareHandler = async (c: MyContext, next) => {
   const { request } = c.get("myHono");
