@@ -1,7 +1,5 @@
-import {
-  Model,
-  ModelWithAttributes,
-} from "Illuminate/Database/Eloquent";
+import { ModelWithAttributes } from "Illuminate/Database/Eloquent/index.ts";
+import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 
 export type UserSchema = {
   id?: number;
@@ -10,7 +8,7 @@ export type UserSchema = {
   name: string;
 };
 
-class BaseUser extends Model<{ _attributes: UserSchema }> {
+class BaseUser extends Authenticatable<{ _attributes: UserSchema }> {
   // Laravel-like implementation here
   protected override _fillable = [];
 

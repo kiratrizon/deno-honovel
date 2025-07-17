@@ -1,12 +1,13 @@
-import { DB } from "Illuminate/Support/Facades";
+import { DB } from "Illuminate/Support/Facades/index.ts";
 import Controller from "./Controller.ts";
 import User, { UserSchema } from "../../Models/User.ts";
 
 class UserController extends Controller {
   // GET /resource
-  public index: HttpDispatch = async (myHono) => {
-    const data = DB.table("users")
+  public index: HttpDispatch = async ({ request }) => {
+    const data = DB.table("users");
     const user = new User();
+
     user.setAttribute("password", "password123");
     return "test";
   };

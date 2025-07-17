@@ -2,7 +2,7 @@ import {
   Model,
   schemaKeys,
   ModelWithAttributes,
-} from "Illuminate/Database/Eloquent";
+} from "Illuminate/Database/Eloquent/index.ts";
 
 export type {{ ClassName }}Schema = {
   id?: number;

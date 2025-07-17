@@ -9,7 +9,35 @@ import {
   DBType,
   TableSchema,
 } from "../../Database/Schema/index.ts";
+import BaseController from "Illuminate/Routing/BaseController";
+import { plural, singular } from "https://deno.land/x/deno_plural/mod.ts";
+import authConf from "../../../../../../../config/auth.ts";
+import {
+  Authenticatable,
+  JwtGuard,
+  SessionGuard,
+  TokenGuard,
+} from "Illuminate/Contracts/Auth/index.ts";
 
+import {
+  IRoute,
+  IMethodRoute,
+  IGroupParams,
+  IEGroupRoute,
+  IReferencesRoute,
+  IChildRoutes,
+  IHeaderChildRoutes,
+  ICallback,
+} from "../../../../../@types/declaration/IRoute.d.ts";
+import MethodRoute from "../../../hono/Support/MethodRoute.ts";
+import GR from "../../../hono/Support/GroupRoute.ts";
+import { regexObj } from "../../../hono/Support/FunctionRoute.ts";
+import ResourceRoute, {
+  IResourceRouteConf,
+} from "../../../hono/Support/ResourceRoute.ts";
+import { Database, QueryResultDerived } from "Database";
+import { Builder, SQLRaw } from "../../Database/Query/index.ts";
+import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
 interface HashOptions {
   rounds?: number;
 }
@@ -31,9 +59,6 @@ export class Hash {
   }
 }
 
-import { Database, QueryResultDerived } from "Database";
-import { Builder, SQLRaw } from "../../Database/Query/index.ts";
-import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
 export class Schema {
   public static async create(
     table: string,
@@ -399,7 +424,7 @@ export class DB {
 }
 
 class TableInstance {
-  constructor(private tableName: string) { }
+  constructor(private tableName: string) {}
 
   // for insert operation
   public async insert<T extends "insert">(
@@ -477,11 +502,14 @@ export function insertOrUpdateBuilder(
   const columns = Object.keys(input.data);
   const values = columns.map((col) => input.data[col]);
 
-  const placeholders = dbType === "pgsql"
-    ? `(${columns.map((_, idx) => `$${idx + 1}`).join(", ")})`
-    : `(${columns.map(() => "?").join(", ")})`;
+  const placeholders =
+    dbType === "pgsql"
+      ? `(${columns.map((_, idx) => `$${idx + 1}`).join(", ")})`
+      : `(${columns.map(() => "?").join(", ")})`;
 
-  let sql = `INSERT INTO ${input.table} (${columns.join(", ")}) VALUES ${placeholders}`;
+  let sql = `INSERT INTO ${input.table} (${columns.join(
+    ", "
+  )}) VALUES ${placeholders}`;
 
   if (dbType === "mysql") {
     const updates = columns
@@ -506,13 +534,13 @@ export function insertOrUpdateBuilder(
 
     sql += ` ON CONFLICT (${uniqueKeys.join(", ")}) DO UPDATE SET ${updates}`;
   } else if (dbType === "sqlsrv") {
-    throw new Error("Insert or Update is not natively supported in SQL Server in this builder.");
+    throw new Error(
+      "Insert or Update is not natively supported in SQL Server in this builder."
+    );
   }
 
   return [sql, values];
 }
-
-
 
 interface IRegex {
   digit: string;
@@ -663,5 +691,390 @@ export class Validator {
         }
         break;
     }
+  }
+}
+
+const GroupRoute = GR as typeof IEGroupRoute;
+
+type KeysWithICallback<T> = {
+  [P in keyof T]: T[P] extends ICallback ? P : unknown;
+}[keyof T];
+
+class MyRoute {
+  private static routeId = 0;
+  private static resourceId = 0;
+  private static groupPreference: IReferencesRoute["groups"] = {};
+  private static methodPreference: IReferencesRoute["methods"] = {};
+  private static defaultRoute: IReferencesRoute["defaultRoute"] = {};
+
+  public static group(config: IGroupParams, callback: () => void): void {
+    if (!isObject(config)) {
+      throw new Error("Group config must be an object");
+    }
+    const groupInstance = new GroupRoute();
+
+    const keys = Object.keys(config) as (keyof IGroupParams)[];
+    keys.forEach((key) => {
+      if (methodExist(groupInstance, key) && isset(config[key])) {
+        // deno-lint-ignore no-explicit-any
+        groupInstance[key]((config as any)[key]);
+      }
+    });
+    groupInstance.group(callback); // Call the group method
+  }
+
+  public static middleware(
+    handler: string | (string | HttpMiddleware)[] | HttpMiddleware
+  ) {
+    const groupInstance = new GroupRoute();
+    groupInstance.middleware(handler);
+    return groupInstance;
+  }
+
+  public static prefix(uri: string) {
+    const groupInstance = new GroupRoute();
+    groupInstance.prefix(uri);
+    return groupInstance;
+  }
+  public static domain(domain: string) {
+    const groupInstance = new GroupRoute();
+    groupInstance.domain(domain);
+    return groupInstance;
+  }
+  public static where(obj: Record<string, RegExp[] | RegExp>) {
+    const groupInstance = new GroupRoute();
+    groupInstance.where(obj);
+    return groupInstance;
+  }
+
+  public static whereNumber(key: string) {
+    const groupInstance = new GroupRoute();
+    groupInstance.whereNumber(key);
+    return groupInstance;
+  }
+  public static whereAlpha(key: string) {
+    const groupInstance = new GroupRoute();
+    groupInstance.whereAlpha(key);
+    return groupInstance;
+  }
+  public static whereAlphaNumeric(key: string) {
+    const groupInstance = new GroupRoute();
+    groupInstance.whereAlphaNumeric(key);
+    return groupInstance;
+  }
+
+  public static as(name: string) {
+    const groupInstance = new GroupRoute();
+    groupInstance.as(name);
+    return groupInstance;
+  }
+
+  public static pushGroupReference(id: number, groupInstance: IEGroupRoute) {
+    if (empty(this.groupPreference[id])) {
+      this.groupPreference[id] = groupInstance;
+    }
+  }
+
+  // Public methods using the simplified registration
+  public static get<T extends BaseController, K extends KeysWithICallback<T>>(
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ) {
+    return this.registerRoute(["get"], uri, arg);
+  }
+
+  public static post<T extends BaseController, K extends KeysWithICallback<T>>(
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ) {
+    return this.registerRoute(["post"], uri, arg);
+  }
+
+  public static put<T extends BaseController, K extends KeysWithICallback<T>>(
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ) {
+    return this.registerRoute(["put"], uri, arg);
+  }
+
+  public static delete<
+    T extends BaseController,
+    K extends KeysWithICallback<T>
+  >(uri: string, arg: ICallback | [new () => T, K]) {
+    return this.registerRoute(["delete"], uri, arg);
+  }
+
+  public static patch<T extends BaseController, K extends KeysWithICallback<T>>(
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ) {
+    return this.registerRoute(["patch"], uri, arg);
+  }
+
+  public static options<
+    T extends BaseController,
+    K extends KeysWithICallback<T>
+  >(uri: string, arg: ICallback | [new () => T, K]) {
+    return this.registerRoute(["options"], uri, arg);
+  }
+
+  public static head<T extends BaseController, K extends KeysWithICallback<T>>(
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ) {
+    return this.registerRoute(
+      ["head"] as (keyof IHeaderChildRoutes)[],
+      uri,
+      arg
+    );
+  }
+
+  public static any<T extends BaseController, K extends KeysWithICallback<T>>(
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ) {
+    return this.registerRoute(
+      ["get", "post", "put", "delete", "patch", "options"],
+      uri,
+      arg
+    );
+  }
+
+  public static match<T extends BaseController, K extends KeysWithICallback<T>>(
+    methods: (keyof IChildRoutes)[],
+    uri: string,
+    arg: ICallback | [new () => T, K]
+  ) {
+    return this.registerRoute(methods, uri, arg);
+  }
+
+  public static view(
+    uri: string,
+    viewName: string,
+    data: Record<string, unknown> = {}
+  ): void {
+    const method = ["get"] as (keyof IChildRoutes)[];
+    const arg: ICallback = async () => view(viewName, data);
+    this.registerRoute(method, uri, arg);
+  }
+
+  public static resource<
+    T extends BaseController,
+    K extends KeysWithICallback<T>
+  >(uri: string, controller: new () => T) {
+    if (!regexObj.alpha.test(uri))
+      throw new Error(`${uri} should be an alpha character.`);
+    const rsrcId = ++this.resourceId;
+    const pluralized = plural(uri);
+    const singularized = singular(pluralized);
+    const baseUri = `/${pluralized}`;
+    const thisRoutes: IResourceRouteConf["thisRoutes"] = {};
+    const identifier: IResourceRouteConf["identifier"] = {
+      index: 0,
+      create: 0,
+      post: 0,
+      show: 0,
+      edit: 0,
+      update: 0,
+      destroy: 0,
+    };
+    this.registerRoute(
+      ["get"],
+      baseUri,
+      [controller, "index" as K],
+      rsrcId
+    ).name(`${pluralized}.index`);
+    thisRoutes[this.routeId] = ["get"];
+    identifier.index = this.routeId;
+    this.registerRoute(
+      ["get"],
+      `${baseUri}/create`,
+      [controller, "create" as K],
+      rsrcId
+    ).name(`${pluralized}.create`);
+    thisRoutes[this.routeId] = ["get"];
+    identifier.create = this.routeId;
+    this.registerRoute(
+      ["post"],
+      `${baseUri}`,
+      [controller, "store" as K],
+      rsrcId
+    ).name(`${pluralized}.post`);
+    thisRoutes[this.routeId] = ["post"];
+    identifier.post = this.routeId;
+    this.registerRoute(
+      ["get"],
+      `${baseUri}/{${singularized}}`,
+      [controller, "show" as K],
+      rsrcId
+    ).name(`${pluralized}.show`);
+    thisRoutes[this.routeId] = ["get"];
+    identifier.show = this.routeId;
+    this.registerRoute(
+      ["get"],
+      `${baseUri}/{${singularized}}/edit`,
+      [controller, "edit" as K],
+      rsrcId
+    ).name(`${pluralized}.edit`);
+    thisRoutes[this.routeId] = ["get"];
+    identifier.edit = this.routeId;
+    this.registerRoute(
+      ["put", "patch"],
+      `${baseUri}/{${singularized}}`,
+      [controller, "update" as K],
+      rsrcId
+    ).name(`${pluralized}.update`);
+    thisRoutes[this.routeId] = ["put", "patch"];
+    identifier.update = this.routeId;
+    this.registerRoute(
+      ["delete"],
+      `${baseUri}/{${singularized}}`,
+      [controller, "destroy" as K],
+      rsrcId
+    ).name(`${pluralized}.destroy`);
+    thisRoutes[this.routeId] = ["delete"];
+    identifier.destroy = this.routeId;
+
+    this.resourceReferrence[rsrcId] = new ResourceRoute({
+      thisRoutes,
+      identifier,
+      route: this as IRoute,
+    });
+    return this.resourceReferrence[rsrcId];
+  }
+
+  private static resourceReferrence: Record<string, ResourceRoute> = {};
+  private static defaultResource: number[] = [];
+  // Make `get` generic on controller T and method K
+  private static registerRoute<
+    T extends BaseController,
+    K extends KeysWithICallback<T>
+  >(
+    method: (keyof IHeaderChildRoutes)[],
+    uri: string,
+    arg: ICallback | [new () => T, K],
+    fromResource: null | number = null
+  ): IMethodRoute {
+    const id = ++MyRoute.routeId;
+    const instancedRoute = new MethodRoute({ id, uri, method, arg });
+
+    this.methodPreference[id] = instancedRoute;
+
+    if (empty(GroupRoute.currGrp)) {
+      if (!isNull(fromResource)) {
+        if (this.defaultResource.indexOf(fromResource) == -1) {
+          this.defaultResource.push(fromResource);
+        }
+      } else {
+        this.defaultRoute[id] = method;
+      }
+    } else {
+      const groupId = GroupRoute.gID;
+      if (empty(this.groupPreference[groupId])) {
+        this.groupPreference[groupId] = GroupRoute.getGroupName(groupId);
+      }
+      if (!isNull(fromResource)) {
+        this.groupPreference[groupId].pushResource(fromResource);
+      } else {
+        this.groupPreference[groupId].pushChildren(method, id);
+      }
+    }
+
+    return this.methodPreference[id];
+  }
+  public getAllGroupsAndMethods(): IReferencesRoute {
+    const myData = {
+      groups: MyRoute.groupPreference,
+      methods: MyRoute.methodPreference,
+      defaultRoute: MyRoute.defaultRoute,
+      defaultResource: MyRoute.defaultResource,
+      resourceReferrence: MyRoute.resourceReferrence,
+    };
+
+    // Reset the static properties after fetching
+    MyRoute.groupPreference = {};
+    MyRoute.methodPreference = {};
+    MyRoute.defaultRoute = {};
+    MyRoute.defaultResource = [];
+    MyRoute.resourceReferrence = {};
+    return myData;
+  }
+
+  public static getMethod(id: number): IMethodRoute | null {
+    if (keyExist(this.methodPreference, String(id))) {
+      return this.methodPreference[String(id)];
+    }
+    return null;
+  }
+}
+
+export const Route: typeof IRoute = MyRoute;
+
+// Auth and Guard Implementation
+
+type GuardName = keyof typeof authConf.guards;
+type GuardDriver<G extends GuardName> = (typeof authConf.guards)[G]["driver"];
+
+type GuardInstance<G extends GuardName> = GuardDriver<G> extends "jwt"
+  ? JwtGuard
+  : GuardDriver<G> extends "session"
+  ? SessionGuard
+  : GuardDriver<G> extends "token"
+  ? TokenGuard
+  : never;
+
+export class HonoAuth {
+  private static defaultGuard: string = authConf?.default?.guard;
+
+  #c: MyContext;
+  #defaultGuard: string = HonoAuth.defaultGuard;
+  constructor(c: MyContext) {
+    if (empty(c) || !isObject(c)) {
+      throw new Error("Context must be a valid object.");
+    }
+    this.#c = c;
+  }
+
+  public guard<G extends GuardName>(guardName: G = this.#defaultGuard as G) {
+    const driver = authConf?.guards?.[guardName].driver;
+
+    let guard;
+    switch (driver) {
+      case "jwt": {
+        guard = JwtGuard;
+        break;
+      }
+      case "session": {
+        guard = SessionGuard;
+        break;
+      }
+      case "token": {
+        guard = TokenGuard;
+        break;
+      }
+      default:
+        throw new Error(`Unsupported guard driver: ${driver}`);
+    }
+    return new guard(this.#c, guardName as GuardName);
+  }
+
+  public setGuard<G extends GuardName>(guardName: G): void {
+    if (!keyExist(authConf.guards, guardName)) {
+      throw new Error(
+        `Guard ${guardName} is not defined in auth configuration.`
+      );
+    }
+    this.#defaultGuard = guardName;
+  }
+
+  public async attempt<G extends GuardName>(
+    credentials: Record<string, unknown>,
+    remember: boolean = false
+  ): Promise<boolean | string> {
+    return await this.guard<G>().attempt(credentials, remember);
+  }
+
+  public async check(): Promise<boolean> {
+    return await this.guard().check();
   }
 }

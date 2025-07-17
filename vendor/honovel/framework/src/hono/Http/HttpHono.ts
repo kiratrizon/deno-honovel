@@ -5,8 +5,10 @@ import Constants from "Constants";
 class HttpHono {
   #request: HonoRequest;
   #config: typeof IConfigure;
+  #c: MyContext;
   constructor(c: MyContext) {
-    this.#request = new HonoRequest(c);
+    this.#c = c;
+    this.#request = new HonoRequest(this.#c);
     this.#config = new Constants(myConfigData) as unknown as typeof IConfigure;
   }
 

@@ -3,11 +3,11 @@ import "../hono-globals/index.ts";
 import { Command } from "https://deno.land/x/cliffy@v1.0.0-rc.4/command/mod.ts";
 import { Database, dbCloser, QueryResultDerived } from "Database";
 import { join } from "https://deno.land/std@0.224.0/path/mod.ts";
-import { Migration } from "Illuminate/Database/Migrations";
-import { DB } from "Illuminate/Support/Facades";
-import { Confirm } from "https://deno.land/x/cliffy@v1.0.0-rc.3/prompt/confirm.ts"
+import { Migration } from "Illuminate/Database/Migrations/index.ts";
+import { DB } from "Illuminate/Support/Facades/index.ts";
+import { Confirm } from "https://deno.land/x/cliffy@v1.0.0-rc.3/prompt/confirm.ts";
 
-import MySQL from "../DatabaseBuilder/MySQL.ts"
+import MySQL from "../DatabaseBuilder/MySQL.ts";
 
 const myCommand = new Command();
 
@@ -15,7 +15,7 @@ import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import path from "node:path";
 class MyArtisan {
   private static db = new Database();
-  constructor() { }
+  constructor() {}
   private async createConfig(options: { force?: boolean }, name: string) {
     const stubPath = honovelPath("stubs/ConfigDefault.stub");
     const stubContent = getFileContents(stubPath);
@@ -41,7 +41,7 @@ class MyArtisan {
     const modules: string[] = Object.keys(myConfigData);
     let output = "";
     for (const name of modules) {
-      output += `import ${name} from "../${name}.ts";\n`;
+      output += `import ${name} from "configs/${name}.ts";\n`;
     }
     output += `\nexport default {\n`;
     for (const name of modules) {
@@ -138,14 +138,18 @@ class MyArtisan {
           [dbName]
         );
 
-        if (!rows || Array.isArray(rows) && rows.length === 0) {
-          const confirmed = await Confirm.prompt(`❗ Database "${dbName}" does not exist. Do you want to create it now?`);
+        if (!rows || (Array.isArray(rows) && rows.length === 0)) {
+          const confirmed = await Confirm.prompt(
+            `❗ Database "${dbName}" does not exist. Do you want to create it now?`
+          );
 
           if (confirmed) {
             await MySQL.query(pool, `CREATE DATABASE \`${dbName}\``);
             console.log(`✅ Database "${dbName}" has been created.`);
           } else {
-            console.log(`⚠️ Operation aborted. Database "${dbName}" does not exist.`);
+            console.log(
+              `⚠️ Operation aborted. Database "${dbName}" does not exist.`
+            );
             await pool.end();
             Deno.exit(1);
           }

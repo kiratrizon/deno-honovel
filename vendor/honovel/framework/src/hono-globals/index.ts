@@ -15,6 +15,10 @@ try {
   console.warn(`Env not loaded, please check your environment.ts file.`);
 }
 
+if (Deno.env.get("VERCEL") == "1") {
+  Deno.env.set("DENO_DEPLOYMENT_ID", Deno.env.get("VERCEL_URL") || "");
+}
+
 Object.defineProperty(globalThis, "globalFn", {
   // deno-lint-ignore no-explicit-any
   value: function (key: string, value: (args: any[]) => void) {
@@ -710,3 +714,11 @@ globalFn("frameworkVersion", () => {
     honovelVersion: version,
   };
 });
+
+// import process from "node:process";
+
+// process.on("warning", (warning) => {
+//   console.warn(warning.name);
+//   console.warn(warning.message);
+//   console.warn(warning.stack);
+// });
