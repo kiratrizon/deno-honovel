@@ -1,6 +1,6 @@
 import { DB } from "Illuminate/Support/Facades/index.ts";
-import Controller from "./Controller.ts";
-import User, { UserSchema } from "../../Models/User.ts";
+import Controller from "Controllers/Controller.ts";
+import User from "Models/User.ts";
 
 class UserController extends Controller {
   // GET /resource

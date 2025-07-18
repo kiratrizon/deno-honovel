@@ -9,6 +9,8 @@ export interface MiddlewareLikeClass {
 export type MiddlewareLike = string | MiddlewareLikeClass;
 
 export class HttpKernel {
+  protected middleware: MiddlewareLike[] = [];
+
   protected middlewareGroups: Record<string, MiddlewareLike[]> = {};
 
   protected routeMiddleware: Record<string, MiddlewareLikeClass> = {};

@@ -1,6 +1,4 @@
 import { Route } from "Illuminate/Support/Facades/index.ts";
-import UserController from "../app/Http/Controllers/UserController.ts";
-import User from "../app/Models/User.ts";
 
 // Route.resource("users", UserController).whereNumber("user");
 Route.post("/", async ({ request }) => {

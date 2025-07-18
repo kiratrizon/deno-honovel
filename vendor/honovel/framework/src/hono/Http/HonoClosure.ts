@@ -1,6 +1,19 @@
+import HonoRequest from "./HonoRequest.ts";
+
 class HonoClosure {
-  next() {
+  constructor(private readonly c: MyContext) {}
+  next(_request?: HonoRequest) {
+    // to be implemented
     return this;
+  }
+
+  get headers() {
+    return {
+      set: (key: string, value: string): HonoClosure => {
+        this.c.header(key, value);
+        return this;
+      },
+    };
   }
 }
 

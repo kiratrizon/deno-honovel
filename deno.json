@@ -31,7 +31,9 @@
     "Illuminate/": "./vendor/honovel/framework/src/Illuminate/",
     "HttpHono": "./vendor/honovel/framework/src/hono/Http/HttpHono.ts",
     "honovel:helpers": "./vendor/honovel/framework/src/framework-utils/index.ts",
-    "configs/":"./config/"
+    "configs/":"./config/",
+    "Models/": "./app/Models/",
+    "Controllers/": "./app/Http/Controllers/"
   },
   "lint": {
     "rules": {

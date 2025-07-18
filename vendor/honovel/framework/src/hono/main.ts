@@ -179,7 +179,7 @@ class Server {
     const defaultUrls = ["favicon.ico", "robots.txt"];
 
     defaultUrls.forEach((url) => {
-      app.get(`/${url}`, async (c) => {
+      app.get(`/${url}`, async () => {
         const checkFile = publicPath(url);
 
         if (pathExist(checkFile)) {
