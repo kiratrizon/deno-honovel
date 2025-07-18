@@ -24,6 +24,9 @@ import { honoSession } from "./Http/HonoSession.ts";
 import { myError } from "./Http/builder.ts";
 import { Route as Router } from "Illuminate/Support/Facades/index.ts";
 const Route = Router as typeof INRoute;
+
+import ChildKernel from "./Support/ChildKernel.ts"
+
 const headFunction: MiddlewareHandler = async (c: MyContext, next) => {
   const { request } = c.get("myHono");
   if (!request.isMethod("HEAD")) {
@@ -70,6 +73,9 @@ const myStaticDefaults: MiddlewareHandler[] = [
     root: path.relative(Deno.cwd(), honovelPath("hono/hono-assets")),
   }),
 ];
+
+const globalMiddleware = [...toMiddleware(new ChildKernel().Middleware)];
+
 
 // domain on beta test
 const _forDomain: MiddlewareHandler = async (c, next: Next) => {
@@ -124,6 +130,7 @@ class Server {
   public static async init() {
     await Boot.init();
     this.app = this.generateNewApp({}, true);
+
     if (isset(env("PHPMYADMIN_HOST"))) {
       this.app.get("/myadmin", async (c) => {
         return c.redirect("/myadmin/", 301);
@@ -201,6 +208,27 @@ class Server {
     });
 
     if (withDefaults) {
+      const corsConfig = staticConfig("cors") || {};
+      const corsOptions = {
+        origin: (origin: string) => {
+          if (!origin) return null;
+          if (corsConfig.allowed_origins?.includes("*")) return "*";
+          if (corsConfig.allowed_origins?.includes(origin)) return origin;
+          return null;
+        },
+        allowMethods: corsConfig.allowed_methods,
+        allowHeaders: corsConfig.allowed_headers,
+        exposeHeaders: corsConfig.exposed_headers,
+        maxAge: corsConfig.max_age,
+        credentials: corsConfig.supports_credentials,
+      };
+
+      const paths = corsConfig.paths || [];
+
+      paths.forEach((path) => {
+        app.use(path, cors(corsOptions));
+      });
+
       app.use(...myStaticDefaults);
       app.use("*", async (c, next) => {
         c.set("subdomain", {});
@@ -212,26 +240,20 @@ class Server {
 
   private static applyMainMiddleware(key: string, app: HonoType) {
     const mainMiddleware = [key];
-    const buildMainMiddleware = [...toMiddleware(mainMiddleware)];
+    const routeGroupMiddleware = [...toMiddleware(mainMiddleware)];
     if (key === "web") {
       app.use("*", async (c, next: Next) => {
         c.set("from_web", true);
         await next();
       });
     }
-    this.useCors(key, app);
-    const parsePayload = async (c: MyContext, next: Next) => {
-      const { request } = c.get("myHono");
-      // @ts-ignore //
-      await request.buildRequest();
-      return await next();
-    };
     app.use(
       "*",
       honoSession(),
       buildRequestInit(),
-      parsePayload,
-      ...buildMainMiddleware
+      // build the globalMiddlewareHere
+      ...globalMiddleware,
+      ...routeGroupMiddleware
     );
   }
 

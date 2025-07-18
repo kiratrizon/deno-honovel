@@ -5,7 +5,8 @@ Route.post("/", async ({ request }) => {
   return response().json({
     data: request.all(),
   });
-});
+}).middleware("throttle:5,1");
+
 Route.get("/", async ({ request }) => {
   // await User.find(1);
   return response().json({

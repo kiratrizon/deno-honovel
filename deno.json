@@ -9,6 +9,7 @@
     "make:controller": "deno run -A novel make:controller",
     "make:model": "deno run -A novel make:model",
     "make:config": "deno run -A novel make:config",
+    "make:middleware": "deno run -A novel make:middleware",
     "publish:config": "deno run -A novel publish:config",
     "serve": "deno run -A novel serve"
   },
@@ -33,7 +34,8 @@
     "honovel:helpers": "./vendor/honovel/framework/src/framework-utils/index.ts",
     "configs/":"./config/",
     "Models/": "./app/Models/",
-    "Controllers/": "./app/Http/Controllers/"
+    "Controllers/": "./app/Http/Controllers/",
+    "Middlewares/": "./app/Http/Middlewares/"
   },
   "lint": {
     "rules": {

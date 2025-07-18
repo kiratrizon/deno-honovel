@@ -12,6 +12,10 @@ class ChildKernel extends Kernel {
   public get RouteMiddleware(): Record<string, MiddlewareLikeClass> {
     return this.routeMiddleware;
   }
+
+  public get Middleware(): MiddlewareLikeClass[] {
+    return this.middleware;
+  }
 }
 
 export default ChildKernel;

@@ -1,4 +1,4 @@
-import mysql, { Pool, PoolConnection } from "npm:mysql2@^2.3.3/promise";
+import mysql, { Pool, PoolConnection } from "npm:mysql2@^3.6.0/promise";
 import "../hono-globals/index.ts";
 import { Command } from "https://deno.land/x/cliffy@v1.0.0-rc.4/command/mod.ts";
 import { Database, dbCloser, QueryResultDerived } from "Database";
@@ -15,7 +15,7 @@ import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import path from "node:path";
 class MyArtisan {
   private static db = new Database();
-  constructor() {}
+  constructor() { }
   private async createConfig(options: { force?: boolean }, name: string) {
     const stubPath = honovelPath("stubs/ConfigDefault.stub");
     const stubContent = getFileContents(stubPath);
@@ -129,7 +129,7 @@ class MyArtisan {
           user: config.user,
           password: config.password,
           waitForConnections: true,
-        });
+        }) as Pool;
 
         const dbName = config.database;
         const rows = await MySQL.query<"select">(
@@ -368,20 +368,24 @@ class MyArtisan {
     );
   }
 
-  private async serve(options: { port: number; host: string }) {
+  private async serve(options: { port?: number | null | string; host: string }) {
     const port = options.port;
     const serverPath = "vendor/honovel/framework/src/hono/run-server.ts";
 
+
+    const envObj = {
+      HOSTNAME: options.host,
+      ...Deno.env.toObject(), // preserve existing env
+    }
+    if (isset(port)) {
+      // @ts-ignore //
+      envObj.PORT = String(port);
+    }
     const cmd = new Deno.Command("deno", {
       args: ["run", "-A", "--watch=mode=poll", serverPath],
       stdout: "inherit",
       stderr: "inherit",
-      env: {
-        PORT: String(port),
-        HOSTNAME: options.host,
-        ...Deno.env.toObject(), // preserve existing env
-        APP_URL: `http://${options.host}:${port}`,
-      },
+      env: envObj,
     });
 
     // console.log(`http://${options.host}:${port}`);
@@ -389,6 +393,20 @@ class MyArtisan {
     const process = cmd.spawn();
     const status = await process.status;
     Deno.exit(status.code);
+  }
+
+  private async makeMiddleware(name: string) {
+    const stubPath = honovelPath("stubs/Middleware.stub");
+    const stubContent = getFileContents(stubPath);
+    const middlewareContent = stubContent.replace(/{{ ClassName }}/g, name);
+
+    writeFile(appPath(`/Http/Middlewares/${name}.ts`), middlewareContent);
+    console.log(
+      `✅ Middleware file created at ${path.relative(
+        Deno.cwd(),
+        appPath(`/Http/Middlewares/${name}.ts`)
+      )}`
+    );
   }
 
   public async command(args: string[]): Promise<void> {
@@ -422,6 +440,10 @@ class MyArtisan {
       .option("--path <path:string>", "Specify a custom migrations directory")
       .action((options) => this.runMigrations.bind(this)(options))
 
+      .command("make:middleware", "Generate a middleware class")
+      .arguments("<name:string>")
+      .action((_, name) => this.makeMiddleware(name))
+
       .command("make:model", "Generate a model class")
       .arguments("<name:string>")
       .option("-m, --migration", "Also generate a migration file")
@@ -454,7 +476,7 @@ class MyArtisan {
 
       .command("serve", "Start the Honovel server")
       .option("--port <port:number>", "Port to run the server on", {
-        default: env("PORT", 80),
+        default: env("PORT", null),
       })
       .option("--host <host:string>", "Host to run the server on", {
         default: "0.0.0.0",

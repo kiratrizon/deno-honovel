@@ -132,8 +132,7 @@ class HonoDispatch {
               headers.set("Content-Type", "application/octet-stream");
               headers.set(
                 "Content-Disposition",
-                `attachment; filename="${
-                  downloadName || path.basename(filePath)
+                `attachment; filename="${downloadName || path.basename(filePath)
                 }"`
               );
 
@@ -146,11 +145,11 @@ class HonoDispatch {
           default:
             if (!empty(headers)) {
               throw new Error(
-                `${request.method()} methods cannot return with headers only.`
+                `${request.method} methods cannot return with headers only.`
               );
             } else {
               throw new Error(
-                `${request.method()} methods should have html, json, file, or download.`
+                `${request.method} methods should have html, json, file, or download.`
               );
             }
         }

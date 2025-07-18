@@ -3,13 +3,13 @@ export interface MiddlewareLikeInstance {
 }
 
 export interface MiddlewareLikeClass {
-  new (): MiddlewareLikeInstance;
+  new(): MiddlewareLikeInstance;
 }
 
 export type MiddlewareLike = string | MiddlewareLikeClass;
 
 export class HttpKernel {
-  protected middleware: MiddlewareLike[] = [];
+  protected middleware: MiddlewareLikeClass[] = [];
 
   protected middlewareGroups: Record<string, MiddlewareLike[]> = {};
 

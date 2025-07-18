@@ -35,7 +35,7 @@ class HonoRequest extends Macroable {
     this.#sessionMod = new SessionModifier(this.#c);
   }
 
-  protected async buildRequest() {
+  public async buildRequest() {
     if (this.#built) {
       return;
     }
@@ -86,8 +86,7 @@ class HonoRequest extends Macroable {
       body = { buffer }; // you can handle it differently depending on use case
     } else {
       // fallback for unknown or missing content type
-      const text = await c.req.text();
-      body = { text };
+      body = {};
     }
     this.#files = files;
     this.#myAll = body;
@@ -132,6 +131,21 @@ class HonoRequest extends Macroable {
 
     this.#server = forServer;
     this.#built = true;
+  }
+
+  public clean(data: Record<string, unknown>) {
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      cleaned[key] = value === '' ? null : value;
+    }
+    return cleaned;
+  }
+
+  public merge(data: Record<string, unknown>): void {
+    if (!this.#built) {
+      throw new Error("Request not built yet. Call buildRequest() first.");
+    }
+    this.#myAll = { ...this.#myAll, ...this.clean(data) };
   }
 
   #generateRequestId(): string {
@@ -234,12 +248,12 @@ class HonoRequest extends Macroable {
     return this.#c.req.url || "";
   }
 
-  public method(): RequestMethod {
+  public get method(): RequestMethod {
     return this.#c.req.method.toUpperCase() as RequestMethod;
   }
 
   public isMethod(method: RequestMethod): boolean {
-    return this.method() === method;
+    return this.method === method;
   }
 
   public is(pattern: string): boolean {

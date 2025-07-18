@@ -65,11 +65,11 @@ export interface AppConfig {
    * Example: "AES-256-CBC"
    */
   cipher:
-    | "AES-128-CBC"
-    | "AES-192-CBC"
-    | "AES-256-CBC"
-    | "AES-128-GCM"
-    | "AES-256-GCM";
+  | "AES-128-CBC"
+  | "AES-192-CBC"
+  | "AES-256-CBC"
+  | "AES-128-GCM"
+  | "AES-256-GCM";
 
   /**
    * Encryption Key
@@ -243,16 +243,17 @@ export interface CorsConfig {
   supports_credentials?: boolean;
 }
 
+
 export interface SessionConfig {
   driver:
-    | "file"
-    | "memory"
-    | "redis"
-    | "database"
-    | "cookie"
-    | "memcached"
-    | "dynamodb"
-    | "array";
+  | "file"
+  | "memory"
+  | "redis"
+  | "database"
+  | "cookie"
+  | "memcached"
+  | "dynamodb"
+  | "array";
 
   lifetime: number; // session lifetime in minutes
 

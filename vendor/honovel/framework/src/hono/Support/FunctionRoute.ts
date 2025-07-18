@@ -10,6 +10,7 @@ import util from "node:util";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 import { myError } from "../Http/builder.ts";
 import { buildRequest } from "../Http/builder.ts";
+import { MiddlewareLikeClass } from "Illuminate/Foundation/Http/index.ts";
 
 export const regexObj = {
   number: /^\d+$/,
@@ -231,11 +232,11 @@ function applyConstraintsWithOptional(
 
 interface IMiddlewareCompiler {
   debugString: string;
-  middleware: HttpMiddleware;
+  middleware: [HttpMiddleware, string[]];
 }
 
 export function toMiddleware(
-  args: (string | HttpMiddleware)[]
+  args: (string | HttpMiddleware | MiddlewareLikeClass)[]
 ): MiddlewareHandler[] {
   const instanceKernel = new ChildKernel();
   const MiddlewareGroups = instanceKernel.MiddlewareGroups;
@@ -243,64 +244,93 @@ export function toMiddleware(
   const newArgs = args.flatMap((arg) => {
     const middlewareCallback: IMiddlewareCompiler[] = [];
     if (isString(arg)) {
-      if (keyExist(MiddlewareGroups, arg)) {
-        const middlewareGroup = MiddlewareGroups[arg];
-        middlewareGroup.forEach((middleware) => {
-          if (isString(middleware)) {
-            if (keyExist(RouteMiddleware, middleware)) {
-              const middlewareClass = RouteMiddleware[middleware];
-              const middlewareInstance =
-                new (middlewareClass as new () => InstanceType<
-                  typeof middlewareClass
-                >)();
+      const [firstKey, ...argParts] = arg.split(":");
+      if (!isset(firstKey) || empty(firstKey)) throw new Error(`Invalid middleware name: ${arg}`);
+      if (argParts.length === 0) {
+        if (keyExist(MiddlewareGroups, firstKey)) {
+          arg = firstKey;
+          const middlewareGroup = MiddlewareGroups[arg];
+          middlewareGroup.forEach((middleware) => {
+            if (isString(middleware)) {
+              const [middlewareName, ...middlewareParts] = middleware.split(":");
+              if (empty(middlewareName)) {
+                throw new Error(`Invalid middleware name: ${middleware}`);
+              }
+              if (keyExist(RouteMiddleware, middlewareName)) {
+                middleware = middlewareName;
+                const middlewareClass = RouteMiddleware[middleware];
+                const middlewareInstance =
+                  new (middlewareClass as new () => InstanceType<
+                    typeof middlewareClass
+                  >)();
+                if (methodExist(middlewareInstance, "handle")) {
+                  middlewareCallback.push({
+                    debugString: `// class ${middlewareClass.name
+                      }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+                    middleware: [middlewareInstance.handle.bind(
+                      middlewareInstance,
+                    ) as HttpMiddleware, middlewareParts.flatMap((part) => part.split(",").map(p => p.trim()))],
+                  });
+                }
+              }
+            } else {
+              const middlewareInstance = new middleware();
               if (methodExist(middlewareInstance, "handle")) {
                 middlewareCallback.push({
-                  debugString: `// class ${
-                    middlewareClass.name
-                  }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
-                  middleware: middlewareInstance.handle.bind(
+                  debugString: `// class ${middleware.name
+                    }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+                  middleware: [middlewareInstance.handle.bind(
                     middlewareInstance
-                  ) as HttpMiddleware,
+                  ) as HttpMiddleware, []],
                 });
               }
             }
-          } else {
-            const middlewareInstance = new middleware();
-            if (methodExist(middlewareInstance, "handle")) {
-              middlewareCallback.push({
-                debugString: `// class ${
-                  middleware.name
-                }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
-                middleware: middlewareInstance.handle.bind(
-                  middlewareInstance
-                ) as HttpMiddleware,
-              });
-            }
-          }
-        });
-      } else if (keyExist(RouteMiddleware, arg)) {
+          });
+        }
+      } else if (keyExist(RouteMiddleware, firstKey)) {
+        arg = firstKey;
+
         const middlewareClass = RouteMiddleware[arg];
         const middlewareInstance = new (middlewareClass as new (
           // deno-lint-ignore no-explicit-any
           ...args: any[]
         ) => // deno-lint-ignore no-explicit-any
-        any)();
+          any)();
         if (methodExist(middlewareInstance, "handle")) {
           middlewareCallback.push({
-            debugString: `// class ${
-              middlewareClass.name
-            }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
-            middleware: middlewareInstance.handle.bind(
-              middlewareInstance
-            ) as HttpMiddleware,
+            debugString: `// class ${middlewareClass.name
+              }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+            middleware: [middlewareInstance.handle.bind(
+              middlewareInstance,
+            ) as HttpMiddleware, argParts.flatMap((part) => part.split(",").map(p => p.trim()))],
           });
         }
       }
     } else if (isFunction(arg)) {
-      middlewareCallback.push({
-        debugString: `// Code Referrence \n\n${arg.toString()}`,
-        middleware: arg as HttpMiddleware,
-      });
+
+      const isClass = /^class\s/.test(arg.toString());
+      if (isClass) {
+        const middlewareClass = arg as MiddlewareLikeClass;
+        const middlewareInstance = new (middlewareClass as new (
+          // deno-lint-ignore no-explicit-any
+          ...args: any[]
+        ) => // deno-lint-ignore no-explicit-any
+          any)();
+        if (methodExist(middlewareInstance, "handle")) {
+          middlewareCallback.push({
+            debugString: `// class ${middlewareClass.name
+              }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+            middleware: [middlewareInstance.handle.bind(
+              middlewareInstance
+            ) as HttpMiddleware, []],
+          });
+        }
+      } else {
+        middlewareCallback.push({
+          debugString: `// Code Referrence \n\n${arg.toString()}`,
+          middleware: [arg as HttpMiddleware, []],
+        });
+      }
     }
     return middlewareCallback;
   });
@@ -308,9 +338,9 @@ export function toMiddleware(
   return newArgs.map((args): MiddlewareHandler => {
     const newObj: MiddlewareOrDispatch = {
       debugString: args.debugString,
-      args: args.middleware,
+      args: args.middleware[0],
     };
-    return generateMiddlewareOrDispatch("middleware", newObj);
+    return generateMiddlewareOrDispatch("middleware", newObj, args.middleware[1] || []);
   });
 }
 
@@ -348,7 +378,8 @@ function generateMiddlewareOrDispatch(
         const honoClosure = c.get("honoClosure");
         middlewareResp = await (args as HttpMiddleware)(
           myHono,
-          honoClosure.next.bind(honoClosure)
+          honoClosure.next.bind(honoClosure),
+          ...sequenceParams
         );
       } else {
         const params = request.route() as Record<string, string | null>;
@@ -385,10 +416,10 @@ function generateMiddlewareOrDispatch(
           populatedError,
           "error",
           `Request URI ${request
-            .method()
+            .method
             .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-            "HTTP_X_REQUEST_ID"
-          )}`
+              "HTTP_X_REQUEST_ID"
+            )}`
         );
         let errorHtml: string;
         if (env("APP_DEBUG", true)) {
@@ -471,10 +502,10 @@ function generateMiddlewareOrDispatch(
       debuggingPurpose,
       "error",
       `Request URI ${request
-        .method()
+        .method
         .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-        "HTTP_X_REQUEST_ID"
-      )}`
+          "HTTP_X_REQUEST_ID"
+        )}`
     );
     return c.json(
       {
@@ -512,15 +543,14 @@ export function renderErrorHtml(e: Error): string {
           ${e.message}
         </p>
 
-        ${
-          e.stack
-            ? `
+        ${e.stack
+      ? `
             <h2 class="text-xl font-semibold text-gray-800 mb-2">🧱 Stack Trace</h2>
             <pre class="text-xs leading-relaxed font-mono bg-gray-900 text-green-400 p-4 rounded-lg border border-gray-700 overflow-x-auto whitespace-pre-wrap hover:scale-[1.01] transition-transform duration-200 ease-out shadow-inner">
 ${e.stack.replace(/</g, "&lt;")}
             </pre>`
-            : ""
-        }
+      : ""
+    }
       </div>
     </div>
   </body>
@@ -593,8 +623,8 @@ function renderDebugErrorPage(
 
       <div class="bg-gray-900 text-green-300 text-sm font-mono p-4 rounded-lg overflow-auto max-h-[400px] border border-gray-700">
         <pre class="whitespace-pre-wrap"><code>${formatDebugString(
-          escapeHtml(debugString)
-        )}</code></pre>
+    escapeHtml(debugString)
+  )}</code></pre>
       </div>
 
       <p class="text-xs text-gray-400 mt-6">
@@ -664,27 +694,23 @@ function tracingLocation(
     const isErrorLine = lineNumber === line;
 
     return `
-      <div id="${
-        isErrorLine ? "error-line" : ""
-      }" class="group flex items-start ${
-      isErrorLine ? "bg-rose-100" : "hover:bg-gray-100"
-    } rounded px-4 py-1">
+      <div id="${isErrorLine ? "error-line" : ""
+      }" class="group flex items-start ${isErrorLine ? "bg-rose-100" : "hover:bg-gray-100"
+      } rounded px-4 py-1">
         <div class="w-14 text-right pr-4 text-white-400 select-none">${lineNumber}</div>
-        <pre class="flex-1 text-sm overflow-auto whitespace-pre-wrap ${
-          isErrorLine
-            ? "text-rose-600"
-            : "group-hover:text-emerald-600 text-white-800"
-        }">${escapeHtml(contentLine)}</pre>
+        <pre class="flex-1 text-sm overflow-auto whitespace-pre-wrap ${isErrorLine
+        ? "text-rose-600"
+        : "group-hover:text-emerald-600 text-white-800"
+      }">${escapeHtml(contentLine)}</pre>
       </div>
-      ${
-        isErrorLine
-          ? `<div class="flex items-start">
+      ${isErrorLine
+        ? `<div class="flex items-start">
               <div class="w-14"></div>
               <pre class="text-sm text-rose-500 pl-4 leading-tight">${" ".repeat(
-                column - 1
-              )}^</pre>
+          column - 1
+        )}^</pre>
             </div>`
-          : ""
+        : ""
       }
     `;
   });
@@ -712,8 +738,8 @@ function tracingLocation(
         <div class="bg-white shadow-lg border border-gray-200 rounded-lg overflow-hidden">
           <div class="px-6 py-4 border-b border-gray-100 bg-rose-50">
             <h1 class="text-xl font-semibold text-rose-600">${escapeHtml(
-              errorDescription
-            )}</h1>
+    errorDescription
+  )}</h1>
           </div>
 
           <div class="max-h-[500px] overflow-y-auto bg-gray-900 text-gray-100">

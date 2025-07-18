@@ -1,3 +1,4 @@
+
 export function staticImplements<T>() {
   return <U extends T>(constructor: U) => {
     constructor;
@@ -43,6 +44,12 @@ export class Carbon extends String {
     this.#currentDate = date;
   }
 
+  private static get dateNow() {
+    const timeNow = new Date().toLocaleString("en-US", { timeZone: Carbon.defaultTimezone || "UTC" });
+    const unixTimestamp = Math.floor(new Date(timeNow).getTime() / 1000);
+    return unixTimestamp;
+  }
+
   private static formatMapper(format: string): string {
     if (!format) {
       return this.defaultFormat;
@@ -57,7 +64,7 @@ export class Carbon extends String {
     timestamp: number | null,
     format?: string
   ): Carbon {
-    const date = luxonDate.fromMillis(timestamp ?? Date.now(), {
+    const date = luxonDate.fromMillis(timestamp ?? Carbon.dateNow, {
       zone: this.defaultTimezone,
     });
     return new Carbon(date, format);
