@@ -424,7 +424,7 @@ export class DB {
 }
 
 class TableInstance {
-  constructor(private tableName: string) {}
+  constructor(private tableName: string) { }
 
   // for insert operation
   public async insert<T extends "insert">(
@@ -455,7 +455,7 @@ type TInsertBuilder = {
   data: Array<Record<string, unknown>>;
 };
 
-function insertBuilder(input: TInsertBuilder): [string, unknown[]] {
+export function insertBuilder(input: TInsertBuilder): [string, unknown[]] {
   const dbType = staticConfig("database").default; // mysql | sqlite | pgsql | sqlsrv
 
   if (!Array.isArray(input.data) || input.data.length === 0) {

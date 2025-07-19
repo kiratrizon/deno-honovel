@@ -371,7 +371,7 @@ function generateMiddlewareOrDispatch(
     });
     const { args, debugString } = objArgs;
     if (!isFunction(args)) {
-      return myError(c);
+      return await myError(c);
     }
     try {
       if (type === "middleware") {
@@ -466,7 +466,7 @@ function generateMiddlewareOrDispatch(
         if (request.expectsJson()) {
           return e.toJson();
         } else {
-          return myError(c, e.code as ContentfulStatusCode, e.message);
+          return await myError(c, e.code as ContentfulStatusCode, e.msg);
         }
       }
       return c.json({ message: "Internal server error" }, 500);
