@@ -204,39 +204,15 @@ async function saveSession(sid: string, data: Record<string, unknown>) {
       const expires = Carbon.now().addSeconds(
         SessionModifier.sesConfig.lifetime * 60
       );
-      if (staticConfig("database").default === "sqlite") {
-        // SQLite requires a different handling for upsert
-        const dataExists = await DB.select(
-          `SELECT sid FROM ${tableSession} WHERE sid = ?`,
-          [sid]
-        );
-        if (dataExists.length > 0) {
-          await DB.statement(
-            `UPDATE ${tableSession} SET data = ?, expires = ? WHERE sid = ?`,
-            [dataToString, expires, sid]
-          );
-        } else {
-          await DB.insertOrUpdate(
-            tableSession,
-            {
-              sid,
-              data: dataToString,
-              expires,
-            },
-            ["sid"]
-          );
-        }
-      } else {
-        await DB.insertOrUpdate(
-          tableSession,
-          {
-            sid,
-            data: dataToString,
-            expires,
-          },
-          ["sid"]
-        );
-      }
+      await DB.insertOrUpdate(
+        tableSession,
+        {
+          sid,
+          data: dataToString,
+          expires,
+        },
+        ["sid"]
+      );
       break;
     }
     case "file": {
@@ -312,12 +288,13 @@ async function loadSession(sid: string) {
     case "database": {
       const tableSession = SessionModifier.sesConfig.table || "sessions";
       const now = Carbon.now();
-      const data = await DB.select(
-        `SELECT data FROM ${tableSession} WHERE sid = ? and expires > ?`,
-        [sid, now]
-      );
-      if (data.length > 0) {
-        const sessionData = data[0].data as string;
+      const data = await DB.table(tableSession)
+        .select("data")
+        .where("sid", sid)
+        .where("expires", ">=", now)
+        .first();
+      if (!empty(data)) {
+        const sessionData = data.data as string;
         if (isEncrypt) {
           const encryptedData = (jsonDecode(sessionData) as SessionEncrypt)[
             "encrypt"

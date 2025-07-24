@@ -381,12 +381,6 @@ declare global {
   ): Promise<[boolean, unknown]>;
 
   /**
-   * Retrieve the last element of an array.
-   * If the array is empty, `null` is returned.
-   */
-  function end<T>(array: T[]): T | null;
-
-  /**
    * Checks whether a given variable is a function.
    */
   function isFunction(
@@ -401,7 +395,7 @@ declare global {
   /**
    * Checks if the given value is an array.
    */
-  function isArray<T = unknown>(value: unknown): value is T[];
+  function isArray<T = any>(value: any): value is T[];
 
   /**
    * Checks if the given value is a plain object (excluding null and arrays).

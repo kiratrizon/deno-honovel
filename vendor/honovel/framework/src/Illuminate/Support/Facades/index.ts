@@ -36,7 +36,7 @@ import ResourceRoute, {
   IResourceRouteConf,
 } from "../../../hono/Support/ResourceRoute.ts";
 import { Database, QueryResultDerived } from "Database";
-import { Builder, SQLRaw } from "../../Database/Query/index.ts";
+import { Builder, SQLRaw, sqlstring } from "../../Database/Query/index.ts";
 import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
 interface HashOptions {
   rounds?: number;
@@ -335,10 +335,7 @@ function generateAlterTableSQL(schema: TableSchema, dbType: DBType): string {
 }
 
 export class DB {
-  public static table(table: string) {
-    if (empty(table) || !isString(table)) {
-      throw new Error("Table name must be a non-empty string.");
-    }
+  public static table(table: sqlstring) {
     return new TableInstance(table);
   }
 
@@ -424,7 +421,7 @@ export class DB {
 }
 
 class TableInstance {
-  constructor(private tableName: string) { }
+  constructor(private tableName: sqlstring) {}
 
   // for insert operation
   public async insert<T extends "insert">(
@@ -434,19 +431,28 @@ class TableInstance {
       throw new Error("Insert data must be a non-empty array of objects.");
     }
     const db = new Database();
+    if (!isString(this.tableName))
+      throw new Error("Table name must be a string.");
     const [sql, values] = insertBuilder({ table: this.tableName, data });
     const result = await db.runQuery<T>(sql, values);
     return result;
   }
 
   // for query building
-  public select(...fields: string[]) {
+  public select(...fields: sqlstring[]) {
     return new Builder(this.tableName, fields);
   }
 
   public where(...args: any[]): Builder {
     // @ts-ignore //
     return new Builder(this.tableName).where(...args);
+  }
+
+  public mergeBindings(builder: Builder): Builder {
+    if (!(builder instanceof Builder)) {
+      throw new Error("Argument must be an instance of Builder.");
+    }
+    return new Builder(this.tableName).mergeBindings(builder);
   }
 }
 

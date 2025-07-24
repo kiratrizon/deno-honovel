@@ -11,6 +11,7 @@ import { ContentfulStatusCode } from "hono/utils/http-status";
 import { myError } from "../Http/builder.ts";
 import { buildRequest } from "../Http/builder.ts";
 import { MiddlewareLikeClass } from "Illuminate/Foundation/Http/index.ts";
+import { SQLError } from "Illuminate/Database/Query/index.ts";
 
 export const regexObj = {
   number: /^\d+$/,
@@ -245,14 +246,16 @@ export function toMiddleware(
     const middlewareCallback: IMiddlewareCompiler[] = [];
     if (isString(arg)) {
       const [firstKey, ...argParts] = arg.split(":");
-      if (!isset(firstKey) || empty(firstKey)) throw new Error(`Invalid middleware name: ${arg}`);
+      if (!isset(firstKey) || empty(firstKey))
+        throw new Error(`Invalid middleware name: ${arg}`);
       if (argParts.length === 0) {
         if (keyExist(MiddlewareGroups, firstKey)) {
           arg = firstKey;
           const middlewareGroup = MiddlewareGroups[arg];
           middlewareGroup.forEach((middleware) => {
             if (isString(middleware)) {
-              const [middlewareName, ...middlewareParts] = middleware.split(":");
+              const [middlewareName, ...middlewareParts] =
+                middleware.split(":");
               if (empty(middlewareName)) {
                 throw new Error(`Invalid middleware name: ${middleware}`);
               }
@@ -265,11 +268,17 @@ export function toMiddleware(
                   >)();
                 if (methodExist(middlewareInstance, "handle")) {
                   middlewareCallback.push({
-                    debugString: `// class ${middlewareClass.name
-                      }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
-                    middleware: [middlewareInstance.handle.bind(
-                      middlewareInstance,
-                    ) as HttpMiddleware, middlewareParts.flatMap((part) => part.split(",").map(p => p.trim()))],
+                    debugString: `// class ${
+                      middlewareClass.name
+                    }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+                    middleware: [
+                      middlewareInstance.handle.bind(
+                        middlewareInstance
+                      ) as HttpMiddleware,
+                      middlewareParts.flatMap((part) =>
+                        part.split(",").map((p) => p.trim())
+                      ),
+                    ],
                   });
                 }
               }
@@ -277,11 +286,15 @@ export function toMiddleware(
               const middlewareInstance = new middleware();
               if (methodExist(middlewareInstance, "handle")) {
                 middlewareCallback.push({
-                  debugString: `// class ${middleware.name
-                    }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
-                  middleware: [middlewareInstance.handle.bind(
-                    middlewareInstance
-                  ) as HttpMiddleware, []],
+                  debugString: `// class ${
+                    middleware.name
+                  }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+                  middleware: [
+                    middlewareInstance.handle.bind(
+                      middlewareInstance
+                    ) as HttpMiddleware,
+                    [],
+                  ],
                 });
               }
             }
@@ -295,19 +308,22 @@ export function toMiddleware(
           // deno-lint-ignore no-explicit-any
           ...args: any[]
         ) => // deno-lint-ignore no-explicit-any
-          any)();
+        any)();
         if (methodExist(middlewareInstance, "handle")) {
           middlewareCallback.push({
-            debugString: `// class ${middlewareClass.name
-              }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
-            middleware: [middlewareInstance.handle.bind(
-              middlewareInstance,
-            ) as HttpMiddleware, argParts.flatMap((part) => part.split(",").map(p => p.trim()))],
+            debugString: `// class ${
+              middlewareClass.name
+            }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+            middleware: [
+              middlewareInstance.handle.bind(
+                middlewareInstance
+              ) as HttpMiddleware,
+              argParts.flatMap((part) => part.split(",").map((p) => p.trim())),
+            ],
           });
         }
       }
     } else if (isFunction(arg)) {
-
       const isClass = /^class\s/.test(arg.toString());
       if (isClass) {
         const middlewareClass = arg as MiddlewareLikeClass;
@@ -315,14 +331,18 @@ export function toMiddleware(
           // deno-lint-ignore no-explicit-any
           ...args: any[]
         ) => // deno-lint-ignore no-explicit-any
-          any)();
+        any)();
         if (methodExist(middlewareInstance, "handle")) {
           middlewareCallback.push({
-            debugString: `// class ${middlewareClass.name
-              }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
-            middleware: [middlewareInstance.handle.bind(
-              middlewareInstance
-            ) as HttpMiddleware, []],
+            debugString: `// class ${
+              middlewareClass.name
+            }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+            middleware: [
+              middlewareInstance.handle.bind(
+                middlewareInstance
+              ) as HttpMiddleware,
+              [],
+            ],
           });
         }
       } else {
@@ -340,7 +360,11 @@ export function toMiddleware(
       debugString: args.debugString,
       args: args.middleware[0],
     };
-    return generateMiddlewareOrDispatch("middleware", newObj, args.middleware[1] || []);
+    return generateMiddlewareOrDispatch(
+      "middleware",
+      newObj,
+      args.middleware[1] || []
+    );
   });
 }
 
@@ -369,150 +393,162 @@ function generateMiddlewareOrDispatch(
       ...c.get("subdomain"),
       ...c.req.param(),
     });
+
     const { args, debugString } = objArgs;
     if (!isFunction(args)) {
       return await myError(c);
-    }
-    try {
-      if (type === "middleware") {
-        const honoClosure = c.get("honoClosure");
-        middlewareResp = await (args as HttpMiddleware)(
-          myHono,
-          honoClosure.next.bind(honoClosure),
-          ...sequenceParams
-        );
-      } else {
-        const params = request.route() as Record<string, string | null>;
-        const newParams: Record<string, string | null> = {};
-        sequenceParams.forEach((param) => {
-          if (keyExist(params, param)) {
-            newParams[param] = params[param] ?? null;
-          } else {
-            newParams[param] = null;
+    } else {
+      let resp: Response | undefined; // build response
+      let isNext = false;
+      try {
+        if (type === "middleware") {
+          const honoClosure = c.get("honoClosure");
+          middlewareResp = await (args as HttpMiddleware)(
+            myHono,
+            honoClosure.next.bind(honoClosure),
+            ...sequenceParams
+          );
+        } else {
+          const params = request.route() as Record<string, string | null>;
+          const newParams: Record<string, string | null> = {};
+          sequenceParams.forEach((param) => {
+            if (keyExist(params, param)) {
+              newParams[param] = params[param] ?? null;
+            } else {
+              newParams[param] = null;
+            }
+          });
+          middlewareResp = await args(myHono, ...Object.values(newParams));
+        }
+        if (isNull(middlewareResp) && type === "dispatch") {
+          resp = c.json(null);
+        } else {
+          const dispatch = new HonoDispatch(middlewareResp, type);
+          if (
+            (type === "middleware" && !dispatch.isNext) ||
+            type === "dispatch"
+          ) {
+            const result = (await dispatch.build(request, c)) as Response;
+            resp = result;
+          } else if (type === "middleware" && dispatch.isNext) {
+            isNext = true;
           }
-        });
-        middlewareResp = await args(myHono, ...Object.values(newParams));
-      }
-
-      if (isNull(middlewareResp) && type === "dispatch") {
-        return c.json(null);
-      }
-      const dispatch = new HonoDispatch(middlewareResp, type);
-      if ((type === "middleware" && !dispatch.isNext) || type === "dispatch") {
-        const result = (await dispatch.build(request, c)) as Response;
-        return result;
-      }
-    } catch (e: unknown) {
-      if (e instanceof Error) {
-        // populate e with additional information
-        const populatedError: Record<string, unknown> = {};
-        populatedError["error_type"] = e.name.trim();
-        populatedError["message"] = e.message.trim();
-        populatedError["stack"] = e.stack
-          ? e.stack.split("\n").map((line) => line.trim())
-          : [];
-        populatedError["cause"] = e.cause;
-        log(
-          populatedError,
-          "error",
-          `Request URI ${request
-            .method
-            .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
+        }
+      } catch (e: unknown) {
+        if (e instanceof DDError) {
+          const data = forDD(e.data);
+          if (request.expectsJson()) {
+            if (!isset(data.json)) {
+              data.json = null;
+            }
+            if (
+              isArray(data.json) ||
+              isObject(data.json) ||
+              isString(data.json) ||
+              isFloat(data.json) ||
+              isInteger(data.json) ||
+              isBoolean(data.json) ||
+              isNull(data.json)
+            ) {
+              resp = c.json(data.json, 200);
+            }
+          } else {
+            resp = c.html(data.html, 200);
+          }
+        } else if (e instanceof AbortError) {
+          if (request.expectsJson()) {
+            resp = e.toJson();
+          } else {
+            resp = await myError(c, e.code as ContentfulStatusCode, e.msg);
+          }
+        } else if (e instanceof SQLError) {
+          // console.log(e);
+          resp = c.json({ message: e.message }, 400);
+        } else if (e instanceof Error) {
+          // populate e with additional information
+          const populatedError: Record<string, unknown> = {};
+          populatedError["error_type"] = e.name.trim();
+          populatedError["message"] = e.message.trim();
+          populatedError["stack"] = e.stack
+            ? e.stack.split("\n").map((line) => line.trim())
+            : [];
+          populatedError["cause"] = e.cause;
+          log(
+            populatedError,
+            "error",
+            `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(
               "HTTP_X_REQUEST_ID"
             )}`
-        );
-        let errorHtml: string;
-        if (env("APP_DEBUG", true)) {
-          if (!request.expectsJson()) {
-            errorHtml =
-              extractControllerTrace(populatedError.stack as string[]) ||
-              renderErrorHtml(e);
-            return c.html(errorHtml, 500);
+          );
+          let errorHtml: string;
+          if (env("APP_DEBUG", true)) {
+            if (!request.expectsJson()) {
+              errorHtml =
+                extractControllerTrace(populatedError.stack as string[]) ||
+                renderErrorHtml(e);
+              resp = c.html(errorHtml, 500);
+            } else {
+              resp = c.json(
+                {
+                  message: populatedError.message,
+                  error_type: populatedError.error_type,
+                  stack: populatedError.stack,
+                  cause: populatedError.cause,
+                },
+                500
+              );
+            }
           } else {
-            return c.json(
-              {
-                message: populatedError.message,
-                error_type: populatedError.error_type,
-                stack: populatedError.stack,
-                cause: populatedError.cause,
-              },
-              500
-            );
+            resp = c.html("Internal server error", 500);
           }
         } else {
-          return c.html("Internal server error", 500);
-        }
-      } else if (e instanceof DDError) {
-        const data = forDD(e.data);
-        if (request.expectsJson()) {
-          if (!isset(data.json)) {
-            data.json = null;
-          }
-          if (
-            isArray(data.json) ||
-            isObject(data.json) ||
-            isString(data.json) ||
-            isFloat(data.json) ||
-            isInteger(data.json) ||
-            isBoolean(data.json) ||
-            isNull(data.json)
-          ) {
-            return c.json(data.json, 200);
-          }
-        } else {
-          return c.html(data.html, 200);
-        }
-      } else if (e instanceof AbortError) {
-        if (request.expectsJson()) {
-          return e.toJson();
-        } else {
-          return await myError(c, e.code as ContentfulStatusCode, e.msg);
+          resp = c.json({ message: "Internal server error" }, 500);
         }
       }
-      return c.json({ message: "Internal server error" }, 500);
-    } finally {
-      const HonoSession = c.get("HonoSession");
-      if (c.get("from_web") && isset(HonoSession)) {
-        if (!c.get("logged_out")) {
+      if (!isUndefined(middlewareResp)) {
+        if (isNext) {
+          return await next();
+        }
+      }
+      if (isset(resp)) {
+        const HonoSession = c.get("HonoSession");
+        if (c.get("from_web") && isset(HonoSession)) {
+          if (!c.get("logged_out")) {
+            // @ts-ignore //
+            const sessionValue = c.get("session").values;
+            HonoSession.update(sessionValue);
+            await HonoSession.dispose();
+          }
+        }
+        return resp;
+      } else {
+        if (["dispatch"].includes(type)) {
           // @ts-ignore //
-          const sessionValue = c.get("session").values;
-          HonoSession.update(sessionValue);
-          await HonoSession.dispose();
+          type = "route";
         }
+        const debuggingPurpose = renderDebugErrorPage(
+          `${ucFirst(type)} Error`,
+          debugString,
+          `Returned undefined value from the ${type} function.`
+        );
+        if (!isset(env("DENO_DEPLOYMENT_ID"))) {
+          return c.html(debuggingPurpose, 500);
+        }
+        log(
+          debuggingPurpose,
+          "error",
+          `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(
+            "HTTP_X_REQUEST_ID"
+          )}`
+        );
+        return c.json(
+          {
+            message: "Internal server error",
+          },
+          500
+        );
       }
     }
-    if (!isUndefined(middlewareResp)) {
-      if (type === "middleware") {
-        return await next();
-      }
-    }
-    if (["dispatch"].includes(type)) {
-      // @ts-ignore //
-      type = "route";
-    }
-    const debuggingPurpose = renderDebugErrorPage(
-      `${ucFirst(type)} Error`,
-      debugString,
-      `Returned undefined value from the ${type} function.`
-    );
-    if (!isset(env("DENO_DEPLOYMENT_ID"))) {
-      return c.html(debuggingPurpose, 500);
-    }
-    log(
-      debuggingPurpose,
-      "error",
-      `Request URI ${request
-        .method
-        .toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-          "HTTP_X_REQUEST_ID"
-        )}`
-    );
-    return c.json(
-      {
-        message: "Internal server error",
-      },
-      500
-    );
   };
 }
 
@@ -543,14 +579,15 @@ export function renderErrorHtml(e: Error): string {
           ${e.message}
         </p>
 
-        ${e.stack
-      ? `
+        ${
+          e.stack
+            ? `
             <h2 class="text-xl font-semibold text-gray-800 mb-2">🧱 Stack Trace</h2>
             <pre class="text-xs leading-relaxed font-mono bg-gray-900 text-green-400 p-4 rounded-lg border border-gray-700 overflow-x-auto whitespace-pre-wrap hover:scale-[1.01] transition-transform duration-200 ease-out shadow-inner">
 ${e.stack.replace(/</g, "&lt;")}
             </pre>`
-      : ""
-    }
+            : ""
+        }
       </div>
     </div>
   </body>
@@ -623,8 +660,8 @@ function renderDebugErrorPage(
 
       <div class="bg-gray-900 text-green-300 text-sm font-mono p-4 rounded-lg overflow-auto max-h-[400px] border border-gray-700">
         <pre class="whitespace-pre-wrap"><code>${formatDebugString(
-    escapeHtml(debugString)
-  )}</code></pre>
+          escapeHtml(debugString)
+        )}</code></pre>
       </div>
 
       <p class="text-xs text-gray-400 mt-6">
@@ -694,23 +731,27 @@ function tracingLocation(
     const isErrorLine = lineNumber === line;
 
     return `
-      <div id="${isErrorLine ? "error-line" : ""
-      }" class="group flex items-start ${isErrorLine ? "bg-rose-100" : "hover:bg-gray-100"
-      } rounded px-4 py-1">
+      <div id="${
+        isErrorLine ? "error-line" : ""
+      }" class="group flex items-start ${
+      isErrorLine ? "bg-rose-100" : "hover:bg-gray-100"
+    } rounded px-4 py-1">
         <div class="w-14 text-right pr-4 text-white-400 select-none">${lineNumber}</div>
-        <pre class="flex-1 text-sm overflow-auto whitespace-pre-wrap ${isErrorLine
-        ? "text-rose-600"
-        : "group-hover:text-emerald-600 text-white-800"
-      }">${escapeHtml(contentLine)}</pre>
+        <pre class="flex-1 text-sm overflow-auto whitespace-pre-wrap ${
+          isErrorLine
+            ? "text-rose-600"
+            : "group-hover:text-emerald-600 text-white-800"
+        }">${escapeHtml(contentLine)}</pre>
       </div>
-      ${isErrorLine
-        ? `<div class="flex items-start">
+      ${
+        isErrorLine
+          ? `<div class="flex items-start">
               <div class="w-14"></div>
               <pre class="text-sm text-rose-500 pl-4 leading-tight">${" ".repeat(
-          column - 1
-        )}^</pre>
+                column - 1
+              )}^</pre>
             </div>`
-        : ""
+          : ""
       }
     `;
   });
@@ -738,8 +779,8 @@ function tracingLocation(
         <div class="bg-white shadow-lg border border-gray-200 rounded-lg overflow-hidden">
           <div class="px-6 py-4 border-b border-gray-100 bg-rose-50">
             <h1 class="text-xl font-semibold text-rose-600">${escapeHtml(
-    errorDescription
-  )}</h1>
+              errorDescription
+            )}</h1>
           </div>
 
           <div class="max-h-[500px] overflow-y-auto bg-gray-900 text-gray-100">
