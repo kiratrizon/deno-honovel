@@ -239,21 +239,7 @@ export class Database {
         !isset(forMySQL.read) ||
         (!empty(forMySQL.read) && !isObject(forMySQL.read))
       ) {
-        defaultHost.forEach((host) => {
-          const poolParams: Partial<ConnectionOptions> = {
-            host,
-            port: defaultPort,
-            user: defaultUser,
-            password: defaultPassword,
-            database: defaultDatabase,
-            charset: defaultCharset,
-            ssl: defaultSSL,
-          };
-          if (isset(defaultOptions?.maxConnection)) {
-            poolParams.connectionLimit = defaultOptions.maxConnection;
-          }
-          Database.connections.mysql.read.push(mysql.createPool(poolParams));
-        });
+        Database.connections.mysql.read = Database.connections.mysql.write;
       } else {
         const readHosts = isArray(forMySQL.read?.host)
           ? forMySQL.read.host
