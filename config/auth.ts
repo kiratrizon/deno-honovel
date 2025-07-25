@@ -1,6 +1,7 @@
 import User from "../app/Models/User.ts";
+import { AuthConfig } from "./@types/index.d.ts";
 
-const constant = {
+const constant: AuthConfig = {
   default: {
     guard: "jwt_user",
   },

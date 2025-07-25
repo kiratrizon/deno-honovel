@@ -19,4 +19,5 @@ export interface ImportEnvConfig {
   readonly JWT_SECRET_KEY: string;
   readonly SESSION_COOKIE: string;
   readonly PORT: number;
+  readonly REDIS_CLIENT: "ioredis" | "upstash" | "node-redis" | "deno-redis";
 }

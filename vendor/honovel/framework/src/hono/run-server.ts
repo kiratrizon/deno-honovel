@@ -2,14 +2,12 @@ import Server from "./main.ts";
 
 const app = Server.app;
 
-const port = env("PORT", 80);
 // @ts-ignore //
 const HOSTNAME = String(env("HOSTNAME", ""));
 
 let serveObj:
   | (Deno.ServeTcpOptions & Deno.TlsCertifiedKeyPem)
   | Deno.ServeTcpOptions = {
-  port,
 };
 
 if (!empty(HOSTNAME)) {
@@ -42,6 +40,8 @@ async function isPortAvailable(port: number): Promise<boolean> {
     throw error; // Unexpected error
   }
 }
+const hasCert = !empty(key) && !empty(cert);
+const port = env("PORT", hasCert ? 443 : 80);
 
 if (!(await isPortAvailable(port))) {
   console.error(
@@ -63,7 +63,7 @@ function buildAppUrl(
 
   return `${protocol}://${host}${portPart}${path}`;
 }
-const hasCert = !empty(key) && !empty(cert);
+
 
 const baseWarmup = (path: string) => buildAppUrl(HOSTNAME, port, hasCert, path);
 
@@ -74,5 +74,7 @@ for (const path of warmups) {
   // console.log("🔥 Warming up:", url);
   await Server.app.fetch(new Request(url));
 }
+
+serveObj.port = port;
 
 Deno.serve(serveObj, app.fetch);

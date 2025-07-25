@@ -1,4 +1,4 @@
-import Controller from "./Controller.ts";
+import Controller from "Controllers/Controller.ts";
 
 class {{ ClassName }} extends Controller {
     // create function like this

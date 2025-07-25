@@ -11,7 +11,6 @@ interface AppMaintenanceConfig {
    */
   store: string;
 }
-
 export interface AppConfig {
   /**
    * Application Name
@@ -65,7 +64,12 @@ export interface AppConfig {
    * Encryption Cipher
    * Example: "AES-256-CBC"
    */
-  cipher: "AES-128-CBC" | "AES-192-CBC" | "AES-256-CBC" | "AES-128-GCM" | "AES-256-GCM";
+  cipher:
+    | "AES-128-CBC"
+    | "AES-192-CBC"
+    | "AES-256-CBC"
+    | "AES-128-GCM"
+    | "AES-256-GCM";
 
   /**
    * Encryption Key
@@ -83,26 +87,73 @@ export interface AppConfig {
   maintenance: AppMaintenanceConfig;
 }
 
+/**
+ * A provider config structure (like 'users', 'admins').
+ */
+interface AuthProvider {
+  driver: "eloquent";
+  model: typeof Authenticatable;
+  /**
+   * This is the key used to check in database for the model.
+   */
+  credentialKey?: string;
+  /**
+   * This is the key used to check password in database for the model.
+   */
+  passwordKey?: string;
+}
 
+type AuthProviders = Record<string, AuthProvider>;
+
+/**
+ * A guard config structure (like 'jwt_user', 'session_admin').
+ */
+interface AuthGuard {
+  driver: "jwt" | "session" | "token";
+  provider: string; // Can keep `keyof AuthProviders` if you want strict linking
+}
+
+type AuthGuards = Record<string, AuthGuard>;
+
+/**
+ * The full auth config (like Laravel's config/auth.php).
+ */
+export interface AuthConfig {
+  default: {
+    guard: keyof AuthGuards;
+  };
+  guards: AuthGuards;
+  providers: AuthProviders;
+}
 
 import { SslOptions } from "npm:mysql2@^2.3.3";
+import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 
-type SupportedDrivers = "mysql" | "pgsql" | "sqlite" | "sqlsrv";
+export type SupportedDrivers = "mysql" | "pgsql" | "sqlite" | "sqlsrv";
 
 interface MySQLConnectionOptions {
   maxConnection: number;
 }
-interface MySQLConnectionConfig {
-  host: string;
-  port: number;
-  user: string;
-  password: string;
-  database: string;
+
+interface MySQLReadWriteConfig {
+  read?: MySQLConnectionConfigRaw;
+  write?: MySQLConnectionConfigRaw;
+  sticky?: boolean;
+}
+
+export interface MySQLConnectionConfigRaw {
+  port?: number;
+  user?: string;
+  host?: string | string[];
+  password?: string;
+  database?: string;
   charset?: string;
   timezone?: string;
   ssl?: string | SslOptions;
   options?: MySQLConnectionOptions;
 }
+
+type MySQLConnectionConfig = MySQLConnectionConfigRaw & MySQLReadWriteConfig;
 
 interface PostgresConnectionConfig {
   host: string;
@@ -141,9 +192,42 @@ interface DatabaseConnections {
   sqlsrv?: SqlSrvConnectionConfig; // optional if not used
 }
 
+type RedisClient = "ioredis" | "node-redis" | "upstash" | "deno-redis";
+
+export type RedisConfigure<T extends RedisClient> = T extends "deno-redis"
+  ? {
+      host: string;
+      port: number;
+      password?: string;
+      db?: number;
+      username?: string;
+      tls?: boolean;
+      options?: Record<string, unknown>;
+    }
+  : T extends "upstash"
+  ? {
+      upstashUrl: string;
+      upstashToken: string;
+    }
+  : T extends "ioredis"
+  ? {
+      ioredisUrl: string;
+    }
+  : T extends "node-redis"
+  ? {
+      nodeRedisUrl: string;
+    }
+  : never;
+
+interface RedisConfig<T extends RedisClient = RedisClient> {
+  client: T;
+  connections: Record<string, RedisConfigure<T>>;
+}
+
 interface DatabaseConfig {
   default: SupportedDrivers;
   connections: DatabaseConnections;
+  redis?: RedisConfig;
 }
 
 // logging
@@ -203,14 +287,14 @@ export interface CorsConfig {
 
 export interface SessionConfig {
   driver:
-  | "file"
-  | "memory"
-  | "redis"
-  | "database"
-  | "cookie"
-  | "memcached"
-  | "dynamodb"
-  | "array";
+    | "file"
+    | "memory"
+    | "redis"
+    | "database"
+    | "cookie"
+    | "memcached"
+    | "dynamodb"
+    | "array";
 
   lifetime: number; // session lifetime in minutes
 
@@ -256,6 +340,7 @@ export interface SessionConfig {
 
 export interface ConfigItems {
   app: AppConfig;
+  auth: AuthConfig;
   database: DatabaseConfig;
   logging: LogConfig;
   cors: CorsConfig;

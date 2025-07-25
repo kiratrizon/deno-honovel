@@ -13,7 +13,7 @@ import { HonoTypeImport } from "./declaration/imain.d.ts";
 
 import HttpHono from "HttpHono";
 
-export {};
+export { };
 declare global {
   /**
    * Instantiates a new HonoResponse object.
@@ -74,7 +74,8 @@ declare global {
 
   type HttpMiddleware = (
     myHono: HttpHono,
-    next: HonoClosure["next"]
+    next: HonoClosure["next"],
+    ...args: string[]
   ) => Promise<unknown>;
 
   type HttpDispatch = (
@@ -109,5 +110,5 @@ declare global {
    */
   function abort(statusCode: ContentfulStatusCode, message?: string): never;
 
-  interface MyContext extends Context<HonoTypeImport> {}
+  interface MyContext extends Context<HonoTypeImport> { }
 }

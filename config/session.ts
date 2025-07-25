@@ -1,4 +1,4 @@
-import { Str } from "Illuminate/Support";
+import { Str } from "Illuminate/Support/index.ts";
 import { SessionConfig } from "./@types/index.d.ts";
 export default {
   driver: env("SESSION_DRIVER", "database"),
