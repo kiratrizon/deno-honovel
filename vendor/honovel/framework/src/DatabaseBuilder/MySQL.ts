@@ -48,6 +48,8 @@ class MySQL {
           "rollback",
           "savepoint",
           "release",
+          "set",
+          "use",
         ].includes(queryType)
       ) {
         return {

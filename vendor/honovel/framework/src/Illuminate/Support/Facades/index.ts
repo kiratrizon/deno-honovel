@@ -3,17 +3,11 @@ import {
   hashSync,
   compareSync,
 } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
-import {
-  Blueprint,
-  ColumnDefinition,
-  DBType,
-  TableSchema,
-} from "../../Database/Schema/index.ts";
+import { Blueprint, TableSchema } from "../../Database/Schema/index.ts";
 import BaseController from "Illuminate/Routing/BaseController";
 import { plural, singular } from "https://deno.land/x/deno_plural/mod.ts";
 import authConf from "../../../../../../../config/auth.ts";
 import {
-  Authenticatable,
   JwtGuard,
   SessionGuard,
   TokenGuard,
@@ -38,6 +32,7 @@ import ResourceRoute, {
 import { Database, QueryResultDerived } from "Database";
 import { Builder, SQLRaw, sqlstring } from "../../Database/Query/index.ts";
 import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
+import { SupportedDrivers } from "configs/@types/index.d.ts";
 interface HashOptions {
   rounds?: number;
 }
@@ -77,13 +72,16 @@ export class Schema {
       // @ts-ignore //
       columns: blueprint.columns,
     };
-    const dbType = staticConfig("database").default;
-    const stringedQuery = generateCreateTableSQL(tableSchema, dbType);
-    await DB.statement(stringedQuery);
+    // @ts-ignore //
+    const dbType = globalDB;
+    const db = new Database(dbType);
+    const stringedQuery = db.generateCreateTableSQL(tableSchema, dbType);
+    await db.runQuery(stringedQuery);
   }
 
   public static async hasTable(table: string): Promise<boolean> {
-    const dbType = staticConfig("database").default.toLowerCase();
+    // @ts-ignore //
+    const dbType = globalDB;
     let query = "";
 
     switch (dbType) {
@@ -123,7 +121,8 @@ export class Schema {
   }
 
   public static async dropIfExists(table: string): Promise<void> {
-    const dbType = staticConfig("database").default;
+    // @ts-ignore //
+    const dbType = globalDB;
 
     let sql: string;
 
@@ -142,7 +141,7 @@ export class Schema {
         throw new Error(`Unsupported database type: ${dbType}`);
     }
 
-    await DB.statement(sql);
+    await DB.connection(dbType).statement(sql);
   }
 
   public static async table(
@@ -158,195 +157,90 @@ export class Schema {
       columns,
       table,
     };
-    const dbType = staticConfig("database").default;
-    const stringedQuery = generateAlterTableSQL(tableSchema, dbType);
-    await DB.statement(stringedQuery);
+    // @ts-ignore //
+    const dbType = globalDB;
+    const db = new Database(dbType);
+    const stringedQuery = db.generateAlterTableSQL(tableSchema, dbType);
+    await db.runQuery(stringedQuery);
   }
-}
-
-function generateCreateTableSQL(schema: TableSchema, dbType: DBType): string {
-  const lines: string[] = [];
-
-  for (const col of schema.columns) {
-    let line = `${quoteIdentifier(col.name, dbType)} ${mapColumnType(
-      col,
-      dbType
-    )}`;
-
-    if (col.options?.autoIncrement) {
-      if (dbType === "mysql") {
-        line += " AUTO_INCREMENT";
-      } else if (dbType === "pgsql") {
-        line = `${quoteIdentifier(col.name, dbType)} SERIAL`;
-      } else if (dbType === "sqlite") {
-        line = `${quoteIdentifier(
-          col.name,
-          dbType
-        )} INTEGER PRIMARY KEY AUTOINCREMENT`;
-        // Note: SQLite only allows AUTOINCREMENT on the primary key
-      } else if (dbType === "sqlsrv") {
-        line += " IDENTITY(1,1)";
-      }
-    }
-
-    // Apply PRIMARY KEY only if it's not already handled (e.g., SQLite auto-increment case)
-    if (
-      col.options?.primary &&
-      !(dbType === "sqlite" && col.options.autoIncrement)
-    ) {
-      line += " PRIMARY KEY";
-    }
-
-    if (
-      isObject(col.options) &&
-      keyExist(col.options, "nullable") &&
-      !col.options?.nullable
-    ) {
-      line += " NOT NULL";
-    }
-
-    if (col.options?.unique) {
-      line += " UNIQUE";
-    }
-
-    if (col.options?.default !== undefined) {
-      line += ` DEFAULT ${formatDefaultValue(col.options.default)}`;
-    }
-
-    lines.push(line);
-
-    if (
-      col.type === "foreignId" &&
-      col.options?.references &&
-      col.options?.on
-    ) {
-      const fkName = `fk_${schema.table}_${col.name}`;
-      lines.push(
-        `CONSTRAINT ${quoteIdentifier(
-          fkName,
-          dbType
-        )} FOREIGN KEY (${quoteIdentifier(
-          col.name,
-          dbType
-        )}) REFERENCES ${quoteIdentifier(
-          col.options.on,
-          dbType
-        )}(${quoteIdentifier(col.options.references, dbType)})`
-      );
-    }
-  }
-
-  const quotedTable = quoteIdentifier(schema.table, dbType);
-  return `CREATE TABLE ${quotedTable} (\n  ${lines.join(",\n  ")}\n);`;
-}
-
-function mapColumnType(col: ColumnDefinition, dbType: DBType): string {
-  switch (col.type) {
-    case "string": {
-      const len = col.options?.length || 255;
-      return `VARCHAR(${len})`;
-    }
-    case "text":
-      return "TEXT";
-    case "integer":
-      return dbType === "pgsql" ? "INTEGER" : "INT";
-    case "boolean":
-      return dbType === "pgsql" ? "BOOLEAN" : "TINYINT(1)";
-    case "timestamp":
-      if (dbType === "mysql") return "TIMESTAMP";
-      return "TIMESTAMP";
-    case "foreignId":
-      return dbType === "pgsql" ? "INTEGER" : "INT";
-    default:
-      throw new Error(`Unsupported column type: ${col.type}`);
-  }
-}
-
-function quoteIdentifier(name: string, dbType: DBType): string {
-  switch (dbType) {
-    case "mysql":
-      return `\`${name}\``;
-    case "sqlite":
-      return `\"${name}\"`;
-    case "pgsql":
-      return `\"${name}\"`;
-    case "sqlsrv":
-      return `[${name}]`;
-  }
-}
-
-function formatDefaultValue(value: unknown): string {
-  if (typeof value === "string") return `${value}`;
-  if (typeof value === "boolean") return value ? "1" : "0";
-  return String(value);
-}
-
-function generateAlterTableSQL(schema: TableSchema, dbType: DBType): string {
-  const statements: string[] = [];
-
-  const tableName = quoteIdentifier(schema.table, dbType);
-
-  // Drop columns
-  if (schema.drops?.length) {
-    for (const colName of schema.drops) {
-      const col = quoteIdentifier(colName, dbType);
-      statements.push(`ALTER TABLE ${tableName} DROP COLUMN ${col}`);
-    }
-  }
-
-  // Add columns
-  for (const col of schema.columns) {
-    let line = `${quoteIdentifier(col.name, dbType)} ${mapColumnType(
-      col,
-      dbType
-    )}`;
-
-    if (!col.options?.nullable) line += " NOT NULL";
-    if (col.options?.unique) line += " UNIQUE";
-    if (col.options?.default !== undefined) {
-      line += ` DEFAULT ${formatDefaultValue(col.options.default)}`;
-    }
-
-    statements.push(`ALTER TABLE ${tableName} ADD COLUMN ${line}`);
-
-    // Foreign key (only valid in some DBs like MySQL/PG)
-    if (
-      col.type === "foreignId" &&
-      col.options?.references &&
-      col.options?.on
-    ) {
-      const fkName = `fk_${schema.table}_${col.name}`;
-      statements.push(
-        `ALTER TABLE ${tableName} ADD CONSTRAINT ${quoteIdentifier(
-          fkName,
-          dbType
-        )} FOREIGN KEY (${quoteIdentifier(
-          col.name,
-          dbType
-        )}) REFERENCES ${quoteIdentifier(
-          col.options.on,
-          dbType
-        )}(${quoteIdentifier(col.options.references, dbType)})`
-      );
-    }
-  }
-
-  return statements.join(";\n") + ";";
 }
 
 export class DB {
+  public static connection(dbUsed: SupportedDrivers = "mysql"): DBConnection {
+    return new DBConnection(dbUsed);
+  }
+
+  private static dbUsed: SupportedDrivers;
+
+  public static init() {
+    this.dbUsed = staticConfig("database").default;
+  }
+
   public static table(table: sqlstring) {
-    return new TableInstance(table);
+    return new DBConnection(this.dbUsed).table(table);
   }
 
   public static async statement(
     query: string,
     params: unknown[] = []
   ): Promise<boolean> {
+    return await new DBConnection(this.dbUsed).statement(query, params);
+  }
+
+  public static async select(
+    query: string,
+    params: unknown[] = []
+  ): Promise<QueryResultDerived["select"]> {
+    return await new DBConnection(this.dbUsed).select(query, params);
+  }
+
+  public static async insert(
+    table: string,
+    ...data: Record<string, unknown>[]
+  ): Promise<QueryResultDerived["insert"]> {
+    return await new DBConnection(this.dbUsed).insert(table, ...data);
+  }
+
+  public static async insertOrUpdate(
+    table: string,
+    data: Record<string, unknown>,
+    uniqueKeys: string[] = []
+  ) {
+    return await new DBConnection(this.dbUsed).insertOrUpdate(
+      table,
+      data,
+      uniqueKeys
+    );
+  }
+
+  public static raw(query: string): SQLRaw {
+    return new DBConnection(this.dbUsed).raw(query);
+  }
+
+  public static async reconnect(): Promise<void> {
+    await Database.init(true);
+  }
+}
+
+class DBConnection {
+  constructor(private dbUsed: SupportedDrivers) {
+    if (!["mysql", "sqlite", "pgsql", "sqlsrv"].includes(dbUsed)) {
+      throw new Error(`Unsupported database type: ${dbUsed}`);
+    }
+  }
+
+  public table(table: sqlstring) {
+    return new Builder(table);
+  }
+
+  public async statement(
+    query: string,
+    params: unknown[] = []
+  ): Promise<boolean> {
     if (empty(query) || !isString(query)) {
       throw new Error("Query must be a non-empty string.");
     }
-    const db = new Database();
+    const db = new Database(this.dbUsed);
 
     try {
       await db.runQuery(query, params);
@@ -357,7 +251,7 @@ export class DB {
     }
   }
 
-  public static async select(
+  public async select(
     query: string,
     params: unknown[] = []
   ): Promise<QueryResultDerived["select"]> {
@@ -368,7 +262,7 @@ export class DB {
     if (["select", "show", "pragma"].indexOf(queryType) === -1) {
       throw new Error("Only SELECT, SHOW, and PRAGMA queries are allowed.");
     }
-    const db = new Database();
+    const db = new Database(this.dbUsed);
 
     try {
       const result = await db.runQuery<"select">(query, params);
@@ -379,18 +273,18 @@ export class DB {
     }
   }
 
-  public static async insert(
+  public async insert(
     table: string,
     ...data: Record<string, unknown>[]
   ): Promise<QueryResultDerived["insert"]> {
     if (empty(table) || !isString(table)) {
       throw new Error("Table name must be a non-empty string.");
     }
-    const instance = new TableInstance(table);
-    return await instance.insert<"insert">(...data);
+    const instance = new Builder(table);
+    return await instance.insert(...data);
   }
 
-  public static async insertOrUpdate(
+  public async insertOrUpdate(
     table: string,
     data: Record<string, unknown>,
     uniqueKeys: string[] = []
@@ -402,150 +296,22 @@ export class DB {
       throw new Error("Data must be a non-empty objects.");
     }
 
-    const db = new Database();
-    const [sql, values] = insertOrUpdateBuilder({ table, data }, uniqueKeys);
+    const db = new Database(this.dbUsed);
+    const [sql, values] = db.insertOrUpdateBuilder({ table, data }, uniqueKeys);
     const result = await db.runQuery<"insert">(sql, values);
     return result;
   }
 
-  public static raw(query: string): SQLRaw {
+  public raw(query: string): SQLRaw {
     if (empty(query) || !isString(query)) {
       throw new Error("Raw query must be a non-empty string.");
     }
     return new SQLRaw(query);
   }
 
-  public static async reconnect(): Promise<void> {
+  public async reconnect(): Promise<void> {
     await Database.init(true);
   }
-}
-
-class TableInstance {
-  constructor(private tableName: sqlstring) {}
-
-  // for insert operation
-  public async insert<T extends "insert">(
-    ...data: Record<string, unknown>[]
-  ): Promise<QueryResultDerived[T]> {
-    if (!empty(data) && data.every((item) => empty(item) || !isObject(item))) {
-      throw new Error("Insert data must be a non-empty array of objects.");
-    }
-    const db = new Database();
-    if (!isString(this.tableName))
-      throw new Error("Table name must be a string.");
-    const [sql, values] = insertBuilder({ table: this.tableName, data });
-    const result = await db.runQuery<T>(sql, values);
-    return result;
-  }
-
-  // for query building
-  public select(...fields: sqlstring[]) {
-    return new Builder(this.tableName, fields);
-  }
-
-  public where(...args: any[]): Builder {
-    // @ts-ignore //
-    return new Builder(this.tableName).where(...args);
-  }
-
-  public mergeBindings(builder: Builder): Builder {
-    if (!(builder instanceof Builder)) {
-      throw new Error("Argument must be an instance of Builder.");
-    }
-    return new Builder(this.tableName).mergeBindings(builder);
-  }
-}
-
-type TInsertBuilder = {
-  table: string;
-  data: Array<Record<string, unknown>>;
-};
-
-export function insertBuilder(input: TInsertBuilder): [string, unknown[]] {
-  const dbType = staticConfig("database").default; // mysql | sqlite | pgsql | sqlsrv
-
-  if (!Array.isArray(input.data) || input.data.length === 0) {
-    throw new Error("Insert data must be a non-empty array.");
-  }
-
-  const columns = Object.keys(input.data[0]);
-  const rows = input.data;
-
-  const placeholders = rows.map((_, rowIndex) => {
-    if (dbType === "pgsql") {
-      return `(${columns
-        .map((_, colIndex) => `$${rowIndex * columns.length + colIndex + 1}`)
-        .join(", ")})`;
-    } else {
-      return `(${columns.map(() => "?").join(", ")})`;
-    }
-  });
-
-  const values = rows.flatMap((row) => columns.map((col) => row[col]));
-
-  let sql = `INSERT INTO ${input.table} (${columns.join(
-    ", "
-  )}) VALUES ${placeholders.join(", ")}`;
-
-  if (dbType === "pgsql") {
-    sql += " RETURNING *";
-  }
-
-  return [sql, values];
-}
-
-type TInsertOrUpdateBuilder = {
-  table: string;
-  data: Record<string, unknown>;
-};
-
-export function insertOrUpdateBuilder(
-  input: TInsertOrUpdateBuilder,
-  uniqueKeys: string[]
-): [string, unknown[]] {
-  const dbType = staticConfig("database").default;
-
-  const columns = Object.keys(input.data);
-  const values = columns.map((col) => input.data[col]);
-
-  const placeholders =
-    dbType === "pgsql"
-      ? `(${columns.map((_, idx) => `$${idx + 1}`).join(", ")})`
-      : `(${columns.map(() => "?").join(", ")})`;
-
-  let sql = `INSERT INTO ${input.table} (${columns.join(
-    ", "
-  )}) VALUES ${placeholders}`;
-
-  if (dbType === "mysql") {
-    const updates = columns
-      .filter((col) => !uniqueKeys.includes(col))
-      .map((col) => `${col}=VALUES(${col})`)
-      .join(", ");
-
-    sql += ` ON DUPLICATE KEY UPDATE ${updates}`;
-  } else if (dbType === "pgsql") {
-    const conflictTargets = uniqueKeys.join(", ");
-    const updates = columns
-      .filter((col) => !uniqueKeys.includes(col))
-      .map((col) => `${col}=EXCLUDED.${col}`)
-      .join(", ");
-
-    sql += ` ON CONFLICT (${conflictTargets}) DO UPDATE SET ${updates} RETURNING *`;
-  } else if (dbType === "sqlite") {
-    const updates = columns
-      .filter((col) => !uniqueKeys.includes(col))
-      .map((col) => `${col}=excluded.${col}`)
-      .join(", ");
-
-    sql += ` ON CONFLICT (${uniqueKeys.join(", ")}) DO UPDATE SET ${updates}`;
-  } else if (dbType === "sqlsrv") {
-    throw new Error(
-      "Insert or Update is not natively supported in SQL Server in this builder."
-    );
-  }
-
-  return [sql, values];
 }
 
 interface IRegex {

@@ -1,4 +1,3 @@
-import { insertBuilder } from "Illuminate/Support/Facades/index.ts";
 import { Database } from "Database";
 
 export class SQLError extends Error {}
@@ -11,6 +10,11 @@ export class SQLRaw extends String {
     return super.toString();
   }
 }
+
+type TInsertBuilder = {
+  table: string;
+  data: Array<Record<string, unknown>>;
+};
 
 type whereBetweenParams = [WherePrimitive | SQLRaw, WherePrimitive | SQLRaw];
 
@@ -1107,16 +1111,47 @@ export class Builder extends WhereInterpolator {
   }
 
   public async insert(...data: Record<string, unknown>[]) {
-    const [sql, values] = insertBuilder({
+    const [sql, values] = this.insertBuilder({
       table: this.table[0],
       data,
     });
     const db = new Database();
-    const result = await db.runQuery<"insert">(sql, [
-      ...this.getBindings(),
-      ...values,
-    ]);
+    const result = await db.runQuery<"insert">(sql, [...values]);
     return result;
+  }
+
+  private insertBuilder(input: TInsertBuilder): [string, unknown[]] {
+    // @ts-ignore //
+    const dbType = globalDB; // mysql | sqlite | pgsql | sqlsrv
+
+    if (!Array.isArray(input.data) || input.data.length === 0) {
+      throw new Error("Insert data must be a non-empty array.");
+    }
+
+    const columns = Object.keys(input.data[0]);
+    const rows = input.data;
+
+    const placeholders = rows.map((_, rowIndex) => {
+      if (dbType === "pgsql") {
+        return `(${columns
+          .map((_, colIndex) => `$${rowIndex * columns.length + colIndex + 1}`)
+          .join(", ")})`;
+      } else {
+        return `(${columns.map(() => "?").join(", ")})`;
+      }
+    });
+
+    const values = rows.flatMap((row) => columns.map((col) => row[col]));
+
+    let sql = `INSERT INTO ${input.table} (${columns.join(
+      ", "
+    )}) VALUES ${placeholders.join(", ")}`;
+
+    if (dbType === "pgsql") {
+      sql += " RETURNING *";
+    }
+
+    return [sql, values];
   }
 
   #returnJoinRaw(

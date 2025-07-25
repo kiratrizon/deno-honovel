@@ -443,6 +443,17 @@ export class SessionInitializer {
     switch (type) {
       case "database": {
         const tableSession = SessionModifier.sesConfig.table || "sessions";
+
+        if (!isDefined("globalDB")) {
+          let connection = SessionModifier.sesConfig.connection;
+          if (!connection) {
+            console.warn(
+              "Session connection under config/session.ts is not defined. Using default connection."
+            );
+            connection = staticConfig("database").default;
+          }
+          define("globalDB", connection);
+        }
         const migrationClass = new (class extends Migration {
           async up() {
             if (!(await Schema.hasTable(tableSession))) {
@@ -461,6 +472,7 @@ export class SessionInitializer {
           }
         })();
         await migrationClass.up();
+        delete (globalThis as unknown as { globalDB?: string }).globalDB; // Clean up global variable
         break;
       }
       case "file": {
@@ -476,7 +488,11 @@ export class SessionInitializer {
         break;
       }
       case "redis": {
-        await RedisClient.init();
+        const connection = staticConfig("session").connection || "default";
+        RedisClient.setClientUsed(
+          staticConfig("database").redis?.client || "upstash"
+        );
+        await RedisClient.init(connection);
         break;
       }
       default: {
@@ -500,12 +516,3 @@ export class SessionInitializer {
     this.appKeys = keys;
   }
 }
-
-Deno.addSignalListener("SIGINT", async () => {
-  console.log("Gracefully shutting down...");
-
-  // Example: Close DB or other services
-  // await db.close();
-
-  console.log("Cleanup done. Exiting.");
-});

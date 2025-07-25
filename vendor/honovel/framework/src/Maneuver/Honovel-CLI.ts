@@ -13,9 +13,10 @@ const myCommand = new Command();
 
 import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import path from "node:path";
+import { SupportedDrivers } from "configs/@types/index.d.ts";
 class MyArtisan {
   private static db = new Database();
-  constructor() { }
+  constructor() {}
   private async createConfig(options: { force?: boolean }, name: string) {
     const stubPath = honovelPath("stubs/ConfigDefault.stub");
     const stubContent = getFileContents(stubPath);
@@ -118,18 +119,20 @@ class MyArtisan {
     }
   }
 
-  private async askIfDBNotExist() {
-    const dbType = staticConfig("database").default || "mysql";
+  private async askIfDBNotExist(dbType: SupportedDrivers) {
     switch (dbType) {
       case "mysql": {
-        const config = staticConfig("database").connections.mysql || {};
-        const pool = mysql.createPool({
-          host: config.host,
+        const config = staticConfig("database").connections?.mysql || {};
+        const poolParams = {
+          host:
+            (isArray(config.host) ? config.host[0] : config.host) ||
+            "localhost",
           port: Number(config.port || 3306),
           user: config.user,
           password: config.password,
           waitForConnections: true,
-        }) as Pool;
+        };
+        const pool = mysql.createPool(poolParams) as Pool;
 
         const dbName = config.database;
         const rows = await MySQL.query<"select">(
@@ -170,9 +173,13 @@ class MyArtisan {
     }
   }
 
-  private async runMigrations(options: { seed?: boolean; path?: string }) {
-    await this.askIfDBNotExist();
-    await this.createMigrationTable();
+  private async runMigrations(options: {
+    seed?: boolean;
+    path?: string;
+    db: SupportedDrivers;
+  }) {
+    await this.askIfDBNotExist(options.db);
+    await this.createMigrationTable(options.db);
     const modules = await loadMigrationModules();
     const batchNumber = await this.getBatchNumber();
 
@@ -196,10 +203,15 @@ class MyArtisan {
     }
   }
 
-  private async freshMigrations(options: { seed?: boolean; path?: string }) {
-    await this.askIfDBNotExist();
-    await this.dropAllTables();
-    await this.createMigrationTable();
+  private async freshMigrations(options: {
+    seed?: boolean;
+    path?: string;
+    db: SupportedDrivers;
+  }) {
+    define("globalDB", options.db);
+    await this.askIfDBNotExist(options.db);
+    await this.dropAllTables(options.db);
+    await this.createMigrationTable(options.db);
     const modules = await loadMigrationModules();
     const batchNumber = await this.getBatchNumber();
     const type = "up"; // or "down" based on your requirement
@@ -226,15 +238,15 @@ class MyArtisan {
     seed?: boolean;
     step?: number;
     path?: string;
+    db: SupportedDrivers;
   }) {
-    await this.askIfDBNotExist();
-    await this.createMigrationTable();
+    await this.askIfDBNotExist(options.db);
+    await this.createMigrationTable(options.db);
 
     // Logic to rollback and re-run migrations
   }
 
-  private async createMigrationTable() {
-    const dbType = staticConfig("database").default || "mysql";
+  private async createMigrationTable(dbType: SupportedDrivers) {
     let sql = "";
 
     switch (dbType) {
@@ -289,8 +301,7 @@ class MyArtisan {
     await DB.statement(sql);
   }
 
-  private async dropAllTables(): Promise<void> {
-    const dbType = staticConfig("database").default || "mysql";
+  private async dropAllTables(dbType: SupportedDrivers): Promise<void> {
     let tables: string[] = [];
 
     switch (dbType) {
@@ -368,15 +379,17 @@ class MyArtisan {
     );
   }
 
-  private async serve(options: { port?: number | null | string; host: string }) {
+  private async serve(options: {
+    port?: number | null | string;
+    host: string;
+  }) {
     const port = options.port;
     const serverPath = "vendor/honovel/framework/src/hono/run-server.ts";
-
 
     const envObj = {
       HOSTNAME: options.host,
       ...Deno.env.toObject(), // preserve existing env
-    }
+    };
     if (isset(port)) {
       // @ts-ignore //
       envObj.PORT = String(port);
@@ -411,7 +424,7 @@ class MyArtisan {
 
   public async command(args: string[]): Promise<void> {
     await myCommand
-      .name("Honovel")
+      .name("deno task")
       .description("Honovel CLI")
       .version(frameworkVersion().honovelVersion)
       .command("make:config", "Make a new config file")
@@ -438,7 +451,17 @@ class MyArtisan {
       .command("migrate", "Run the database migrations")
       .option("--seed", "Seed the database after migration")
       .option("--path <path:string>", "Specify a custom migrations directory")
-      .action((options) => this.runMigrations.bind(this)(options))
+      .option("--db <db:string>", "Specify the database connection to use")
+      .action((options) => {
+        const db: SupportedDrivers =
+          (options.db as SupportedDrivers) ||
+          (staticConfig("database").default as SupportedDrivers) ||
+          "mysql";
+        return this.runMigrations({
+          ...options,
+          db,
+        });
+      })
 
       .command("make:middleware", "Generate a middleware class")
       .arguments("<name:string>")
@@ -457,7 +480,17 @@ class MyArtisan {
       .command("migrate:fresh", "Drop all tables and rerun all migrations")
       .option("--seed", "Seed the database after fresh migration")
       .option("--path <path:string>", "Specify a custom migrations directory")
-      .action((options) => this.freshMigrations.bind(this)(options))
+      .option("--db <db:string>", "Specify the database connection to use")
+      .action((options) => {
+        const db: SupportedDrivers =
+          (options.db as SupportedDrivers) ||
+          (staticConfig("database").default as SupportedDrivers) ||
+          "mysql";
+        return this.freshMigrations({
+          ...options,
+          db,
+        });
+      })
 
       .command("migrate:refresh", "Rollback and re-run all migrations")
       .option("--seed", "Seed the database after refresh")
@@ -466,7 +499,17 @@ class MyArtisan {
         "Number of steps to rollback before migrating"
       )
       .option("--path <path:string>", "Specify a custom migrations directory")
-      .action((options) => this.refreshMigrations.bind(this)(options))
+      .option("--db <db:string>", "Specify the database connection to use")
+      .action((options) => {
+        const db: SupportedDrivers =
+          (options.db as SupportedDrivers) ||
+          (staticConfig("database").default as SupportedDrivers) ||
+          "mysql";
+        return this.refreshMigrations({
+          ...options,
+          db,
+        });
+      })
 
       .command(
         "publish:config",

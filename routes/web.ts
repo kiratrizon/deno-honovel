@@ -8,7 +8,8 @@ Route.post("/", async ({ request }) => {
 });
 
 Route.get("/", async () => {
+  const data = await DB.table("users").get();
   return response().json({
-    message: "Hello, World!",
+    data,
   });
 });

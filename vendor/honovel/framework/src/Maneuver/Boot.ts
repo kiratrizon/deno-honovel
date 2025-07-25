@@ -8,6 +8,7 @@ import {
   SessionModifier,
 } from "../hono/Http/HonoSession.ts";
 import HonoView from "../hono/Http/HonoView.ts";
+import { DB } from "Illuminate/Support/Facades/index.ts";
 
 class Boot {
   /**
@@ -18,6 +19,7 @@ class Boot {
    */
   static async init() {
     //
+    DB.init();
     SessionModifier.init();
     await Database.init();
     await SessionInitializer.init();
