@@ -1,7 +1,6 @@
 import { Redis as IORedis } from "ioredis";
 import {
   Redis as UpstashRedis,
-  RedisConfigDeno,
 } from "https://deno.land/x/upstash_redis@v1.14.0/mod.ts";
 
 import { createClient } from "npm:redis";

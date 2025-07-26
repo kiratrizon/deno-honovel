@@ -479,7 +479,10 @@ const timeZone =
   staticConfig("app.timezone") ||
   Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-globalFn("strtotime", function (time, now) {
+globalFn("strToTime", function (time, now) {
+  if (time instanceof Carbon) {
+    time = time.toString();
+  }
   if (typeof time !== "string") {
     return null;
   }
@@ -534,7 +537,7 @@ globalFn("date", function (format: string, unixTimestamp = null) {
 });
 
 globalFn("time", () => {
-  return strtotime("now");
+  return strToTime("now");
 });
 
 globalFn("jsonEncode", function (data) {

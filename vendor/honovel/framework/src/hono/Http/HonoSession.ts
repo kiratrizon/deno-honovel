@@ -42,7 +42,7 @@ export class HonoSession {
 
 export class Session {
   #id: string | null = null;
-  constructor(private values: Record<string, NonFunction<unknown>> = {}) {}
+  constructor(private values: Record<string, NonFunction<unknown>> = {}) { }
   public put(key: string, value: NonFunction<unknown>) {
     this.values[key] = value;
   }
@@ -179,7 +179,7 @@ export class SessionModifier {
     deleteCookie(
       this.#c,
       SessionModifier.sesConfig.cookie ||
-        Str.snake(env("APP_NAME", "honovel") + "_session")
+      Str.snake(env("APP_NAME", "honovel") + "_session")
     );
     await deleteSession(this.#sessionId);
 
@@ -452,7 +452,7 @@ export class SessionInitializer {
             );
             connection = staticConfig("database").default;
           }
-          define("globalDB", connection);
+          define("globalDB", connection, true);
         }
         const migrationClass = new (class extends Migration {
           async up() {
@@ -472,7 +472,6 @@ export class SessionInitializer {
           }
         })();
         await migrationClass.up();
-        delete (globalThis as unknown as { globalDB?: string }).globalDB; // Clean up global variable
         break;
       }
       case "file": {
@@ -488,7 +487,8 @@ export class SessionInitializer {
         break;
       }
       case "redis": {
-        const connection = staticConfig("session").connection || "default";
+        const connection = SessionModifier.sesConfig.store;
+
         RedisClient.setClientUsed(
           staticConfig("database").redis?.client || "upstash"
         );

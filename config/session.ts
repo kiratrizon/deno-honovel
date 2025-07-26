@@ -11,7 +11,7 @@ export default {
 
   files: storagePath("framework/sessions"),
 
-  connection: env("SESSION_CONNECTION"),
+  connection: env("SESSION_CONNECTION", "sqlite"),
 
   table: env("SESSION_TABLE", "sessions"),
 

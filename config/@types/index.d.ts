@@ -65,11 +65,11 @@ export interface AppConfig {
    * Example: "AES-256-CBC"
    */
   cipher:
-    | "AES-128-CBC"
-    | "AES-192-CBC"
-    | "AES-256-CBC"
-    | "AES-128-GCM"
-    | "AES-256-GCM";
+  | "AES-128-CBC"
+  | "AES-192-CBC"
+  | "AES-256-CBC"
+  | "AES-128-GCM"
+  | "AES-256-GCM";
 
   /**
    * Encryption Key
@@ -196,27 +196,27 @@ type RedisClient = "ioredis" | "node-redis" | "upstash" | "deno-redis";
 
 export type RedisConfigure<T extends RedisClient> = T extends "deno-redis"
   ? {
-      host: string;
-      port: number;
-      password?: string;
-      db?: number;
-      username?: string;
-      tls?: boolean;
-      options?: Record<string, unknown>;
-    }
+    host: string;
+    port: number;
+    password?: string;
+    db?: number;
+    username?: string;
+    tls?: boolean;
+    options?: Record<string, unknown>;
+  }
   : T extends "upstash"
   ? {
-      upstashUrl: string;
-      upstashToken: string;
-    }
+    upstashUrl: string;
+    upstashToken: string;
+  }
   : T extends "ioredis"
   ? {
-      ioredisUrl: string;
-    }
+    ioredisUrl: string;
+  }
   : T extends "node-redis"
   ? {
-      nodeRedisUrl: string;
-    }
+    nodeRedisUrl: string;
+  }
   : never;
 
 interface RedisConfig<T extends RedisClient = RedisClient> {
@@ -287,14 +287,14 @@ export interface CorsConfig {
 
 export interface SessionConfig {
   driver:
-    | "file"
-    | "memory"
-    | "redis"
-    | "database"
-    | "cookie"
-    | "memcached"
-    | "dynamodb"
-    | "array";
+  | "file"
+  | "memory"
+  | "redis"
+  | "database"
+  | "cookie"
+  | "memcached"
+  | "dynamodb"
+  | "object";
 
   lifetime: number; // session lifetime in minutes
 
@@ -327,6 +327,26 @@ export interface SessionConfig {
   partitioned?: boolean; // partitioned cookie flag
 
   prefix?: string; // session key prefix (for redis, etc.)
+}
+
+export type CacheDriver = "file" | "redis" | "object" | "database";
+export interface CacheConfig {
+  default?: string;
+  prefix?: string;
+  stores?: Record<
+    string,
+    {
+      driver: CacheDriver;
+      // For file driver
+      path?: string;
+      // Uses connection depends on driver
+      connection?: string;
+      // per-store override
+      prefix?: string;
+      // for database driver
+      table?: string;
+    }
+  >;
 }
 
 // this is the basis for the config items

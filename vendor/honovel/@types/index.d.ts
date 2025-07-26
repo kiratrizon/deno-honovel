@@ -1,7 +1,8 @@
 import { ResponseType } from "axios";
 import { ConfigItems } from "../../../config/@types/index.d.ts";
+import { Carbon } from "honovel:helpers";
 
-export {};
+export { };
 export interface IFetchDataOption {
   method?: string;
   headers?: Record<string, string>;
@@ -336,7 +337,7 @@ declare global {
    * date/time formats such as "next Friday" or "3 days ago" and adjusts based on the
    * system's time zone.
    */
-  function strtotime(time: string, now?: number): number | null;
+  function strToTime(time: string | Carbon, now?: number): number | null;
 
   /**
    * This function returns the current date and time
@@ -353,7 +354,7 @@ declare global {
   function DATE(format: string, timestamp?: number): string;
 
   /**
-   * Returns strtotime("now") in milliseconds.
+   * Returns strToTime("now") in milliseconds.
    */
   function time(): number;
 
