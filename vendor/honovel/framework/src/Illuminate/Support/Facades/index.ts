@@ -850,3 +850,8 @@ export class HonoAuth {
     return await this.guard().check();
   }
 }
+
+
+export class Cache {
+
+}

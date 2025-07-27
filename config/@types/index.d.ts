@@ -361,6 +361,7 @@ export interface CacheConfig {
 export interface ConfigItems {
   app: AppConfig;
   auth: AuthConfig;
+  cache: CacheConfig;
   database: DatabaseConfig;
   logging: LogConfig;
   cors: CorsConfig;

@@ -284,6 +284,52 @@ class ObjectStore extends AbstractStore {
     }
 }
 
+class DatabaseStore extends AbstractStore {
+    private readonly prefix: string;
+    private readonly table: string;
+    private readonly connection: string;
+    constructor(opts: { prefix?: string, table: string, connection: string } = { prefix: '', table: '', connection: '' }) {
+        super();
+        this.prefix = opts.prefix || '';
+        if (!opts.table || !isString(opts.table)) {
+            throw new Error("DatabaseStore requires a valid table name.");
+        }
+        if (!opts.connection || !isString(opts.connection)) {
+            throw new Error("DatabaseStore requires a valid connection in the database config.");
+        }
+        this.table = opts.table;
+        this.connection = opts.connection;
+    }
+
+    async get(key: string): Promise<any> {
+        // Implement logic to retrieve value from database cache
+        const newKey = this.validateKey(key);
+
+    }
+
+    async put(key: string, value: any, seconds: number): Promise<void> {
+        // Implement logic to store value in database cache
+        throw new Error("DatabaseStore.put() not implemented");
+    }
+
+    async forget(key: string): Promise<void> {
+        // Implement logic to remove key from database cache
+        throw new Error("DatabaseStore.forget() not implemented");
+    }
+
+    async flush(): Promise<void> {
+        // Implement logic to clear all items in the database cache
+        throw new Error("DatabaseStore.flush() not implemented");
+    }
+
+    private async init() {
+
+    }
+
+    getPrefix(): string {
+        return this.prefix;
+    }
+}
 
 
 export { FileStore, RedisStore, ObjectStore };

@@ -143,4 +143,19 @@ export class RedisManager {
         }
     }
 
+
+    public async exists(key: string): Promise<boolean> {
+        if (!this.#client) throw new Error("Redis client not initialized.");
+
+        switch (this.#redisType) {
+            case "ioredis":
+                return await (this.#client as IORedis).exists(key) > 0;
+            case "upstash":
+                return await (this.#client as UpstashRedis).exists(key) > 0;
+            case "node-redis":
+                return await (this.#client as RedisClientType).exists(key) > 0;
+            case "deno-redis":
+                return await (this.#client as DenoRedis).exists(key) > 0;
+        }
+    }
 }

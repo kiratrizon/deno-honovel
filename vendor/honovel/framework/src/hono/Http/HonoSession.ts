@@ -9,8 +9,8 @@ import RedisClient from "../../Maneuver/RedisClient.ts";
 import { Migration } from "Illuminate/Database/Migrations/index.ts";
 import { Schema, DB } from "Illuminate/Support/Facades/index.ts";
 import { Carbon } from "honovel:helpers";
-import { init } from "https://deno.land/x/base64@v0.2.1/base.ts";
 import { SessionConfig } from "../../../../../../config/@types/index.d.ts";
+import { RedisManager } from "Illuminate/Redis/index.ts";
 
 type SessionEncrypt = {
   encrypt: string; // encrypted session data
@@ -487,12 +487,37 @@ export class SessionInitializer {
         break;
       }
       case "redis": {
-        const connection = SessionModifier.sesConfig.store;
 
-        RedisClient.setClientUsed(
-          staticConfig("database").redis?.client || "upstash"
-        );
-        await RedisClient.init(connection);
+        const redisClient = staticConfig("database").redis?.client;
+        if (!redisClient) {
+          throw new Error(
+            "Redis client is not defined in the database configuration."
+          );
+        }
+        const cacheConf = staticConfig("cache");
+        const stores = cacheConf.stores;
+        if (!stores) {
+          throw new Error("Cache stores are not defined in the configuration.");
+        }
+        const store = SessionModifier.sesConfig.store || cacheConf.default;
+        if (!isset(store) || !keyExist(stores, store)) {
+          throw new Error(
+            `Session store "${store}" is not defined in the cache configuration.`
+          );
+        }
+
+        const driver = stores[store].driver;
+        if (driver !== "redis") {
+          throw new Error(
+            `Session store "${store}" is not a Redis store.`
+          );
+        }
+
+        const connection = stores[store].connection || "default";
+
+        const instance = new RedisManager(redisClient);
+        await instance.init(connection);
+        RedisClient.init(instance);
         break;
       }
       default: {
