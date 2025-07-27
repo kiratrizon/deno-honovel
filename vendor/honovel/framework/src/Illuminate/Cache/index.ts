@@ -11,7 +11,9 @@ import { CacheDriver, RedisClient } from "configs/@types/index.d.ts";
 import { RedisManager } from "../Redis/index.ts";
 
 export abstract class AbstractStore {
+    // deno-lint-ignore no-explicit-any
     abstract get(key: string): Promise<any>;
+    // deno-lint-ignore no-explicit-any
     abstract put(key: string, value: any, seconds: number): Promise<void>;
     abstract forget(key: string): Promise<void>;
     abstract flush(): Promise<void>;
@@ -20,6 +22,7 @@ export abstract class AbstractStore {
     /**
      * Store an item in the cache indefinitely.
      */
+    // deno-lint-ignore no-explicit-any
     async forever(key: string, value: any): Promise<void> {
         // Convention: use 0 or -1 to mean "forever"
         await this.put(key, value, 0);
@@ -54,6 +57,7 @@ export abstract class AbstractStore {
     /**
      * Get a value or return default.
      */
+    // deno-lint-ignore no-explicit-any
     async getOrDefault<T = any>(key: string, defaultValue: T): Promise<T> {
         const value = await this.get(key);
         return value !== null && value !== undefined ? value : defaultValue;
@@ -209,12 +213,14 @@ class RedisStore extends AbstractStore {
         // Initialize Redis client here if needed
         this.#initialized = true;
     }
+    // deno-lint-ignore no-explicit-any
     async get(key: string): Promise<any> {
         await this.init();
         const newKey = this.validateKey(key);
         return await this.manager.get(newKey);
     }
 
+    // deno-lint-ignore no-explicit-any
     async put(key: string, value: any, seconds: number): Promise<void> {
         await this.init();
         const newKey = this.validateKey(key);
@@ -304,12 +310,14 @@ class DatabaseStore extends AbstractStore {
         this.connection = opts.connection;
     }
 
+    // deno-lint-ignore no-explicit-any
     async get(key: string): Promise<any> {
         // Implement logic to retrieve value from database cache
         const newKey = this.validateKey(key);
 
     }
 
+    // deno-lint-ignore no-explicit-any
     async put(key: string, value: any, seconds: number): Promise<void> {
         // Implement logic to store value in database cache
         throw new Error("DatabaseStore.put() not implemented");
