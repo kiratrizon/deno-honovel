@@ -7,7 +7,7 @@
 // null
 
 import { Carbon } from "honovel:helpers";
-import { RedisClient } from "configs/@types/index.d.ts";
+import { CacheDriver, RedisClient } from "configs/@types/index.d.ts";
 import { RedisManager } from "../Redis/index.ts";
 
 export abstract class AbstractStore {
@@ -175,7 +175,7 @@ class RedisStore extends AbstractStore {
     private readonly prefix: string;
     // @ts-ignore //
     private manager: RedisManager;
-    constructor(opts: { connection: string, prefix: string } = { connection: "default", prefix: "" }) {
+    constructor(opts: { connection?: string, prefix: string } = { connection: "default", prefix: "" }) {
         super();
         const dbConf = staticConfig("database");
         if (!RedisStore.redisClient) {
@@ -183,6 +183,9 @@ class RedisStore extends AbstractStore {
         }
         if (!isset(dbConf.redis?.connections)) {
             throw new Error("Redis connections are not configured.");
+        }
+        if (!isset(opts.connection) || !isString(opts.connection)) {
+            throw new Error("RedisStore requires a valid connection name.");
         }
         this.connection = opts.connection;
         this.prefix = opts.prefix || "";
@@ -331,5 +334,65 @@ class DatabaseStore extends AbstractStore {
     }
 }
 
+class CacheManager {
+    private store: AbstractStore;
+    private prefix: string;
+    constructor(driver: CacheDriver, options: {
+        driver: CacheDriver;
+        // For file driver
+        path?: string;
+        // Uses connection depends on driver
+        connection?: string;
+        // per-store override
+        prefix?: string;
+        // for database driver
+        table?: string;
+    }) {
+        const { path, connection, prefix, table } = options;
+        this.prefix = prefix || staticConfig("cache").prefix || "";
+        switch (driver) {
+            case "object": {
+                this.store = new ObjectStore({ prefix: this.prefix });
+                break;
+            }
+            case "file": {
+                this.store = new FileStore({
+                    prefix: this.prefix,
+                    path
+                });
+                break;
+            }
+            case "redis": {
+                this.store = new RedisStore({
+                    connection: connection,
+                    prefix: this.prefix
+                });
+                break;
+            }
+            case "database": {
+                if (!table || !isString(table)) {
+                    throw new Error("DatabaseStore requires a valid table name.");
+                }
+                if (!connection || !isString(connection)) {
+                    throw new Error("DatabaseStore requires a valid connection in the database config.");
+                }
+                this.store = new DatabaseStore({
+                    prefix: this.prefix,
+                    table: table,
+                    connection: connection
+                });
+                break;
+            }
+            default: {
+                throw new Error(`Unsopported cache driver: ${driver}`);
+            }
+        }
+    }
 
-export { FileStore, RedisStore, ObjectStore };
+    getStore(): AbstractStore {
+        return this.store;
+    }
+}
+
+
+export { CacheManager, FileStore, RedisStore, ObjectStore };

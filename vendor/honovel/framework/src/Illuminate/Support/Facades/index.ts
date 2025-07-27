@@ -33,6 +33,8 @@ import { Database, QueryResultDerived } from "Database";
 import { Builder, SQLRaw, sqlstring } from "../../Database/Query/index.ts";
 import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
 import { SupportedDrivers } from "configs/@types/index.d.ts";
+import { init } from "https://deno.land/x/base64@v0.2.1/base.ts";
+import { AbstractStore, CacheManager } from "../../Cache/index.ts";
 interface HashOptions {
   rounds?: number;
 }
@@ -851,7 +853,131 @@ export class HonoAuth {
   }
 }
 
-
+// The main Cache facade class, similar to Laravel's Cache:: facade
 export class Cache {
+  /**
+   * Retrieve or create the cache store instance for the given connection name.
+   */
+  static store(connection?: string): AbstractStore {
+    if (!isset(connection)) {
+      connection = this.defaultConnection; // use default if none provided
+    }
 
+    if (!keyExist(this.stores, connection)) {
+      const cacheConfig = staticConfig("cache");
+
+      // Validate cache config presence
+      if (!isset(cacheConfig) || !isset(cacheConfig.stores)) {
+        throw new Error("Cache configuration is not defined.");
+      }
+
+      // Validate store config
+      if (!keyExist(cacheConfig.stores, connection)) {
+        throw new Error(`Cache store ${connection} is not defined.`);
+      }
+
+      const storeConfig = cacheConfig.stores[connection];
+
+      // Validate driver definition
+      if (!isset(storeConfig.driver)) {
+        throw new Error(`Cache store ${connection} driver is not defined.`);
+      }
+
+      const driver = storeConfig.driver;
+      const remainingConfig = { ...storeConfig };
+
+      // Create and register the store instance
+      const instanceCache = new CacheManager(driver, remainingConfig);
+      this.stores[connection] = instanceCache.getStore();
+    }
+
+    // Return cached store instance
+    return this.stores[connection];
+  }
+
+  // Cache store instances (e.g. redis, memory, file)
+  private static stores: Record<string, AbstractStore> = {};
+
+  // The default cache store name (set in config)
+  private static defaultConnection: string;
+
+  /**
+   * Initialize the cache system by loading the default connection from config.
+   */
+  static init() {
+    const cacheConfig = staticConfig("cache");
+
+    if (empty(cacheConfig)) {
+      throw new Error("Cache configuration is not defined.");
+    }
+
+    if (!isset(cacheConfig.default)) {
+      throw new Error("Default cache connection is not defined.");
+    }
+
+    this.defaultConnection = cacheConfig.default;
+  }
+
+  /**
+   * Get a cached value by key.
+   */
+  static async get(key: string) {
+    return await this.store(this.defaultConnection).get(key);
+  }
+
+  /**
+   * Store a value in the cache for a given number of seconds.
+   */
+  static async put(key: string, value: any, seconds: number) {
+    await this.store(this.defaultConnection).put(key, value, seconds);
+  }
+
+  /**
+   * Remove an item from the cache.
+   */
+  static async forget(key: string) {
+    await this.store(this.defaultConnection).forget(key);
+  }
+
+  /**
+   * Clear all items from the cache.
+   */
+  static async flush() {
+    await this.store(this.defaultConnection).flush();
+  }
+
+  /**
+   * Store an item in the cache indefinitely.
+   */
+  static async forever(key: string, value: any) {
+    await this.store(this.defaultConnection).forever(key, value);
+  }
+
+  /**
+   * Determine if an item exists in the cache.
+   */
+  static async has(key: string) {
+    return await this.store(this.defaultConnection).has(key);
+  }
+
+  /**
+   * Increment a cached numeric value.
+   */
+  static async increment(key: string, value: number = 1) {
+    return await this.store(this.defaultConnection).increment(key, value);
+  }
+
+  /**
+   * Decrement a cached numeric value.
+   */
+  static async decrement(key: string, value: number = 1) {
+    return await this.store(this.defaultConnection).decrement(key, value);
+  }
+
+  /**
+   * Get a cached value or return the default if missing.
+   */
+  static async getOrDefault<T = any>(key: string, defaultValue: T): Promise<T> {
+    return await this.store(this.defaultConnection).getOrDefault(key, defaultValue);
+  }
 }
