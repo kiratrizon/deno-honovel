@@ -12,6 +12,12 @@ const constant: CacheConfig = {
       connection: env("REDIS_CONNECTION", "default"),
       prefix: env("CACHE_PREFIX", "honovel_cache"),
     },
+    mydb: {
+      driver: "database",
+      connection: env("DB_CONNECTION", "default"),
+      table: "cache",
+      prefix: env("CACHE_PREFIX", "honovel_cache"),
+    },
   },
 };
 

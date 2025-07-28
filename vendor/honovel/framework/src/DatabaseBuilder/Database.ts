@@ -96,6 +96,71 @@ export interface QueryResultDerived {
   use: TCL; // e.g., USE database_name;
 }
 
+export const sqlReservedWords = [
+  "add",
+  "all",
+  "alter",
+  "and",
+  "any",
+  "as",
+  "asc",
+  "backup",
+  "between",
+  "by",
+  "case",
+  "check",
+  "column",
+  "constraint",
+  "create",
+  "database",
+  "default",
+  "delete",
+  "desc",
+  "distinct",
+  "drop",
+  "exec",
+  "exists",
+  "foreign",
+  "from",
+  "full",
+  "group",
+  "having",
+  "if",
+  "in",
+  "index",
+  "inner",
+  "insert",
+  "into",
+  "is",
+  "join",
+  "key",
+  "left",
+  "like",
+  "limit",
+  "not",
+  "null",
+  "on",
+  "or",
+  "order",
+  "outer",
+  "primary",
+  "procedure",
+  "right",
+  "rownum",
+  "select",
+  "set",
+  "table",
+  "top",
+  "truncate",
+  "union",
+  "unique",
+  "update",
+  "values",
+  "view",
+  "where",
+  "with",
+];
+
 // This is for RDBMS like MySQL, PostgreSQL, etc.
 export class Database {
   public static client: MPool | PPool | undefined;
@@ -113,7 +178,7 @@ export class Database {
     sqlite: { read: [], write: [] },
     sqlsrv: { read: [], write: [] },
   };
-  constructor(private dbUsed = staticConfig("database").default) {}
+  constructor(private dbUsed: SupportedDrivers) {}
   private static readQueries: string[] = [
     "select",
     "pragma", // SQLite
@@ -338,20 +403,19 @@ export class Database {
     const lines: string[] = [];
 
     for (const col of schema.columns) {
-      let line = `${this.quoteIdentifier(
-        col.name,
+      let line = `${this.quoteIdentifier(col.name)} ${this.mapColumnType(
+        col,
         dbType
-      )} ${this.mapColumnType(col, dbType)}`;
+      )}`;
 
       if (col.options?.autoIncrement) {
         if (dbType === "mysql") {
           line += " AUTO_INCREMENT";
         } else if (dbType === "pgsql") {
-          line = `${this.quoteIdentifier(col.name, dbType)} SERIAL`;
+          line = `${this.quoteIdentifier(col.name)} SERIAL`;
         } else if (dbType === "sqlite") {
           line = `${this.quoteIdentifier(
-            col.name,
-            dbType
+            col.name
           )} INTEGER PRIMARY KEY AUTOINCREMENT`;
           // Note: SQLite only allows AUTOINCREMENT on the primary key
         } else if (dbType === "sqlsrv") {
@@ -393,42 +457,39 @@ export class Database {
         const fkName = `fk_${schema.table}_${col.name}`;
         lines.push(
           `CONSTRAINT ${this.quoteIdentifier(
-            fkName,
-            dbType
+            fkName
           )} FOREIGN KEY (${this.quoteIdentifier(
-            col.name,
-            dbType
+            col.name
           )}) REFERENCES ${this.quoteIdentifier(
-            col.options.on,
-            dbType
-          )}(${this.quoteIdentifier(col.options.references, dbType)})`
+            col.options.on
+          )}(${this.quoteIdentifier(col.options.references)})`
         );
       }
     }
 
-    const quotedTable = this.quoteIdentifier(schema.table, dbType);
+    const quotedTable = this.quoteIdentifier(schema.table);
     return `CREATE TABLE ${quotedTable} (\n  ${lines.join(",\n  ")}\n);`;
   }
 
   public generateAlterTableSQL(schema: TableSchema, dbType: DBType): string {
     const statements: string[] = [];
 
-    const tableName = this.quoteIdentifier(schema.table, dbType);
+    const tableName = this.quoteIdentifier(schema.table);
 
     // Drop columns
     if (schema.drops?.length) {
       for (const colName of schema.drops) {
-        const col = this.quoteIdentifier(colName, dbType);
+        const col = this.quoteIdentifier(colName);
         statements.push(`ALTER TABLE ${tableName} DROP COLUMN ${col}`);
       }
     }
 
     // Add columns
     for (const col of schema.columns) {
-      let line = `${this.quoteIdentifier(
-        col.name,
+      let line = `${this.quoteIdentifier(col.name)} ${this.mapColumnType(
+        col,
         dbType
-      )} ${this.mapColumnType(col, dbType)}`;
+      )}`;
 
       if (!col.options?.nullable) line += " NOT NULL";
       if (col.options?.unique) line += " UNIQUE";
@@ -447,15 +508,12 @@ export class Database {
         const fkName = `fk_${schema.table}_${col.name}`;
         statements.push(
           `ALTER TABLE ${tableName} ADD CONSTRAINT ${this.quoteIdentifier(
-            fkName,
-            dbType
+            fkName
           )} FOREIGN KEY (${this.quoteIdentifier(
-            col.name,
-            dbType
+            col.name
           )}) REFERENCES ${this.quoteIdentifier(
-            col.options.on,
-            dbType
-          )}(${this.quoteIdentifier(col.options.references, dbType)})`
+            col.options.on
+          )}(${this.quoteIdentifier(col.options.references)})`
         );
       }
     }
@@ -467,13 +525,11 @@ export class Database {
     input: TInsertOrUpdateBuilder,
     uniqueKeys: string[]
   ): [string, unknown[]] {
-    const columns = Object.keys(input.data);
-    const values = columns.map((col) => input.data[col]);
+    let columns = Object.keys(input.data);
+    const values = columns.map((col) => input.data[col] || null);
+    columns = columns.map((col) => this.quoteIdentifier(col));
 
-    const placeholders =
-      this.dbUsed === "pgsql"
-        ? `(${columns.map((_, idx) => `$${idx + 1}`).join(", ")})`
-        : `(${columns.map(() => "?").join(", ")})`;
+    const placeholders = `(${columns.map(() => "?").join(", ")})`;
 
     let sql = `INSERT INTO ${input.table} (${columns.join(
       ", "
@@ -484,22 +540,18 @@ export class Database {
         .filter((col) => !uniqueKeys.includes(col))
         .map((col) => `${col}=VALUES(${col})`)
         .join(", ");
-
       sql += ` ON DUPLICATE KEY UPDATE ${updates}`;
     } else if (this.dbUsed === "pgsql") {
-      const conflictTargets = uniqueKeys.join(", ");
       const updates = columns
         .filter((col) => !uniqueKeys.includes(col))
         .map((col) => `${col}=EXCLUDED.${col}`)
         .join(", ");
-
-      sql += ` ON CONFLICT (${conflictTargets}) DO UPDATE SET ${updates} RETURNING *`;
+      sql += ` ON CONFLICT (${uniqueKeys.join(", ")}) DO UPDATE SET ${updates}`;
     } else if (this.dbUsed === "sqlite") {
       const updates = columns
         .filter((col) => !uniqueKeys.includes(col))
         .map((col) => `${col}=excluded.${col}`)
         .join(", ");
-
       sql += ` ON CONFLICT (${uniqueKeys.join(", ")}) DO UPDATE SET ${updates}`;
     } else if (this.dbUsed === "sqlsrv") {
       throw new Error(
@@ -510,7 +562,11 @@ export class Database {
     return [sql, values];
   }
 
-  private quoteIdentifier(name: string, dbType: DBType): string {
+  public quoteIdentifier(name: string): string {
+    const dbType = this.dbUsed;
+    if (!sqlReservedWords.includes(name.toLowerCase())) {
+      return name; // No need to quote if not a reserved word
+    }
     switch (dbType) {
       case "mysql":
         return `\`${name}\``;

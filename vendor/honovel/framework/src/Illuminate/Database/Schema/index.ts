@@ -1,35 +1,36 @@
 // TypeScript version of Laravel-like Blueprint schema builder
 
+import { SupportedDrivers } from "configs/@types/index.d.ts";
+import { Database } from "Database";
+
 export type ColumnType =
-  | "string"       // VARCHAR
-  | "text"         // TEXT
-  | "tinyText"     // TINYTEXT
-  | "mediumText"   // MEDIUMTEXT
-  | "longText"     // LONGTEXT
-  | "char"         // CHAR
-  | "uuid"         // CHAR(36)
-  | "integer"      // INT
-  | "tinyint"      // TINYINT
-  | "smallint"     // SMALLINT
-  | "mediumint"    // MEDIUMINT
-  | "bigint"       // BIGINT
-  | "float"        // FLOAT
-  | "double"       // DOUBLE
-  | "decimal"      // DECIMAL
-  | "boolean"      // BOOLEAN (TINYINT(1))
-  | "date"         // DATE
-  | "datetime"     // DATETIME
-  | "timestamp"    // TIMESTAMP
-  | "time"         // TIME
-  | "year"         // YEAR
-  | "json"         // JSON
-  | "enum"         // ENUM
-  | "set"          // SET
-  | "binary"       // BINARY
-  | "id"           // alias for unsigned BIGINT AUTO_INCREMENT PRIMARY
-  | "foreignId";   // alias for unsigned BIGINT
-
-
+  | "string" // VARCHAR
+  | "text" // TEXT
+  | "tinyText" // TINYTEXT
+  | "mediumText" // MEDIUMTEXT
+  | "longText" // LONGTEXT
+  | "char" // CHAR
+  | "uuid" // CHAR(36)
+  | "integer" // INT
+  | "tinyint" // TINYINT
+  | "smallint" // SMALLINT
+  | "mediumint" // MEDIUMINT
+  | "bigint" // BIGINT
+  | "float" // FLOAT
+  | "double" // DOUBLE
+  | "decimal" // DECIMAL
+  | "boolean" // BOOLEAN (TINYINT(1))
+  | "date" // DATE
+  | "datetime" // DATETIME
+  | "timestamp" // TIMESTAMP
+  | "time" // TIME
+  | "year" // YEAR
+  | "json" // JSON
+  | "enum" // ENUM
+  | "set" // SET
+  | "binary" // BINARY
+  | "id" // alias for unsigned BIGINT AUTO_INCREMENT PRIMARY
+  | "foreignId"; // alias for unsigned BIGINT
 
 export interface ColumnOptions {
   length?: number;
@@ -74,11 +75,10 @@ export interface TableSchema {
 
 export class Blueprint {
   private table: string;
-  private columns: ColumnDefinition[] = [];
-  private drops: string[] = [];
+  public columns: ColumnDefinition[] = [];
+  public drops: string[] = [];
   private columnCount: number = 0;
-
-  constructor(table: string) {
+  constructor(table: string, private connection: SupportedDrivers) {
     this.table = table;
   }
   /**
@@ -171,6 +171,14 @@ export class Blueprint {
       },
 
       /**
+       * Sets the column to NOT NULL.
+       */
+      notNullable: () => {
+        column.options.nullable = false;
+        return this.optionsSelector(column);
+      },
+
+      /**
        * Sets a default value for the column.
        *
        * @param value - The default value (string, number, or boolean).
@@ -256,14 +264,13 @@ export class Blueprint {
     };
   }
 
-
   /**
    * Adds an auto-incrementing UNSIGNED BIGINT 'id' primary key column.
    * Equivalent to Laravel's $table->id()
    */
   id(columnName: string = "id") {
     this.columns.push({
-      type: "bigint",
+      type: this.connection === "sqlite" ? "integer" : "bigint",
       name: columnName,
       options: {
         primary: true,
@@ -436,9 +443,9 @@ export class Blueprint {
   // strings
 
   /**
- * Adds a VARCHAR column with a default length of 255.
- * Equivalent to $table->string('name', 255)
- */
+   * Adds a VARCHAR column with a default length of 255.
+   * Equivalent to $table->string('name', 255)
+   */
   string(name: string, length: number = 255) {
     this.columns.push({
       type: "string",
@@ -478,7 +485,6 @@ export class Blueprint {
     this.columnCount++;
     return this.optionsSelector(this.columns[count]);
   }
-
 
   /**
    * Adds a UUID column.
@@ -540,13 +546,12 @@ export class Blueprint {
     return this.optionsSelector(this.columns[count]);
   }
 
-
   // date and time
 
   /**
    * Add a DATE column (YYYY-MM-DD).
    * Equivalent to Laravel's `date()` column type.
-   * 
+   *
    * @param name - The name of the column.
    */
   date(name: string) {
@@ -563,7 +568,7 @@ export class Blueprint {
   /**
    * Add a DATETIME column (YYYY-MM-DD HH:MM:SS) with optional fractional seconds precision.
    * Equivalent to Laravel's `dateTime()` column type.
-   * 
+   *
    * @param name - The name of the column.
    * @param precision - Optional fractional seconds precision (0-6).
    */
@@ -581,7 +586,7 @@ export class Blueprint {
   /**
    * Add a TIME column (HH:MM:SS) with optional fractional seconds precision.
    * Equivalent to Laravel's `time()` column type.
-   * 
+   *
    * @param name - The name of the column.
    * @param precision - Optional fractional seconds precision (0-6).
    */
@@ -597,28 +602,9 @@ export class Blueprint {
   }
 
   /**
-   * Add a TIMESTAMP column (used for created_at, updated_at, etc.) with optional precision.
-   * Equivalent to Laravel's `timestamp()` column type.
-   * 
-   * @param name - The name of the column.
-   * @param precision - Optional fractional seconds precision (0-6).
-   */
-  timestamp(name: string, precision?: number) {
-    this.columns.push({
-      type: "timestamp",
-      name,
-      options: { precision },
-    });
-    const count = this.columnCount;
-    this.columnCount++;
-    return this.optionsSelector(this.columns[count]);
-  }
-
-
-  /**
    * Add a YEAR column (typically stores a 4-digit year).
    * Equivalent to Laravel's `year()` column type.
-   * 
+   *
    * @param name - The name of the column.
    */
   year(name: string) {
@@ -633,28 +619,58 @@ export class Blueprint {
   }
 
   /**
+   * Add a TIMESTAMP column (used for created_at, updated_at, etc.) with optional precision.
+   * Equivalent to Laravel's `timestamp()` column type.
+   *
+   * @param name - The name of the column.
+   * @param precision - Optional fractional seconds precision (0-6).
+   */
+  timestamp(name: string, precision?: number) {
+    this.columns.push({
+      type: "timestamp",
+      name,
+      options: { precision, nullable: true },
+    });
+    const count = this.columnCount;
+    this.columnCount++;
+    return this.optionsSelector(this.columns[count]);
+  }
+
+  /**
    * Add `created_at` and `updated_at` TIMESTAMP columns.
    * Typically used for automatic timestamping of model creation and updates.
    * Equivalent to Laravel's `timestamps()` helper.
    */
-  timestamps() {
+  timestamps(): this {
     this.columns.push({
       type: "timestamp",
       name: "created_at",
-      options: { length: 0 },
+      options: {
+        precision: 0,
+        default: "CURRENT_TIMESTAMP",
+        nullable: false,
+      },
     });
+
     this.columns.push({
       type: "timestamp",
       name: "updated_at",
-      options: { length: 0 },
+      options: {
+        precision: 0,
+        default: "CURRENT_TIMESTAMP",
+        nullable: true,
+        onUpdate: "CURRENT_TIMESTAMP",
+      },
     });
+
     this.columnCount += 2;
+    return this;
   }
 
   /**
    * Add a nullable `deleted_at` TIMESTAMP column to support soft deletes.
    * Equivalent to Laravel's `softDeletes()` method.
-   * 
+   *
    * @param precision - Optional fractional seconds precision (0-6), default is 0.
    */
   softDeletes(precision: number = 0) {
@@ -673,7 +689,7 @@ export class Blueprint {
   /**
    * Add a JSON column for storing structured data (like objects or arrays).
    * Equivalent to Laravel's `json()` column type.
-   * 
+   *
    * @param name - The name of the column.
    */
   json(name: string) {
@@ -686,7 +702,6 @@ export class Blueprint {
     this.columnCount++;
     return this.optionsSelector(this.columns[count]);
   }
-
 
   /**
    * Add an ENUM column with a fixed set of allowed string values.
@@ -785,5 +800,189 @@ export class Blueprint {
     this.drops.push(name);
   }
 
+  /**
+   * Convert the Blueprint to sql format.
+   */
+  toSql(): string {
+    const columnSqls = this.columns.map((col) => this.columnToSql(col));
+    const dropSqls = this.drops?.map((name) => `DROP COLUMN \`${name}\``) || [];
 
+    const indexes = this.columns
+      .filter((col) => col.options.index)
+      .map((col) => {
+        const indexName =
+          isString(col.options.index) && !empty(col.options.index)
+            ? col.options.index
+            : `index_${col.name}`;
+        return `INDEX \`${indexName}\` (\`${col.name}\`)`;
+      });
+
+    const table = new Database(this.connection).quoteIdentifier(this.table);
+    if (this.#isAlter) {
+      const all = [...columnSqls, ...dropSqls, ...indexes].join(", ");
+      return `ALTER TABLE ${table} ${all};`;
+    } else {
+      const all = [...columnSqls, ...indexes].join(",\n  ");
+      return `CREATE TABLE ${table} (\n  ${all}\n);`;
+    }
+  }
+
+  private columnToSql(col: ColumnDefinition): string {
+    const { name, type, options } = col;
+    const db = new Database(this.connection);
+    const parts: string[] = [
+      `${db.quoteIdentifier(name)} ${this.mapType(type, col)}`,
+    ];
+
+    // Unsigned (only for MySQL/PostgreSQL)
+    if (options.unsigned && ["mysql", "pgsql"].includes(this.connection)) {
+      parts.push("UNSIGNED");
+    }
+
+    // Primary key
+    if (options.primary) parts.push("PRIMARY KEY");
+
+    // Auto increment
+    if (options.autoIncrement) {
+      if (this.connection === "sqlite") {
+        parts.push("AUTOINCREMENT");
+      } else if (["mysql", "pgsql"].includes(this.connection)) {
+        parts.push("AUTO_INCREMENT");
+      }
+    }
+
+    // Unique constraint
+    if (options.unique) parts.push("UNIQUE");
+
+    if (options.default !== undefined && options.default !== null) {
+      const def = this.wrapDefault(options.default);
+      parts.push(`DEFAULT ${def}`);
+    }
+    // NULL or NOT NULL
+    parts.push(options.nullable ? "NULL" : "NOT NULL");
+
+    // Comment
+    if (options.comment && this.connection !== "sqlite") {
+      parts.push(`COMMENT '${options.comment}'`);
+    }
+
+    // Ignore onUpdate in SQLite
+    if (options.onUpdate && this.connection !== "sqlite") {
+      parts.push(`ON UPDATE ${options.onUpdate}`);
+    }
+
+    return parts.join(" ");
+  }
+
+  private mapType(type: ColumnType, col: ColumnDefinition): string {
+    const opts = col.options || {};
+    const db = this.connection;
+
+    switch (type) {
+      case "string":
+        return `VARCHAR(${opts.length ?? 255})`;
+      case "char":
+        return `CHAR(${opts.length ?? 1})`;
+      case "uuid":
+        return `CHAR(36)`;
+      case "text":
+        return `TEXT`;
+      case "tinyText":
+        return db === "mysql" ? "TINYTEXT" : "TEXT";
+      case "mediumText":
+        return db === "mysql" ? "MEDIUMTEXT" : "TEXT";
+      case "longText":
+        return db === "mysql" ? "LONGTEXT" : "TEXT";
+      case "integer":
+        return "INTEGER";
+      case "tinyint":
+        return "TINYINT";
+      case "smallint":
+        return "SMALLINT";
+      case "mediumint":
+        return "MEDIUMINT";
+      case "bigint":
+        return "BIGINT";
+      case "float":
+        return "FLOAT";
+      case "double":
+        return "DOUBLE";
+      case "decimal":
+        const precision = opts.precision ?? 8;
+        const scale = opts.scale ?? 2;
+        return `DECIMAL(${precision}, ${scale})`;
+      case "boolean":
+        return db === "mysql" ? "TINYINT(1)" : "BOOLEAN";
+      case "date":
+        return "DATE";
+      case "datetime":
+        return opts.precision !== undefined
+          ? `DATETIME(${opts.precision})`
+          : "DATETIME";
+      case "timestamp":
+        return opts.precision !== undefined
+          ? `TIMESTAMP(${opts.precision})`
+          : "TIMESTAMP";
+      case "time":
+        return opts.precision !== undefined
+          ? `TIME(${opts.precision})`
+          : "TIME";
+      case "year":
+        return "YEAR";
+      case "json":
+        return db === "mysql" ? "JSON" : "TEXT";
+      case "enum":
+        if (opts.allowed?.length) {
+          const quoted = opts.allowed.map((val) => `'${val}'`).join(", ");
+          return `ENUM(${quoted})`;
+        }
+        return "TEXT";
+      case "set":
+        if (opts.allowed?.length) {
+          const quoted = opts.allowed.map((val) => `'${val}'`).join(", ");
+          return `SET(${quoted})`;
+        }
+        return "TEXT";
+      case "binary":
+        return "BLOB";
+      case "id":
+        return db === "sqlite"
+          ? "INTEGER PRIMARY KEY AUTOINCREMENT"
+          : "BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY";
+      case "foreignId":
+        return db === "sqlite" ? "INTEGER" : "BIGINT UNSIGNED";
+      default:
+        throw new Error(`Unsupported column type: ${type}`);
+    }
+  }
+
+  private wrapDefault(value: any): string {
+    if (typeof value === "string") {
+      // Do not quote SQL expressions like CURRENT_TIMESTAMP
+      const upper = value.toUpperCase();
+      if (
+        upper === "CURRENT_TIMESTAMP" ||
+        upper === "CURRENT_DATE" ||
+        upper === "CURRENT_TIME" ||
+        upper.startsWith("NULL") // handle explicitly set "NULL"
+      ) {
+        return value;
+      }
+
+      return `'${value}'`;
+    }
+
+    if (value === null) return "NULL";
+    return String(value);
+  }
+
+  #isAlter: boolean = false;
+  /**
+   * Marks the Blueprint as an ALTER TABLE operation.
+   * Used to differentiate between CREATE and ALTER operations.
+   */
+  alterMode() {
+    this.#isAlter = true;
+    return this;
+  }
 }

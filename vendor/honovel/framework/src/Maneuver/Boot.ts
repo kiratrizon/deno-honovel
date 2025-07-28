@@ -20,7 +20,6 @@ class Boot {
   static async init() {
     //
     Cache.init();
-    DB.init();
     SessionModifier.init();
     await Database.init();
     await SessionInitializer.init();

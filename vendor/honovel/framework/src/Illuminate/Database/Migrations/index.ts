@@ -22,7 +22,9 @@ export abstract class Migration {
       throw new Error("Database connection must be defined.");
     }
     if (!isset(staticConfig("database").connections[connection])) {
-      throw new Error(`Database connection "${connection}" is not defined in config/database.ts.`);
+      throw new Error(
+        `Database connection "${connection}" is not defined in config/database.ts.`
+      );
     }
     this.connection = connection;
   }

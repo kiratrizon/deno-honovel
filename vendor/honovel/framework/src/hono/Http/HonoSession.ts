@@ -42,7 +42,7 @@ export class HonoSession {
 
 export class Session {
   #id: string | null = null;
-  constructor(private values: Record<string, NonFunction<unknown>> = {}) { }
+  constructor(private values: Record<string, NonFunction<unknown>> = {}) {}
   public put(key: string, value: NonFunction<unknown>) {
     this.values[key] = value;
   }
@@ -179,7 +179,7 @@ export class SessionModifier {
     deleteCookie(
       this.#c,
       SessionModifier.sesConfig.cookie ||
-      Str.snake(env("APP_NAME", "honovel") + "_session")
+        Str.snake(env("APP_NAME", "honovel") + "_session")
     );
     await deleteSession(this.#sessionId);
 
@@ -444,26 +444,27 @@ export class SessionInitializer {
       case "database": {
         const tableSession = SessionModifier.sesConfig.table || "sessions";
 
-        if (!isDefined("globalDB")) {
-          let connection = SessionModifier.sesConfig.connection;
-          if (!connection) {
-            console.warn(
-              "Session connection under config/session.ts is not defined. Using default connection."
-            );
-            connection = staticConfig("database").default;
-          }
-          define("globalDB", connection, true);
+        let connection = SessionModifier.sesConfig.connection;
+        if (!connection) {
+          console.warn(
+            "Session connection under config/session.ts is not defined. Using default connection."
+          );
+          connection = staticConfig("database").default;
         }
         const migrationClass = new (class extends Migration {
           async up() {
-            if (!(await Schema.hasTable(tableSession))) {
-              await Schema.create(tableSession, (table) => {
-                table.id();
-                table.string("sid").unique();
-                table.text("data");
-                table.timestamp("expires");
-                table.timestamps();
-              });
+            if (!(await Schema.hasTable(tableSession, this.connection))) {
+              await Schema.create(
+                tableSession,
+                (table) => {
+                  table.id();
+                  table.string("sid").unique();
+                  table.text("data");
+                  table.timestamp("expires");
+                  table.timestamps();
+                },
+                this.connection
+              );
             }
           }
 
@@ -471,6 +472,7 @@ export class SessionInitializer {
             // await Schema.dropIfExists(tableSession);
           }
         })();
+        migrationClass.setConnection(connection);
         await migrationClass.up();
         break;
       }
@@ -487,7 +489,6 @@ export class SessionInitializer {
         break;
       }
       case "redis": {
-
         const redisClient = staticConfig("database").redis?.client;
         if (!redisClient) {
           throw new Error(
@@ -508,9 +509,7 @@ export class SessionInitializer {
 
         const driver = stores[store].driver;
         if (driver !== "redis") {
-          throw new Error(
-            `Session store "${store}" is not a Redis store.`
-          );
+          throw new Error(`Session store "${store}" is not a Redis store.`);
         }
 
         const connection = stores[store].connection || "default";

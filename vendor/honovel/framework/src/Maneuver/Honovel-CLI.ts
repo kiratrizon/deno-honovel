@@ -4,7 +4,7 @@ import { Command } from "https://deno.land/x/cliffy@v1.0.0-rc.4/command/mod.ts";
 import { Database, dbCloser, QueryResultDerived } from "Database";
 import { join } from "https://deno.land/std@0.224.0/path/mod.ts";
 import { Migration } from "Illuminate/Database/Migrations/index.ts";
-import { DB } from "Illuminate/Support/Facades/index.ts";
+import { DB, Schema } from "Illuminate/Support/Facades/index.ts";
 import { Confirm } from "https://deno.land/x/cliffy@v1.0.0-rc.3/prompt/confirm.ts";
 
 import MySQL from "../DatabaseBuilder/MySQL.ts";
@@ -15,7 +15,6 @@ import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import path from "node:path";
 import { SupportedDrivers } from "configs/@types/index.d.ts";
 class MyArtisan {
-  private static db = new Database();
   constructor() {}
   private async createConfig(options: { force?: boolean }, name: string) {
     const stubPath = honovelPath("stubs/ConfigDefault.stub");
@@ -73,11 +72,17 @@ class MyArtisan {
     return;
   }
 
-  private async getBatchNumber(): Promise<number> {
-    const result = await MyArtisan.db.runQuery<"select">(
-      `SELECT MAX(batch) AS max_batch FROM migrations`
-    );
-    const maxBatch = Number(result[0]?.max_batch ?? 0);
+  private async getBatchNumber(db: SupportedDrivers): Promise<number> {
+    const result = await DB.connection(db)
+      .table("migrations")
+      .select(DB.raw("MAX(batch) as max_batch"))
+      .first();
+
+    const maxBatch =
+      result?.max_batch !== null && result?.max_batch !== undefined
+        ? Number(result.max_batch)
+        : 0;
+
     return maxBatch + 1;
   }
 
@@ -177,25 +182,30 @@ class MyArtisan {
     seed?: boolean;
     path?: string;
     db: SupportedDrivers;
+    force: boolean;
   }) {
-    await this.askIfDBNotExist(options.db);
+    if (!options.force) {
+      await this.askIfDBNotExist(options.db);
+    }
     await this.createMigrationTable(options.db);
     const modules = await loadMigrationModules();
-    const batchNumber = await this.getBatchNumber();
+    const batchNumber = await this.getBatchNumber(options.db);
 
     const type = "up"; // or "down" based on your requirement
     for (const module of modules) {
       const { name, migration } = module;
-      const isApplied = await MyArtisan.db.runQuery<"select">(
-        `SELECT COUNT(*) AS count FROM migrations WHERE name = ?`,
-        [name]
-      );
-      if ((isApplied[0] as { count: number }).count > 0) {
+      // need query
+      const isApplied = await DB.connection(options.db)
+        .table("migrations")
+        .where("name", name)
+        .count();
+      if (isApplied) {
         console.log(`Migration ${name} already applied.`);
         continue;
       }
+      migration.setConnection(options.db);
       await migration.run(type);
-      await DB.insert(`migrations`, {
+      await DB.connection(options.db).insert("migrations", {
         name,
         batch: batchNumber,
       });
@@ -207,26 +217,30 @@ class MyArtisan {
     seed?: boolean;
     path?: string;
     db: SupportedDrivers;
+    force: boolean;
   }) {
-    define("globalDB", options.db);
-    await this.askIfDBNotExist(options.db);
+    if (!options.force) {
+      await this.askIfDBNotExist(options.db);
+    }
     await this.dropAllTables(options.db);
     await this.createMigrationTable(options.db);
     const modules = await loadMigrationModules();
-    const batchNumber = await this.getBatchNumber();
+    const batchNumber = await this.getBatchNumber(options.db);
     const type = "up"; // or "down" based on your requirement
     for (const module of modules) {
       const { name, migration } = module;
-      const isApplied = await MyArtisan.db.runQuery<"select">(
-        `SELECT COUNT(*) AS count FROM migrations WHERE name = ?`,
-        [name]
-      );
-      if (!empty(isApplied) && (isApplied[0] as { count: number }).count > 0) {
+      // need query
+      const isApplied = await DB.connection(options.db)
+        .table("migrations")
+        .where("name", name)
+        .count();
+      if (isApplied) {
         console.log(`Migration ${name} already applied.`);
         continue;
       }
+      migration.setConnection(options.db);
       await migration.run(type);
-      await DB.insert("migrations", {
+      await DB.connection(options.db).insert("migrations", {
         name,
         batch: batchNumber,
       });
@@ -239,66 +253,40 @@ class MyArtisan {
     step?: number;
     path?: string;
     db: SupportedDrivers;
+    force: boolean;
   }) {
-    await this.askIfDBNotExist(options.db);
+    if (!options.force) {
+      await this.askIfDBNotExist(options.db);
+    }
     await this.createMigrationTable(options.db);
 
     // Logic to rollback and re-run migrations
   }
 
   private async createMigrationTable(dbType: SupportedDrivers) {
-    let sql = "";
+    const tableName = "migrations";
+    const migrationClass = new (class extends Migration {
+      async up() {
+        if (!(await Schema.hasTable(tableName, this.connection))) {
+          await Schema.create(
+            tableName,
+            (table) => {
+              table.id();
+              table.string("name").unique();
+              table.integer("batch");
+              table.timestamps();
+            },
+            this.connection
+          );
+        }
+      }
 
-    switch (dbType) {
-      case "mysql":
-        sql = `
-        CREATE TABLE IF NOT EXISTS \`migrations\` (
-          \`id\` INT AUTO_INCREMENT PRIMARY KEY,
-          \`name\` VARCHAR(255) NOT NULL,
-          \`batch\` INT NOT NULL,
-          \`created_at\` DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-      `;
-        break;
-
-      case "pgsql":
-        sql = `
-        CREATE TABLE IF NOT EXISTS "migrations" (
-          "id" SERIAL PRIMARY KEY,
-          "name" VARCHAR(255) NOT NULL,
-          "batch" INTEGER NOT NULL,
-          "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-      `;
-        break;
-
-      case "sqlite":
-        sql = `
-        CREATE TABLE IF NOT EXISTS "migrations" (
-          "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-          "name" TEXT NOT NULL,
-          "batch" INTEGER NOT NULL,
-          "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-      `;
-        break;
-
-      case "sqlsrv":
-        sql = `
-        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='migrations' and xtype='U')
-        CREATE TABLE [migrations] (
-          [id] INT IDENTITY(1,1) PRIMARY KEY,
-          [name] NVARCHAR(255) NOT NULL,
-          [batch] INT NOT NULL,
-          [created_at] DATETIME DEFAULT GETDATE()
-        );
-      `;
-        break;
-
-      default:
-        throw new Error(`Unsupported DB type: \`${dbType}\``);
-    }
-    await DB.statement(sql);
+      async down() {
+        await Schema.dropIfExists(tableName, this.connection);
+      }
+    })();
+    migrationClass.setConnection(dbType);
+    await migrationClass.up();
   }
 
   private async dropAllTables(dbType: SupportedDrivers): Promise<void> {
@@ -306,7 +294,7 @@ class MyArtisan {
 
     switch (dbType) {
       case "mysql": {
-        const result = await DB.select(
+        const result = await DB.connection(dbType).select(
           `SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND table_type = 'BASE TABLE'`,
           [staticConfig("database.connections.mysql.database")]
         );
@@ -315,7 +303,7 @@ class MyArtisan {
       }
 
       case "pgsql": {
-        const result = await DB.select(
+        const result = await DB.connection(dbType).select(
           `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`
         );
         tables = result.map((row) => `"${row.tablename}"`);
@@ -323,7 +311,7 @@ class MyArtisan {
       }
 
       case "sqlite": {
-        const result = await DB.select(
+        const result = await DB.connection(dbType).select(
           `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`
         );
         tables = result.map((row) => `"${row.name}"`);
@@ -331,7 +319,9 @@ class MyArtisan {
       }
 
       case "sqlsrv": {
-        const result = await DB.select(`SELECT name FROM sys.tables`);
+        const result = await DB.connection(dbType).select(
+          `SELECT name FROM sys.tables`
+        );
         tables = result.map((row) => `[${row.name}]`);
         break;
       }
@@ -452,6 +442,7 @@ class MyArtisan {
       .option("--seed", "Seed the database after migration")
       .option("--path <path:string>", "Specify a custom migrations directory")
       .option("--db <db:string>", "Specify the database connection to use")
+      .option("--force", "Force the migration without confirmation")
       .action((options) => {
         const db: SupportedDrivers =
           (options.db as SupportedDrivers) ||
@@ -460,6 +451,7 @@ class MyArtisan {
         return this.runMigrations({
           ...options,
           db,
+          force: options.force || false,
         });
       })
 
@@ -481,6 +473,7 @@ class MyArtisan {
       .option("--seed", "Seed the database after fresh migration")
       .option("--path <path:string>", "Specify a custom migrations directory")
       .option("--db <db:string>", "Specify the database connection to use")
+      .option("--force", "Force the fresh migration without confirmation")
       .action((options) => {
         const db: SupportedDrivers =
           (options.db as SupportedDrivers) ||
@@ -489,6 +482,7 @@ class MyArtisan {
         return this.freshMigrations({
           ...options,
           db,
+          force: options.force || false,
         });
       })
 
@@ -500,6 +494,7 @@ class MyArtisan {
       )
       .option("--path <path:string>", "Specify a custom migrations directory")
       .option("--db <db:string>", "Specify the database connection to use")
+      .option("--force", "Force the refresh migration without confirmation")
       .action((options) => {
         const db: SupportedDrivers =
           (options.db as SupportedDrivers) ||
@@ -508,6 +503,7 @@ class MyArtisan {
         return this.refreshMigrations({
           ...options,
           db,
+          force: options.force || false,
         });
       })
 

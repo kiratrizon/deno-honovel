@@ -59,31 +59,25 @@ export class Hash {
 export class Schema {
   public static async create(
     table: string,
-    callback: (blueprint: Blueprint) => void
+    callback: (blueprint: Blueprint) => void,
+    db: SupportedDrivers
   ): Promise<void> {
-    const blueprint = new Blueprint(table);
+    const blueprint = new Blueprint(table, db);
     callback(blueprint);
-    // @ts-ignore //
     if (blueprint.drops.length) {
       throw new Error(
         "Schema creation does not support dropping columns. Use dropColumn method instead."
       );
     }
-    const tableSchema: TableSchema = {
-      table,
-      // @ts-ignore //
-      columns: blueprint.columns,
-    };
-    // @ts-ignore //
-    const dbType = globalDB;
-    const db = new Database(dbType);
-    const stringedQuery = db.generateCreateTableSQL(tableSchema, dbType);
-    await db.runQuery(stringedQuery);
+    const converted = blueprint.toSql();
+    await DB.connection(db).statement(converted);
   }
 
-  public static async hasTable(table: string): Promise<boolean> {
-    // @ts-ignore //
-    const dbType = globalDB;
+  public static async hasTable(
+    table: string,
+    db: SupportedDrivers
+  ): Promise<boolean> {
+    const dbType = db;
     let query = "";
 
     switch (dbType) {
@@ -93,19 +87,17 @@ export class Schema {
       case "sqlite":
         query = `SELECT name FROM sqlite_master WHERE type='table' AND name='${table}'`;
         break;
-      case "postgres":
       case "pgsql":
-      case "postgresql":
         query = `SELECT to_regclass('${table}')`;
         break;
-      case "sqlserver":
+      case "sqlsrv":
         query = `SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '${table}'`;
         break;
       default:
         throw new Error(`Unsupported DB_CONNECTION: ${dbType}`);
     }
 
-    const result = await DB.select(query);
+    const result = await DB.connection(db).select(query);
 
     if (!result || result.length === 0) {
       return false;
@@ -122,9 +114,11 @@ export class Schema {
     return true;
   }
 
-  public static async dropIfExists(table: string): Promise<void> {
-    // @ts-ignore //
-    const dbType = globalDB;
+  public static async dropIfExists(
+    table: string,
+    db: SupportedDrivers
+  ): Promise<void> {
+    const dbType = db;
 
     let sql: string;
 
@@ -148,22 +142,14 @@ export class Schema {
 
   public static async table(
     table: string,
-    callback: (blueprint: Blueprint) => void
+    callback: (blueprint: Blueprint) => void,
+    db: SupportedDrivers
   ): Promise<void> {
-    const blueprint = new Blueprint(table);
+    const blueprint = new Blueprint(table, db);
     callback(blueprint);
-    // @ts-ignore //
-    const [drops, columns] = [blueprint.drops, blueprint.columns];
-    const tableSchema: TableSchema = {
-      drops,
-      columns,
-      table,
-    };
-    // @ts-ignore //
-    const dbType = globalDB;
-    const db = new Database(dbType);
-    const stringedQuery = db.generateAlterTableSQL(tableSchema, dbType);
-    await db.runQuery(stringedQuery);
+    blueprint.alterMode();
+    const converted = blueprint.toSql();
+    await DB.connection(db).statement(converted);
   }
 }
 
@@ -216,7 +202,10 @@ export class DB {
   }
 
   public static raw(query: string): SQLRaw {
-    return new DBConnection(this.dbUsed).raw(query);
+    if (empty(query) || !isString(query)) {
+      throw new Error("Raw query must be a non-empty string.");
+    }
+    return new SQLRaw(query);
   }
 
   public static async reconnect(): Promise<void> {
@@ -232,7 +221,7 @@ class DBConnection {
   }
 
   public table(table: sqlstring) {
-    return new Builder(table);
+    return new Builder({ table }, this.dbUsed);
   }
 
   public async statement(
@@ -282,7 +271,7 @@ class DBConnection {
     if (empty(table) || !isString(table)) {
       throw new Error("Table name must be a non-empty string.");
     }
-    const instance = new Builder(table);
+    const instance = new Builder({ table }, this.dbUsed);
     return await instance.insert(...data);
   }
 
@@ -302,13 +291,6 @@ class DBConnection {
     const [sql, values] = db.insertOrUpdateBuilder({ table, data }, uniqueKeys);
     const result = await db.runQuery<"insert">(sql, values);
     return result;
-  }
-
-  public raw(query: string): SQLRaw {
-    if (empty(query) || !isString(query)) {
-      throw new Error("Raw query must be a non-empty string.");
-    }
-    return new SQLRaw(query);
   }
 
   public async reconnect(): Promise<void> {
@@ -440,12 +422,38 @@ export class Validator {
       }
 
       case "unique": {
-        const [table, column] = (val as string).split(",");
-        // const exists = await DB.table(table).where(column, v).get();
-        const exists = false;
-        if (exists) e.push(`The ${key} must be unique.`);
+        const [tableRef, column] = (val as string).split(",");
+
+        if (!tableRef || !column) {
+          throw new Error(
+            `Invalid unique rule format: '${val}'. Expected 'table,column' or 'connection.table,column'.`
+          );
+        }
+
+        const tryTable = tableRef.split(".");
+        const dbUse = (
+          tryTable.length === 2 ? tryTable[0] : staticConfig("database").default
+        ) as SupportedDrivers;
+
+        if (!isset(dbUse)) {
+          throw new Error(
+            `Database connection '${dbUse}' is not defined in config.`
+          );
+        }
+
+        const table = tryTable.length === 2 ? tryTable[1] : tableRef;
+
+        const exists = await DB.connection(dbUse)
+          .table(table)
+          .where(column, v)
+          .first(); // Faster and more precise
+
+        if (exists) {
+          e.push(`The ${key} must be unique.`);
+        }
         break;
       }
+
       case "confirmed":
         if (v !== this.#data[`${key}_confirmation`])
           e.push("Confirmation does not match.");
@@ -978,6 +986,9 @@ export class Cache {
    * Get a cached value or return the default if missing.
    */
   static async getOrDefault<T = any>(key: string, defaultValue: T): Promise<T> {
-    return await this.store(this.defaultConnection).getOrDefault(key, defaultValue);
+    return await this.store(this.defaultConnection).getOrDefault(
+      key,
+      defaultValue
+    );
   }
 }

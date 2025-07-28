@@ -7,8 +7,14 @@
 // null
 
 import { Carbon } from "honovel:helpers";
-import { CacheDriver, RedisClient } from "configs/@types/index.d.ts";
+import {
+  CacheDriver,
+  RedisClient,
+  SupportedDrivers,
+} from "configs/@types/index.d.ts";
 import { RedisManager } from "../Redis/index.ts";
+import { DB, Schema } from "../Support/Facades/index.ts";
+import { Migration } from "../Database/Migrations/index.ts";
 
 export abstract class AbstractStore {
   // deno-lint-ignore no-explicit-any
@@ -117,7 +123,7 @@ class FileStore extends AbstractStore {
       return null; // File is empty or does not exist
     }
     const cacheItem = jsonDecode(fileContent);
-    if (cacheItem.expiresAt && strToTime("now")! > cacheItem.expiresAt) {
+    if (cacheItem.expiresAt && time() > cacheItem.expiresAt) {
       // Item has expired
       Deno.removeSync(filePath); // Optionally remove expired item
       return null;
@@ -270,7 +276,7 @@ class ObjectStore extends AbstractStore {
 
     if (!cacheItem) return null;
 
-    if (cacheItem.expiresAt && strToTime("now")! > cacheItem.expiresAt) {
+    if (cacheItem.expiresAt && time() > cacheItem.expiresAt) {
       delete this.store[newKey];
       return null;
     }
@@ -307,51 +313,118 @@ class ObjectStore extends AbstractStore {
 class DatabaseStore extends AbstractStore {
   private readonly prefix: string;
   private readonly table: string;
-  private readonly connection: string;
-  constructor(
-    opts: { prefix?: string; table: string; connection: string } = {
-      prefix: "",
-      table: "",
-      connection: "",
-    }
-  ) {
+  private readonly connection: SupportedDrivers;
+  constructor({
+    prefix,
+    table,
+    connection,
+  }: {
+    prefix: string;
+    table: string;
+    connection: SupportedDrivers;
+  }) {
     super();
-    this.prefix = opts.prefix || "";
-    if (!opts.table || !isString(opts.table)) {
+    this.prefix = prefix || staticConfig("cache").prefix || "";
+    if (!isset(table) || !isString(table)) {
       throw new Error("DatabaseStore requires a valid table name.");
     }
-    if (!opts.connection || !isString(opts.connection)) {
+    this.table = table;
+    this.connection = connection || staticConfig("database").default;
+    const dbConf = staticConfig("database");
+    if (!keyExist(dbConf.connections, this.connection)) {
       throw new Error(
-        "DatabaseStore requires a valid connection in the database config."
+        `DatabaseStore requires a valid connection in the database config: ${this.connection}`
       );
     }
-    this.table = opts.table;
-    this.connection = opts.connection;
   }
 
   // deno-lint-ignore no-explicit-any
   async get(key: string): Promise<any> {
     // Implement logic to retrieve value from database cache
     const newKey = this.validateKey(key);
+    await this.init();
+    const sub = DB.connection(this.connection)
+      .table(this.table)
+      .select("value", "expires_at")
+      .where("key", newKey);
+    const result = await sub.first();
+    if (!result) return null; // Key does not exist
+    if (isNull(result.expires_at)) {
+      return jsonDecode(result.value as string); // No expiration, return value
+    } else {
+      const expiresAt = strToTime(result.expires_at as string);
+      if (expiresAt && time() > expiresAt) {
+        // Item has expired
+        await this.forget(newKey); // Optionally remove expired item
+        return null;
+      }
+      return jsonDecode(result.value as string); // Return the cached value
+    }
   }
 
   // deno-lint-ignore no-explicit-any
   async put(key: string, value: any, seconds: number): Promise<void> {
     // Implement logic to store value in database cache
-    throw new Error("DatabaseStore.put() not implemented");
+    const newKey = this.validateKey(key);
+    await this.init();
+    const expiresAt = seconds > 0 ? Carbon.now().addSeconds(seconds) : null;
+    const cacheItem = {
+      key: newKey,
+      value: jsonEncode(value),
+      expires_at: expiresAt,
+    };
+    await DB.connection(this.connection).insertOrUpdate(this.table, cacheItem, [
+      "key",
+    ]);
   }
 
   async forget(key: string): Promise<void> {
     // Implement logic to remove key from database cache
-    throw new Error("DatabaseStore.forget() not implemented");
+    const newKey = this.validateKey(key);
+    await this.init();
+    const sql = `DELETE FROM ${this.table} WHERE key = ?`;
+    const values = [newKey];
+    await DB.connection(this.connection).statement(sql, values);
   }
 
   async flush(): Promise<void> {
     // Implement logic to clear all items in the database cache
-    throw new Error("DatabaseStore.flush() not implemented");
+    await this.init();
+    const sql = `DELETE FROM ${this.table}`;
+    const values: any[] = [];
+    await DB.connection(this.connection).statement(sql, values);
   }
 
-  private async init() {}
+  #initialized = false;
+  private async init() {
+    const table = this.table;
+    const migrationClass = new (class extends Migration {
+      async up() {
+        if (!(await Schema.hasTable(table, this.connection))) {
+          await Schema.create(
+            table,
+            (table) => {
+              table.id();
+              table.string("key").unique();
+              table.text("value");
+              table.timestamp("expires_at").nullable();
+            },
+            this.connection
+          );
+        }
+      }
+      async down() {
+        if (await Schema.hasTable(table, this.connection)) {
+          await Schema.dropIfExists(table, this.connection);
+        }
+      }
+    })();
+    if (!this.#initialized) {
+      migrationClass.setConnection(this.connection);
+      await migrationClass.up();
+      this.#initialized = true;
+    }
+  }
 
   getPrefix(): string {
     return this.prefix;
@@ -408,7 +481,7 @@ class CacheManager {
         this.store = new DatabaseStore({
           prefix: this.prefix,
           table: table,
-          connection: connection,
+          connection: connection as SupportedDrivers,
         });
         break;
       }
@@ -423,4 +496,4 @@ class CacheManager {
   }
 }
 
-export { CacheManager, FileStore, RedisStore, ObjectStore };
+export { CacheManager };

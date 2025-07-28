@@ -1,4 +1,4 @@
-import { DB, Route } from "Illuminate/Support/Facades/index.ts";
+import { Cache, DB, Route } from "Illuminate/Support/Facades/index.ts";
 
 // Route.resource("users", UserController).whereNumber("user");
 Route.post("/", async ({ request }) => {
@@ -8,7 +8,12 @@ Route.post("/", async ({ request }) => {
 });
 
 Route.get("/", async () => {
-  const data = await DB.table("users").get();
+  let data = await Cache.store("mydb").get("users");
+  if (!data) {
+    console.log("Cache miss, fetching from database...");
+    data = await DB.table("users").get();
+    await Cache.store("mydb").put("users", data, 60 * 60); // Cache for 1 hour
+  }
   return response().json({
     data,
   });

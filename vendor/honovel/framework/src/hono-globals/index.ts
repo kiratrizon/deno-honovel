@@ -665,6 +665,7 @@ globalFn(
 import axios, { AxiosRequestConfig, AxiosError } from "axios";
 import { IFetchDataOption } from "../../../@types/index.d.ts";
 import { Carbon } from "honovel:helpers";
+import { DB } from "Illuminate/Support/Facades/index.ts";
 
 globalFn(
   "fetchData",
@@ -725,3 +726,5 @@ globalFn("frameworkVersion", () => {
 //   console.warn(warning.message);
 //   console.warn(warning.stack);
 // });
+
+DB.init();

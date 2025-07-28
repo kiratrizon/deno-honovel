@@ -25,7 +25,7 @@ import { myError } from "./Http/builder.ts";
 import { Route as Router } from "Illuminate/Support/Facades/index.ts";
 const Route = Router as typeof INRoute;
 
-import ChildKernel from "./Support/ChildKernel.ts"
+import ChildKernel from "./Support/ChildKernel.ts";
 
 const headFunction: MiddlewareHandler = async (c: MyContext, next) => {
   const { request } = c.get("myHono");
@@ -75,7 +75,6 @@ const myStaticDefaults: MiddlewareHandler[] = [
 ];
 
 const globalMiddleware = [...toMiddleware(new ChildKernel().Middleware)];
-
 
 // domain on beta test
 const _forDomain: MiddlewareHandler = async (c, next: Next) => {

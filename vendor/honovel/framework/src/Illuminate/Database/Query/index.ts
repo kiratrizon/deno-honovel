@@ -1,4 +1,6 @@
 import { Database } from "Database";
+import { SupportedDrivers } from "configs/@types/index.d.ts";
+import { DB } from "../../Support/Facades/index.ts";
 
 export class SQLError extends Error {}
 
@@ -18,7 +20,7 @@ type TInsertBuilder = {
 
 type whereBetweenParams = [WherePrimitive | SQLRaw, WherePrimitive | SQLRaw];
 
-export type sqlstring = string | SQLRaw | Builder;
+export type sqlstring = SQLRaw | Builder | string;
 type Raw = SQLRaw | string;
 // deno-lint-ignore no-explicit-any
 type WherePrimitive = Exclude<any, undefined>;
@@ -43,6 +45,7 @@ const placeHolderuse: string = "?";
 
 // where
 class WhereInterpolator {
+  constructor(private dbType: SupportedDrivers) {}
   protected fromJoin: boolean = false;
   protected whereClauses: [string, any[]][] = [];
 
@@ -97,10 +100,10 @@ class WhereInterpolator {
       WherePrimitive?
     ]
   ): void {
-    const [columnOrFn, operatorOrValue, valueArg] = args;
+    let [columnOrFn, operatorOrValue, valueArg] = args;
     if (isFunction(columnOrFn)) {
       // to handle callback
-      const qb = new WhereInterpolator();
+      const qb = new WhereInterpolator(this.dbType);
       columnOrFn(qb);
       const getWhere = qb.getWhereClauses();
       const callbackClause: string[] = [];
@@ -126,6 +129,9 @@ class WhereInterpolator {
       }
       return;
     }
+    columnOrFn = new Database(this.dbType).quoteIdentifier(
+      columnOrFn as string
+    );
     let column: string;
     // deno-lint-ignore no-explicit-any
     let value: any;
@@ -195,6 +201,7 @@ class WhereInterpolator {
     column: string,
     values: WherePrimitive[] | SQLRaw
   ): void {
+    column = new Database(this.dbType).quoteIdentifier(column);
     if (values instanceof SQLRaw) {
       const placeHolderOrValue = values.toString();
       values = [];
@@ -278,6 +285,7 @@ class WhereInterpolator {
     type: WhereSeparator,
     column: string
   ): void {
+    column = new Database(this.dbType).quoteIdentifier(column);
     const mainStr = `${column} ${operator}`;
     switch (type) {
       case "AND": {
@@ -329,6 +337,8 @@ class WhereInterpolator {
         "Values for whereBetween must be an array of two elements"
       );
     }
+
+    column = new Database(this.dbType).quoteIdentifier(column);
 
     let placeHolderOrValue1,
       placeHolderOrValue2 = placeHolderuse;
@@ -471,14 +481,24 @@ export class Builder extends WhereInterpolator {
   private groupByValue: string[] = [];
   #bindings: Record<string, WhereValue[]> = {};
   #params: WherePrimitive[] = [];
-
+  private database: Database;
   #sql: string = "";
   private fields: Array<[string, false | number]>;
   private table: [string, false | number];
-  constructor(table: sqlstring, fields: sqlstring[] = ["*"]) {
-    super();
+  constructor(
+    {
+      table,
+      fields = ["*"],
+    }: {
+      table: sqlstring;
+      fields?: sqlstring[];
+    },
+    private dbUsed: SupportedDrivers
+  ) {
+    super(dbUsed);
     this.table = this.extract(table);
     this.fields = fields.map((field) => this.extract(field));
+    this.database = new Database(this.dbUsed);
   }
 
   public select(...fields: sqlstring[]): this {
@@ -638,7 +658,7 @@ export class Builder extends WhereInterpolator {
     if (!isFunction(fn)) {
       throw new SQLError("Join callback must be a function");
     }
-    const join = new JoinInterpolator();
+    const join = new JoinInterpolator(this.dbUsed);
     // @ts-ignore //
     join.setMyTable(myNewTable);
     // @ts-ignore //
@@ -667,7 +687,7 @@ export class Builder extends WhereInterpolator {
     if (!isFunction(fn)) {
       throw new SQLError("Join callback must be a function");
     }
-    const join = new JoinInterpolator();
+    const join = new JoinInterpolator(this.dbUsed);
     // @ts-ignore //
     join.setMyTable(myNewTable);
     // @ts-ignore //
@@ -1061,24 +1081,47 @@ export class Builder extends WhereInterpolator {
   }
 
   public async get() {
-    const db = new Database();
     const { sql, values } = {
       sql: this.toSql(),
       values: this.getBindings(),
     };
-    const result = await db.runQuery<"select">(sql, values);
+    const result = await this.database.runQuery<"select">(sql, values);
     return result;
   }
 
   public async first() {
-    const db = new Database();
     this.limit(1);
     const { sql, values } = {
       sql: this.toSql(),
       values: this.getBindings(),
     };
-    const result = await db.runQuery<"select">(sql, values);
+    const result = await this.database.runQuery<"select">(sql, values);
     return result[0] || null;
+  }
+
+  public async count(): Promise<number> {
+    this.select(DB.raw("COUNT(*) AS count"));
+    const { sql, values } = {
+      sql: this.toSql(),
+      values: this.getBindings(),
+    };
+    const result = await this.database.runQuery<"select">(sql, values);
+    return Number(result[0]?.count || 0);
+  }
+
+  // public async delete() {
+  //   const { sql, values } = {
+  //     sql: `DELETE FROM ${this.table[0]} ${this.buildFromClause()}`,
+  //     values: this.getBindings(),
+  //   };
+  //   const result = await this.database.runQuery<"delete">(sql, values);
+  //   return result;
+  // }
+
+  private buildWhereClause(): string {
+    return this.getWhereClauses()
+      .map(([clause]) => clause)
+      .join(" ");
   }
 
   public mergeBindings(param: Builder): this {
@@ -1115,39 +1158,33 @@ export class Builder extends WhereInterpolator {
       table: this.table[0],
       data,
     });
-    const db = new Database();
-    const result = await db.runQuery<"insert">(sql, [...values]);
+    const result = await this.database.runQuery<"insert">(sql, [...values]);
     return result;
   }
 
   private insertBuilder(input: TInsertBuilder): [string, unknown[]] {
-    // @ts-ignore //
-    const dbType = globalDB; // mysql | sqlite | pgsql | sqlsrv
-
-    if (!Array.isArray(input.data) || input.data.length === 0) {
+    if (!isArray(input.data) || input.data.length === 0) {
       throw new Error("Insert data must be a non-empty array.");
     }
 
-    const columns = Object.keys(input.data[0]);
+    let columns = Object.keys(input.data[0]);
     const rows = input.data;
 
-    const placeholders = rows.map((_, rowIndex) => {
-      if (dbType === "pgsql") {
-        return `(${columns
-          .map((_, colIndex) => `$${rowIndex * columns.length + colIndex + 1}`)
-          .join(", ")})`;
-      } else {
-        return `(${columns.map(() => "?").join(", ")})`;
-      }
-    });
+    const placeholders = rows
+      .map(() => `(${columns.map(() => "?").join(", ")})`)
+      .join(", ");
 
-    const values = rows.flatMap((row) => columns.map((col) => row[col]));
+    const values = rows.flatMap((row) =>
+      columns.map((col) => row[col] || null)
+    );
 
+    const db = new Database(this.dbUsed);
+    columns = columns.map((col) => db.quoteIdentifier(col));
     let sql = `INSERT INTO ${input.table} (${columns.join(
       ", "
-    )}) VALUES ${placeholders.join(", ")}`;
+    )}) VALUES ${placeholders}`;
 
-    if (dbType === "pgsql") {
+    if (this.dbUsed === "pgsql") {
       sql += " RETURNING *";
     }
 
