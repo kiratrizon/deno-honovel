@@ -1,7 +1,7 @@
 import { CacheConfig } from "./@types/index.d.ts";
 
 const constant: CacheConfig = {
-  default: env("CACHE_DRIVER", "file"),
+  default: env("CACHE_DRIVER", "test"),
   stores: {
     file: {
       driver: "file",
@@ -17,6 +17,9 @@ const constant: CacheConfig = {
       connection: env("DB_CONNECTION", "default"),
       table: "cache",
       prefix: env("CACHE_PREFIX", "honovel_cache"),
+    },
+    test: {
+      driver: "object",
     },
   },
 };
