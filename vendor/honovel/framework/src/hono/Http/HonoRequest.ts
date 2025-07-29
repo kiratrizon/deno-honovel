@@ -136,7 +136,7 @@ class HonoRequest extends Macroable {
   public clean(data: Record<string, unknown>) {
     const cleaned: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(data)) {
-      cleaned[key] = value === '' ? null : value;
+      cleaned[key] = value === "" ? null : value;
     }
     return cleaned;
   }

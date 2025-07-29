@@ -1,9 +1,9 @@
 import HonoRequest from "./HonoRequest.ts";
 
 class HonoClosure {
-  constructor(private readonly c: MyContext) { }
+  constructor(private readonly c: MyContext) {}
 
-  next(_request?: HonoRequest) {
+  protected next(_request?: HonoRequest) {
     // to be implemented
     return this;
   }

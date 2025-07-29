@@ -7,14 +7,9 @@ Route.post("/", async ({ request }) => {
   });
 });
 
-Route.get("/", async () => {
-  let data = await Cache.store("mydb").get("users");
-  if (!data) {
-    console.log("Cache miss, fetching from database...");
-    data = await DB.table("users").get();
-    await Cache.store("mydb").put("users", data, 60 * 60); // Cache for 1 hour
-  }
+Route.get("/", async ({ csrfToken }) => {
+  const token = csrfToken();
   return response().json({
-    data,
+    token,
   });
 });

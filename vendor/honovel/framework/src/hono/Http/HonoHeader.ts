@@ -4,12 +4,16 @@ import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";
 class HonoHeader implements IHonoHeader {
   #c: MyContext;
 
+  #rawHeaders: IncomingHttpHeaders | undefined;
   constructor(c: MyContext) {
     this.#c = c;
   }
 
-  private getRawHeaders(): IncomingHttpHeaders {
-    return this.#c.req.raw.headers as unknown as IncomingHttpHeaders;
+  private getRawHeaders() {
+    if (!this.#rawHeaders) {
+      this.#rawHeaders = this.#c.req.header();
+    }
+    return this.#rawHeaders;
   }
 
   all(): IncomingHttpHeaders {

@@ -11,6 +11,7 @@ import { Schema, DB } from "Illuminate/Support/Facades/index.ts";
 import { Carbon } from "honovel:helpers";
 import { SessionConfig } from "../../../../../../config/@types/index.d.ts";
 import { RedisManager } from "Illuminate/Redis/index.ts";
+import { Session } from "Illuminate/Session/index.ts";
 
 type SessionEncrypt = {
   encrypt: string; // encrypted session data
@@ -37,48 +38,6 @@ export class HonoSession {
 
   public update(values: Record<string, NonFunction<unknown>>) {
     this.values = { ...this.values, ...values };
-  }
-}
-
-export class Session {
-  #id: string | null = null;
-  constructor(private values: Record<string, NonFunction<unknown>> = {}) {}
-  public put(key: string, value: NonFunction<unknown>) {
-    this.values[key] = value;
-  }
-
-  public get(
-    key: string,
-    defaultValue: NonFunction<unknown> | null = null
-  ): NonFunction<unknown> | null {
-    return this.values[key] ?? defaultValue;
-  }
-
-  public has(key: string): boolean {
-    return keyExist(this.values, key);
-  }
-  public forget(key: string) {
-    delete this.values[key];
-  }
-
-  protected updateValues(values: Record<string, NonFunction<unknown>>) {
-    this.values = values;
-  }
-
-  protected updateId(id: string) {
-    this.#id = id;
-  }
-
-  public getId() {
-    return this.#id;
-  }
-
-  public all(): Record<string, NonFunction<unknown>> {
-    return { ...this.values };
-  }
-
-  public flush() {
-    this.values = {};
   }
 }
 

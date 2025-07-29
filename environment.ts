@@ -23,3 +23,8 @@ export interface ImportEnvConfig {
   readonly REDIS_CLIENT: "ioredis" | "upstash" | "node-redis" | "deno-redis";
   readonly SESSION_CONNECTION: SupportedDrivers;
 }
+
+export type ImportSession = {
+  // define your session interface here
+  readonly hello: string;
+};

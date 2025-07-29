@@ -1,6 +1,4 @@
 import BaseController from "Illuminate/Routing/BaseController";
-import HonoClosure from "../../framework/src/hono/Http/HonoClosure.ts";
-export type HonoNext = HonoClosure["next"];
 
 export interface IGroupParams {
   prefix?: string;

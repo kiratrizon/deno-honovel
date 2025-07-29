@@ -405,6 +405,7 @@ function generateMiddlewareOrDispatch(
           const honoClosure = c.get("honoClosure");
           middlewareResp = await (args as HttpMiddleware)(
             myHono,
+            // @ts-ignore //
             honoClosure.next.bind(honoClosure),
             ...sequenceParams
           );

@@ -1,5 +1,3 @@
-
-
 export default class PayloadParser {
   public handle: HttpMiddleware = async ({ request }, next) => {
     const contentType = (request.header("Content-Type") || "").toLowerCase();
@@ -12,22 +10,30 @@ export default class PayloadParser {
 
     let maxAllowed = 0;
 
+    const payloadLimits = staticConfig("payloadLimits") || {};
+    // Use normalized logic based on config
     if (contentType.includes("multipart/form-data")) {
-      maxAllowed = this.parseSizeToBytes(env("MAX_FILE_SIZE", "10M"));
-    } else if (
-      contentType.includes("application/json") ||
-      contentType.includes("application/x-www-form-urlencoded") ||
-      contentType.includes("text/plain") ||
-      contentType.includes("application/octet-stream") ||
-      contentType === ""
-    ) {
-      maxAllowed = this.parseSizeToBytes(env("MAX_CONTENT_LENGTH", "1M"));
+      // @ts-ignore //
+      maxAllowed = this.parseSizeToBytes(payloadLimits.multipart ?? "10M");
+    } else if (contentType.includes("application/json")) {
+      // @ts-ignore //
+      maxAllowed = this.parseSizeToBytes(payloadLimits.json ?? "1M");
+    } else if (contentType.includes("application/x-www-form-urlencoded")) {
+      // @ts-ignore //
+      maxAllowed = this.parseSizeToBytes(payloadLimits.urlencoded ?? "1M");
+    } else if (contentType.includes("text/plain")) {
+      // @ts-ignore //
+      maxAllowed = this.parseSizeToBytes(payloadLimits.text ?? "1M");
+    } else if (contentType.includes("application/octet-stream")) {
+      // @ts-ignore //
+      maxAllowed = this.parseSizeToBytes(payloadLimits.octet ?? "1M");
     } else {
-      // For any other types, use generic limit
-      maxAllowed = this.parseSizeToBytes(env("MAX_CONTENT_LENGTH", "1M"));
+      // Fallback for unknown or empty content types
+      // @ts-ignore //
+      maxAllowed = this.parseSizeToBytes(payloadLimits.json ?? "1M");
     }
 
-    if ((contentLength > maxAllowed)) {
+    if (contentLength > maxAllowed) {
       abort(413, "Payload Too Large");
     }
 
@@ -53,4 +59,3 @@ export default class PayloadParser {
     return parseInt(num, 10) * (units[unit || "B"] || 1);
   }
 }
-
