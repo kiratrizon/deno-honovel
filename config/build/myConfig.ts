@@ -1,27 +1,23 @@
-import jwt from "../jwt.ts";
-import app from "../app.ts";
-import debug from "../debug.ts";
-import view from "../view.ts";
-import factory from "../factory.ts";
-import test from "../test.ts";
-import query_trace from "../query_trace.ts";
-import session from "../session.ts";
-import database from "../database.ts";
-import cors from "../cors.ts";
-import auth from "../auth.ts";
-import logging from "../logging.ts";
+import jwt from "configs/jwt.ts";
+import app from "configs/app.ts";
+import payload from "configs/payload.ts";
+import session from "configs/session.ts";
+import cache from "configs/cache.ts";
+import database from "configs/database.ts";
+import cors from "configs/cors.ts";
+import services from "configs/services.ts";
+import auth from "configs/auth.ts";
+import logging from "configs/logging.ts";
 
 export default {
   jwt,
   app,
-  debug,
-  view,
-  factory,
-  test,
-  query_trace,
+  payload,
   session,
+  cache,
   database,
   cors,
+  services,
   auth,
   logging,
 };

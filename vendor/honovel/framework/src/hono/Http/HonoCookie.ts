@@ -1,20 +1,29 @@
 import { CookieOptions } from "hono/utils/cookie";
-import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { Hash } from "Illuminate/Support/Facades";
-import { Str } from "Illuminate/Support";
+import { getCookie, setCookie } from "hono/cookie";
 import { Buffer } from "node:buffer";
-import { createHmac } from "node:crypto";
-import { init } from "https://deno.land/x/base64@v0.2.1/base.ts";
+import { hmac } from "jsr:@noble/hashes@1.8.0/hmac";
+import { sha256 } from "jsr:@noble/hashes@1.8.0/sha2";
 
+// Utility to convert a Uint8Array to a base64url string
+function toBase64Url(bytes: Uint8Array): string {
+  const base64 = btoa(String.fromCharCode(...bytes));
+  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+// Create HMAC SHA256 signature, using a key as Buffer or Uint8Array
+function createExpectedSignature(base64Value: string, key: Uint8Array): string {
+  const sig = hmac(sha256, key, new TextEncoder().encode(base64Value));
+  return toBase64Url(sig);
+}
 
 export function generateAppKey(): string {
   const key = crypto.getRandomValues(new Uint8Array(32));
-  // convert to string first
-  const keyString = Array.from(key, (byte) => String.fromCharCode(byte)).join(
-    ""
-  );
-  // then encode to base64
-  const base64Key = base64encode(keyString);
+
+  // Convert Uint8Array to binary string
+  const binary = String.fromCharCode(...key);
+
+  // Then base64 encode it
+  const base64Key = btoa(binary);
 
   return `base64:${base64Key}`;
 }
@@ -28,16 +37,25 @@ export const setMyCookie = (
 ) => {
   const appConfig = staticConfig("app");
   if (empty(appConfig.key) || !isString(appConfig.key)) {
-    throw new Error("APP_KEY is not set. Please set it in your environment variables.");
+    throw new Error(
+      "APP_KEY is not set. Please set it in your environment variables."
+    );
   }
   if (value === undefined || !isString(key)) {
     throw new Error("Invalid arguments for setting cookie.");
   }
   const newValue = `${base64encode(jsonEncode(value))}`;
-  if (isUndefined(newValue) || !isString(key) || !isset(CookieKeysCache.mainKey)) {
+  if (
+    isUndefined(newValue) ||
+    !isString(key) ||
+    !isset(CookieKeysCache.mainKey)
+  ) {
     throw new Error("Invalid arguments for setting cookie.");
   }
-  const signedValue = `${newValue}.${createHmac("sha256", CookieKeysCache.mainKey).update(newValue).digest("base64url")}`;
+  const signedValue = `${newValue}.${createExpectedSignature(
+    newValue,
+    CookieKeysCache.mainKey
+  )}`;
 
   setCookie(c, key, signedValue, options);
 };
@@ -47,9 +65,13 @@ export class CookieKeysCache {
   public static mainKey: Buffer;
   public static init() {
     const appConfig = staticConfig("app");
-    const allKeys = [appConfig.key, ...appConfig.previous_keys].filter((k) => isset(k) && !empty(k) && isString(k)).map(resolveAppKey);
+    const allKeys = [appConfig.key, ...appConfig.previous_keys]
+      .filter((k) => isset(k) && !empty(k) && isString(k))
+      .map(resolveAppKey);
     if (empty(allKeys)) {
-      throw new Error("APP_KEY is not set. Please set it in your environment variables.");
+      throw new Error(
+        "APP_KEY is not set. Please set it in your environment variables."
+      );
     }
     this.keys = allKeys;
     this.mainKey = this.keys[0];
@@ -69,18 +91,17 @@ export function getMyCookie(
   c: MyContext,
   key?: string
 ): string | null | Record<string, string> {
-
   if (!isset(key)) {
     const cookies = getCookie(c);
     const allCookies: Record<string, string> = {};
     for (const [cookieKey, cookieValue] of Object.entries(cookies)) {
       CookieKeysCache.keys.forEach((myKey) => {
         const parts = cookieValue.split(".");
-        if (parts.length !== 2) return;  // invalid format → skip
+        if (parts.length !== 2) return; // invalid format → skip
 
         const [base64Value, signature] = parts;
 
-        const expectedSignature = createHmac("sha256", myKey).update(base64Value).digest("base64url");
+        const expectedSignature = createExpectedSignature(base64Value, myKey);
 
         if (signature === expectedSignature) {
           const decodedValue = base64decode(base64Value);
@@ -92,7 +113,7 @@ export function getMyCookie(
             // Invalid JSON → skip
           }
         }
-      })
+      });
     }
     return allCookies;
   }
@@ -104,11 +125,11 @@ export function getMyCookie(
   if (isset(cookieValue) && !empty(cookieValue)) {
     for (const myKey of CookieKeysCache.keys) {
       const parts = cookieValue.split(".");
-      if (parts.length !== 2) continue;  // invalid format → skip
+      if (parts.length !== 2) continue; // invalid format → skip
 
       const [base64Value, signature] = parts;
 
-      const expectedSignature = createHmac("sha256", myKey).update(base64Value).digest("base64url");
+      const expectedSignature = createExpectedSignature(base64Value, myKey);
 
       if (signature === expectedSignature) {
         const decodedValue = base64decode(base64Value);
@@ -126,7 +147,7 @@ export function getMyCookie(
 
 function resolveAppKey(rawKey: string): Buffer {
   if (rawKey.startsWith("base64:")) {
-    rawKey = Buffer.from(rawKey.slice(7), "base64").toString("utf-8");
+    return Buffer.from(rawKey.slice(7), "base64");
   }
 
   return Buffer.from(rawKey, "utf-8");

@@ -9,6 +9,7 @@
     "make:controller": "deno run -A novel make:controller",
     "make:model": "deno run -A novel make:model",
     "make:config": "deno run -A novel make:config",
+    "make:middleware": "deno run -A novel make:middleware",
     "publish:config": "deno run -A novel publish:config",
     "serve": "deno run -A novel serve"
   },
@@ -25,20 +26,16 @@
     "isbot": "npm:isbot@^5.1.28",
     "luxon": "npm:luxon@^3.6.1",
     "redis": "npm:redis@^5.5.5",
-    "Illuminate/Support/Facades/Route": "./vendor/honovel/framework/src/hono/Support/Route.ts",
-    "Illuminate/Foundation/Http": "./vendor/honovel/framework/src/Illuminate/Foundation/Http/index.ts",
     "Illuminate/Routing/BaseController":"./vendor/honovel/framework/src/Base/BaseController.ts",
     "MyArtisan": "./vendor/honovel/framework/src/Maneuver/Honovel-CLI.ts",
     "Database": "./vendor/honovel/framework/src/DatabaseBuilder/Database.ts",
-    "Illuminate/Database/Migrations": "./vendor/honovel/framework/src/Illuminate/Database/Migrations/index.ts",
-    "Illuminate/Database/Schema": "./vendor/honovel/framework/src/Illuminate/Database/Schema/index.ts",
-    "Illuminate/Support/Facades": "./vendor/honovel/framework/src/Illuminate/Support/Facades/index.ts",
-    "Illuminate/Database/Eloquent": "./vendor/honovel/framework/src/Illuminate/Database/Eloquent/index.ts",
-    "Illuminate/Support": "./vendor/honovel/framework/src/Illuminate/Support/index.ts",
-    "Illuminate/Session/Middleware": "./vendor/honovel/framework/src/Illuminate/Session/Middleware/index.ts",
-    "Illuminate/Foundation/Http/Middleware": "./vendor/honovel/framework/src/Illuminate/Foundation/Http/Middleware/index.ts",
+    "Illuminate/": "./vendor/honovel/framework/src/Illuminate/",
     "HttpHono": "./vendor/honovel/framework/src/hono/Http/HttpHono.ts",
-    "honovel:helpers": "./vendor/honovel/framework/src/framework-utils/index.ts"
+    "honovel:helpers": "./vendor/honovel/framework/src/framework-utils/index.ts",
+    "configs/":"./config/",
+    "Models/": "./app/Models/",
+    "Controllers/": "./app/Http/Controllers/",
+    "Middlewares/": "./app/Http/Middlewares/"
   },
   "lint": {
     "rules": {
@@ -47,7 +44,6 @@
     }
   },
   "compilerOptions": {
-    "experimentalDecorators": true,
     "types": [
       "./vendor/honovel/@types/index.d.ts",
       "./vendor/honovel/@types/hono-index.d.ts",

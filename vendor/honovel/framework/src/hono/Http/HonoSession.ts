@@ -2,15 +2,16 @@ import { MiddlewareHandler } from "hono";
 import * as path from "https://deno.land/std/path/mod.ts";
 
 import { ISession } from "../../../../@types/declaration/ISession.d.ts";
-import { Str } from "Illuminate/Support";
+import { Str } from "Illuminate/Support/index.ts";
 import { getMyCookie, setMyCookie } from "./HonoCookie.ts";
 import { deleteCookie } from "hono/cookie";
 import RedisClient from "../../Maneuver/RedisClient.ts";
-import { Migration } from "Illuminate/Database/Migrations";
-import { Schema, DB } from "Illuminate/Support/Facades";
+import { Migration } from "Illuminate/Database/Migrations/index.ts";
+import { Schema, DB } from "Illuminate/Support/Facades/index.ts";
 import { Carbon } from "honovel:helpers";
-import { init } from "https://deno.land/x/base64@v0.2.1/base.ts";
 import { SessionConfig } from "../../../../../../config/@types/index.d.ts";
+import { RedisManager } from "Illuminate/Redis/index.ts";
+import { Session } from "Illuminate/Session/index.ts";
 
 type SessionEncrypt = {
   encrypt: string; // encrypted session data
@@ -37,48 +38,6 @@ export class HonoSession {
 
   public update(values: Record<string, NonFunction<unknown>>) {
     this.values = { ...this.values, ...values };
-  }
-}
-
-export class Session {
-  #id: string | null = null;
-  constructor(private values: Record<string, NonFunction<unknown>> = {}) {}
-  public put(key: string, value: NonFunction<unknown>) {
-    this.values[key] = value;
-  }
-
-  public get(
-    key: string,
-    defaultValue: NonFunction<unknown> | null = null
-  ): NonFunction<unknown> | null {
-    return this.values[key] ?? defaultValue;
-  }
-
-  public has(key: string): boolean {
-    return keyExist(this.values, key);
-  }
-  public forget(key: string) {
-    delete this.values[key];
-  }
-
-  protected updateValues(values: Record<string, NonFunction<unknown>>) {
-    this.values = values;
-  }
-
-  protected updateId(id: string) {
-    this.#id = id;
-  }
-
-  public getId() {
-    return this.#id;
-  }
-
-  public all(): Record<string, NonFunction<unknown>> {
-    return { ...this.values };
-  }
-
-  public flush() {
-    this.values = {};
   }
 }
 
@@ -204,39 +163,15 @@ async function saveSession(sid: string, data: Record<string, unknown>) {
       const expires = Carbon.now().addSeconds(
         SessionModifier.sesConfig.lifetime * 60
       );
-      if (staticConfig("database").default === "sqlite") {
-        // SQLite requires a different handling for upsert
-        const dataExists = await DB.select(
-          `SELECT sid FROM ${tableSession} WHERE sid = ?`,
-          [sid]
-        );
-        if (dataExists.length > 0) {
-          await DB.statement(
-            `UPDATE ${tableSession} SET data = ?, expires = ? WHERE sid = ?`,
-            [dataToString, expires, sid]
-          );
-        } else {
-          await DB.insertOrUpdate(
-            tableSession,
-            {
-              sid,
-              data: dataToString,
-              expires,
-            },
-            ["sid"]
-          );
-        }
-      } else {
-        await DB.insertOrUpdate(
-          tableSession,
-          {
-            sid,
-            data: dataToString,
-            expires,
-          },
-          ["sid"]
-        );
-      }
+      await DB.insertOrUpdate(
+        tableSession,
+        {
+          sid,
+          data: dataToString,
+          expires,
+        },
+        ["sid"]
+      );
       break;
     }
     case "file": {
@@ -312,12 +247,13 @@ async function loadSession(sid: string) {
     case "database": {
       const tableSession = SessionModifier.sesConfig.table || "sessions";
       const now = Carbon.now();
-      const data = await DB.select(
-        `SELECT data FROM ${tableSession} WHERE sid = ? and expires > ?`,
-        [sid, now]
-      );
-      if (data.length > 0) {
-        const sessionData = data[0].data as string;
+      const data = await DB.table(tableSession)
+        .select("data")
+        .where("sid", sid)
+        .where("expires", ">=", now)
+        .first();
+      if (!empty(data)) {
+        const sessionData = data.data as string;
         if (isEncrypt) {
           const encryptedData = (jsonDecode(sessionData) as SessionEncrypt)[
             "encrypt"
@@ -370,31 +306,29 @@ async function deleteSession(sid: string) {
 }
 
 function resolveAppKey(rawKey: string, keyBytes: number): Uint8Array {
-  let keyData = rawKey;
-
-  if (keyData.startsWith("base64:")) {
-    keyData = atob(keyData.slice(7)); // Decode base64 to binary string
+  if (rawKey.startsWith("base64:")) {
+    const decoded = Uint8Array.from(atob(rawKey.slice(7)), (c) =>
+      c.charCodeAt(0)
+    );
+    return decoded.slice(0, keyBytes);
   }
 
   const encoder = new TextEncoder();
-  return encoder.encode(keyData).slice(0, keyBytes);
+  return encoder.encode(rawKey).slice(0, keyBytes);
 }
 
 export async function encrypt(data: Record<string, unknown>): Promise<string> {
   const appConfig = staticConfig("app");
-  const appKey = appConfig.key;
   const cipher = appConfig.cipher;
 
-  if (!appKey) throw new Error("Missing app key in configuration");
-  if (!cipher) throw new Error("Missing cipher in configuration");
-
   const mode = cipher.toUpperCase().includes("GCM") ? "AES-GCM" : "AES-CBC";
-  const keySize = parseInt(cipher.match(/AES-(\d+)-/)?.[1] || "256", 10);
-  const keyBytes = keySize / 8;
   const ivLength = mode === "AES-GCM" ? 12 : 16;
 
   const iv = crypto.getRandomValues(new Uint8Array(ivLength));
-  const keyMaterial = resolveAppKey(appKey, keyBytes);
+  const keyMaterial = SessionInitializer.appKeys[0];
+  if (!keyMaterial) {
+    throw new Error("No app key available for encryption");
+  }
 
   const key = await crypto.subtle.importKey(
     "raw",
@@ -468,16 +402,28 @@ export class SessionInitializer {
     switch (type) {
       case "database": {
         const tableSession = SessionModifier.sesConfig.table || "sessions";
+
+        let connection = SessionModifier.sesConfig.connection;
+        if (!connection) {
+          console.warn(
+            "Session connection under config/session.ts is not defined. Using default connection."
+          );
+          connection = staticConfig("database").default;
+        }
         const migrationClass = new (class extends Migration {
           async up() {
-            if (!(await Schema.hasTable(tableSession))) {
-              await Schema.create(tableSession, (table) => {
-                table.id();
-                table.string("sid").unique();
-                table.text("data");
-                table.timestamp("expires");
-                table.timestamps();
-              });
+            if (!(await Schema.hasTable(tableSession, this.connection))) {
+              await Schema.create(
+                tableSession,
+                (table) => {
+                  table.id();
+                  table.string("sid").unique();
+                  table.text("data");
+                  table.timestamp("expires");
+                  table.timestamps();
+                },
+                this.connection
+              );
             }
           }
 
@@ -485,6 +431,7 @@ export class SessionInitializer {
             // await Schema.dropIfExists(tableSession);
           }
         })();
+        migrationClass.setConnection(connection);
         await migrationClass.up();
         break;
       }
@@ -501,7 +448,34 @@ export class SessionInitializer {
         break;
       }
       case "redis": {
-        await RedisClient.init();
+        const redisClient = staticConfig("database").redis?.client;
+        if (!redisClient) {
+          throw new Error(
+            "Redis client is not defined in the database configuration."
+          );
+        }
+        const cacheConf = staticConfig("cache");
+        const stores = cacheConf.stores;
+        if (!stores) {
+          throw new Error("Cache stores are not defined in the configuration.");
+        }
+        const store = SessionModifier.sesConfig.store || cacheConf.default;
+        if (!isset(store) || !keyExist(stores, store)) {
+          throw new Error(
+            `Session store "${store}" is not defined in the cache configuration.`
+          );
+        }
+
+        const driver = stores[store].driver;
+        if (driver !== "redis") {
+          throw new Error(`Session store "${store}" is not a Redis store.`);
+        }
+
+        const connection = stores[store].connection || "default";
+
+        const instance = new RedisManager(redisClient);
+        await instance.init(connection);
+        RedisClient.init(instance);
         break;
       }
       default: {
@@ -525,12 +499,3 @@ export class SessionInitializer {
     this.appKeys = keys;
   }
 }
-
-Deno.addSignalListener("SIGINT", async () => {
-  console.log("Gracefully shutting down...");
-
-  // Example: Close DB or other services
-  // await db.close();
-
-  console.log("Cleanup done. Exiting.");
-});

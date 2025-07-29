@@ -15,6 +15,10 @@ try {
   console.warn(`Env not loaded, please check your environment.ts file.`);
 }
 
+if (Deno.env.get("VERCEL") == "1") {
+  Deno.env.set("DENO_DEPLOYMENT_ID", Deno.env.get("VERCEL_URL") || "");
+}
+
 Object.defineProperty(globalThis, "globalFn", {
   // deno-lint-ignore no-explicit-any
   value: function (key: string, value: (args: any[]) => void) {
@@ -475,7 +479,10 @@ const timeZone =
   staticConfig("app.timezone") ||
   Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-globalFn("strtotime", function (time, now) {
+globalFn("strToTime", function (time, now) {
+  if (time instanceof Carbon) {
+    time = time.toString();
+  }
   if (typeof time !== "string") {
     return null;
   }
@@ -530,7 +537,7 @@ globalFn("date", function (format: string, unixTimestamp = null) {
 });
 
 globalFn("time", () => {
-  return strtotime("now");
+  return strToTime("now");
 });
 
 globalFn("jsonEncode", function (data) {
@@ -658,6 +665,7 @@ globalFn(
 import axios, { AxiosRequestConfig, AxiosError } from "axios";
 import { IFetchDataOption } from "../../../@types/index.d.ts";
 import { Carbon } from "honovel:helpers";
+import { DB } from "Illuminate/Support/Facades/index.ts";
 
 globalFn(
   "fetchData",
@@ -710,3 +718,13 @@ globalFn("frameworkVersion", () => {
     honovelVersion: version,
   };
 });
+
+// import process from "node:process";
+
+// process.on("warning", (warning) => {
+//   console.warn(warning.name);
+//   console.warn(warning.message);
+//   console.warn(warning.stack);
+// });
+
+DB.init();

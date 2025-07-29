@@ -1,4 +1,4 @@
-import mysql, { Pool, PoolConnection } from "npm:mysql2@^2.3.3/promise";
+import mysql, { Pool, PoolConnection } from "npm:mysql2@^3.6.0/promise";
 import { QueryResultDerived } from "Database";
 
 class MySQL {
@@ -48,6 +48,8 @@ class MySQL {
           "rollback",
           "savepoint",
           "release",
+          "set",
+          "use",
         ].includes(queryType)
       ) {
         return {

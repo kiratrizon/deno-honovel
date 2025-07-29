@@ -1,5 +1,4 @@
-import Route from "Illuminate/Support/Facades/Route";
-import UserController from "../app/Http/Controllers/UserController.ts";
+import { Route } from "Illuminate/Support/Facades/index.ts";
 
 Route.post("/", async ({ request }) => {
   return response().json({

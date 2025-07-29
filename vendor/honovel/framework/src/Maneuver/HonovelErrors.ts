@@ -145,25 +145,22 @@ export class AbortError {
     511: "Network Authentication Required",
   };
 
-  public readonly message: string;
 
   constructor(
-    public readonly statusCode: HttpStatusCodeValue = 500,
-    customMessage?: string
+    private readonly statusCode: HttpStatusCodeValue = 500,
+    private readonly message: string = ""
   ) {
     if (!keyExist(this.httpStatusMessages, this.statusCode)) {
       this.statusCode = 500;
     }
-    if (!isset(customMessage) || !isString(customMessage)) {
-      this.message = this.httpStatusMessages[statusCode] || "Unknown Error";
-    } else {
-      this.message = customMessage;
+    if (empty(this.message) || !isString(this.message)) {
+      this.message = this.httpStatusMessages[this.statusCode];
     }
   }
 
   public toJson(): Response {
-    return new Response(JSON.stringify({ message: this.message }), {
-      status: this.statusCode,
+    return new Response(JSON.stringify({ message: this.msg }), {
+      status: this.code,
       headers: {
         "Content-Type": "application/json",
       },

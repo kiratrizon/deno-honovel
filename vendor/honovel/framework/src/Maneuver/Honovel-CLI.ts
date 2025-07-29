@@ -1,21 +1,21 @@
-import mysql, { Pool, PoolConnection } from "npm:mysql2@^2.3.3/promise";
+import mysql, { Pool, PoolConnection } from "npm:mysql2@^3.6.0/promise";
 import "../hono-globals/index.ts";
 import { Command } from "https://deno.land/x/cliffy@v1.0.0-rc.4/command/mod.ts";
 import { Database, dbCloser, QueryResultDerived } from "Database";
 import { join } from "https://deno.land/std@0.224.0/path/mod.ts";
-import { Migration } from "Illuminate/Database/Migrations";
-import { DB } from "Illuminate/Support/Facades";
-import { Confirm } from "https://deno.land/x/cliffy@v1.0.0-rc.3/prompt/confirm.ts"
+import { Migration } from "Illuminate/Database/Migrations/index.ts";
+import { DB, Schema } from "Illuminate/Support/Facades/index.ts";
+import { Confirm } from "https://deno.land/x/cliffy@v1.0.0-rc.3/prompt/confirm.ts";
 
-import MySQL from "../DatabaseBuilder/MySQL.ts"
+import MySQL from "../DatabaseBuilder/MySQL.ts";
 
 const myCommand = new Command();
 
 import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import path from "node:path";
+import { SupportedDrivers } from "configs/@types/index.d.ts";
 class MyArtisan {
-  private static db = new Database();
-  constructor() { }
+  constructor() {}
   private async createConfig(options: { force?: boolean }, name: string) {
     const stubPath = honovelPath("stubs/ConfigDefault.stub");
     const stubContent = getFileContents(stubPath);
@@ -41,7 +41,7 @@ class MyArtisan {
     const modules: string[] = Object.keys(myConfigData);
     let output = "";
     for (const name of modules) {
-      output += `import ${name} from "../${name}.ts";\n`;
+      output += `import ${name} from "configs/${name}.ts";\n`;
     }
     output += `\nexport default {\n`;
     for (const name of modules) {
@@ -72,11 +72,17 @@ class MyArtisan {
     return;
   }
 
-  private async getBatchNumber(): Promise<number> {
-    const result = await MyArtisan.db.runQuery<"select">(
-      `SELECT MAX(batch) AS max_batch FROM migrations`
-    );
-    const maxBatch = Number(result[0]?.max_batch ?? 0);
+  private async getBatchNumber(db: SupportedDrivers): Promise<number> {
+    const result = await DB.connection(db)
+      .table("migrations")
+      .select(DB.raw("MAX(batch) as max_batch"))
+      .first();
+
+    const maxBatch =
+      result?.max_batch !== null && result?.max_batch !== undefined
+        ? Number(result.max_batch)
+        : 0;
+
     return maxBatch + 1;
   }
 
@@ -118,18 +124,20 @@ class MyArtisan {
     }
   }
 
-  private async askIfDBNotExist() {
-    const dbType = staticConfig("database").default || "mysql";
+  private async askIfDBNotExist(dbType: SupportedDrivers) {
     switch (dbType) {
       case "mysql": {
-        const config = staticConfig("database").connections.mysql || {};
-        const pool = mysql.createPool({
-          host: config.host,
+        const config = staticConfig("database").connections?.mysql || {};
+        const poolParams = {
+          host:
+            (isArray(config.host) ? config.host[0] : config.host) ||
+            "localhost",
           port: Number(config.port || 3306),
           user: config.user,
           password: config.password,
           waitForConnections: true,
-        });
+        };
+        const pool = mysql.createPool(poolParams) as Pool;
 
         const dbName = config.database;
         const rows = await MySQL.query<"select">(
@@ -138,14 +146,18 @@ class MyArtisan {
           [dbName]
         );
 
-        if (!rows || Array.isArray(rows) && rows.length === 0) {
-          const confirmed = await Confirm.prompt(`❗ Database "${dbName}" does not exist. Do you want to create it now?`);
+        if (!rows || (Array.isArray(rows) && rows.length === 0)) {
+          const confirmed = await Confirm.prompt(
+            `❗ Database "${dbName}" does not exist. Do you want to create it now?`
+          );
 
           if (confirmed) {
             await MySQL.query(pool, `CREATE DATABASE \`${dbName}\``);
             console.log(`✅ Database "${dbName}" has been created.`);
           } else {
-            console.log(`⚠️ Operation aborted. Database "${dbName}" does not exist.`);
+            console.log(
+              `⚠️ Operation aborted. Database "${dbName}" does not exist.`
+            );
             await pool.end();
             Deno.exit(1);
           }
@@ -166,25 +178,34 @@ class MyArtisan {
     }
   }
 
-  private async runMigrations(options: { seed?: boolean; path?: string }) {
-    await this.askIfDBNotExist();
-    await this.createMigrationTable();
+  private async runMigrations(options: {
+    seed?: boolean;
+    path?: string;
+    db: SupportedDrivers;
+    force: boolean;
+  }) {
+    if (!options.force) {
+      await this.askIfDBNotExist(options.db);
+    }
+    await this.createMigrationTable(options.db);
     const modules = await loadMigrationModules();
-    const batchNumber = await this.getBatchNumber();
+    const batchNumber = await this.getBatchNumber(options.db);
 
     const type = "up"; // or "down" based on your requirement
     for (const module of modules) {
       const { name, migration } = module;
-      const isApplied = await MyArtisan.db.runQuery<"select">(
-        `SELECT COUNT(*) AS count FROM migrations WHERE name = ?`,
-        [name]
-      );
-      if ((isApplied[0] as { count: number }).count > 0) {
+      // need query
+      const isApplied = await DB.connection(options.db)
+        .table("migrations")
+        .where("name", name)
+        .count();
+      if (isApplied) {
         console.log(`Migration ${name} already applied.`);
         continue;
       }
+      migration.setConnection(options.db);
       await migration.run(type);
-      await DB.insert(`migrations`, {
+      await DB.connection(options.db).insert("migrations", {
         name,
         batch: batchNumber,
       });
@@ -192,25 +213,34 @@ class MyArtisan {
     }
   }
 
-  private async freshMigrations(options: { seed?: boolean; path?: string }) {
-    await this.askIfDBNotExist();
-    await this.dropAllTables();
-    await this.createMigrationTable();
+  private async freshMigrations(options: {
+    seed?: boolean;
+    path?: string;
+    db: SupportedDrivers;
+    force: boolean;
+  }) {
+    if (!options.force) {
+      await this.askIfDBNotExist(options.db);
+    }
+    await this.dropAllTables(options.db);
+    await this.createMigrationTable(options.db);
     const modules = await loadMigrationModules();
-    const batchNumber = await this.getBatchNumber();
+    const batchNumber = await this.getBatchNumber(options.db);
     const type = "up"; // or "down" based on your requirement
     for (const module of modules) {
       const { name, migration } = module;
-      const isApplied = await MyArtisan.db.runQuery<"select">(
-        `SELECT COUNT(*) AS count FROM migrations WHERE name = ?`,
-        [name]
-      );
-      if (!empty(isApplied) && (isApplied[0] as { count: number }).count > 0) {
+      // need query
+      const isApplied = await DB.connection(options.db)
+        .table("migrations")
+        .where("name", name)
+        .count();
+      if (isApplied) {
         console.log(`Migration ${name} already applied.`);
         continue;
       }
+      migration.setConnection(options.db);
       await migration.run(type);
-      await DB.insert("migrations", {
+      await DB.connection(options.db).insert("migrations", {
         name,
         batch: batchNumber,
       });
@@ -222,76 +252,49 @@ class MyArtisan {
     seed?: boolean;
     step?: number;
     path?: string;
+    db: SupportedDrivers;
+    force: boolean;
   }) {
-    await this.askIfDBNotExist();
-    await this.createMigrationTable();
+    if (!options.force) {
+      await this.askIfDBNotExist(options.db);
+    }
+    await this.createMigrationTable(options.db);
 
     // Logic to rollback and re-run migrations
   }
 
-  private async createMigrationTable() {
-    const dbType = staticConfig("database").default || "mysql";
-    let sql = "";
+  private async createMigrationTable(dbType: SupportedDrivers) {
+    const tableName = "migrations";
+    const migrationClass = new (class extends Migration {
+      async up() {
+        if (!(await Schema.hasTable(tableName, this.connection))) {
+          await Schema.create(
+            tableName,
+            (table) => {
+              table.id();
+              table.string("name").unique();
+              table.integer("batch");
+              table.timestamps();
+            },
+            this.connection
+          );
+        }
+      }
 
-    switch (dbType) {
-      case "mysql":
-        sql = `
-        CREATE TABLE IF NOT EXISTS \`migrations\` (
-          \`id\` INT AUTO_INCREMENT PRIMARY KEY,
-          \`name\` VARCHAR(255) NOT NULL,
-          \`batch\` INT NOT NULL,
-          \`created_at\` DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-      `;
-        break;
-
-      case "pgsql":
-        sql = `
-        CREATE TABLE IF NOT EXISTS "migrations" (
-          "id" SERIAL PRIMARY KEY,
-          "name" VARCHAR(255) NOT NULL,
-          "batch" INTEGER NOT NULL,
-          "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-      `;
-        break;
-
-      case "sqlite":
-        sql = `
-        CREATE TABLE IF NOT EXISTS "migrations" (
-          "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-          "name" TEXT NOT NULL,
-          "batch" INTEGER NOT NULL,
-          "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-      `;
-        break;
-
-      case "sqlsrv":
-        sql = `
-        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='migrations' and xtype='U')
-        CREATE TABLE [migrations] (
-          [id] INT IDENTITY(1,1) PRIMARY KEY,
-          [name] NVARCHAR(255) NOT NULL,
-          [batch] INT NOT NULL,
-          [created_at] DATETIME DEFAULT GETDATE()
-        );
-      `;
-        break;
-
-      default:
-        throw new Error(`Unsupported DB type: \`${dbType}\``);
-    }
-    await DB.statement(sql);
+      async down() {
+        await Schema.dropIfExists(tableName, this.connection);
+      }
+    })();
+    migrationClass.setConnection(dbType);
+    await migrationClass.up();
   }
 
-  private async dropAllTables(): Promise<void> {
-    const dbType = staticConfig("database").default || "mysql";
+  private async dropAllTables(dbType: SupportedDrivers): Promise<void> {
     let tables: string[] = [];
 
     switch (dbType) {
       case "mysql": {
-        const result = await DB.select(
+        const result = await DB.connection(dbType).select(
           `SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND table_type = 'BASE TABLE'`,
           [staticConfig("database.connections.mysql.database")]
         );
@@ -300,7 +303,7 @@ class MyArtisan {
       }
 
       case "pgsql": {
-        const result = await DB.select(
+        const result = await DB.connection(dbType).select(
           `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`
         );
         tables = result.map((row) => `"${row.tablename}"`);
@@ -308,7 +311,7 @@ class MyArtisan {
       }
 
       case "sqlite": {
-        const result = await DB.select(
+        const result = await DB.connection(dbType).select(
           `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`
         );
         tables = result.map((row) => `"${row.name}"`);
@@ -316,7 +319,9 @@ class MyArtisan {
       }
 
       case "sqlsrv": {
-        const result = await DB.select(`SELECT name FROM sys.tables`);
+        const result = await DB.connection(dbType).select(
+          `SELECT name FROM sys.tables`
+        );
         tables = result.map((row) => `[${row.name}]`);
         break;
       }
@@ -364,20 +369,26 @@ class MyArtisan {
     );
   }
 
-  private async serve(options: { port: number; host: string }) {
+  private async serve(options: {
+    port?: number | null | string;
+    host: string;
+  }) {
     const port = options.port;
     const serverPath = "vendor/honovel/framework/src/hono/run-server.ts";
 
+    const envObj = {
+      HOSTNAME: options.host,
+      ...Deno.env.toObject(), // preserve existing env
+    };
+    if (isset(port)) {
+      // @ts-ignore //
+      envObj.PORT = String(port);
+    }
     const cmd = new Deno.Command("deno", {
       args: ["run", "-A", "--watch=mode=poll", serverPath],
       stdout: "inherit",
       stderr: "inherit",
-      env: {
-        PORT: String(port),
-        HOSTNAME: options.host,
-        ...Deno.env.toObject(), // preserve existing env
-        APP_URL: `http://${options.host}:${port}`,
-      },
+      env: envObj,
     });
 
     // console.log(`http://${options.host}:${port}`);
@@ -387,9 +398,23 @@ class MyArtisan {
     Deno.exit(status.code);
   }
 
+  private async makeMiddleware(name: string) {
+    const stubPath = honovelPath("stubs/Middleware.stub");
+    const stubContent = getFileContents(stubPath);
+    const middlewareContent = stubContent.replace(/{{ ClassName }}/g, name);
+
+    writeFile(appPath(`/Http/Middlewares/${name}.ts`), middlewareContent);
+    console.log(
+      `✅ Middleware file created at ${path.relative(
+        Deno.cwd(),
+        appPath(`/Http/Middlewares/${name}.ts`)
+      )}`
+    );
+  }
+
   public async command(args: string[]): Promise<void> {
     await myCommand
-      .name("Honovel")
+      .name("deno task")
       .description("Honovel CLI")
       .version(frameworkVersion().honovelVersion)
       .command("make:config", "Make a new config file")
@@ -416,7 +441,23 @@ class MyArtisan {
       .command("migrate", "Run the database migrations")
       .option("--seed", "Seed the database after migration")
       .option("--path <path:string>", "Specify a custom migrations directory")
-      .action((options) => this.runMigrations.bind(this)(options))
+      .option("--db <db:string>", "Specify the database connection to use")
+      .option("--force", "Force the migration without confirmation")
+      .action((options) => {
+        const db: SupportedDrivers =
+          (options.db as SupportedDrivers) ||
+          (staticConfig("database").default as SupportedDrivers) ||
+          "mysql";
+        return this.runMigrations({
+          ...options,
+          db,
+          force: options.force || false,
+        });
+      })
+
+      .command("make:middleware", "Generate a middleware class")
+      .arguments("<name:string>")
+      .action((_, name) => this.makeMiddleware(name))
 
       .command("make:model", "Generate a model class")
       .arguments("<name:string>")
@@ -431,7 +472,19 @@ class MyArtisan {
       .command("migrate:fresh", "Drop all tables and rerun all migrations")
       .option("--seed", "Seed the database after fresh migration")
       .option("--path <path:string>", "Specify a custom migrations directory")
-      .action((options) => this.freshMigrations.bind(this)(options))
+      .option("--db <db:string>", "Specify the database connection to use")
+      .option("--force", "Force the fresh migration without confirmation")
+      .action((options) => {
+        const db: SupportedDrivers =
+          (options.db as SupportedDrivers) ||
+          (staticConfig("database").default as SupportedDrivers) ||
+          "mysql";
+        return this.freshMigrations({
+          ...options,
+          db,
+          force: options.force || false,
+        });
+      })
 
       .command("migrate:refresh", "Rollback and re-run all migrations")
       .option("--seed", "Seed the database after refresh")
@@ -440,7 +493,19 @@ class MyArtisan {
         "Number of steps to rollback before migrating"
       )
       .option("--path <path:string>", "Specify a custom migrations directory")
-      .action((options) => this.refreshMigrations.bind(this)(options))
+      .option("--db <db:string>", "Specify the database connection to use")
+      .option("--force", "Force the refresh migration without confirmation")
+      .action((options) => {
+        const db: SupportedDrivers =
+          (options.db as SupportedDrivers) ||
+          (staticConfig("database").default as SupportedDrivers) ||
+          "mysql";
+        return this.refreshMigrations({
+          ...options,
+          db,
+          force: options.force || false,
+        });
+      })
 
       .command(
         "publish:config",
@@ -450,7 +515,7 @@ class MyArtisan {
 
       .command("serve", "Start the Honovel server")
       .option("--port <port:number>", "Port to run the server on", {
-        default: env("PORT", 80),
+        default: env("PORT", null),
       })
       .option("--host <host:string>", "Host to run the server on", {
         default: "0.0.0.0",

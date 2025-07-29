@@ -1,10 +1,10 @@
 import IBaseModel, {
   AccessorMap,
   IBaseModelProperties,
-  IStaticBaseModel,
   PHPTimestampFormat,
 } from "../../../../../@types/declaration/Base/IBaseModel.d.ts";
 import { staticImplements } from "../../../framework-utils/index.ts";
+import { DB } from "../../Support/Facades/index.ts";
 
 export type ModelWithAttributes<
   T extends Record<string, unknown>,
@@ -16,7 +16,6 @@ export function schemaKeys<T extends Record<string, unknown>>(
 ) {
   return keys;
 }
-@staticImplements<IStaticBaseModel>()
 class BaseModel<T extends IBaseModelProperties> {
   constructor(attributes: T["_attributes"] = {} as T["_attributes"]) {
     for (const key of Object.keys(attributes) as (keyof T["_attributes"])[]) {
@@ -66,7 +65,8 @@ class BaseModel<T extends IBaseModelProperties> {
     if (this._table) {
       return this._table;
     }
-    return generateTableName(this.constructor.name);
+    const className = this.constructor.name.replace(/^Base/, "");
+    return generateTableName(className);
   }
 
   public getKeyName(): string {
@@ -81,7 +81,7 @@ class BaseModel<T extends IBaseModelProperties> {
     return this._timeStamps;
   }
 
-  getAttribute<K extends keyof T["_attributes"]>(
+  public getAttribute<K extends keyof T["_attributes"]>(
     key: K
   ): T["_attributes"][K] | null {
     let value: unknown = this._attributes[key] ?? null;
@@ -311,6 +311,20 @@ class BaseModel<T extends IBaseModelProperties> {
     attributes?: Attr
   ): boolean {
     return true;
+  }
+
+  public static async find(id: string | number) {
+    const model = new this();
+    const tableName = model.getTableName();
+    const primaryKey = model.getKeyName();
+    const data = await DB.select(
+      `SELECT * FROM ${tableName} WHERE ${primaryKey} = ?`,
+      [id]
+    );
+    if (data.length === 0) {
+      return null;
+    }
+    return model.fill(data[0]);
   }
 }
 

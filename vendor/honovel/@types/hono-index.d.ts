@@ -74,7 +74,9 @@ declare global {
 
   type HttpMiddleware = (
     myHono: HttpHono,
-    next: HonoClosure["next"]
+    // @ts-ignore //
+    next: HonoClosure["next"],
+    ...args: string[]
   ) => Promise<unknown>;
 
   type HttpDispatch = (

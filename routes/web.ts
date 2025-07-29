@@ -1,6 +1,4 @@
-import Route from "Illuminate/Support/Facades/Route";
-import UserController from "../app/Http/Controllers/UserController.ts";
-import { Carbon } from "../vendor/honovel/framework/src/framework-utils/index.ts";
+import { Cache, DB, Route } from "Illuminate/Support/Facades/index.ts";
 
 // Route.resource("users", UserController).whereNumber("user");
 Route.post("/", async ({ request }) => {
@@ -8,6 +6,10 @@ Route.post("/", async ({ request }) => {
     data: request.all(),
   });
 });
-Route.get("/", async ({ request }) => {
-  return request.session.get("user");
+
+Route.get("/", async ({ csrfToken }) => {
+  const token = csrfToken();
+  return response().json({
+    token,
+  });
 });
