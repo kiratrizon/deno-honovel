@@ -881,7 +881,7 @@ export class Cache {
 
       // Validate store config
       if (!keyExist(cacheConfig.stores, connection)) {
-        throw new Error(`Cache store ${connection} is not defined.`);
+        throw new Error(`Cache store "${connection}" is not defined.`);
       }
 
       const storeConfig = cacheConfig.stores[connection];
@@ -990,5 +990,18 @@ export class Cache {
       key,
       defaultValue
     );
+  }
+
+  static extend(key: string, fn: () => AbstractStore) {
+    if (empty(key) || !isString(key)) {
+      throw new Error("Cache store key must be a non-empty string.");
+    }
+    if (!isFunction(fn)) {
+      throw new Error("Cache store extension must be a function.");
+    }
+    if (keyExist(this.stores, key)) {
+      return;
+    }
+    this.stores[key] = fn();
   }
 }

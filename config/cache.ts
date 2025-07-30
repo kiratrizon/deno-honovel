@@ -1,7 +1,7 @@
 import { CacheConfig } from "./@types/index.d.ts";
 
 const constant: CacheConfig = {
-  default: env("CACHE_DRIVER", "test"),
+  default: env("CACHE_DRIVER", "memory"),
   stores: {
     file: {
       driver: "file",
@@ -18,8 +18,18 @@ const constant: CacheConfig = {
       table: "cache",
       prefix: env("CACHE_PREFIX", "honovel_cache"),
     },
-    test: {
-      driver: "object",
+    memory: {
+      driver: "memory",
+    },
+    memcached: {
+      driver: "memcached",
+      servers: [
+        {
+          host: env("MEMCACHED_HOST", "127.0.0.1"),
+          port: env("MEMCACHED_PORT", 11211),
+          weight: env("MEMCACHED_WEIGHT", 100),
+        },
+      ],
     },
   },
 };

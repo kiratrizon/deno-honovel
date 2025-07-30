@@ -7,11 +7,15 @@ import { getMyCookie, setMyCookie } from "./HonoCookie.ts";
 import { deleteCookie } from "hono/cookie";
 import RedisClient from "../../Maneuver/RedisClient.ts";
 import { Migration } from "Illuminate/Database/Migrations/index.ts";
-import { Schema, DB } from "Illuminate/Support/Facades/index.ts";
+import { Schema, DB, Cache } from "Illuminate/Support/Facades/index.ts";
 import { Carbon } from "honovel:helpers";
-import { SessionConfig } from "../../../../../../config/@types/index.d.ts";
+import {
+  SessionConfig,
+  SupportedDrivers,
+} from "../../../../../../config/@types/index.d.ts";
 import { RedisManager } from "Illuminate/Redis/index.ts";
 import { Session } from "Illuminate/Session/index.ts";
+import { CacheManager, AbstractStore } from "Illuminate/Cache/index.ts";
 
 type SessionEncrypt = {
   encrypt: string; // encrypted session data
@@ -33,11 +37,71 @@ export class HonoSession {
     this.values = values;
   }
   public async dispose() {
-    await saveSession(this.id, this.values);
+    await this.saveSession(this.id, this.values);
   }
 
   public update(values: Record<string, NonFunction<unknown>>) {
     this.values = { ...this.values, ...values };
+  }
+
+  private async saveSession(sid: string, data: Record<string, unknown>) {
+    if (!isset(SessionModifier.sesConfig.lifetime))
+      throw new Error("Session lifetime is not set in configuration");
+    const type = SessionModifier.sesConfig.driver || "file";
+
+    const isEncrypt = SessionModifier.sesConfig.encrypt || false;
+    if (isEncrypt) {
+      data = { encrypt: await encrypt(data) };
+    }
+    const dataToString = jsonEncode(data);
+    switch (type) {
+      case "database": {
+        const tableSession = SessionModifier.sesConfig.table || "sessions";
+        const expires = Carbon.now().addSeconds(
+          SessionModifier.sesConfig.lifetime * 60
+        );
+        await DB.insertOrUpdate(
+          tableSession,
+          {
+            sid,
+            data: dataToString,
+            expires,
+          },
+          ["sid"]
+        );
+        break;
+      }
+      case "file": {
+        const pathDefault: string =
+          SessionModifier.sesConfig.files || storagePath("framework/sessions");
+        const filePath = path.join(
+          pathDefault,
+          `${sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")}.json`
+        );
+        writeFile(filePath, dataToString);
+        break;
+      }
+      case "redis": {
+        await RedisClient.set(sid, dataToString, {
+          ex: SessionModifier.sesConfig.lifetime, // convert minutes to seconds
+        });
+        break;
+      }
+      case "memory": {
+        if (keyExist(HonoSessionMemory.sessions, sid)) {
+          HonoSessionMemory.sessions[sid] = {
+            ...HonoSessionMemory.sessions[sid],
+            ...data,
+          };
+        } else {
+          HonoSessionMemory.sessions[sid] = data;
+        }
+        break;
+      }
+      default: {
+        throw new Error(`Unsupported session driver: ${type}`);
+      }
+    }
   }
 }
 
@@ -83,13 +147,13 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
 
 export class SessionModifier {
   public static sesConfig: SessionConfig;
+  public static store: AbstractStore;
   #c: MyContext;
   #canTouch = false;
   #started = false;
   #sessionId = "";
   // deno-lint-ignore no-explicit-any
   #value: Record<string, NonFunction<any>> = {};
-
   constructor(c: MyContext) {
     this.#c = c;
     this.#canTouch = !!this.#c.get("from_web");
@@ -99,6 +163,68 @@ export class SessionModifier {
     SessionModifier.sesConfig = staticConfig("session");
     if (!SessionModifier.sesConfig) {
       throw new Error("Session configuration is not set.");
+    }
+    const type = SessionModifier.sesConfig.driver || "file";
+    const keyStore = `${type}_session`;
+    const prefix = SessionModifier.sesConfig.prefix || "sess:";
+    const configuration: {
+      // For file driver
+      path?: string;
+      // Uses connection depends on driver
+      connection?: string;
+      // per-store override
+      prefix?: string;
+      // for database driver
+      table?: string;
+      // for memcached driver
+      servers?: { host: string; port: number; weight?: number }[];
+    } = {};
+    switch (type) {
+      case "memory":
+      case "object": {
+        configuration.prefix = prefix;
+        break;
+      }
+      case "file": {
+        const pathDefault: string =
+          SessionModifier.sesConfig.files || storagePath("framework/sessions");
+        if (!pathExist(pathDefault)) {
+          makeDir(pathDefault);
+        }
+        configuration.path = pathDefault;
+        configuration.prefix = prefix;
+        break;
+      }
+      case "redis": {
+        configuration.connection = SessionModifier.sesConfig.connection;
+        configuration.prefix = prefix;
+        break;
+      }
+      case "database": {
+        configuration.connection = SessionModifier.sesConfig.connection;
+        configuration.table = SessionModifier.sesConfig.table || "sessions";
+        configuration.prefix = prefix;
+        break;
+      }
+    }
+    // @ts-ignore //
+    if (type !== "cache") {
+      Cache.extend(keyStore, () => {
+        // @ts-ignore //
+        return new CacheManager(type, configuration).getStore();
+      });
+      this.store = Cache.store(keyStore);
+    } else {
+      const storeConfig =
+        SessionModifier.sesConfig.store || staticConfig("cache").default;
+      if (!isset(storeConfig)) {
+        throw new Error("Session store configuration is not set.");
+      }
+      const stores = staticConfig("cache").stores || {};
+      if (!keyExist(stores, storeConfig)) {
+        throw new Error(`Session store "${storeConfig}" does not exist.`);
+      }
+      this.store = Cache.store(storeConfig);
     }
   }
 
@@ -123,8 +249,7 @@ export class SessionModifier {
       partitioned: SessionModifier.sesConfig.partitioned || false,
     });
 
-    this.#value = await loadSession(this.#sessionId);
-    this.#c.set("HonoSession", new HonoSession(this.#sessionId, this.#value));
+    this.#value = await this.loadSession(this.#sessionId);
     // @ts-ignore //
     this.#c.get("session").updateValues(this.#value);
     // @ts-ignore //
@@ -140,167 +265,71 @@ export class SessionModifier {
       SessionModifier.sesConfig.cookie ||
         Str.snake(env("APP_NAME", "honovel") + "_session")
     );
-    await deleteSession(this.#sessionId);
+    await this.deleteSession(this.#sessionId);
 
     this.#c.set("logged_out", true);
     this.#started = false;
   }
-}
 
-async function saveSession(sid: string, data: Record<string, unknown>) {
-  if (!isset(SessionModifier.sesConfig.lifetime))
-    throw new Error("Session lifetime is not set in configuration");
-  const type = SessionModifier.sesConfig.driver || "file";
-
-  const isEncrypt = SessionModifier.sesConfig.encrypt || false;
-  if (isEncrypt) {
-    data = { encrypt: await encrypt(data) };
+  private updateValues(values: Record<string, unknown>) {
+    this.#value = { ...this.#value, ...values };
   }
-  const dataToString = jsonEncode(data);
-  switch (type) {
-    case "database": {
-      const tableSession = SessionModifier.sesConfig.table || "sessions";
-      const expires = Carbon.now().addSeconds(
-        SessionModifier.sesConfig.lifetime * 60
-      );
-      await DB.insertOrUpdate(
-        tableSession,
-        {
-          sid,
-          data: dataToString,
-          expires,
-        },
-        ["sid"]
-      );
-      break;
-    }
-    case "file": {
-      const pathDefault: string =
-        SessionModifier.sesConfig.files || storagePath("framework/sessions");
-      const filePath = path.join(
-        pathDefault,
-        `${sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")}.json`
-      );
-      writeFile(filePath, dataToString);
-      break;
-    }
-    case "redis": {
-      await RedisClient.set(sid, dataToString, {
-        ex: SessionModifier.sesConfig.lifetime, // convert minutes to seconds
-      });
-      break;
-    }
-    case "memory": {
-      if (keyExist(HonoSessionMemory.sessions, sid)) {
-        HonoSessionMemory.sessions[sid] = {
-          ...HonoSessionMemory.sessions[sid],
-          ...data,
-        };
-      } else {
-        HonoSessionMemory.sessions[sid] = data;
-      }
-      break;
-    }
-    default: {
-      throw new Error(`Unsupported session driver: ${type}`);
-    }
-  }
-}
 
-async function loadSession(sid: string) {
-  const type = SessionModifier.sesConfig.driver || "file";
-  const isEncrypt = SessionModifier.sesConfig.encrypt || false;
-  switch (type) {
-    case "file": {
-      const pathDefault: string =
-        SessionModifier.sesConfig.files || storagePath("framework/sessions");
-      const filePath = path.join(
-        pathDefault,
-        `${sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")}.json`
-      );
-      if (pathExist(filePath)) {
-        const content = getFileContents(filePath);
-        const data = jsonDecode(content);
-        if (isEncrypt) {
-          const encryptedData = (data as SessionEncrypt)["encrypt"];
-          return await decrypt(encryptedData);
-        }
-        return data;
-      }
+  public async dispose(values: Record<string, unknown> = {}) {
+    if (!this.#canTouch || !this.#started) return;
+    this.updateValues(values);
+    await this.saveSession();
+  }
+
+  private async deleteSession(sid: string) {
+    const type = SessionModifier.sesConfig.driver || "file";
+    const key =
+      type === "file"
+        ? sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")
+        : sid;
+    await SessionModifier.store.forget(key);
+  }
+
+  private async saveSession() {
+    const sid = this.#sessionId;
+    let data = this.#value;
+    if (!isset(SessionModifier.sesConfig.lifetime)) {
+      throw new Error("Session lifetime is not set in configuration");
+    }
+    const type = SessionModifier.sesConfig.driver || "file";
+    const isEncrypt = SessionModifier.sesConfig.encrypt || false;
+    if (isEncrypt) {
+      data = { encrypt: await encrypt(data) };
+    }
+    const key =
+      type === "file"
+        ? sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")
+        : sid;
+    await SessionModifier.store.put(
+      key,
+      data,
+      SessionModifier.sesConfig.lifetime * 60
+    );
+  }
+
+  private async loadSession(sid: string) {
+    const key =
+      SessionModifier.sesConfig.driver === "file"
+        ? sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")
+        : sid;
+    const isEncrypt = SessionModifier.sesConfig.encrypt || false;
+    const data = await SessionModifier.store.get(key);
+    if (!isset(data)) {
       return {};
     }
-    case "redis": {
-      const raw = await RedisClient.get(sid);
-      if (raw) {
-        const data = isString(raw) ? JSON.parse(raw) : raw;
-        if (isEncrypt) {
-          const encryptedData = (data as SessionEncrypt)["encrypt"];
-          return await decrypt(encryptedData);
-        }
-        return data;
+    if (isEncrypt) {
+      const decryptedData = await decrypt(data as string);
+      if (decryptedData === null) {
+        throw new Error("Failed to decrypt session data");
       }
-      return {};
-    }
-    case "memory": {
-      return HonoSessionMemory.sessions[sid] || {};
-    }
-    case "database": {
-      const tableSession = SessionModifier.sesConfig.table || "sessions";
-      const now = Carbon.now();
-      const data = await DB.table(tableSession)
-        .select("data")
-        .where("sid", sid)
-        .where("expires", ">=", now)
-        .first();
-      if (!empty(data)) {
-        const sessionData = data.data as string;
-        if (isEncrypt) {
-          const encryptedData = (jsonDecode(sessionData) as SessionEncrypt)[
-            "encrypt"
-          ];
-          return await decrypt(encryptedData);
-        }
-        return jsonDecode(sessionData);
-      }
-      return {};
-    }
-    default: {
-      throw new Error(`Unsupported session driver: ${type}`);
-    }
-  }
-}
-
-async function deleteSession(sid: string) {
-  const type = SessionModifier.sesConfig.driver || "file";
-
-  switch (type) {
-    case "file": {
-      const pathDefault: string =
-        SessionModifier.sesConfig.files || storagePath("framework/sessions");
-      const filePath = path.join(
-        pathDefault,
-        `${sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")}.json`
-      );
-      if (pathExist(filePath)) {
-        await Deno.remove(filePath);
-      }
-      break;
-    }
-    case "redis": {
-      await RedisClient.del(sid);
-      break;
-    }
-    case "memory": {
-      delete HonoSessionMemory.sessions[sid];
-      break;
-    }
-    case "database": {
-      const tableSession = SessionModifier.sesConfig.table || "sessions";
-      await DB.statement(`DELETE FROM ${tableSession} WHERE sid = ?`, [sid]);
-      break;
-    }
-    default: {
-      throw new Error(`Unsupported session driver: ${type}`);
+      return decryptedData;
+    } else {
+      return data;
     }
   }
 }
@@ -398,91 +427,6 @@ export class SessionInitializer {
   public static appKeys: Uint8Array[] = [];
 
   public static async init() {
-    const type = SessionModifier.sesConfig.driver || "file";
-    switch (type) {
-      case "database": {
-        const tableSession = SessionModifier.sesConfig.table || "sessions";
-
-        let connection = SessionModifier.sesConfig.connection;
-        if (!connection) {
-          console.warn(
-            "Session connection under config/session.ts is not defined. Using default connection."
-          );
-          connection = staticConfig("database").default;
-        }
-        const migrationClass = new (class extends Migration {
-          async up() {
-            if (!(await Schema.hasTable(tableSession, this.connection))) {
-              await Schema.create(
-                tableSession,
-                (table) => {
-                  table.id();
-                  table.string("sid").unique();
-                  table.text("data");
-                  table.timestamp("expires");
-                  table.timestamps();
-                },
-                this.connection
-              );
-            }
-          }
-
-          async down() {
-            // await Schema.dropIfExists(tableSession);
-          }
-        })();
-        migrationClass.setConnection(connection);
-        await migrationClass.up();
-        break;
-      }
-      case "file": {
-        const pathDefault: string =
-          SessionModifier.sesConfig.files || storagePath("framework/sessions");
-        if (!pathExist(pathDefault)) {
-          makeDir(pathDefault);
-        }
-        break;
-      }
-      case "memory": {
-        // Memory session does not require initialization
-        break;
-      }
-      case "redis": {
-        const redisClient = staticConfig("database").redis?.client;
-        if (!redisClient) {
-          throw new Error(
-            "Redis client is not defined in the database configuration."
-          );
-        }
-        const cacheConf = staticConfig("cache");
-        const stores = cacheConf.stores;
-        if (!stores) {
-          throw new Error("Cache stores are not defined in the configuration.");
-        }
-        const store = SessionModifier.sesConfig.store || cacheConf.default;
-        if (!isset(store) || !keyExist(stores, store)) {
-          throw new Error(
-            `Session store "${store}" is not defined in the cache configuration.`
-          );
-        }
-
-        const driver = stores[store].driver;
-        if (driver !== "redis") {
-          throw new Error(`Session store "${store}" is not a Redis store.`);
-        }
-
-        const connection = stores[store].connection || "default";
-
-        const instance = new RedisManager(redisClient);
-        await instance.init(connection);
-        RedisClient.init(instance);
-        break;
-      }
-      default: {
-        // do nothing
-      }
-    }
-
     // Initialize app keys for encryption
     const appConfig = staticConfig("app");
     const cipher = appConfig.cipher || "AES-256-CBC";

@@ -14,7 +14,10 @@
     "serve": "deno run -A novel serve"
   },
   "imports": {
+    "@avroit/memcached": "jsr:@avroit/memcached@^0.0.4",
+    "@opentelemetry/api": "npm:@opentelemetry/api@^1.9.0",
     "@upstash/redis": "npm:@upstash/redis@^1.35.1",
+    "@vef/deno-memcached": "jsr:@vef/deno-memcached@^0.1.1",
     "axios": "npm:axios@^1.9.0",
     "edge.js": "npm:edge.js@^6.2.1",
     "hono-sessions": "jsr:@jcs224/hono-sessions@^0.7.2",

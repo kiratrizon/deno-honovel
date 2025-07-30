@@ -221,6 +221,7 @@ export type RedisConfigure<T extends RedisClient> = T extends "deno-redis"
 
 interface RedisConfig<T extends RedisClient = RedisClient> {
   client: T;
+  default: string;
   connections: Record<string, RedisConfigure<T>>;
 }
 
@@ -286,15 +287,7 @@ export interface CorsConfig {
 }
 
 export interface SessionConfig {
-  driver:
-    | "file"
-    | "memory"
-    | "redis"
-    | "database"
-    | "cookie"
-    | "memcached"
-    | "dynamodb"
-    | "object";
+  driver: CacheDriver | "cache";
 
   lifetime: number; // session lifetime in minutes
 
@@ -304,7 +297,7 @@ export interface SessionConfig {
 
   files: string; // file session storage path
 
-  connection?: SupportedDrivers; // database or redis connection name
+  connection?: string; // database or redis connection name
 
   table?: string; // database table name for sessions
 
@@ -329,7 +322,14 @@ export interface SessionConfig {
   prefix?: string; // session key prefix (for redis, etc.)
 }
 
-export type CacheDriver = "file" | "redis" | "object" | "database";
+export type CacheDriver =
+  | "file"
+  | "redis"
+  | "object"
+  | "database"
+  | "memory"
+  | "dynamodb"
+  | "memcached";
 export interface CacheConfig {
   default?: string;
   prefix?: string;
@@ -345,6 +345,12 @@ export interface CacheConfig {
       prefix?: string;
       // for database driver
       table?: string;
+      // for memcached driver
+      servers?: {
+        host: string;
+        port: number;
+        weight?: number;
+      }[];
     }
   >;
 }

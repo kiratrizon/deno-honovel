@@ -512,15 +512,7 @@ function generateMiddlewareOrDispatch(
         }
       }
       if (isset(resp)) {
-        const HonoSession = c.get("HonoSession");
-        if (c.get("from_web") && isset(HonoSession)) {
-          if (!c.get("logged_out")) {
-            // @ts-ignore //
-            const sessionValue = c.get("session").values;
-            HonoSession.update(sessionValue);
-            await HonoSession.dispose();
-          }
-        }
+        await request.dispose();
         return resp;
       } else {
         if (["dispatch"].includes(type)) {

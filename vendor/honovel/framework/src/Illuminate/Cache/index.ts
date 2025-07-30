@@ -2,7 +2,7 @@
 // redis
 // object
 // database
-// memacached
+// memory
 // dynamodb
 // null
 
@@ -17,12 +17,37 @@ import { DB, Schema } from "../Support/Facades/index.ts";
 import { Migration } from "../Database/Migrations/index.ts";
 
 export abstract class AbstractStore {
+  /**
+   * @param key The key to retrieve from the cache.
+   * * @returns The value associated with the key, or null if not found.
+   */
   // deno-lint-ignore no-explicit-any
   abstract get(key: string): Promise<any>;
+
+  /**
+   * Store an item in the cache for a given number of seconds.
+   * @param key The key to store the value under.
+   * @param value The value to store.
+   * @param seconds The number of seconds until the item should expire.
+   */
   // deno-lint-ignore no-explicit-any
   abstract put(key: string, value: any, seconds: number): Promise<void>;
+
+  /**
+   * Remove an item from the cache.
+   * @param key The key to remove from the cache.
+   */
   abstract forget(key: string): Promise<void>;
+
+  /**
+   * Remove all items from the cache.
+   */
   abstract flush(): Promise<void>;
+
+  /**
+   * Get the prefix used for cache keys.
+   * This is typically used to avoid key collisions between different applications or environments.
+   */
   abstract getPrefix(): string;
 
   /**
@@ -87,7 +112,8 @@ export abstract class AbstractStore {
     if (!key.trim()) {
       throw new Error(`Key cannot be an empty string`);
     }
-    const newKey = this.getPrefix() + "_" + key;
+    const keys = [this.getPrefix(), key];
+    const newKey = keys.filter((k) => isset(k) && !empty(k)).join("_");
     return newKey;
   }
 }
@@ -184,7 +210,7 @@ class FileStore extends AbstractStore {
 
 class RedisStore extends AbstractStore {
   private static redisClient: RedisClient;
-  private readonly connection: string;
+  private readonly connection?: string;
   private readonly prefix: string;
   // @ts-ignore //
   private manager: RedisManager;
@@ -202,28 +228,13 @@ class RedisStore extends AbstractStore {
     if (!isset(dbConf.redis?.connections)) {
       throw new Error("Redis connections are not configured.");
     }
-    if (!isset(opts.connection) || !isString(opts.connection)) {
-      throw new Error("RedisStore requires a valid connection name.");
-    }
     this.connection = opts.connection;
     this.prefix = opts.prefix || "";
-    if (!isset(dbConf.redis.connections[this.connection || "default"])) {
-      throw new Error(
-        `Redis connection "${this.connection}" is not defined in the database config.`
-      );
-    }
   }
 
   #initialized = false;
   private async init() {
     if (this.#initialized || this.manager) return;
-    const dbConf = staticConfig("database");
-    if (!isset(dbConf.redis)) {
-      throw new Error("Redis configuration is not set in the database config.");
-    }
-    if (!isset(dbConf.redis.connections[this.connection])) {
-      throw new Error(`Redis connection "${this.connection}" is not defined.`);
-    }
     this.manager = new RedisManager(RedisStore.redisClient);
     await this.manager.init(this.connection);
     // Initialize Redis client here if needed
@@ -398,6 +409,7 @@ class DatabaseStore extends AbstractStore {
   #initialized = false;
   private async init() {
     const table = this.table;
+
     const migrationClass = new (class extends Migration {
       async up() {
         if (!(await Schema.hasTable(table, this.connection))) {
@@ -431,13 +443,145 @@ class DatabaseStore extends AbstractStore {
   }
 }
 
+class MemoryStore extends AbstractStore {
+  private readonly prefix: string;
+  private store = new Map<string, { value: any; expiresAt: number | null }>();
+  constructor(opts: { prefix?: string } = { prefix: "" }) {
+    super();
+    this.prefix = opts.prefix || "";
+  }
+  async get(key: string): Promise<any> {
+    const newKey = this.validateKey(key);
+    const cacheItem = this.store.get(newKey);
+
+    if (!cacheItem) return null;
+
+    if (cacheItem.expiresAt && time() > cacheItem.expiresAt) {
+      this.store.delete(newKey);
+      return null;
+    }
+
+    return cacheItem.value;
+  }
+  async put(key: string, value: any, seconds: number): Promise<void> {
+    const newKey = this.validateKey(key);
+    const expiresAt =
+      seconds > 0 ? strToTime(Carbon.now().addSeconds(seconds)) : null;
+
+    this.store.set(newKey, {
+      value,
+      expiresAt,
+    });
+  }
+  async forget(key: string): Promise<void> {
+    const newKey = this.validateKey(key);
+    this.store.delete(newKey);
+  }
+  async flush(): Promise<void> {
+    this.store.clear();
+  }
+  getPrefix(): string {
+    return this.prefix;
+  }
+}
+
+import { Memcached as MemcachedClient } from "@avroit/memcached";
+
+class MemcachedStore extends AbstractStore {
+  private readonly prefix: string;
+  private readonly servers: {
+    host: string;
+    port: number;
+    weight?: number;
+    poolSize?: number;
+  }[];
+  // @ts-ignore //
+  private client: MemcachedClient;
+
+  constructor(opts: {
+    prefix?: string;
+    servers: { host: string; port: number; weight?: number }[];
+  }) {
+    super();
+    this.prefix = opts.prefix || "";
+    if (!isset(opts.servers) || !isArray(opts.servers)) {
+      throw new Error("MemcachedStore requires a valid servers array.");
+    }
+    opts.servers.map((server) => {
+      // @ts-ignore //
+      server.poolSize = server.weight || 5;
+      delete server.weight;
+      return server;
+    });
+    this.servers = opts.servers;
+  }
+
+  private async init() {
+    if (this.client) return; // Already initialized
+    console.log("hello");
+    this.client = new MemcachedClient(this.servers[0]);
+  }
+
+  public async get(key: string): Promise<any> {
+    await this.init();
+    const newKey = this.validateKey(key);
+    try {
+      const value = await this.client.get(newKey);
+      if (value === undefined || value === null) {
+        return null; // Key does not exist
+      }
+      return jsonDecode(value); // Return the cached value
+    } catch (error) {
+      console.error(`Error getting key "${newKey}":`, error);
+      return null; // Handle error gracefully
+    }
+  }
+
+  public async put(key: string, value: any, seconds: number): Promise<void> {
+    await this.init();
+    const newKey = this.validateKey(key);
+    try {
+      await this.client.set(
+        newKey,
+        jsonEncode(value),
+        seconds > 0 ? seconds : undefined
+      );
+    } catch (error) {
+      console.error(`Error setting key "${newKey}":`, error);
+    }
+  }
+
+  public async forget(key: string): Promise<void> {
+    await this.init();
+    const newKey = this.validateKey(key);
+    try {
+      await this.client.delete(newKey);
+    } catch (error) {
+      console.error(`Error deleting key "${newKey}":`, error);
+    }
+  }
+
+  public async flush(): Promise<void> {
+    await this.init();
+    try {
+      await this.client.flush();
+    } catch (error) {
+      console.error("Error flushing Memcached store:", error);
+    }
+  }
+
+  getPrefix(): string {
+    return this.prefix;
+  }
+}
+
 class CacheManager {
   private store: AbstractStore;
   private prefix: string;
   constructor(
     driver: CacheDriver,
     options: {
-      driver: CacheDriver;
+      driver?: CacheDriver;
       // For file driver
       path?: string;
       // Uses connection depends on driver
@@ -446,9 +590,11 @@ class CacheManager {
       prefix?: string;
       // for database driver
       table?: string;
-    }
+      // for memcached driver
+      servers?: { host: string; port: number; weight?: number }[];
+    } = {}
   ) {
-    const { path, connection, prefix, table } = options;
+    const { path, connection, prefix, table, servers } = options;
     this.prefix = prefix || staticConfig("cache").prefix || "";
     switch (driver) {
       case "object": {
@@ -473,15 +619,32 @@ class CacheManager {
         if (!table || !isString(table)) {
           throw new Error("DatabaseStore requires a valid table name.");
         }
-        if (!connection || !isString(connection)) {
-          throw new Error(
-            "DatabaseStore requires a valid connection in the database config."
-          );
-        }
+
         this.store = new DatabaseStore({
           prefix: this.prefix,
           table: table,
           connection: connection as SupportedDrivers,
+        });
+        break;
+      }
+      case "memory": {
+        this.store = new MemoryStore({ prefix: this.prefix });
+        break;
+      }
+      case "memcached": {
+        if (!isArray(servers) || servers.length === 0) {
+          throw new Error("MemcachedStore requires a valid servers array.");
+        }
+        if (
+          !servers.every((server) => isset(server.host) && isset(server.port))
+        ) {
+          throw new Error(
+            "Each server in MemcachedStore must have host, port, and weight."
+          );
+        }
+        this.store = new MemcachedStore({
+          prefix: this.prefix,
+          servers,
         });
         break;
       }
@@ -496,4 +659,12 @@ class CacheManager {
   }
 }
 
-export { CacheManager };
+export {
+  CacheManager,
+  FileStore,
+  RedisStore,
+  ObjectStore,
+  DatabaseStore,
+  MemoryStore,
+  MemcachedStore,
+};

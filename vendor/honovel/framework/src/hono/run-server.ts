@@ -7,8 +7,7 @@ const HOSTNAME = String(env("HOSTNAME", ""));
 
 let serveObj:
   | (Deno.ServeTcpOptions & Deno.TlsCertifiedKeyPem)
-  | Deno.ServeTcpOptions = {
-};
+  | Deno.ServeTcpOptions = {};
 
 if (!empty(HOSTNAME)) {
   serveObj.hostname = HOSTNAME;
@@ -64,7 +63,6 @@ function buildAppUrl(
   return `${protocol}://${host}${portPart}${path}`;
 }
 
-
 const baseWarmup = (path: string) => buildAppUrl(HOSTNAME, port, hasCert, path);
 
 const warmups = ["/__warmup", "/api/__warmup"];
@@ -77,4 +75,12 @@ for (const path of warmups) {
 
 serveObj.port = port;
 
+if (env("OTEL_DENO") === "true") {
+  console.log("OpenTelemetry is enabled");
+}
+
 Deno.serve(serveObj, app.fetch);
+
+import { dbCloser } from "Database";
+
+Deno.addSignalListener("SIGINT", dbCloser);

@@ -1,6 +1,7 @@
 {
   "version": "5",
   "specifiers": {
+    "jsr:@avroit/memcached@^0.0.4": "0.0.4",
     "jsr:@db/sqlite@*": "0.12.0",
     "jsr:@denosaurs/plug@1": "1.1.0",
     "jsr:@hono/hono@^4.7.10": "4.7.10",
@@ -16,7 +17,10 @@
     "jsr:@std/path@0.217": "0.217.0",
     "jsr:@std/path@1": "1.1.0",
     "jsr:@std/path@^1.1.0": "1.1.0",
+    "jsr:@vef/deno-memcached@~0.1.1": "0.1.1",
     "npm:@mjackson/headers@~0.11.1": "0.11.1",
+    "npm:@opentelemetry/api@1": "1.9.0",
+    "npm:@opentelemetry/api@^1.9.0": "1.9.0",
     "npm:@types/node@*": "22.15.15",
     "npm:@upstash/redis@^1.35.1": "1.35.1",
     "npm:axios@^1.9.0": "1.9.0",
@@ -34,6 +38,9 @@
     "npm:redis@^5.5.5": "5.5.5_@redis+client@5.5.5"
   },
   "jsr": {
+    "@avroit/memcached@0.0.4": {
+      "integrity": "9a0d3ce5f27f48e0ee53e0a84008ccd8b4ea9c9a258704a70a9d5a38a303cd80"
+    },
     "@db/sqlite@0.12.0": {
       "integrity": "dd1ef7f621ad50fc1e073a1c3609c4470bd51edc0994139c5bf9851de7a6d85f",
       "dependencies": [
@@ -101,6 +108,9 @@
     },
     "@std/path@1.1.0": {
       "integrity": "ddc94f8e3c275627281cbc23341df6b8bcc874d70374f75fec2533521e3d6886"
+    },
+    "@vef/deno-memcached@0.1.1": {
+      "integrity": "1da57c84234027c7b5305143255ba6adf84fc07529586b95da02193f54952aa1"
     }
   },
   "npm": {
@@ -112,6 +122,9 @@
     },
     "@mjackson/headers@0.11.1": {
       "integrity": "sha512-uXXhd4rtDdDwkqAuGef1nuafkCa1NlTmEc1Jzc0NL4YiA1yON1NFXuqJ3hOuKvNKQwkiDwdD+JJlKVyz4dunFA=="
+    },
+    "@opentelemetry/api@1.9.0": {
+      "integrity": "sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg=="
     },
     "@poppinss/exception@1.2.1": {
       "integrity": "sha512-aQypoot0HPSJa6gDPEPTntc1GT6QINrSbgRlRhadGW2WaYqUK3tK4Bw9SBMZXhmxd3GeAlZjVcODHgiu+THY7A=="
@@ -1107,9 +1120,12 @@
   },
   "workspace": {
     "dependencies": [
+      "jsr:@avroit/memcached@^0.0.4",
       "jsr:@hono/hono@^4.7.10",
       "jsr:@jcs224/hono-sessions@~0.7.2",
       "jsr:@std/assert@1",
+      "jsr:@vef/deno-memcached@~0.1.1",
+      "npm:@opentelemetry/api@^1.9.0",
       "npm:@upstash/redis@^1.35.1",
       "npm:axios@^1.9.0",
       "npm:edge.js@^6.2.1",
