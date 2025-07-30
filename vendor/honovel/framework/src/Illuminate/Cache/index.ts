@@ -16,6 +16,11 @@ import { RedisManager } from "../Redis/index.ts";
 import { DB, Schema } from "../Support/Facades/index.ts";
 import { Migration } from "../Database/Migrations/index.ts";
 
+import {
+  Memcached as MemcachedClient,
+  InMemoryCached,
+} from "@avroit/memcached";
+
 export abstract class AbstractStore {
   /**
    * @param key The key to retrieve from the cache.
@@ -445,47 +450,38 @@ class DatabaseStore extends AbstractStore {
 
 class MemoryStore extends AbstractStore {
   private readonly prefix: string;
-  private store = new Map<string, { value: any; expiresAt: number | null }>();
+  private store = new InMemoryCached();
   constructor(opts: { prefix?: string } = { prefix: "" }) {
     super();
     this.prefix = opts.prefix || "";
   }
   async get(key: string): Promise<any> {
     const newKey = this.validateKey(key);
-    const cacheItem = this.store.get(newKey);
-
-    if (!cacheItem) return null;
-
-    if (cacheItem.expiresAt && time() > cacheItem.expiresAt) {
-      this.store.delete(newKey);
-      return null;
-    }
-
-    return cacheItem.value;
+    const cacheItem = await this.store.get(newKey);
+    if (!isset(cacheItem)) return null; // Key does not exist
+    return jsonDecode(cacheItem);
   }
   async put(key: string, value: any, seconds: number): Promise<void> {
+    value = jsonEncode(value);
     const newKey = this.validateKey(key);
     const expiresAt =
-      seconds > 0 ? strToTime(Carbon.now().addSeconds(seconds)) : null;
+      seconds > 0
+        ? (strToTime(Carbon.now().addSeconds(seconds)) as number)
+        : undefined;
 
-    this.store.set(newKey, {
-      value,
-      expiresAt,
-    });
+    await this.store.set(newKey, value, expiresAt);
   }
   async forget(key: string): Promise<void> {
     const newKey = this.validateKey(key);
-    this.store.delete(newKey);
+    await this.store.delete(newKey);
   }
   async flush(): Promise<void> {
-    this.store.clear();
+    await this.store.flush();
   }
   getPrefix(): string {
     return this.prefix;
   }
 }
-
-import { Memcached as MemcachedClient } from "@avroit/memcached";
 
 class MemcachedStore extends AbstractStore {
   private readonly prefix: string;
@@ -659,12 +655,4 @@ class CacheManager {
   }
 }
 
-export {
-  CacheManager,
-  FileStore,
-  RedisStore,
-  ObjectStore,
-  DatabaseStore,
-  MemoryStore,
-  MemcachedStore,
-};
+export { CacheManager };

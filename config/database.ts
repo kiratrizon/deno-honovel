@@ -2,7 +2,6 @@ import { DatabaseConfig } from "./@types/index.d.ts";
 
 const constant: DatabaseConfig = {
   default: env("DB_CONNECTION", "mysql"),
-  // default: "sqlite",
 
   connections: {
     mysql: {
