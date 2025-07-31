@@ -14,7 +14,8 @@ export interface ImportEnvConfig {
   readonly UPSTASH_REDIS_REST_URL: string;
   readonly UPSTASH_REDIS_REST_TOKEN: string;
   /**
-   * The system's default timezone
+   * The system's default timezone when using date(), strToTime() and Carbon functions.
+   * e.g. "America/New_York", "Europe/London", "UTC", GMT, etc.
    */
   readonly TIMEZONE: string;
   readonly JWT_SECRET_KEY: string;

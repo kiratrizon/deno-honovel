@@ -2,7 +2,7 @@
 
 import { AppConfig } from "./@types/index.d.ts";
 
-export default {
+const constant: AppConfig = {
   /*
   |--------------------------------------------------------------------------
   | Application Name
@@ -70,4 +70,6 @@ export default {
     driver: env("APP_MAINTENANCE_DRIVER", "file"),
     store: env("APP_MAINTENANCE_STORE", "database"),
   },
-} as AppConfig;
+};
+
+export default constant;

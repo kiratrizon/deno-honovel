@@ -1,17 +1,6 @@
 {
   "tasks": {
-    "dev": "deno run -A --watch --env-file=.env vendor/honovel/framework/src/hono/run-server.ts",
-    "help": "deno run -A novel --help",
-    "migrate": "deno run -A novel migrate",
-    "migrate:fresh": "deno run -A novel migrate:fresh",
-    "migrate:refresh": "deno run -A novel migrate:refresh",
-    "make:migration": "deno run -A novel make:migration",
-    "make:controller": "deno run -A novel make:controller",
-    "make:model": "deno run -A novel make:model",
-    "make:config": "deno run -A novel make:config",
-    "make:middleware": "deno run -A novel make:middleware",
-    "publish:config": "deno run -A novel publish:config",
-    "serve": "deno run -A novel serve"
+    "artisan": "deno run -A vendor/bin/novel"
   },
   "imports": {
     "@avroit/memcached": "jsr:@avroit/memcached@^0.0.4",

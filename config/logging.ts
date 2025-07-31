@@ -1,6 +1,6 @@
 import { LogConfig } from "./@types/index.d.ts";
 
-export default {
+const constant: LogConfig = {
   default: env("LOG_CHANNEL", "stack"),
   channels: {
     stack: {
@@ -16,4 +16,6 @@ export default {
       driver: "stderr",
     },
   },
-} as LogConfig;
+};
+
+export default constant;

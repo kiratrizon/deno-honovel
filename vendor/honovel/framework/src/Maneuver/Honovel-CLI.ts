@@ -1,7 +1,7 @@
 import mysql, { Pool, PoolConnection } from "npm:mysql2@^3.6.0/promise";
 import "../hono-globals/index.ts";
+
 import { Command } from "https://deno.land/x/cliffy@v1.0.0-rc.4/command/mod.ts";
-import { Database, dbCloser, QueryResultDerived } from "Database";
 import { join } from "https://deno.land/std@0.224.0/path/mod.ts";
 import { Migration } from "Illuminate/Database/Migrations/index.ts";
 import { DB, Schema } from "Illuminate/Support/Facades/index.ts";
@@ -385,7 +385,7 @@ class MyArtisan {
       envObj.PORT = String(port);
     }
     const cmd = new Deno.Command("deno", {
-      args: ["run", "-A", "--watch=mode=poll", serverPath],
+      args: ["run", "-A", "--watch=.", serverPath],
       stdout: "inherit",
       stderr: "inherit",
       env: envObj,

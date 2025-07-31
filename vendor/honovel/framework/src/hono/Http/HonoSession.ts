@@ -169,16 +169,22 @@ export class SessionModifier {
     const prefix = SessionModifier.sesConfig.prefix || "sess:";
     const configuration: {
       // For file driver
-      path?: string;
+      path: string | null;
       // Uses connection depends on driver
-      connection?: string;
+      connection: string | null;
       // per-store override
-      prefix?: string;
+      prefix: string | null;
       // for database driver
-      table?: string;
+      table: string | null;
       // for memcached driver
-      servers?: { host: string; port: number; weight?: number }[];
-    } = {};
+      servers: { host: string; port: number; weight?: number }[];
+    } = {
+      path: null,
+      connection: null,
+      prefix: null,
+      table: null,
+      servers: [],
+    };
     switch (type) {
       case "memory":
       case "object": {

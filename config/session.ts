@@ -1,6 +1,6 @@
 import { Str } from "Illuminate/Support/index.ts";
 import { SessionConfig } from "./@types/index.d.ts";
-export default {
+const constant: SessionConfig = {
   driver: env("SESSION_DRIVER", "database"),
 
   lifetime: env("SESSION_LIFETIME", 120),
@@ -35,4 +35,6 @@ export default {
   sameSite: env("SESSION_SAME_SITE", "lax"),
 
   partitioned: env("SESSION_PARTITIONED_COOKIE", false),
-} as SessionConfig;
+};
+
+export default constant;

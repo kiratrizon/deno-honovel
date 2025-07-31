@@ -82,6 +82,19 @@ class HonoDispatch {
             headers,
           });
         }
+        const instantceHeaders = new Headers();
+
+        switch (returnType) {
+          case "download":
+          case "file": {
+            c.res.headers.forEach((value, key) => {
+              instantceHeaders.set(key, value);
+            });
+            for (const [key, value] of Object.entries(headers)) {
+              instantceHeaders.set(key, value);
+            }
+          }
+        }
         switch (returnType) {
           case "html":
             if (html) {
@@ -107,12 +120,13 @@ class HonoDispatch {
               // Open file for reading
               const fileHandle = await Deno.open(file, { read: true });
 
+              instantceHeaders.set(
+                "Content-Type",
+                contentType(file) || "text/plain"
+              );
               return new Response(fileHandle.readable, {
                 status: this.#statusCode,
-                headers: {
-                  "Content-Type": contentType(file) || "text/plain",
-                  ...headers,
-                },
+                headers: instantceHeaders,
               });
             }
             throw new Error("File content is missing in the response.");
@@ -127,18 +141,17 @@ class HonoDispatch {
               // Using Deno or Node fs to stream the file
               const fileStream = (await Deno.open(filePath, { read: true }))
                 .readable;
-
-              const headers = new Headers();
-              headers.set("Content-Type", "application/octet-stream");
-              headers.set(
+              instantceHeaders.set("Content-Type", "application/octet-stream");
+              instantceHeaders.set(
                 "Content-Disposition",
-                `attachment; filename="${downloadName || path.basename(filePath)
+                `attachment; filename="${
+                  downloadName || path.basename(filePath)
                 }"`
               );
 
               return new Response(fileStream, {
                 status: this.#statusCode || 200,
-                headers,
+                headers: instantceHeaders,
               });
             }
             break;

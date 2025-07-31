@@ -297,11 +297,11 @@ export interface SessionConfig {
 
   files: string; // file session storage path
 
-  connection?: string; // database or redis connection name
+  connection: string | null; // database or redis connection name
 
-  table?: string; // database table name for sessions
+  table: string | null; // database table name for sessions
 
-  store?: string; // cache store name for cache-based drivers
+  store: string | null; // cache store name for cache-based drivers
 
   lottery: [number, number]; // sweeping lottery odds
 

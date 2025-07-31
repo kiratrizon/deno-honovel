@@ -1,7 +1,7 @@
 import { Model } from "Illuminate/Database/Eloquent/index.ts";
 import { IBaseModelProperties } from "../../../../../@types/declaration/Base/IBaseModel.d.ts";
-import authConf from "configs/auth.ts";
 import { DB, Hash } from "Illuminate/Support/Facades/index.ts";
+import { AuthConfig } from "configs/@types/index.d.ts";
 
 type AuthenticatableAttr = {
   id: number | string;
@@ -95,9 +95,15 @@ export class Authenticatable<
 abstract class BaseGuard {
   protected model: typeof Authenticatable;
   constructor(protected c: MyContext, protected guardName: string) {
+    BaseGuard.init();
     this.model = BaseGuard.getModelFromGuard(guardName);
   }
 
+  protected static authConf: AuthConfig;
+  public static init(): void {
+    if (this.authConf) return; // Already initialized
+    this.authConf = staticConfig("auth");
+  }
   abstract check(): Promise<boolean>;
   abstract attempt(
     credentials: Record<string, any>,
@@ -105,11 +111,11 @@ abstract class BaseGuard {
   ): Promise<boolean | string>;
 
   private static getModelFromGuard(guardName: string): typeof Authenticatable {
-    const providerName = authConf?.guards?.[guardName]?.provider;
+    const providerName = this.authConf?.guards?.[guardName]?.provider;
     if (!providerName) {
       throw new Error(`Guard ${guardName} does not have a provider defined`);
     }
-    const provider = authConf?.providers?.[providerName];
+    const provider = this.authConf?.providers?.[providerName];
     if (!provider) {
       throw new Error(
         `Provider ${providerName} not found for guard ${guardName}`
@@ -136,7 +142,7 @@ export class JwtGuard extends BaseGuard {
     credentials: Record<string, any>,
     remember?: boolean
   ): Promise<boolean> {
-    const keysAuth = authConf?.guards?.[this.guardName];
+    const keysAuth = JwtGuard.authConf?.guards?.[this.guardName];
     return true;
   }
 }
@@ -173,8 +179,8 @@ export class TokenGuard extends BaseGuard {
     credentials: Record<string, any>,
     remember?: boolean
   ): Promise<string | false> {
-    const provider = authConf?.guards?.[this.guardName]?.provider;
-    const selectedProvider = authConf?.providers?.[provider];
+    const provider = TokenGuard.authConf?.guards?.[this.guardName]?.provider;
+    const selectedProvider = TokenGuard.authConf?.providers?.[provider];
     if (!selectedProvider) {
       throw new Error(
         `Provider ${provider} not found for guard ${this.guardName}`

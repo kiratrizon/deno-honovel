@@ -3,6 +3,7 @@
 // object
 // database
 // memory
+// memcached
 // dynamodb
 // null
 

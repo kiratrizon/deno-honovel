@@ -1,5 +1,6 @@
 /// <reference path="./index.d.ts" />
 
+import { CacheDriver } from "configs/@types/index.d.ts";
 import { ImportEnvConfig } from "../../../environment.ts";
 
 export {};
@@ -32,7 +33,7 @@ declare global {
     readonly BROADCAST_DRIVER: string;
     readonly CACHE_DRIVER: string;
     readonly QUEUE_CONNECTION: string;
-    readonly SESSION_DRIVER: string;
+    readonly SESSION_DRIVER: CacheDriver | "cache";
     readonly SESSION_LIFETIME: number;
     readonly MEMCACHED_HOST: string;
     readonly MAIL_MAILER: string;
