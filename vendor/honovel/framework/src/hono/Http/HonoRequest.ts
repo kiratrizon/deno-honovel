@@ -449,6 +449,10 @@ class HonoRequest extends Macroable {
     return this.#c.get("session");
   }
 
+  public flash(key: string, value: unknown): void {
+    this.#c.get("session").flash(key, value);
+  }
+
   public get $_SESSION() {
     // @ts-ignore //
     return this.#c.get("session").values;

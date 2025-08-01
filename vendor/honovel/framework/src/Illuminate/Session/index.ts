@@ -1,16 +1,17 @@
+import { SessionDataTypes } from "../../../../@types/declaration/imain.d.ts";
 import { NonFunction } from "../../../../@types/declaration/ISession.d.ts";
 
 /**
  * The Session class is responsible for storing and managing session data
  * including CSRF token generation and rotation. Inspired by Laravel's session handling.
  */
-export class Session<D extends Record<string, NonFunction<unknown>>> {
+export class Session<D extends SessionDataTypes> {
   // Internal session ID, if available
   #id: string | null = null;
 
-  private values: Record<keyof D, NonFunction<unknown>>;
+  private values: Record<string, NonFunction<unknown>> & SessionDataTypes;
   constructor(values = {}) {
-    this.values = values as Record<keyof D, NonFunction<unknown>>;
+    this.values = values as SessionDataTypes;
   }
 
   /**
@@ -18,13 +19,13 @@ export class Session<D extends Record<string, NonFunction<unknown>>> {
    * @param key - The session key
    * @param value - The value to store
    */
-  public put<T extends D[keyof D]>(key: keyof D, value: T) {
+  public put<T extends SessionDataTypes[keyof SessionDataTypes]>(key: keyof D, value: T) {
     if (isFunction(value)) {
       throw new Error(
         `Session values cannot be functions. Key: ${key as string}.`
       );
     }
-    this.values[key] = value;
+    this.values[key as string] = value;
     return value;
   }
 
@@ -37,7 +38,7 @@ export class Session<D extends Record<string, NonFunction<unknown>>> {
     key: keyof D,
     defaultValue: V = null as V
   ): NonFunction<unknown> | null {
-    return this.values[key] ?? defaultValue;
+    return this.values[key as keyof SessionDataTypes] ?? defaultValue;
   }
 
   /**
@@ -63,7 +64,7 @@ export class Session<D extends Record<string, NonFunction<unknown>>> {
   protected updateValues(
     values: Record<keyof D | string, NonFunction<unknown>>
   ) {
-    this.values = values;
+    this.values = values as SessionDataTypes;
   }
 
   /**
@@ -92,7 +93,12 @@ export class Session<D extends Record<string, NonFunction<unknown>>> {
    * Remove all session data.
    */
   public flush() {
-    this.values = {} as Record<keyof D | string, NonFunction<unknown>>;
+    this.values = only(this.values, [
+      "_token", // Keep CSRF token
+      "_previousUrl", // Keep previous URL
+      "_newUrl", // Keep new URL
+      "_flash", // Keep flash data
+    ]) as SessionDataTypes;
   }
 
   /**
@@ -129,5 +135,20 @@ export class Session<D extends Record<string, NonFunction<unknown>>> {
     return Array.from(array)
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
+  }
+
+  /**
+   * Flash a value to the session for the next request.
+   */
+
+  public flash(key: keyof D, value: NonFunction<unknown>) {
+    if (!keyExist(this.values, "_flash")) {
+      this.put("_flash", {
+        old: {} as Record<string, unknown>,
+        new: {} as Record<string, unknown>,
+      });
+    }
+
+    this.values._flash.new[key as string] = value;
   }
 }

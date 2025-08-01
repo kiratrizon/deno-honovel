@@ -1,8 +1,6 @@
 // config/app.ts
 
-import AppServiceProvider from "App/Providers/AppServiceProvider.ts";
 import { AppConfig } from "./@types/index.d.ts";
-import CacheProvider from "App/Providers/CacheProvider.ts";
 
 const constant: AppConfig = {
   /*
