@@ -1,6 +1,5 @@
 import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";
 import IHonoRequest, {
-  RequestData,
   RequestMethod,
   SERVER,
 } from "../../../../@types/declaration/IHonoRequest.d.ts";
@@ -489,6 +488,12 @@ class HonoRequest extends Macroable {
 
   public async sessionEnd(): Promise<void> {
     await this.#sessionMod.end();
+  }
+
+  public async dispose(): Promise<void> {
+    // @ts-ignore //
+    const sessionValue = this.#c.get("session").values;
+    await this.#sessionMod.dispose(sessionValue);
   }
 
   public async validate(

@@ -1,7 +1,7 @@
 import mysql, { Pool, PoolConnection } from "npm:mysql2@^3.6.0/promise";
 import "../hono-globals/index.ts";
+
 import { Command } from "https://deno.land/x/cliffy@v1.0.0-rc.4/command/mod.ts";
-import { Database, dbCloser, QueryResultDerived } from "Database";
 import { join } from "https://deno.land/std@0.224.0/path/mod.ts";
 import { Migration } from "Illuminate/Database/Migrations/index.ts";
 import { DB, Schema } from "Illuminate/Support/Facades/index.ts";
@@ -14,6 +14,8 @@ const myCommand = new Command();
 import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import path from "node:path";
 import { SupportedDrivers } from "configs/@types/index.d.ts";
+import { envs } from "../../../../../environment.ts";
+import { PreventRequestDuringMaintenance } from "Illuminate/Foundation/Http/Middleware/index.ts";
 class MyArtisan {
   constructor() {}
   private async createConfig(options: { force?: boolean }, name: string) {
@@ -384,8 +386,13 @@ class MyArtisan {
       // @ts-ignore //
       envObj.PORT = String(port);
     }
+    const envWatch = envs.map((env) => env).join(",");
+    let watchFlag = "";
+    if (!empty(envWatch)) {
+      watchFlag = `=${envWatch}`;
+    }
     const cmd = new Deno.Command("deno", {
-      args: ["run", "-A", "--watch=mode=poll", serverPath],
+      args: ["run", "-A", `--watch${watchFlag}`, serverPath],
       stdout: "inherit",
       stderr: "inherit",
       env: envObj,
@@ -396,6 +403,20 @@ class MyArtisan {
     const process = cmd.spawn();
     const status = await process.status;
     Deno.exit(status.code);
+  }
+
+  private makeProvider(name: string) {
+    const stubPath = honovelPath("stubs/Provider.stub");
+    const stubContent = getFileContents(stubPath);
+    const providerContent = stubContent.replace(/{{ ClassName }}/g, name);
+
+    writeFile(appPath(`/Providers/${name}.ts`), providerContent);
+    console.log(
+      `✅ Provider file created at ${path.relative(
+        Deno.cwd(),
+        appPath(`/Providers/${name}.ts`)
+      )}`
+    );
   }
 
   private async makeMiddleware(name: string) {
@@ -469,6 +490,13 @@ class MyArtisan {
       .option("--pivot", "Indicate the model is a pivot table")
       .action((options, name) => this.makeModel(options, name))
 
+      .command(
+        "make:provider",
+        "Generate a service provider class for the application"
+      )
+      .arguments("<name:string>")
+      .action((_, name) => this.makeProvider(name))
+
       .command("migrate:fresh", "Drop all tables and rerun all migrations")
       .option("--seed", "Seed the database after fresh migration")
       .option("--path <path:string>", "Specify a custom migrations directory")
@@ -522,7 +550,82 @@ class MyArtisan {
       })
       .action((options) => this.serve.bind(this)(options))
 
+      // for maintenance mode
+      .command("down", "Put the application into maintenance mode")
+      .option(
+        "--message <message:string>",
+        "The message for the maintenance mode"
+      )
+      .option(
+        "--retry <retry:number>",
+        "Retry after seconds (adds Retry-After header)"
+      )
+      .option(
+        "--allow <ip:string[]>",
+        "IP addresses allowed to access the app during maintenance"
+      )
+      .option(
+        "--secret <key:string>",
+        "Secret bypass key for maintenance access"
+      )
+      .option(
+        "--render <view:string>",
+        "Custom view to render during maintenance"
+      )
+      .option("--redirect <url:string>", "Redirect URL during maintenance mode")
+      .action((options) => this.down.bind(this)(options))
+
+      .command("up", "Bring the application out of maintenance mode")
+      .action(() => this.up.bind(this)())
+
       .parse(args);
+  }
+
+  private async down(options: {
+    message?: string;
+    retry?: number;
+    allow?: string[];
+    secret?: string;
+    render?: string;
+    redirect?: string;
+  }) {
+    const store = new PreventRequestDuringMaintenance().getMaintenanceStore();
+
+    if (!store) {
+      console.error("❌ Maintenance store is not configured.");
+      return;
+    }
+
+    const maintenanceData = {
+      message: options.message ?? "Application is in maintenance mode.",
+      retry: options.retry ?? 60, // in seconds
+      allow: options.allow ?? [],
+      secret: options.secret ?? "",
+      render: options.render ?? "",
+      redirect: options.redirect ?? "/",
+      timestamp: time(), // useful for logging/debugging
+    };
+
+    await store.forever("maintenance", maintenanceData);
+
+    console.log("✅ Application is now in maintenance mode.");
+
+    if (maintenanceData.secret) {
+      console.log(`🔑 Bypass URL: /${maintenanceData.secret}`);
+    }
+  }
+
+  private async up() {
+    const store = new PreventRequestDuringMaintenance().getMaintenanceStore();
+
+    if (!store) {
+      console.error("❌ Maintenance store is not configured.");
+      return;
+    }
+
+    await store.forget("maintenance");
+
+    console.log("✅ Application is now out of maintenance mode.");
   }
 }
 

@@ -1,20 +1,12 @@
 {
   "tasks": {
-    "dev": "deno run -A --watch --env-file=.env vendor/honovel/framework/src/hono/run-server.ts",
-    "help": "deno run -A novel --help",
-    "migrate": "deno run -A novel migrate",
-    "migrate:fresh": "deno run -A novel migrate:fresh",
-    "migrate:refresh": "deno run -A novel migrate:refresh",
-    "make:migration": "deno run -A novel make:migration",
-    "make:controller": "deno run -A novel make:controller",
-    "make:model": "deno run -A novel make:model",
-    "make:config": "deno run -A novel make:config",
-    "make:middleware": "deno run -A novel make:middleware",
-    "publish:config": "deno run -A novel publish:config",
-    "serve": "deno run -A novel serve"
+    "artisan": "deno run -A vendor/bin/novel"
   },
   "imports": {
+    "@avroit/memcached": "jsr:@avroit/memcached@^0.0.4",
+    "@opentelemetry/api": "npm:@opentelemetry/api@^1.9.0",
     "@upstash/redis": "npm:@upstash/redis@^1.35.1",
+    "@vef/deno-memcached": "jsr:@vef/deno-memcached@^0.1.1",
     "axios": "npm:axios@^1.9.0",
     "edge.js": "npm:edge.js@^6.2.1",
     "hono-sessions": "jsr:@jcs224/hono-sessions@^0.7.2",
@@ -33,9 +25,7 @@
     "HttpHono": "./vendor/honovel/framework/src/hono/Http/HttpHono.ts",
     "honovel:helpers": "./vendor/honovel/framework/src/framework-utils/index.ts",
     "configs/":"./config/",
-    "Models/": "./app/Models/",
-    "Controllers/": "./app/Http/Controllers/",
-    "Middlewares/": "./app/Http/Middlewares/"
+    "App/": "./app/"
   },
   "lint": {
     "rules": {

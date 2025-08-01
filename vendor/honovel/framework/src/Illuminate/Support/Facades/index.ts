@@ -34,7 +34,11 @@ import { Builder, SQLRaw, sqlstring } from "../../Database/Query/index.ts";
 import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
 import { SupportedDrivers } from "configs/@types/index.d.ts";
 import { init } from "https://deno.land/x/base64@v0.2.1/base.ts";
-import { AbstractStore, CacheManager } from "../../Cache/index.ts";
+import {
+  AbstractStore,
+  CacheManager,
+  CacheStoreData,
+} from "../../Cache/index.ts";
 interface HashOptions {
   rounds?: number;
 }
@@ -866,7 +870,7 @@ export class Cache {
   /**
    * Retrieve or create the cache store instance for the given connection name.
    */
-  static store(connection?: string): AbstractStore {
+  static store(connection: string | nullify): AbstractStore {
     if (!isset(connection)) {
       connection = this.defaultConnection; // use default if none provided
     }
@@ -881,7 +885,7 @@ export class Cache {
 
       // Validate store config
       if (!keyExist(cacheConfig.stores, connection)) {
-        throw new Error(`Cache store ${connection} is not defined.`);
+        throw new Error(`Cache store "${connection}" is not defined.`);
       }
 
       const storeConfig = cacheConfig.stores[connection];
@@ -930,14 +934,21 @@ export class Cache {
    * Get a cached value by key.
    */
   static async get(key: string) {
-    return await this.store(this.defaultConnection).get(key);
+    return await this.store(this.defaultConnection).get(
+      key as keyof CacheStoreData
+    );
   }
 
   /**
    * Store a value in the cache for a given number of seconds.
    */
+  // deno-lint-ignore no-explicit-any
   static async put(key: string, value: any, seconds: number) {
-    await this.store(this.defaultConnection).put(key, value, seconds);
+    await this.store(this.defaultConnection).put(
+      key as keyof CacheStoreData,
+      value,
+      seconds
+    );
   }
 
   /**
@@ -958,28 +969,39 @@ export class Cache {
    * Store an item in the cache indefinitely.
    */
   static async forever(key: string, value: any) {
-    await this.store(this.defaultConnection).forever(key, value);
+    await this.store(this.defaultConnection).forever(
+      key as keyof CacheStoreData,
+      value
+    );
   }
 
   /**
    * Determine if an item exists in the cache.
    */
   static async has(key: string) {
-    return await this.store(this.defaultConnection).has(key);
+    return await this.store(this.defaultConnection).has(
+      key as keyof CacheStoreData
+    );
   }
 
   /**
    * Increment a cached numeric value.
    */
   static async increment(key: string, value: number = 1) {
-    return await this.store(this.defaultConnection).increment(key, value);
+    return await this.store(this.defaultConnection).increment(
+      key as keyof CacheStoreData,
+      value
+    );
   }
 
   /**
    * Decrement a cached numeric value.
    */
   static async decrement(key: string, value: number = 1) {
-    return await this.store(this.defaultConnection).decrement(key, value);
+    return await this.store(this.defaultConnection).decrement(
+      key as keyof CacheStoreData,
+      value
+    );
   }
 
   /**
@@ -987,8 +1009,21 @@ export class Cache {
    */
   static async getOrDefault<T = any>(key: string, defaultValue: T): Promise<T> {
     return await this.store(this.defaultConnection).getOrDefault(
-      key,
+      key as keyof CacheStoreData,
       defaultValue
     );
+  }
+
+  static extend(key: string, fn: () => AbstractStore) {
+    if (empty(key) || !isString(key)) {
+      throw new Error("Cache store key must be a non-empty string.");
+    }
+    if (!isFunction(fn)) {
+      throw new Error("Cache store extension must be a function.");
+    }
+    if (keyExist(this.stores, key)) {
+      return;
+    }
+    this.stores[key] = fn();
   }
 }

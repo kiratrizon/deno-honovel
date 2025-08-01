@@ -6,6 +6,14 @@ export default {
   examplePath: null,
 } as LoadOptions; // don't delete
 
+export const envs = [
+  ".env",
+  ".env.example",
+  ".env.production",
+  ".env.development",
+  ".env.test",
+];
+
 // export your interface "ImportEnv" here
 
 export interface ImportEnvConfig {
@@ -14,7 +22,8 @@ export interface ImportEnvConfig {
   readonly UPSTASH_REDIS_REST_URL: string;
   readonly UPSTASH_REDIS_REST_TOKEN: string;
   /**
-   * The system's default timezone
+   * The system's default timezone when using date(), strToTime() and Carbon functions.
+   * e.g. "America/New_York", "Europe/London", "UTC", GMT, etc.
    */
   readonly TIMEZONE: string;
   readonly JWT_SECRET_KEY: string;

@@ -5,7 +5,7 @@ Route.post("/", async ({ request }) => {
   return response().json({
     data: request.all(),
   });
-});
+}).middleware("throttle:10,1");
 
 Route.get("/", async ({ csrfToken }) => {
   const token = csrfToken();

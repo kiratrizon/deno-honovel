@@ -2,7 +2,6 @@ import { DatabaseConfig } from "./@types/index.d.ts";
 
 const constant: DatabaseConfig = {
   default: env("DB_CONNECTION", "mysql"),
-  // default: "sqlite",
 
   connections: {
     mysql: {
@@ -36,15 +35,12 @@ const constant: DatabaseConfig = {
 
   redis: {
     client: "upstash",
+    default: "cache",
     connections: {
-      default: {
+      cache: {
         upstashUrl: env("UPSTASH_REDIS_REST_URL", ""),
         upstashToken: env("UPSTASH_REDIS_REST_TOKEN", ""),
       },
-      cache: {
-        upstashUrl: env("UPSTASH_REDIS_CACHE_URL", ""),
-        upstashToken: env("UPSTASH_REDIS_CACHE_TOKEN", ""),
-      }
     },
   },
 };

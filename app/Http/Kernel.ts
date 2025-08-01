@@ -1,12 +1,16 @@
 import { StartSession } from "Illuminate/Session/Middleware/index.ts";
-import { ConvertEmptyStringsToNull } from "Illuminate/Foundation/Http/Middleware/index.ts";
+import {
+  ConvertEmptyStringsToNull,
+  PayloadParser,
+  PreventRequestDuringMaintenance,
+} from "Illuminate/Foundation/Http/Middleware/index.ts";
 import { HttpKernel } from "Illuminate/Foundation/Http/index.ts";
-import PayloadParser from "Middlewares/PayloadParser.ts";
 import { ThrottleRequests } from "Illuminate/Routing/Middleware/index.ts";
-import VerifyCsrfToken from "Middlewares/VerifyCsrfToken.ts";
+import VerifyCsrfToken from "App/Http/Middlewares/VerifyCsrfToken.ts";
 class Kernel extends HttpKernel {
   protected override middleware = [
-    PayloadParser, // always in the first position to avoid issues with other middlewares
+    PreventRequestDuringMaintenance,
+    PayloadParser,
     ConvertEmptyStringsToNull,
   ];
 

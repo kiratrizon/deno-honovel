@@ -56,7 +56,6 @@ export const setMyCookie = (
     newValue,
     CookieKeysCache.mainKey
   )}`;
-
   setCookie(c, key, signedValue, options);
 };
 

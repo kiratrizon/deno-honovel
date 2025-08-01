@@ -4,12 +4,12 @@ interface AppMaintenanceConfig {
   /**
    * Maintenance Mode Driver (e.g., 'file', 'database')
    */
-  driver: string;
+  driver: SessionConfig["driver"];
 
   /**
    * Maintenance Store Name
    */
-  store: string;
+  store: string | nullify;
 }
 export interface AppConfig {
   /**
@@ -85,6 +85,11 @@ export interface AppConfig {
    * Maintenance Configuration
    */
   maintenance: AppMaintenanceConfig;
+
+  /**
+   * Application Providers
+   */
+  providers?: (typeof ServiceProvider)[];
 }
 
 /**
@@ -128,6 +133,7 @@ export interface AuthConfig {
 
 import { SslOptions } from "npm:mysql2@^2.3.3";
 import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
+import { ServiceProvider } from "Illuminate/Support/index.ts";
 
 export type SupportedDrivers = "mysql" | "pgsql" | "sqlite" | "sqlsrv";
 
@@ -221,6 +227,7 @@ export type RedisConfigure<T extends RedisClient> = T extends "deno-redis"
 
 interface RedisConfig<T extends RedisClient = RedisClient> {
   client: T;
+  default: string;
   connections: Record<string, RedisConfigure<T>>;
 }
 
@@ -286,15 +293,7 @@ export interface CorsConfig {
 }
 
 export interface SessionConfig {
-  driver:
-    | "file"
-    | "memory"
-    | "redis"
-    | "database"
-    | "cookie"
-    | "memcached"
-    | "dynamodb"
-    | "object";
+  driver: CacheDriver | "cache";
 
   lifetime: number; // session lifetime in minutes
 
@@ -304,11 +303,11 @@ export interface SessionConfig {
 
   files: string; // file session storage path
 
-  connection?: SupportedDrivers; // database or redis connection name
+  connection: string | null; // database or redis connection name
 
-  table?: string; // database table name for sessions
+  table: string | null; // database table name for sessions
 
-  store?: string; // cache store name for cache-based drivers
+  store: string | null; // cache store name for cache-based drivers
 
   lottery: [number, number]; // sweeping lottery odds
 
@@ -329,7 +328,15 @@ export interface SessionConfig {
   prefix?: string; // session key prefix (for redis, etc.)
 }
 
-export type CacheDriver = "file" | "redis" | "object" | "database";
+export type CacheDriver =
+  | "file"
+  | "redis"
+  | "object"
+  | "database"
+  | "memory"
+  | "memcached"
+  | "dynamodb";
+
 export interface CacheConfig {
   default?: string;
   prefix?: string;
@@ -343,8 +350,22 @@ export interface CacheConfig {
       connection?: string;
       // per-store override
       prefix?: string;
-      // for database driver
+      // for database driver and dynamodb driver
       table?: string;
+      // for memcached driver
+      servers?: {
+        host: string;
+        port: number;
+        weight?: number;
+      }[];
+      // key for dynamodb
+      key?: string;
+      // secret for dynamodb
+      secret?: string;
+      // region for dynamodb
+      region?: string;
+      // for dynamodb
+      partitionKey?: string;
     }
   >;
 }

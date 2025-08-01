@@ -2,7 +2,8 @@
 // redis
 // object
 // database
-// memacached
+// memory
+// memcached
 // dynamodb
 // null
 
@@ -16,20 +17,75 @@ import { RedisManager } from "../Redis/index.ts";
 import { DB, Schema } from "../Support/Facades/index.ts";
 import { Migration } from "../Database/Migrations/index.ts";
 
-export abstract class AbstractStore {
+import {
+  Memcached as MemcachedClient,
+  InMemoryCached,
+} from "@avroit/memcached";
+
+type MaintenanceData = {
+  message: string;
+  retry: number;
+  allow: string[];
+  secret: string;
+  render: string;
+  redirect: string;
+  timestamp: number;
+};
+
+export interface CacheStoreData {
+  maintenance: MaintenanceData;
+}
+
+export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
+  /**
+   * @param key The key to retrieve from the cache.
+   * * @returns The value associated with the key, or null if not found.
+   */
+  abstract get<K extends keyof T>(key: K): Promise<T[K]>;
   // deno-lint-ignore no-explicit-any
   abstract get(key: string): Promise<any>;
-  // deno-lint-ignore no-explicit-any
-  abstract put(key: string, value: any, seconds: number): Promise<void>;
+
+  /**
+   * Store an item in the cache for a given number of seconds.
+   * @param key The key to store the value under.
+   * @param value The value to store.
+   * @param seconds The number of seconds until the item should expire.
+   */
+  abstract put<K extends keyof T>(
+    key: K,
+    value: T[K],
+    seconds: number
+  ): Promise<void>;
+  abstract put(
+    key: string,
+    // deno-lint-ignore no-explicit-any
+    value: any,
+    seconds: number
+  ): Promise<void>;
+
+  /**
+   * Remove an item from the cache.
+   * @param key The key to remove from the cache.
+   */
+  abstract forget<K extends keyof T>(key: K): Promise<void>;
   abstract forget(key: string): Promise<void>;
+
+  /**
+   * Remove all items from the cache.
+   */
   abstract flush(): Promise<void>;
+
+  /**
+   * Get the prefix used for cache keys.
+   * This is typically used to avoid key collisions between different applications or environments.
+   */
   abstract getPrefix(): string;
 
   /**
    * Store an item in the cache indefinitely.
    */
   // deno-lint-ignore no-explicit-any
-  async forever(key: string, value: any): Promise<void> {
+  async forever<K extends keyof T>(key: K, value: T[K] | any): Promise<void> {
     // Convention: use 0 or -1 to mean "forever"
     await this.put(key, value, 0);
   }
@@ -37,11 +93,24 @@ export abstract class AbstractStore {
   /**
    * Increment the value of an item in the cache.
    */
-  async increment(key: string, value: number = 1): Promise<number | null> {
-    const current = await this.get(key);
+  async increment<K extends keyof T>(
+    key: K,
+    value?: number
+  ): Promise<number | null>;
+
+  async increment(key: string, value?: number): Promise<number | null>;
+
+  // Implementation
+  async increment(
+    key: keyof T | string,
+    value: number = 1
+  ): Promise<number | null> {
+    // deno-lint-ignore no-explicit-any
+    const current = await this.get(key as any);
     if (typeof current === "number") {
       const newVal = current + value;
-      await this.put(key, newVal, 0);
+      // deno-lint-ignore no-explicit-any
+      await this.put(key as any, newVal, 0);
       return newVal;
     }
     return null;
@@ -50,11 +119,21 @@ export abstract class AbstractStore {
   /**
    * Decrement the value of an item in the cache.
    */
-  async decrement(key: string, value: number = 1): Promise<number | null> {
-    const current = await this.get(key);
+  async decrement<K extends keyof T>(
+    key: K,
+    value?: number
+  ): Promise<number | null>;
+  async decrement(key: string, value?: number): Promise<number | null>;
+  async decrement(
+    key: keyof T | string,
+    value: number = 1
+  ): Promise<number | null> {
+    // deno-lint-ignore no-explicit-any
+    const current = await this.get(key as any);
     if (typeof current === "number") {
       const newVal = current - value;
-      await this.put(key, newVal, 0);
+      // deno-lint-ignore no-explicit-any
+      await this.put(key as any, newVal, 0);
       return newVal;
     }
     return null;
@@ -63,17 +142,27 @@ export abstract class AbstractStore {
   /**
    * Get a value or return default.
    */
+  async getOrDefault<K extends keyof T>(
+    key: K,
+    defaultValue: T[K]
+  ): Promise<T[K]>;
   // deno-lint-ignore no-explicit-any
-  async getOrDefault<T = any>(key: string, defaultValue: T): Promise<T> {
-    const value = await this.get(key);
+  async getOrDefault(key: string, defaultValue: any): Promise<any>;
+  // deno-lint-ignore no-explicit-any
+  async getOrDefault(key: keyof T | string, defaultValue: any): Promise<any> {
+    // deno-lint-ignore no-explicit-any
+    const value = await this.get(key as any);
     return value !== null && value !== undefined ? value : defaultValue;
   }
 
   /**
    * Check if a key exists in cache.
    */
-  async has(key: string): Promise<boolean> {
-    const value = await this.get(key);
+  async has<K extends keyof T>(key: K): Promise<boolean>;
+  async has(key: string): Promise<boolean>;
+  async has(key: keyof T | string): Promise<boolean> {
+    // deno-lint-ignore no-explicit-any
+    const value = await this.get(key as any);
     return isset(value);
   }
 
@@ -87,7 +176,8 @@ export abstract class AbstractStore {
     if (!key.trim()) {
       throw new Error(`Key cannot be an empty string`);
     }
-    const newKey = this.getPrefix() + "_" + key;
+    const keys = [this.getPrefix(), key];
+    const newKey = keys.filter((k) => isset(k) && !empty(k)).join("_");
     return newKey;
   }
 }
@@ -108,6 +198,7 @@ class FileStore extends AbstractStore {
     this.path = opts.path;
   }
 
+  // deno-lint-ignore no-explicit-any
   async get(key: string): Promise<any> {
     // Implement logic to retrieve value from file cache
     const newKey = this.validateKey(key);
@@ -131,6 +222,7 @@ class FileStore extends AbstractStore {
     return cacheItem.value; // Return the cached value
   }
 
+  // deno-lint-ignore no-explicit-any
   async put(key: string, value: any, seconds: number): Promise<void> {
     // Implement logic to store value in file cache
     const newKey = this.validateKey(key);
@@ -184,7 +276,7 @@ class FileStore extends AbstractStore {
 
 class RedisStore extends AbstractStore {
   private static redisClient: RedisClient;
-  private readonly connection: string;
+  private readonly connection?: string;
   private readonly prefix: string;
   // @ts-ignore //
   private manager: RedisManager;
@@ -202,28 +294,13 @@ class RedisStore extends AbstractStore {
     if (!isset(dbConf.redis?.connections)) {
       throw new Error("Redis connections are not configured.");
     }
-    if (!isset(opts.connection) || !isString(opts.connection)) {
-      throw new Error("RedisStore requires a valid connection name.");
-    }
     this.connection = opts.connection;
     this.prefix = opts.prefix || "";
-    if (!isset(dbConf.redis.connections[this.connection || "default"])) {
-      throw new Error(
-        `Redis connection "${this.connection}" is not defined in the database config.`
-      );
-    }
   }
 
   #initialized = false;
   private async init() {
     if (this.#initialized || this.manager) return;
-    const dbConf = staticConfig("database");
-    if (!isset(dbConf.redis)) {
-      throw new Error("Redis configuration is not set in the database config.");
-    }
-    if (!isset(dbConf.redis.connections[this.connection])) {
-      throw new Error(`Redis connection "${this.connection}" is not defined.`);
-    }
     this.manager = new RedisManager(RedisStore.redisClient);
     await this.manager.init(this.connection);
     // Initialize Redis client here if needed
@@ -262,6 +339,7 @@ class RedisStore extends AbstractStore {
 }
 
 class ObjectStore extends AbstractStore {
+  // deno-lint-ignore no-explicit-any
   private store: Record<string, { value: any; expiresAt: number | null }> = {};
   private readonly prefix: string;
 
@@ -270,6 +348,7 @@ class ObjectStore extends AbstractStore {
     this.prefix = opts.prefix || "";
   }
 
+  // deno-lint-ignore no-explicit-any
   async get(key: string): Promise<any> {
     const newKey = this.validateKey(key);
     const cacheItem = this.store[newKey];
@@ -284,6 +363,7 @@ class ObjectStore extends AbstractStore {
     return cacheItem.value;
   }
 
+  // deno-lint-ignore no-explicit-any
   async put(key: string, value: any, seconds: number): Promise<void> {
     const newKey = this.validateKey(key);
 
@@ -391,6 +471,7 @@ class DatabaseStore extends AbstractStore {
     // Implement logic to clear all items in the database cache
     await this.init();
     const sql = `DELETE FROM ${this.table}`;
+    // deno-lint-ignore no-explicit-any
     const values: any[] = [];
     await DB.connection(this.connection).statement(sql, values);
   }
@@ -398,6 +479,7 @@ class DatabaseStore extends AbstractStore {
   #initialized = false;
   private async init() {
     const table = this.table;
+
     const migrationClass = new (class extends Migration {
       async up() {
         if (!(await Schema.hasTable(table, this.connection))) {
@@ -431,13 +513,359 @@ class DatabaseStore extends AbstractStore {
   }
 }
 
+class MemoryStore extends AbstractStore {
+  private readonly prefix: string;
+  private store = new InMemoryCached();
+  constructor(opts: { prefix?: string } = { prefix: "" }) {
+    super();
+    this.prefix = opts.prefix || "";
+  }
+  // deno-lint-ignore no-explicit-any
+  async get(key: string): Promise<any> {
+    const newKey = this.validateKey(key);
+    const cacheItem = await this.store.get(newKey);
+    if (!isset(cacheItem)) return null; // Key does not exist
+    return jsonDecode(cacheItem);
+  }
+  // deno-lint-ignore no-explicit-any
+  async put(key: string, value: any, seconds: number): Promise<void> {
+    value = jsonEncode(value);
+    const newKey = this.validateKey(key);
+    const expiresAt =
+      seconds > 0
+        ? (strToTime(Carbon.now().addSeconds(seconds)) as number)
+        : undefined;
+
+    await this.store.set(newKey, value, expiresAt);
+  }
+  async forget(key: string): Promise<void> {
+    const newKey = this.validateKey(key);
+    await this.store.delete(newKey);
+  }
+  async flush(): Promise<void> {
+    await this.store.flush();
+  }
+  getPrefix(): string {
+    return this.prefix;
+  }
+}
+
+class MemcachedStore extends AbstractStore {
+  private readonly prefix: string;
+  private readonly servers: {
+    host: string;
+    port: number;
+    weight?: number;
+    poolSize?: number;
+  }[];
+  // @ts-ignore //
+  private client: MemcachedClient;
+
+  constructor(opts: {
+    prefix?: string;
+    servers: { host: string; port: number; weight?: number }[];
+  }) {
+    super();
+    this.prefix = opts.prefix || "";
+    if (!isset(opts.servers) || !isArray(opts.servers)) {
+      throw new Error("MemcachedStore requires a valid servers array.");
+    }
+    opts.servers.map((server) => {
+      // @ts-ignore //
+      server.poolSize = server.weight || 5;
+      delete server.weight;
+      return server;
+    });
+    this.servers = opts.servers;
+  }
+
+  private async init() {
+    if (this.client) return; // Already initialized
+    console.log("hello");
+    this.client = new MemcachedClient(this.servers[0]);
+  }
+
+  // deno-lint-ignore no-explicit-any
+  public async get(key: string): Promise<any> {
+    await this.init();
+    const newKey = this.validateKey(key);
+    try {
+      const value = await this.client.get(newKey);
+      if (value === undefined || value === null) {
+        return null; // Key does not exist
+      }
+      return jsonDecode(value); // Return the cached value
+    } catch (error) {
+      console.error(`Error getting key "${newKey}":`, error);
+      return null; // Handle error gracefully
+    }
+  }
+
+  // deno-lint-ignore no-explicit-any
+  public async put(key: string, value: any, seconds: number): Promise<void> {
+    await this.init();
+    const newKey = this.validateKey(key);
+    try {
+      await this.client.set(
+        newKey,
+        jsonEncode(value),
+        seconds > 0 ? seconds : undefined
+      );
+    } catch (error) {
+      console.error(`Error setting key "${newKey}":`, error);
+    }
+  }
+
+  public async forget(key: string): Promise<void> {
+    await this.init();
+    const newKey = this.validateKey(key);
+    try {
+      await this.client.delete(newKey);
+    } catch (error) {
+      console.error(`Error deleting key "${newKey}":`, error);
+    }
+  }
+
+  public async flush(): Promise<void> {
+    await this.init();
+    try {
+      await this.client.flush();
+    } catch (error) {
+      console.error("Error flushing Memcached store:", error);
+    }
+  }
+
+  getPrefix(): string {
+    return this.prefix;
+  }
+}
+
+import {
+  DynamoDBClient,
+  PutItemCommand,
+  CreateTableCommand,
+  DescribeTableCommand,
+  GetItemCommand,
+  DeleteItemCommand,
+  ScanCommand,
+  BatchWriteItemCommand,
+} from "https://esm.sh/@aws-sdk/client-dynamodb?dts";
+class DynamoDBStore extends AbstractStore {
+  private client: DynamoDBClient;
+  private readonly prefix: string;
+  private readonly table: string;
+  private readonly partitionKey: string;
+  constructor(
+    driver: CacheDriver,
+    opts: {
+      key?: string;
+      secret?: string;
+      region?: string;
+      table?: string;
+      prefix?: string;
+      partitionKey?: string;
+    } = {}
+  ) {
+    super();
+    const { key, secret, region, table, prefix, partitionKey } = opts;
+    if (!isset(key) || !isset(secret) || !isset(region)) {
+      throw new Error("DynamoDBStore requires valid key, secret, and region.");
+    }
+    if (!isset(table) || !isString(table)) {
+      throw new Error("DynamoDBStore requires a valid table name.");
+    }
+    this.client = new DynamoDBClient({
+      region: region,
+      credentials: {
+        accessKeyId: key,
+        secretAccessKey: secret,
+      },
+    });
+    if (driver !== "dynamodb") {
+      throw new Error(`Unsupported cache driver for DynamoDB: ${driver}`);
+    }
+    if (!isset(partitionKey) || !isString(partitionKey)) {
+      throw new Error("DynamoDBStore requires a valid partition key.");
+    }
+    this.partitionKey = partitionKey;
+    this.prefix = prefix || staticConfig("cache").prefix || "";
+    this.table = table;
+  }
+
+  #initialized = false;
+  public async init() {
+    if (this.#initialized) return; // Already initialized
+    try {
+      await this.client.send(
+        new DescribeTableCommand({ TableName: this.table })
+      );
+      console.log(`Table "${this.table}" already exists.`);
+      this.#initialized = true; // Mark as initialized
+      return;
+    } catch (error) {
+      if ((error as Error).name !== "ResourceNotFoundException") {
+        throw error; // Re-throw if it's not a "table doesn't exist" error
+      }
+      console.log(`Table "${this.table}" not found. Creating...`);
+    }
+    const command = new CreateTableCommand({
+      TableName: this.table,
+      KeySchema: [
+        {
+          AttributeName: this.partitionKey,
+          KeyType: "HASH", // Partition key
+        },
+      ],
+      BillingMode: "PAY_PER_REQUEST", // On-demand billing
+      AttributeDefinitions: [
+        {
+          AttributeName: this.partitionKey,
+          AttributeType: "S", // String type
+        },
+      ],
+    });
+
+    try {
+      await this.client.send(command);
+      console.log(`Table "${this.table}" created successfully.`);
+      this.#initialized = true; // Mark as initialized
+    } catch (error) {
+      console.error(`Error creating table "${this.table}":`, error);
+      throw error; // Re-throw the error if table creation fails
+    }
+  }
+
+  // deno-lint-ignore no-explicit-any
+  public async get(key: string): Promise<any> {
+    await this.init();
+    const newKey = this.validateKey(key);
+
+    try {
+      const result = await this.client.send(
+        new GetItemCommand({
+          TableName: this.table,
+          Key: {
+            [this.partitionKey]: { S: newKey },
+          },
+        })
+      );
+
+      if (!result.Item || !result.Item.name || !result.Item.name.S) return null;
+      const data = jsonDecode(result.Item.name.S || "{}");
+      if (keyExist(data, "expiresAt")) {
+        const expiresAt = data.expiresAt as string | null;
+        if (isNull(expiresAt)) {
+          return data.value; // No expiration, return value
+        } else {
+          if (!isString(expiresAt)) {
+            return null; // Invalid expiration format
+          } else {
+            const expiresAtTime = strToTime(expiresAt);
+            if (expiresAtTime && time() > expiresAtTime) {
+              // Item has expired
+              await this.forget(newKey); // Optionally remove expired item
+              return null;
+            }
+            return data.value; // Return the cached value
+          }
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error(`Error getting key "${newKey}":`, error);
+      return null;
+    }
+  }
+
+  // deno-lint-ignore no-explicit-any
+  public async put(key: string, value: any, seconds: number): Promise<void> {
+    await this.init();
+    const newKey = this.validateKey(key);
+    const expiresAt =
+      seconds > 0 ? strToTime(Carbon.now().addSeconds(seconds)) : null;
+
+    const data = {
+      value: value,
+      expiresAt,
+    };
+
+    try {
+      await this.client.send(
+        new PutItemCommand({
+          TableName: this.table,
+          Item: {
+            [this.partitionKey]: { S: newKey },
+            name: { S: jsonEncode(data) },
+          },
+        })
+      );
+    } catch (error) {
+      console.error(`Error setting key "${newKey}":`, error);
+    }
+  }
+
+  public async forget(key: string): Promise<void> {
+    await this.init();
+    const newKey = this.validateKey(key);
+    try {
+      await this.client.send(
+        new DeleteItemCommand({
+          TableName: this.table,
+          Key: {
+            [this.partitionKey]: { S: newKey },
+          },
+        })
+      );
+    } catch (error) {
+      console.error(`Error deleting key "${newKey}":`, error);
+    }
+  }
+
+  // control flush all items in the cache
+  public async flush(): Promise<void> {
+    await this.init();
+    try {
+      const scanCommand = new ScanCommand({
+        TableName: this.table,
+      });
+      const items = await this.client.send(scanCommand);
+
+      if (items.Items && items.Items.length > 0) {
+        const keysToDelete = items.Items.map((item) => ({
+          [this.partitionKey]: item[this.partitionKey],
+        }));
+
+        // Batch in chunks of 25
+        for (let i = 0; i < keysToDelete.length; i += 25) {
+          const chunk = keysToDelete.slice(i, i + 25);
+
+          const batchWriteCommand = new BatchWriteItemCommand({
+            RequestItems: {
+              [this.table]: chunk.map((key) => ({
+                DeleteRequest: { Key: key },
+              })),
+            },
+          });
+
+          await this.client.send(batchWriteCommand);
+        }
+      }
+    } catch (error) {
+      console.error("Error flushing DynamoDB store:", error);
+    }
+  }
+  getPrefix(): string {
+    return this.prefix;
+  }
+}
+
 class CacheManager {
   private store: AbstractStore;
   private prefix: string;
   constructor(
     driver: CacheDriver,
     options: {
-      driver: CacheDriver;
+      driver?: CacheDriver;
       // For file driver
       path?: string;
       // Uses connection depends on driver
@@ -446,9 +874,26 @@ class CacheManager {
       prefix?: string;
       // for database driver
       table?: string;
-    }
+      // for memcached driver
+      servers?: { host: string; port: number; weight?: number }[];
+      // for dynamodb driver
+      key?: string;
+      secret?: string;
+      region?: string;
+      partitionKey?: string;
+    } = {}
   ) {
-    const { path, connection, prefix, table } = options;
+    const {
+      path,
+      connection,
+      prefix,
+      table,
+      servers,
+      key,
+      secret,
+      region,
+      partitionKey,
+    } = options;
     this.prefix = prefix || staticConfig("cache").prefix || "";
     switch (driver) {
       case "object": {
@@ -473,15 +918,41 @@ class CacheManager {
         if (!table || !isString(table)) {
           throw new Error("DatabaseStore requires a valid table name.");
         }
-        if (!connection || !isString(connection)) {
-          throw new Error(
-            "DatabaseStore requires a valid connection in the database config."
-          );
-        }
+
         this.store = new DatabaseStore({
           prefix: this.prefix,
           table: table,
           connection: connection as SupportedDrivers,
+        });
+        break;
+      }
+      case "memory": {
+        this.store = new MemoryStore({ prefix: this.prefix });
+        break;
+      }
+      case "memcached": {
+        if (!isArray(servers) || servers.length === 0) {
+          throw new Error("MemcachedStore requires a valid servers array.");
+        }
+        if (
+          !servers.every((server) => isset(server.host) && isset(server.port))
+        ) {
+          throw new Error(
+            "Each server in MemcachedStore must have host, port, and weight."
+          );
+        }
+        this.store = new MemcachedStore({
+          prefix: this.prefix,
+          servers,
+        });
+        break;
+      }
+      case "dynamodb": {
+        this.store = new DynamoDBStore(driver, {
+          key,
+          secret,
+          region,
+          partitionKey,
         });
         break;
       }

@@ -633,10 +633,3 @@ export const dbCloser = async () => {
     }
   }
 };
-
-Deno.addSignalListener("SIGINT", dbCloser);
-
-// if not windows, add SIGTERM listener
-if (Deno.build.os !== "windows") {
-  Deno.addSignalListener("SIGTERM", dbCloser);
-}

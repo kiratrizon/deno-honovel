@@ -1,8 +1,5 @@
 import * as path from "https://deno.land/std/path/mod.ts";
 import { load } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
-// import { config } from "npm:dotenv";
-// config();
-
 try {
   const envObj = (await import("../../../../../environment.ts")).default;
   const data = await load(envObj);

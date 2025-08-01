@@ -1,8 +1,10 @@
 // config/app.ts
 
+import AppServiceProvider from "App/Providers/AppServiceProvider.ts";
 import { AppConfig } from "./@types/index.d.ts";
+import CacheProvider from "App/Providers/CacheProvider.ts";
 
-export default {
+const constant: AppConfig = {
   /*
   |--------------------------------------------------------------------------
   | Application Name
@@ -67,7 +69,9 @@ export default {
   |--------------------------------------------------------------------------
   */
   maintenance: {
-    driver: env("APP_MAINTENANCE_DRIVER", "file"),
-    store: env("APP_MAINTENANCE_STORE", "database"),
+    driver: env("MAINTENANCE_DRIVER", "database"),
+    store: env("MAINTENANCE_STORE", null),
   },
-} as AppConfig;
+};
+
+export default constant;

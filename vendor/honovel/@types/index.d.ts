@@ -2,7 +2,7 @@ import { ResponseType } from "axios";
 import { ConfigItems } from "../../../config/@types/index.d.ts";
 import { Carbon } from "honovel:helpers";
 
-export { };
+export {};
 export interface IFetchDataOption {
   method?: string;
   headers?: Record<string, string>;
@@ -66,7 +66,7 @@ declare global {
     fallback: EnvConfig[K]
   ): EnvConfig[K];
   // deno-lint-ignore no-explicit-any
-  function env<K extends any>(key: string, fallback: K): string | K;
+  function env<K extends any = string>(key: string, fallback: K): K;
 
   /**
    * Defines a global variable on `global` with the specified name and value.
@@ -337,7 +337,7 @@ declare global {
    * date/time formats such as "next Friday" or "3 days ago" and adjusts based on the
    * system's time zone.
    */
-  function strToTime(time: string | Carbon, now?: number): number | null;
+  function strToTime(time: Carbon | string | null, now?: number): number | null;
 
   /**
    * This function returns the current date and time
