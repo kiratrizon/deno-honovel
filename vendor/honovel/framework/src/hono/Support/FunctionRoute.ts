@@ -474,13 +474,6 @@ function generateMiddlewareOrDispatch(
             ? e.stack.split("\n").map((line) => line.trim())
             : [];
           populatedError["cause"] = e.cause;
-          log(
-            populatedError,
-            "error",
-            `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-              "HTTP_X_REQUEST_ID"
-            )}`
-          );
           let errorHtml: string;
           if (env("APP_DEBUG", true)) {
             if (!request.expectsJson()) {
@@ -500,6 +493,13 @@ function generateMiddlewareOrDispatch(
               );
             }
           } else {
+            log(
+              populatedError,
+              "error",
+              `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(
+                "HTTP_X_REQUEST_ID"
+              )}`
+            );
             resp = c.html("Internal server error", 500);
           }
         } else {

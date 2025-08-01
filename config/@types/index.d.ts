@@ -4,12 +4,12 @@ interface AppMaintenanceConfig {
   /**
    * Maintenance Mode Driver (e.g., 'file', 'database')
    */
-  driver: string;
+  driver: SessionConfig["driver"];
 
   /**
    * Maintenance Store Name
    */
-  store: string;
+  store: string | nullify;
 }
 export interface AppConfig {
   /**
@@ -85,6 +85,11 @@ export interface AppConfig {
    * Maintenance Configuration
    */
   maintenance: AppMaintenanceConfig;
+
+  /**
+   * Application Providers
+   */
+  providers?: (typeof ServiceProvider)[];
 }
 
 /**
@@ -128,6 +133,7 @@ export interface AuthConfig {
 
 import { SslOptions } from "npm:mysql2@^2.3.3";
 import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
+import { ServiceProvider } from "Illuminate/Support/index.ts";
 
 export type SupportedDrivers = "mysql" | "pgsql" | "sqlite" | "sqlsrv";
 
@@ -328,8 +334,9 @@ export type CacheDriver =
   | "object"
   | "database"
   | "memory"
-  | "dynamodb"
-  | "memcached";
+  | "memcached"
+  | "dynamodb";
+
 export interface CacheConfig {
   default?: string;
   prefix?: string;
@@ -343,7 +350,7 @@ export interface CacheConfig {
       connection?: string;
       // per-store override
       prefix?: string;
-      // for database driver
+      // for database driver and dynamodb driver
       table?: string;
       // for memcached driver
       servers?: {
@@ -351,6 +358,14 @@ export interface CacheConfig {
         port: number;
         weight?: number;
       }[];
+      // key for dynamodb
+      key?: string;
+      // secret for dynamodb
+      secret?: string;
+      // region for dynamodb
+      region?: string;
+      // for dynamodb
+      partitionKey?: string;
     }
   >;
 }

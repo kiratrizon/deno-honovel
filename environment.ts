@@ -6,6 +6,14 @@ export default {
   examplePath: null,
 } as LoadOptions; // don't delete
 
+export const envs = [
+  ".env",
+  ".env.example",
+  ".env.production",
+  ".env.development",
+  ".env.test",
+];
+
 // export your interface "ImportEnv" here
 
 export interface ImportEnvConfig {

@@ -337,7 +337,7 @@ declare global {
    * date/time formats such as "next Friday" or "3 days ago" and adjusts based on the
    * system's time zone.
    */
-  function strToTime(time: string | Carbon, now?: number): number | null;
+  function strToTime(time: Carbon | string | null, now?: number): number | null;
 
   /**
    * This function returns the current date and time

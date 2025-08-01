@@ -5,15 +5,8 @@ import { ISession } from "../../../../@types/declaration/ISession.d.ts";
 import { Str } from "Illuminate/Support/index.ts";
 import { getMyCookie, setMyCookie } from "./HonoCookie.ts";
 import { deleteCookie } from "hono/cookie";
-import RedisClient from "../../Maneuver/RedisClient.ts";
-import { Migration } from "Illuminate/Database/Migrations/index.ts";
-import { Schema, DB, Cache } from "Illuminate/Support/Facades/index.ts";
-import { Carbon } from "honovel:helpers";
-import {
-  SessionConfig,
-  SupportedDrivers,
-} from "../../../../../../config/@types/index.d.ts";
-import { RedisManager } from "Illuminate/Redis/index.ts";
+import { Cache } from "Illuminate/Support/Facades/index.ts";
+import { SessionConfig } from "../../../../../../config/@types/index.d.ts";
 import { Session } from "Illuminate/Session/index.ts";
 import { CacheManager, AbstractStore } from "Illuminate/Cache/index.ts";
 
@@ -28,86 +21,6 @@ type NonFunction<T> = T extends (...args: any[]) => any
   : T extends object
   ? { [K in keyof T]: NonFunction<T[K]> }
   : T;
-
-export class HonoSession {
-  public id: string;
-  values: Record<string, NonFunction<unknown>>;
-  constructor(id: string, values: Record<string, NonFunction<unknown>>) {
-    this.id = id;
-    this.values = values;
-  }
-  public async dispose() {
-    await this.saveSession(this.id, this.values);
-  }
-
-  public update(values: Record<string, NonFunction<unknown>>) {
-    this.values = { ...this.values, ...values };
-  }
-
-  private async saveSession(sid: string, data: Record<string, unknown>) {
-    if (!isset(SessionModifier.sesConfig.lifetime))
-      throw new Error("Session lifetime is not set in configuration");
-    const type = SessionModifier.sesConfig.driver || "file";
-
-    const isEncrypt = SessionModifier.sesConfig.encrypt || false;
-    if (isEncrypt) {
-      data = { encrypt: await encrypt(data) };
-    }
-    const dataToString = jsonEncode(data);
-    switch (type) {
-      case "database": {
-        const tableSession = SessionModifier.sesConfig.table || "sessions";
-        const expires = Carbon.now().addSeconds(
-          SessionModifier.sesConfig.lifetime * 60
-        );
-        await DB.insertOrUpdate(
-          tableSession,
-          {
-            sid,
-            data: dataToString,
-            expires,
-          },
-          ["sid"]
-        );
-        break;
-      }
-      case "file": {
-        const pathDefault: string =
-          SessionModifier.sesConfig.files || storagePath("framework/sessions");
-        const filePath = path.join(
-          pathDefault,
-          `${sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")}.json`
-        );
-        writeFile(filePath, dataToString);
-        break;
-      }
-      case "redis": {
-        await RedisClient.set(sid, dataToString, {
-          ex: SessionModifier.sesConfig.lifetime, // convert minutes to seconds
-        });
-        break;
-      }
-      case "memory": {
-        if (keyExist(HonoSessionMemory.sessions, sid)) {
-          HonoSessionMemory.sessions[sid] = {
-            ...HonoSessionMemory.sessions[sid],
-            ...data,
-          };
-        } else {
-          HonoSessionMemory.sessions[sid] = data;
-        }
-        break;
-      }
-      default: {
-        throw new Error(`Unsupported session driver: ${type}`);
-      }
-    }
-  }
-}
-
-class HonoSessionMemory {
-  public static sessions: Record<string, Record<string, unknown>> = {};
-}
 
 export function honoSession(): MiddlewareHandler {
   return async (c: MyContext, next) => {
@@ -149,14 +62,12 @@ export class SessionModifier {
   public static sesConfig: SessionConfig;
   public static store: AbstractStore;
   #c: MyContext;
-  #canTouch = false;
   #started = false;
   #sessionId = "";
   // deno-lint-ignore no-explicit-any
   #value: Record<string, NonFunction<any>> = {};
   constructor(c: MyContext) {
     this.#c = c;
-    this.#canTouch = !!this.#c.get("from_web");
   }
 
   public static init() {
@@ -212,6 +123,17 @@ export class SessionModifier {
         configuration.prefix = prefix;
         break;
       }
+      case "memcached": {
+        configuration.servers =
+          staticConfig("cache").stores?.[
+            SessionModifier.sesConfig.store || "default"
+          ]?.servers || [];
+        if (configuration.servers.length === 0) {
+          throw new Error("No Memcached servers configured.");
+        }
+        configuration.prefix = prefix;
+        break;
+      }
     }
     // @ts-ignore //
     if (type !== "cache") {
@@ -235,7 +157,7 @@ export class SessionModifier {
   }
 
   async start() {
-    if (!this.#canTouch || this.#started) return;
+    if (this.#started) return;
 
     const key =
       SessionModifier.sesConfig.cookie ||
@@ -264,7 +186,7 @@ export class SessionModifier {
   }
 
   async end() {
-    if (!this.#canTouch || !this.#sessionId) return;
+    if (!this.#sessionId) return;
 
     deleteCookie(
       this.#c,
@@ -282,7 +204,7 @@ export class SessionModifier {
   }
 
   public async dispose(values: Record<string, unknown> = {}) {
-    if (!this.#canTouch || !this.#started) return;
+    if (!this.#started) return;
     this.updateValues(values);
     await this.saveSession();
   }
@@ -305,7 +227,7 @@ export class SessionModifier {
     const type = SessionModifier.sesConfig.driver || "file";
     const isEncrypt = SessionModifier.sesConfig.encrypt || false;
     if (isEncrypt) {
-      data = { encrypt: await encrypt(data) };
+      data = { encrypt: await this.encrypt(data) };
     }
     const key =
       type === "file"
@@ -316,6 +238,81 @@ export class SessionModifier {
       data,
       SessionModifier.sesConfig.lifetime * 60
     );
+  }
+
+  async encrypt(data: Record<string, unknown>): Promise<string> {
+    const appConfig = staticConfig("app");
+    const cipher = appConfig.cipher;
+
+    const mode = cipher.toUpperCase().includes("GCM") ? "AES-GCM" : "AES-CBC";
+    const ivLength = mode === "AES-GCM" ? 12 : 16;
+
+    const iv = crypto.getRandomValues(new Uint8Array(ivLength));
+    const keyMaterial = SessionInitializer.appKeys[0];
+    if (!keyMaterial) {
+      throw new Error("No app key available for encryption");
+    }
+
+    const key = await crypto.subtle.importKey(
+      "raw",
+      keyMaterial,
+      { name: mode },
+      false,
+      ["encrypt"]
+    );
+
+    const encoded = new TextEncoder().encode(JSON.stringify(data));
+
+    const encrypted = await crypto.subtle.encrypt(
+      { name: mode, iv },
+      key,
+      encoded
+    );
+
+    const combined = new Uint8Array(iv.length + encrypted.byteLength);
+    combined.set(iv, 0);
+    combined.set(new Uint8Array(encrypted), iv.length);
+
+    return uint8ArrayToBase64(combined);
+  }
+
+  async decrypt(data: string): Promise<Record<string, unknown> | null> {
+    const appConfig = staticConfig("app");
+    const keys = SessionInitializer.appKeys;
+    const cipher = appConfig.cipher;
+
+    if (!cipher) throw new Error("Missing cipher in configuration");
+
+    const mode = cipher.toUpperCase().includes("GCM") ? "AES-GCM" : "AES-CBC";
+    const ivLength = mode === "AES-GCM" ? 12 : 16;
+
+    const rawData = base64ToUint8Array(data);
+    const iv = rawData.slice(0, ivLength);
+    const encryptedContent = rawData.slice(ivLength);
+
+    for (const keyMaterial of keys) {
+      try {
+        const key = await crypto.subtle.importKey(
+          "raw",
+          keyMaterial,
+          { name: mode },
+          false,
+          ["decrypt"]
+        );
+
+        const decrypted = await crypto.subtle.decrypt(
+          { name: mode, iv },
+          key,
+          encryptedContent
+        );
+        const decoded = new TextDecoder().decode(decrypted);
+        return JSON.parse(decoded);
+      } catch {
+        continue;
+      }
+    }
+
+    return null;
   }
 
   private async loadSession(sid: string) {
@@ -329,7 +326,7 @@ export class SessionModifier {
       return {};
     }
     if (isEncrypt) {
-      const decryptedData = await decrypt(data as string);
+      const decryptedData = await this.decrypt(data as string);
       if (decryptedData === null) {
         throw new Error("Failed to decrypt session data");
       }
@@ -350,83 +347,6 @@ function resolveAppKey(rawKey: string, keyBytes: number): Uint8Array {
 
   const encoder = new TextEncoder();
   return encoder.encode(rawKey).slice(0, keyBytes);
-}
-
-export async function encrypt(data: Record<string, unknown>): Promise<string> {
-  const appConfig = staticConfig("app");
-  const cipher = appConfig.cipher;
-
-  const mode = cipher.toUpperCase().includes("GCM") ? "AES-GCM" : "AES-CBC";
-  const ivLength = mode === "AES-GCM" ? 12 : 16;
-
-  const iv = crypto.getRandomValues(new Uint8Array(ivLength));
-  const keyMaterial = SessionInitializer.appKeys[0];
-  if (!keyMaterial) {
-    throw new Error("No app key available for encryption");
-  }
-
-  const key = await crypto.subtle.importKey(
-    "raw",
-    keyMaterial,
-    { name: mode },
-    false,
-    ["encrypt"]
-  );
-
-  const encoded = new TextEncoder().encode(JSON.stringify(data));
-
-  const encrypted = await crypto.subtle.encrypt(
-    { name: mode, iv },
-    key,
-    encoded
-  );
-
-  const combined = new Uint8Array(iv.length + encrypted.byteLength);
-  combined.set(iv, 0);
-  combined.set(new Uint8Array(encrypted), iv.length);
-
-  return uint8ArrayToBase64(combined);
-}
-
-export async function decrypt(
-  data: string
-): Promise<Record<string, unknown> | null> {
-  const appConfig = staticConfig("app");
-  const keys = SessionInitializer.appKeys;
-  const cipher = appConfig.cipher;
-
-  if (!cipher) throw new Error("Missing cipher in configuration");
-
-  const mode = cipher.toUpperCase().includes("GCM") ? "AES-GCM" : "AES-CBC";
-  const ivLength = mode === "AES-GCM" ? 12 : 16;
-
-  const rawData = base64ToUint8Array(data);
-  const iv = rawData.slice(0, ivLength);
-  const encryptedContent = rawData.slice(ivLength);
-
-  for (const keyMaterial of keys) {
-    try {
-      const key = await crypto.subtle.importKey(
-        "raw",
-        keyMaterial,
-        { name: mode },
-        false,
-        ["decrypt"]
-      );
-
-      const decrypted = await crypto.subtle.decrypt(
-        { name: mode, iv },
-        key,
-        encryptedContent
-      );
-      const decoded = new TextDecoder().decode(decrypted);
-      return JSON.parse(decoded);
-    } catch {
-      continue;
-    }
-  }
-
-  return null;
 }
 
 export class SessionInitializer {

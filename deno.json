@@ -25,9 +25,7 @@
     "HttpHono": "./vendor/honovel/framework/src/hono/Http/HttpHono.ts",
     "honovel:helpers": "./vendor/honovel/framework/src/framework-utils/index.ts",
     "configs/":"./config/",
-    "Models/": "./app/Models/",
-    "Controllers/": "./app/Http/Controllers/",
-    "Middlewares/": "./app/Http/Middlewares/"
+    "App/": "./app/"
   },
   "lint": {
     "rules": {

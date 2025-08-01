@@ -85,6 +85,8 @@ declare global {
     ...args: any[]
   ) => Promise<number | null | boolean | string | object | []>;
 
+  type nullify = null | undefined;
+
   // const storedRoutes: Record<string, unknown>;
 
   /**

@@ -1,14 +1,12 @@
-import IHonoRequest from "../../../@types/declaration/IHonoRequest.d.ts";
 import { Database } from "Database";
-import { Carbon } from "../framework-utils/index.ts";
-import { CookieKeysCache } from "../hono/Http/HonoCookie.ts";
-import HonoRequest from "../hono/Http/HonoRequest.ts";
+import { Cache } from "Illuminate/Support/Facades/index.ts";
+import { Carbon } from "honovel:helpers";
 import {
   SessionInitializer,
   SessionModifier,
 } from "../hono/Http/HonoSession.ts";
+import { CookieKeysCache } from "../hono/Http/HonoCookie.ts";
 import HonoView from "../hono/Http/HonoView.ts";
-import { Cache, DB } from "Illuminate/Support/Facades/index.ts";
 
 class Boot {
   /**
@@ -19,18 +17,16 @@ class Boot {
    */
   static async init() {
     //
+    Carbon.setCarbonTimezone((staticConfig("app.timezone") as string) || "UTC");
     Cache.init();
-    SessionModifier.init();
     await Database.init();
+  }
+
+  static async finalInit() {
+    SessionModifier.init();
     await SessionInitializer.init();
     CookieKeysCache.init();
     HonoView.init();
-
-    HonoRequest.macro("expectsXml", function () {
-      const accept = (this as IHonoRequest).header("accept") ?? "";
-      return accept.includes("application/xml") || accept.includes("text/xml");
-    });
-    Carbon.setCarbonTimezone((staticConfig("app.timezone") as string) || "UTC");
   }
 }
 

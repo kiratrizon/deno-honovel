@@ -26,6 +26,7 @@ import { Route as Router } from "Illuminate/Support/Facades/index.ts";
 const Route = Router as typeof INRoute;
 
 import ChildKernel from "./Support/ChildKernel.ts";
+import AppServiceProvider from "App/Providers/AppServiceProvider.ts";
 
 const headFunction: MiddlewareHandler = async (c: MyContext, next) => {
   const { request } = c.get("myHono");
@@ -129,7 +130,23 @@ class Server {
   public static async init() {
     await Boot.init();
     this.app = this.generateNewApp({}, true);
+    const ServiceProvider = new AppServiceProvider(this.app as unknown as Hono);
+    await ServiceProvider.register();
+    await ServiceProvider.boot();
 
+    const allProviders = staticConfig("app").providers || [];
+
+    for (const ProviderClass of allProviders) {
+      // Optional: Skip base AppServiceProvider if it was added
+      if (ProviderClass === AppServiceProvider) continue;
+
+      // @ts-ignore //
+      const providerInstance = new ProviderClass(this.app as Hono);
+
+      await providerInstance.register();
+      await providerInstance.boot();
+    }
+    await Boot.finalInit();
     if (isset(env("PHPMYADMIN_HOST"))) {
       this.app.get("/myadmin", async (c) => {
         return c.redirect("/myadmin/", 301);
@@ -240,12 +257,6 @@ class Server {
   private static applyMainMiddleware(key: string, app: HonoType) {
     const mainMiddleware = [key];
     const routeGroupMiddleware = [...toMiddleware(mainMiddleware)];
-    if (key === "web") {
-      app.use("*", async (c, next: Next) => {
-        c.set("from_web", true);
-        await next();
-      });
-    }
     app.use(
       "*",
       honoSession(),

@@ -1,3 +1,13 @@
 .env
 .vscode
 mydocker
+
+/storage/*.key
+/storage/*.log
+/storage/*.txt
+/storage/app/*
+!/storage/app/.gitignore
+/storage/framework/*
+!/storage/framework/.gitignore
+/storage/logs/*
+!/storage/logs/.gitignore
