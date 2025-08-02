@@ -4,6 +4,11 @@ import HonoClosure from "../../framework/src/hono/Http/HonoClosure.ts";
 import { Session } from "Illuminate/Session/index.ts";
 import { ImportSession } from "../../../../environment.ts";
 
+
+type ErrorAndData = {
+  error: Record<string, unknown>;
+  data: Record<string, unknown>;
+}
 export type SessionDataTypes = {
   [key: string]: any
 } & {
@@ -11,8 +16,8 @@ export type SessionDataTypes = {
   _previousUrl: string;
   _newUrl: string;
   _flash: {
-    old: Record<string, unknown>;
-    new: Record<string, unknown>;
+    old: ErrorAndData;
+    new: ErrorAndData;
   }
 } & ImportSession;
 // for Context

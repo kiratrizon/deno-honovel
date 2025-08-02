@@ -6,7 +6,7 @@ export class StartSession {
       request.session.regenerateToken();
     }
     const method = request.method.toUpperCase();
-    if (method === "GET") {
+    if (method === "GET" && !request.ajax()) {
       request.session.put("_previousUrl", request.session.get("_newUrl") || "/");
       request.session.put("_newUrl", request.url());
     }
@@ -15,12 +15,16 @@ export class StartSession {
     if (currentFlash && typeof currentFlash === "object") {
       request.session.put("_flash", {
         // @ts-ignore //
-        old: currentFlash.new || {},
-        new: {},
+        old: currentFlash.new || {
+          data: {},
+          error: {},
+        },
+        new: {
+          data: {},
+          error: {},
+        },
       });
     }
-
-
 
 
     return next();

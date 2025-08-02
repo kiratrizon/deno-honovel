@@ -50,9 +50,10 @@ class HonoDispatch {
         this.#statusCode = 200;
         return c.html(rendered, 200);
       } else if (this.#returnedData instanceof HonoRedirect) {
-        switch ((this.#returnedData as IERedirectResponse).type) {
+        switch (this.#returnedData.type) {
           case "back":
-            return c.redirect(request.header("referer") || "/", 302);
+            // @ts-ignore //
+            return c.redirect(request.session.get("_newUrl") || "/", 302);
           case "redirect":
           case "to":
           case "route":
@@ -144,8 +145,7 @@ class HonoDispatch {
               instantceHeaders.set("Content-Type", "application/octet-stream");
               instantceHeaders.set(
                 "Content-Disposition",
-                `attachment; filename="${
-                  downloadName || path.basename(filePath)
+                `attachment; filename="${downloadName || path.basename(filePath)
                 }"`
               );
 

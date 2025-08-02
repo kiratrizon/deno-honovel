@@ -3,6 +3,7 @@ import "./index.ts";
 import HonoResponse from "../hono/Http/HonoResponse.ts";
 import HonoView from "../hono/Http/HonoView.ts";
 import { AbortError, DDError } from "../Maneuver/HonovelErrors.ts";
+import HonoRedirect from "../hono/Http/HonoRedirect.ts";
 
 globalFn("response", function (html = null) {
   const HResponse = new HonoResponse(html);
@@ -27,4 +28,8 @@ globalFn("dd", (...args: unknown[]) => {
 
 globalFn("abort", (statusCode = 500, message = null) => {
   throw new AbortError(statusCode, message);
+});
+
+globalFn("redirect", () => {
+  return new HonoRedirect();
 });

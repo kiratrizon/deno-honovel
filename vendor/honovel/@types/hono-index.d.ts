@@ -12,8 +12,9 @@ import { Context } from "hono";
 import { HonoTypeImport } from "./declaration/imain.d.ts";
 
 import HttpHono from "HttpHono";
+import IRedirectResponse from "./declaration/IHonoRedirect.d.ts";
 
-export {};
+export { };
 declare global {
   /**
    * Instantiates a new HonoResponse object.
@@ -113,5 +114,19 @@ declare global {
    */
   function abort(statusCode: ContentfulStatusCode, message?: string): never;
 
-  interface MyContext extends Context<HonoTypeImport> {}
+  /**
+   * Redirect to a specified route or URL.
+   * This is used to redirect the user to a different page or route.
+   * Usage:
+   *  redirect().to('/new-path');
+   * redirect().route('home');
+   * redirect().back();
+   * redirect().with('key', 'value');
+   * redirect().withErrors({ error: 'Something went wrong' });
+   * @returns An instance of HonoRedirect.
+   */
+
+  function redirect(): IRedirectResponse;
+
+  interface MyContext extends Context<HonoTypeImport> { }
 }

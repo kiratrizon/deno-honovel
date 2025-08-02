@@ -1,4 +1,4 @@
-import { SessionDataTypes } from "../../../../@types/declaration/imain.d.ts";
+import { ErrorAndData, SessionDataTypes } from "../../../../@types/declaration/imain.d.ts";
 import { NonFunction } from "../../../../@types/declaration/ISession.d.ts";
 
 /**
@@ -12,6 +12,18 @@ export class Session<D extends SessionDataTypes> {
   private values: Record<string, NonFunction<unknown>> & SessionDataTypes;
   constructor(values = {}) {
     this.values = values as SessionDataTypes;
+    if (!keyExist(this.values, "_flash")) {
+      this.values._flash = {
+        old: {
+          error: {},
+          data: {},
+        },
+        new: {
+          error: {},
+          data: {},
+        },
+      } as { old: ErrorAndData; new: ErrorAndData };
+    }
   }
 
   /**
@@ -144,11 +156,17 @@ export class Session<D extends SessionDataTypes> {
   public flash(key: keyof D, value: NonFunction<unknown>) {
     if (!keyExist(this.values, "_flash")) {
       this.put("_flash", {
-        old: {} as Record<string, unknown>,
-        new: {} as Record<string, unknown>,
+        old: {
+          errors: {},
+          data: {},
+        } as Record<string, unknown>,
+        new: {
+          errors: {},
+          data: {},
+        } as Record<string, unknown>,
       });
     }
 
-    this.values._flash.new[key as string] = value;
+    this.values._flash.new.data[key as string] = value;
   }
 }
