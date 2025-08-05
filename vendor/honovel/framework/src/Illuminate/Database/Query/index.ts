@@ -44,8 +44,8 @@ type WhereSeparator = "AND" | "OR";
 const placeHolderuse: string = "?";
 
 // where
-class WhereInterpolator {
-  constructor(private dbType: SupportedDrivers) {}
+export class WhereInterpolator {
+  constructor(private dbType: string) {}
   protected fromJoin: boolean = false;
   protected whereClauses: [string, any[]][] = [];
 
@@ -381,7 +381,7 @@ class WhereInterpolator {
 }
 
 // join
-class JoinInterpolator extends WhereInterpolator {
+export class JoinInterpolator extends WhereInterpolator {
   private fromTable: string = "";
   private myTable: string = "";
   protected override fromJoin = true;
@@ -447,33 +447,6 @@ class JoinInterpolator extends WhereInterpolator {
   }
 }
 
-class Having {
-  // deno-lint-ignore no-explicit-any
-  protected havingClauses: [string, any[]][] = [];
-
-  public having(column: Raw, value: WhereValue): this;
-  public having(column: Raw, operator: string, value: WhereValue): this;
-  public having(callback: (q: Having) => void): this;
-  public having(...args: WhereValue[]): this {
-    if (args.length === 1 && isFunction(args[0])) {
-      //
-      return this;
-    }
-
-    return this;
-  }
-
-  // deno-lint-ignore no-explicit-any
-  private getHavingClause(): [string, any[]][] {
-    return this.havingClauses;
-  }
-  public orHaving() {}
-
-  public havingRaw() {}
-
-  public orHavingRaw() {}
-}
-
 export class Builder extends WhereInterpolator {
   private limitValue: number | null = null;
   private offsetValue: number | null = null;
@@ -493,7 +466,7 @@ export class Builder extends WhereInterpolator {
       table: sqlstring;
       fields?: sqlstring[];
     },
-    private dbUsed: SupportedDrivers
+    private dbUsed: string = DB.getDefaultConnection()
   ) {
     super(dbUsed);
     this.table = this.extract(table);
@@ -1006,10 +979,11 @@ export class Builder extends WhereInterpolator {
     const field = this.fields;
     const joins = this.joinClauses;
     const where = this.whereClauses;
-    const limit = this.limitValue;
-    const offset = this.offsetValue;
-    const orderBy = this.orderByValue;
     const groupBy = this.groupByValue;
+    const having = this.havingClauses;
+    const orderBy = this.orderByValue;
+    const offset = this.offsetValue;
+    const limit = this.limitValue;
 
     let sql = `SELECT`;
     const fieldStr: string[] = [];
@@ -1045,6 +1019,16 @@ export class Builder extends WhereInterpolator {
     }
     if (groupBy.length > 0) {
       sql += " GROUP BY " + groupBy.join(", ");
+    }
+    if (having.length > 0) {
+      sql +=
+        " HAVING " +
+        having
+          .map(([clause, val]) => {
+            this.#params.push(...val);
+            return clause;
+          })
+          .join(" ");
     }
     if (orderBy.length > 0) {
       sql +=
@@ -1117,12 +1101,6 @@ export class Builder extends WhereInterpolator {
   //   const result = await this.database.runQuery<"delete">(sql, values);
   //   return result;
   // }
-
-  private buildWhereClause(): string {
-    return this.getWhereClauses()
-      .map(([clause]) => clause)
-      .join(" ");
-  }
 
   public mergeBindings(param: Builder): this {
     if (!(param instanceof Builder)) {
@@ -1270,4 +1248,108 @@ export class Builder extends WhereInterpolator {
 
     return false;
   }
+
+  private havingClauses: [string, WhereValue][] = [];
+  /**
+   * Adds a HAVING clause to the query.
+   *
+   * This is used to filter grouped results based on aggregate values.
+   * It should be used in conjunction with GROUP BY and aggregate functions
+   * like COUNT, SUM, AVG, etc.
+   *
+   * @param column - The name of the aggregated column or alias to compare.
+   * @param operator - The comparison operator (e.g., '=', '>', '<=', etc.).
+   * @param value - The value to compare against.
+   *
+   * @example
+   *   .having('total_orders', '>', 5)
+   */
+  public having(column: string, value: WhereValue): this;
+  public having(
+    column: string,
+    operator: HavingOperator,
+    value: WhereValue
+  ): this;
+  public having(
+    column: string,
+    operatorOrValue: HavingOperator | WhereValue,
+    maybeValue?: WhereValue
+  ): this {
+    let operator: HavingOperator = "=";
+    let value: WhereValue;
+
+    if (maybeValue !== undefined) {
+      operator = operatorOrValue;
+      value = maybeValue;
+    } else {
+      value = operatorOrValue;
+    }
+    this.processHaving("AND", column, operator, value);
+    return this;
+  }
+
+  // Or
+  /**
+   * Adds an OR HAVING clause to the query.
+   * This is used to filter grouped results based on aggregate values.
+   * It should be used in conjunction with GROUP BY and aggregate functions
+   * like COUNT, SUM, AVG, etc.
+   * @param column - The name of the aggregated column or alias to compare.
+   * @param operator - The comparison operator (e.g., '=', '>', '<=', etc.).
+   * @param value - The value to compare against.
+   */
+
+  public orHaving(column: string, value: WhereValue): this;
+  public orHaving(
+    column: string,
+    operator: HavingOperator,
+    value: WhereValue
+  ): this;
+  public orHaving(
+    column: string,
+    operatorOrValue: HavingOperator | WhereValue,
+    maybeValue?: WhereValue
+  ): this {
+    let operator: HavingOperator = "=";
+    let value: WhereValue;
+    if (maybeValue !== undefined) {
+      operator = operatorOrValue;
+      value = maybeValue;
+    } else {
+      value = operatorOrValue;
+    }
+
+    if (this.havingClauses.length === 0) {
+      throw new SQLError("Provide a valid HAVING clause first before using OR");
+    }
+
+    this.processHaving("OR", column, operator, value);
+    return this;
+  }
+
+  private processHaving(
+    type: "AND" | "OR",
+    column: string,
+    operator: HavingOperator,
+    value: WhereValue
+  ): void {
+    const db = new Database(this.dbUsed);
+    column = db.quoteIdentifier(column);
+    const clause = `${column} ${operator} ?`;
+    const values: WhereValue[] = [value];
+    if (this.havingClauses.length > 0) {
+      this.havingClauses.push([`${type} ${clause}`, values]);
+    } else {
+      this.havingClauses.push([clause, values]);
+    }
+  }
 }
+type HavingOperator =
+  | "="
+  | "!="
+  | "<"
+  | "<="
+  | ">"
+  | ">="
+  | "LIKE"
+  | "NOT LIKE";

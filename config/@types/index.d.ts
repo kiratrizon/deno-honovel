@@ -98,6 +98,7 @@ export interface AppConfig {
 interface AuthProvider {
   driver: "eloquent";
   model: typeof Authenticatable;
+  connection?: string;
   /**
    * This is the key used to check in database for the model.
    */
@@ -141,13 +142,8 @@ interface MySQLConnectionOptions {
   maxConnection: number;
 }
 
-interface MySQLReadWriteConfig {
-  read?: MySQLConnectionConfigRaw;
-  write?: MySQLConnectionConfigRaw;
-  sticky?: boolean;
-}
-
 export interface MySQLConnectionConfigRaw {
+  driver: "mysql";
   port?: number;
   user?: string;
   host?: string | string[];
@@ -157,11 +153,34 @@ export interface MySQLConnectionConfigRaw {
   timezone?: string;
   ssl?: string | SslOptions;
   options?: MySQLConnectionOptions;
+
+  read?: {
+    host?: string | string[];
+    port?: number;
+    user?: string;
+    password?: string;
+    database?: string;
+    charset?: string;
+    timezone?: string;
+    ssl?: string | SslOptions;
+  };
+  write?: {
+    host?: string | string[];
+    port?: number;
+    user?: string;
+    password?: string;
+    database?: string;
+    charset?: string;
+    timezone?: string;
+    ssl?: string | SslOptions;
+  };
+  sticky?: boolean;
 }
 
-type MySQLConnectionConfig = MySQLConnectionConfigRaw & MySQLReadWriteConfig;
+type MySQLConnectionConfig = MySQLConnectionConfigRaw;
 
-interface PostgresConnectionConfig {
+export interface PostgresConnectionConfig {
+  driver: "pgsql";
   host: string;
   port: number;
   user: string;
@@ -175,12 +194,12 @@ interface PostgresConnectionConfig {
 }
 
 interface SQLiteConnectionConfig {
+  driver: "sqlite";
   database: string;
-  prefix?: string;
-  foreign_key_constraints?: boolean;
 }
 
-interface SqlSrvConnectionConfig {
+export interface SqlSrvConnectionConfig {
+  driver: "sqlsrv";
   host: string;
   port?: number;
   user: string;
@@ -191,12 +210,23 @@ interface SqlSrvConnectionConfig {
   options?: Record<string, unknown>;
 }
 
-interface DatabaseConnections {
-  mysql: MySQLConnectionConfig;
-  pgsql: PostgresConnectionConfig;
-  sqlite: SQLiteConnectionConfig;
-  sqlsrv?: SqlSrvConnectionConfig; // optional if not used
+export interface MongoConnectionConfig {
+  driver: "mongodb"; // 👈 required
+  uri: string;
+  database: string;
+  options?: {
+    database: "admin" | string;
+  };
 }
+
+type DatabaseConnections = {
+  [connectionName: string]:
+    | MySQLConnectionConfig
+    | PostgresConnectionConfig
+    | SQLiteConnectionConfig
+    | SqlSrvConnectionConfig
+    | MongoConnectionConfig;
+};
 
 type RedisClient = "ioredis" | "node-redis" | "upstash" | "deno-redis";
 
@@ -225,14 +255,38 @@ export type RedisConfigure<T extends RedisClient> = T extends "deno-redis"
     }
   : never;
 
-interface RedisConfig<T extends RedisClient = RedisClient> {
-  client: T;
+type RedisUpstash = {
+  client: "upstash";
   default: string;
-  connections: Record<string, RedisConfigure<T>>;
-}
+  connections: Record<string, RedisConfigure<"upstash">>;
+};
+
+type RedisDenoRedis = {
+  client: "deno-redis";
+  default: string;
+  connections: Record<string, RedisConfigure<"deno-redis">>;
+};
+
+type RedisNodeRedis = {
+  client: "node-redis";
+  default: string;
+  connections: Record<string, RedisConfigure<"node-redis">>;
+};
+
+type RedisIORedis = {
+  client: "ioredis";
+  default: string;
+  connections: Record<string, RedisConfigure<"ioredis">>;
+};
+
+type RedisConfig =
+  | RedisUpstash
+  | RedisDenoRedis
+  | RedisNodeRedis
+  | RedisIORedis;
 
 interface DatabaseConfig {
-  default: SupportedDrivers;
+  default: string;
   connections: DatabaseConnections;
   redis?: RedisConfig;
 }
@@ -293,7 +347,7 @@ export interface CorsConfig {
 }
 
 export interface SessionConfig {
-  driver: CacheDriver | "cache";
+  driver: Exclude<CacheDriver, "dynamodb" | "mongodb"> | "cache";
 
   lifetime: number; // session lifetime in minutes
 
@@ -335,39 +389,80 @@ export type CacheDriver =
   | "database"
   | "memory"
   | "memcached"
-  | "dynamodb";
+  | "dynamodb"
+  | "mongodb";
+
+type CacheStoreFile = {
+  driver: "file";
+  path: string;
+  prefix?: string;
+};
+
+type CacheStoreRedis = {
+  driver: "redis";
+  connection: string;
+  prefix?: string;
+};
+
+type CacheStoreObject = {
+  driver: "object";
+  prefix?: string;
+};
+
+type CacheStoreDatabase = {
+  driver: "database";
+  connection: string;
+  table: string;
+  prefix?: string;
+};
+
+type CacheStoreMemory = {
+  driver: "memory";
+  prefix?: string;
+};
+
+type CacheStoreMemcached = {
+  driver: "memcached";
+  servers: {
+    host: string;
+    port: number;
+    weight?: number;
+  }[];
+  prefix?: string;
+};
+
+type CacheStoreDynamoDB = {
+  driver: "dynamodb";
+  key: string;
+  secret: string;
+  region: string;
+  partitionKey?: string;
+  prefix?: string;
+};
+
+type CacheStoreMongoDB = {
+  driver: "mongodb";
+  connection: string;
+  collection: string;
+  prefix?: string;
+};
+
+type CacheStore = Record<
+  string,
+  | CacheStoreFile
+  | CacheStoreRedis
+  | CacheStoreObject
+  | CacheStoreDatabase
+  | CacheStoreMemory
+  | CacheStoreMemcached
+  | CacheStoreDynamoDB
+  | CacheStoreMongoDB
+>;
 
 export interface CacheConfig {
   default?: string;
   prefix?: string;
-  stores?: Record<
-    string,
-    {
-      driver: CacheDriver;
-      // For file driver
-      path?: string;
-      // Uses connection depends on driver
-      connection?: string;
-      // per-store override
-      prefix?: string;
-      // for database driver and dynamodb driver
-      table?: string;
-      // for memcached driver
-      servers?: {
-        host: string;
-        port: number;
-        weight?: number;
-      }[];
-      // key for dynamodb
-      key?: string;
-      // secret for dynamodb
-      secret?: string;
-      // region for dynamodb
-      region?: string;
-      // for dynamodb
-      partitionKey?: string;
-    }
-  >;
+  stores?: CacheStore;
 }
 
 // this is the basis for the config items

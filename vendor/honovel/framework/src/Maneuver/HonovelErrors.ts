@@ -1,5 +1,5 @@
 export class DDError {
-  constructor(private _data: unknown) { }
+  constructor(private _data: unknown) {}
 
   public get data(): unknown {
     return this._data;
@@ -145,21 +145,21 @@ export class AbortError {
     511: "Network Authentication Required",
   };
 
-
   constructor(
     private readonly statusCode: HttpStatusCodeValue = 500,
-    private readonly message: string = ""
+    private readonly message: string | Record<string, unknown> = ""
   ) {
     if (!keyExist(this.httpStatusMessages, this.statusCode)) {
       this.statusCode = 500;
     }
-    if (empty(this.message) || !isString(this.message)) {
+    if (empty(this.message)) {
       this.message = this.httpStatusMessages[this.statusCode];
     }
   }
 
   public toJson(): Response {
-    return new Response(JSON.stringify({ message: this.msg }), {
+    const data = isString(this.msg) ? { message: this.msg } : this.msg;
+    return new Response(JSON.stringify(data), {
       status: this.code,
       headers: {
         "Content-Type": "application/json",
@@ -170,7 +170,7 @@ export class AbortError {
   public get code(): HttpStatusCodeValue {
     return this.statusCode;
   }
-  public get msg(): string {
+  public get msg(): string | Record<string, unknown> {
     return this.message;
   }
 }

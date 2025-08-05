@@ -78,6 +78,7 @@ export class SessionModifier {
     const type = SessionModifier.sesConfig.driver || "file";
     const keyStore = `${type}_session`;
     const prefix = SessionModifier.sesConfig.prefix || "sess:";
+    const stores = staticConfig("cache").stores || {};
     const configuration: {
       // For file driver
       path: string | null;
@@ -124,13 +125,14 @@ export class SessionModifier {
         break;
       }
       case "memcached": {
-        configuration.servers =
-          staticConfig("cache").stores?.[
-            SessionModifier.sesConfig.store || "default"
-          ]?.servers || [];
-        if (configuration.servers.length === 0) {
-          throw new Error("No Memcached servers configured.");
+        const chosenStore =
+          stores[SessionModifier.sesConfig.store || "default"];
+        if (chosenStore?.driver !== "memcached") {
+          throw new Error(
+            `Session store "${SessionModifier.sesConfig.store}" is not a memcached driver.`
+          );
         }
+        configuration.servers = chosenStore.servers;
         configuration.prefix = prefix;
         break;
       }

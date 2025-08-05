@@ -1,7 +1,7 @@
 import { CacheConfig } from "./@types/index.d.ts";
 
 const constant: CacheConfig = {
-  default: env("CACHE_DRIVER", "memory"),
+  default: "mongo",
   stores: {
     file: {
       driver: "file",
@@ -30,6 +30,12 @@ const constant: CacheConfig = {
           weight: env("MEMCACHED_WEIGHT", 100),
         },
       ],
+    },
+    mongo: {
+      driver: "mongodb",
+      prefix: env("CACHE_PREFIX", "honovel_cache"),
+      collection: env("MONGODB_CACHE_COLLECTION", "cache"),
+      connection: "mongodb",
     },
   },
 };

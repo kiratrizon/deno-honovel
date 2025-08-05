@@ -13,9 +13,12 @@ const myCommand = new Command();
 
 import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import path from "node:path";
-import { SupportedDrivers } from "configs/@types/index.d.ts";
 import { envs } from "../../../../../environment.ts";
 import { PreventRequestDuringMaintenance } from "Illuminate/Foundation/Http/Middleware/index.ts";
+import {
+  MySQLConnectionConfig,
+  SupportedDrivers,
+} from "configs/@types/index.d.ts";
 class MyArtisan {
   constructor() {}
   private async createConfig(options: { force?: boolean }, name: string) {
@@ -74,7 +77,7 @@ class MyArtisan {
     return;
   }
 
-  private async getBatchNumber(db: SupportedDrivers): Promise<number> {
+  private async getBatchNumber(db: string): Promise<number> {
     const result = await DB.connection(db)
       .table("migrations")
       .select(DB.raw("MAX(batch) as max_batch"))
@@ -126,10 +129,13 @@ class MyArtisan {
     }
   }
 
-  private async askIfDBNotExist(dbType: SupportedDrivers) {
+  private async askIfDBNotExist(connection: string) {
+    const dbType = staticConfig("database").connections[connection]
+      .driver as SupportedDrivers;
     switch (dbType) {
       case "mysql": {
-        const config = staticConfig("database").connections?.mysql || {};
+        const config = (staticConfig("database").connections?.[connection] ||
+          {}) as MySQLConnectionConfig;
         const poolParams = {
           host:
             (isArray(config.host) ? config.host[0] : config.host) ||
@@ -183,7 +189,7 @@ class MyArtisan {
   private async runMigrations(options: {
     seed?: boolean;
     path?: string;
-    db: SupportedDrivers;
+    db: string;
     force: boolean;
   }) {
     if (!options.force) {
@@ -218,7 +224,7 @@ class MyArtisan {
   private async freshMigrations(options: {
     seed?: boolean;
     path?: string;
-    db: SupportedDrivers;
+    db: string;
     force: boolean;
   }) {
     if (!options.force) {
@@ -254,7 +260,7 @@ class MyArtisan {
     seed?: boolean;
     step?: number;
     path?: string;
-    db: SupportedDrivers;
+    db: string;
     force: boolean;
   }) {
     if (!options.force) {
@@ -265,7 +271,7 @@ class MyArtisan {
     // Logic to rollback and re-run migrations
   }
 
-  private async createMigrationTable(dbType: SupportedDrivers) {
+  private async createMigrationTable(dbType: string) {
     const tableName = "migrations";
     const migrationClass = new (class extends Migration {
       async up() {
@@ -291,7 +297,7 @@ class MyArtisan {
     await migrationClass.up();
   }
 
-  private async dropAllTables(dbType: SupportedDrivers): Promise<void> {
+  private async dropAllTables(dbType: string): Promise<void> {
     let tables: string[] = [];
 
     switch (dbType) {
@@ -465,9 +471,9 @@ class MyArtisan {
       .option("--db <db:string>", "Specify the database connection to use")
       .option("--force", "Force the migration without confirmation")
       .action((options) => {
-        const db: SupportedDrivers =
-          (options.db as SupportedDrivers) ||
-          (staticConfig("database").default as SupportedDrivers) ||
+        const db: string =
+          (options.db as string) ||
+          (staticConfig("database").default as string) ||
           "mysql";
         return this.runMigrations({
           ...options,
@@ -503,9 +509,9 @@ class MyArtisan {
       .option("--db <db:string>", "Specify the database connection to use")
       .option("--force", "Force the fresh migration without confirmation")
       .action((options) => {
-        const db: SupportedDrivers =
-          (options.db as SupportedDrivers) ||
-          (staticConfig("database").default as SupportedDrivers) ||
+        const db: string =
+          (options.db as string) ||
+          (staticConfig("database").default as string) ||
           "mysql";
         return this.freshMigrations({
           ...options,
@@ -524,9 +530,9 @@ class MyArtisan {
       .option("--db <db:string>", "Specify the database connection to use")
       .option("--force", "Force the refresh migration without confirmation")
       .action((options) => {
-        const db: SupportedDrivers =
-          (options.db as SupportedDrivers) ||
-          (staticConfig("database").default as SupportedDrivers) ||
+        const db: string =
+          (options.db as string) ||
+          (staticConfig("database").default as string) ||
           "mysql";
         return this.refreshMigrations({
           ...options,

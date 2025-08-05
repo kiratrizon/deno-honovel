@@ -1,7 +1,7 @@
 import { Str } from "Illuminate/Support/index.ts";
 import { SessionConfig } from "./@types/index.d.ts";
 const constant: SessionConfig = {
-  driver: env("SESSION_DRIVER", "database"),
+  driver: "cache",
 
   lifetime: env("SESSION_LIFETIME", 120),
 

@@ -167,18 +167,21 @@ export class Database {
   // deno-lint-ignore no-explicit-any
   private static bindings: any[] = [Carbon]; // bindings that needs to use toString() method
   public static connections: Record<
-    SupportedDrivers,
+    string,
     {
+      driver: SupportedDrivers;
       read: (MPool | PPool)[];
       write: (MPool | PPool)[];
     }
-  > = {
-    mysql: { read: [], write: [] },
-    pgsql: { read: [], write: [] },
-    sqlite: { read: [], write: [] },
-    sqlsrv: { read: [], write: [] },
-  };
-  constructor(private dbUsed: SupportedDrivers) {}
+  > = {};
+  private readonly dbUsed: SupportedDrivers;
+  constructor(private connection: string) {
+    this.dbUsed = staticConfig("database").connections[this.connection]
+      .driver as SupportedDrivers;
+    if (!["mysql", "sqlite", "pgsql", "sqlsrv"].includes(this.dbUsed)) {
+      throw new Error(`Unsupported database type: ${this.dbUsed}`);
+    }
+  }
   private static readQueries: string[] = [
     "select",
     "pragma", // SQLite
@@ -194,7 +197,7 @@ export class Database {
     params: unknown[] = []
   ): Promise<QueryResultDerived[T]> {
     await Database.init();
-    const dbType = this.dbUsed || staticConfig("database").default || "mysql";
+    const dbType = this.dbUsed;
 
     if (
       !isset(env("DENO_DEPLOYMENT_ID")) &&
@@ -209,26 +212,18 @@ export class Database {
     const [newQuery, newParams] = this.beforeQuery(query, params);
     const dbKeys = Object.keys(mappedDBType);
     if (dbKeys.includes(dbType.toLowerCase())) {
-      let client;
-      if (dbType === "sqlite") {
-        const sqliteModule = await import("jsr:@db/sqlite");
-        const SqliteDB = sqliteModule.Database;
-        const dbConn = new SqliteDB(databasePath("database.sqlite"));
-        client = dbConn;
-      } else {
-        const queryType = newQuery.trim().split(" ")[0].toLowerCase();
-        const isReadQuery = Database.readQueries.includes(queryType);
-        const useClient = isReadQuery
-          ? Database.connections[dbType].read
-          : Database.connections[dbType].write;
-        client = useClient[Math.floor(Math.random() * useClient.length)];
-        if (!client) {
-          throw new Error(
-            `No ${dbType} client available for ${
-              isReadQuery ? "read" : "write"
-            } operations.`
-          );
-        }
+      const queryType = newQuery.trim().split(" ")[0].toLowerCase();
+      const isReadQuery = Database.readQueries.includes(queryType);
+      const useClient = isReadQuery
+        ? Database.connections[this.connection].read
+        : Database.connections[this.connection].write;
+      const client = useClient[Math.floor(Math.random() * useClient.length)];
+      if (!client) {
+        throw new Error(
+          `No ${dbType} client available for ${
+            isReadQuery ? "read" : "write"
+          } operations.`
+        );
       }
 
       // @ts-ignore //
@@ -247,95 +242,147 @@ export class Database {
       return;
     }
     const dbObj = staticConfig("database");
-    const forMySQL = dbObj?.connections?.mysql;
-    if (isset(forMySQL)) {
-      const defaultPassword = forMySQL.password || "";
-      const defaultHost = isArray(forMySQL.host)
-        ? forMySQL.host
-        : [forMySQL.host || "localhost"];
-      const defaultPort = forMySQL.port || 3306;
-      const defaultDatabase = forMySQL.database;
-      const defaultUser = forMySQL.user || "root";
-      const defaultCharset = forMySQL.charset || "utf8mb4";
-      const defaultSSL = forMySQL.ssl;
-      const defaultOptions: MySQLConnectionConfigRaw["options"] =
-        forMySQL.options;
-      if (
-        !isset(forMySQL.write) ||
-        (!empty(forMySQL.write) && !isObject(forMySQL.write))
-      ) {
-        defaultHost.forEach((host) => {
-          const poolParams: Partial<ConnectionOptions> = {
-            host,
-            port: defaultPort,
-            user: defaultUser,
-            password: defaultPassword,
-            database: defaultDatabase,
-            charset: defaultCharset,
-            ssl: defaultSSL,
-          };
-          if (isset(defaultOptions?.maxConnection)) {
-            poolParams.connectionLimit = defaultOptions.maxConnection;
-          }
-          Database.connections.mysql.write.push(mysql.createPool(poolParams));
-        });
-      } else {
-        const writeHosts = isArray(forMySQL.write?.host)
-          ? forMySQL.write.host
-          : [forMySQL.write?.host || "localhost"];
-        writeHosts.forEach((host) => {
-          const poolParams: Partial<ConnectionOptions> = {
-            host,
-            port: forMySQL.write?.port || defaultPort,
-            user: forMySQL.write?.user || defaultUser,
-            password: forMySQL.write?.password || defaultPassword,
-            database: forMySQL.write?.database || defaultDatabase,
-            charset: forMySQL.write?.charset || defaultCharset,
-            ssl: forMySQL.write?.ssl || defaultSSL,
-          };
-          if (isset(defaultOptions?.maxConnection)) {
-            poolParams.connectionLimit = defaultOptions.maxConnection;
-          }
-          Database.connections.mysql.write.push(mysql.createPool(poolParams));
-        });
-      }
 
-      if (
-        !isset(forMySQL.read) ||
-        (!empty(forMySQL.read) && !isObject(forMySQL.read))
-      ) {
-        Database.connections.mysql.read = Database.connections.mysql.write;
-      } else {
-        const readHosts = isArray(forMySQL.read?.host)
-          ? forMySQL.read.host
-          : [forMySQL.read?.host || "localhost"];
-        readHosts.forEach((host) => {
-          const poolParams: Partial<ConnectionOptions> = {
-            host,
-            port: forMySQL.read?.port || defaultPort,
-            user: forMySQL.read?.user || defaultUser,
-            password: forMySQL.read?.password || defaultPassword,
-            database: forMySQL.read?.database || defaultDatabase,
-            charset: forMySQL.read?.charset || defaultCharset,
-            ssl: forMySQL.read?.ssl || defaultSSL,
-          };
-          if (isset(defaultOptions?.maxConnection)) {
-            poolParams.connectionLimit = defaultOptions.maxConnection;
-          }
-          Database.connections.mysql.read.push(mysql.createPool(poolParams));
-        });
-      }
+    const connections = dbObj?.connections || {};
+    if (!isset(connections) || !isObject(connections)) {
+      throw new Error("Database connections are not configured properly.");
     }
-    const forPgSQL = dbObj?.connections?.pgsql;
-    if (isset(forPgSQL)) {
-      // to be implemented later
+    const connectionEntries = Object.entries(connections);
+    for (const [key, value] of connectionEntries) {
+      if (isset(env("DENO_DEPLOYMENT_ID")) && value.driver === "sqlite") {
+        continue;
+      }
+      if (!isset(Database.connections[key]) && value.driver !== "mongodb") {
+        Database.connections[key] = {
+          driver: value.driver as SupportedDrivers,
+          read: [],
+          write: [],
+        };
+      }
+      switch (value.driver) {
+        case "mysql": {
+          const forMySQL = value;
+          if (isset(forMySQL)) {
+            const defaultPassword = forMySQL.password || "";
+            const defaultHost = isArray(forMySQL.host)
+              ? forMySQL.host
+              : [forMySQL.host || "localhost"];
+            const defaultPort = forMySQL.port || 3306;
+            const defaultDatabase = forMySQL.database;
+            const defaultUser = forMySQL.user || "root";
+            const defaultCharset = forMySQL.charset || "utf8mb4";
+            const defaultSSL = forMySQL.ssl;
+            const defaultOptions: MySQLConnectionConfigRaw["options"] =
+              forMySQL.options;
+            if (
+              !isset(forMySQL.write) ||
+              (!empty(forMySQL.write) && !isObject(forMySQL.write))
+            ) {
+              defaultHost.forEach((host) => {
+                const poolParams: Partial<ConnectionOptions> = {
+                  host,
+                  port: defaultPort,
+                  user: defaultUser,
+                  password: defaultPassword,
+                  database: defaultDatabase,
+                  charset: defaultCharset,
+                  ssl: defaultSSL,
+                };
+                if (isset(defaultOptions?.maxConnection)) {
+                  poolParams.connectionLimit = defaultOptions.maxConnection;
+                }
+                Database.connections[key].write.push(
+                  mysql.createPool(poolParams)
+                );
+              });
+            } else {
+              const writeHosts = isArray(forMySQL.write?.host)
+                ? forMySQL.write.host
+                : [forMySQL.write?.host || "localhost"];
+              writeHosts.forEach((host) => {
+                const poolParams: Partial<ConnectionOptions> = {
+                  host,
+                  port: forMySQL.write?.port || defaultPort,
+                  user: forMySQL.write?.user || defaultUser,
+                  password: forMySQL.write?.password || defaultPassword,
+                  database: forMySQL.write?.database || defaultDatabase,
+                  charset: forMySQL.write?.charset || defaultCharset,
+                  ssl: forMySQL.write?.ssl || defaultSSL,
+                };
+                if (isset(defaultOptions?.maxConnection)) {
+                  poolParams.connectionLimit = defaultOptions.maxConnection;
+                }
+                Database.connections[key].write.push(
+                  mysql.createPool(poolParams)
+                );
+              });
+            }
+
+            if (
+              !isset(forMySQL.read) ||
+              (!empty(forMySQL.read) && !isObject(forMySQL.read))
+            ) {
+              Database.connections[key].read = Database.connections[key].write;
+            } else {
+              const readHosts = isArray(forMySQL.read?.host)
+                ? forMySQL.read.host
+                : [forMySQL.read?.host || "localhost"];
+              readHosts.forEach((host) => {
+                const poolParams: Partial<ConnectionOptions> = {
+                  host,
+                  port: forMySQL.read?.port || defaultPort,
+                  user: forMySQL.read?.user || defaultUser,
+                  password: forMySQL.read?.password || defaultPassword,
+                  database: forMySQL.read?.database || defaultDatabase,
+                  charset: forMySQL.read?.charset || defaultCharset,
+                  ssl: forMySQL.read?.ssl || defaultSSL,
+                };
+                if (isset(defaultOptions?.maxConnection)) {
+                  poolParams.connectionLimit = defaultOptions.maxConnection;
+                }
+                Database.connections[key].read.push(
+                  mysql.createPool(poolParams)
+                );
+              });
+            }
+          }
+          break;
+        }
+        case "pgsql": {
+          const forPgSQL = value;
+          if (isset(forPgSQL)) {
+            // to be implemented later
+          }
+          break;
+        }
+        case "sqlite": {
+          const forSQLite = value;
+          if (isset(forSQLite)) {
+            const dbPath =
+              forSQLite.database || databasePath("database.sqlite");
+            if (!dbPath) {
+              throw new Error("Database path is not configured.");
+            }
+            const sqliteModule = await import("jsr:@db/sqlite");
+            const SqliteDB = sqliteModule.Database;
+            // @ts-ignore //
+            Database.connections[key].write.push(new SqliteDB(dbPath));
+            // @ts-ignore //
+            Database.connections[key].read.push(new SqliteDB(dbPath));
+          }
+          break;
+        }
+        case "sqlsrv": {
+          break;
+        }
+      }
     }
     this.doneInit = true;
   }
 
   // deno-lint-ignore no-explicit-any
   private beforeQuery(query: string, params: any[] = []): [string, any[]] {
-    const dbType = this.dbUsed || staticConfig("database").default || "mysql";
+    const dbType = this.dbUsed;
 
     let index = 0;
     let result = "";
@@ -605,6 +652,44 @@ export class Database {
       default:
         throw new Error(`Unsupported column type: ${col.type}`);
     }
+  }
+
+  public updateBuilder(
+    table: string,
+    data: Record<string, unknown>,
+    where: Record<string, unknown>
+  ): [string, unknown[]] {
+    if (empty(table) || !isString(table)) {
+      throw new Error("Table name must be a non-empty string.");
+    }
+    if (empty(data) || !isObject(data)) {
+      throw new Error("Data must be a non-empty object.");
+    }
+    if (empty(where) || !isObject(where)) {
+      throw new Error("Where clause must be a non-empty object.");
+    }
+
+    // Generate SET clause
+    const setClauses: string[] = [];
+    const values: unknown[] = [];
+
+    for (const [key, value] of Object.entries(data)) {
+      setClauses.push(`${this.quoteIdentifier(key)} = ?`);
+      values.push(value);
+    }
+
+    // Generate WHERE clause
+    const whereClauses: string[] = [];
+    for (const [key, value] of Object.entries(where)) {
+      whereClauses.push(`${this.quoteIdentifier(key)} = ?`);
+      values.push(value);
+    }
+
+    const sql = `UPDATE ${this.quoteIdentifier(table)} SET ${setClauses.join(
+      ", "
+    )} WHERE ${whereClauses.join(" AND ")}`;
+
+    return [sql, values];
   }
 }
 

@@ -14,7 +14,7 @@ import { HonoTypeImport } from "./declaration/imain.d.ts";
 import HttpHono from "HttpHono";
 import IRedirectResponse from "./declaration/IHonoRedirect.d.ts";
 
-export { };
+export {};
 declare global {
   /**
    * Instantiates a new HonoResponse object.
@@ -112,7 +112,10 @@ declare global {
    * @param message - Optional message to include in the response.
    * @returns Never returns;
    */
-  function abort(statusCode: ContentfulStatusCode, message?: string): never;
+  function abort(
+    statusCode: ContentfulStatusCode,
+    message?: string | Record<string, unknown>
+  ): never;
 
   /**
    * Redirect to a specified route or URL.
@@ -128,5 +131,5 @@ declare global {
 
   function redirect(): IRedirectResponse;
 
-  interface MyContext extends Context<HonoTypeImport> { }
+  interface MyContext extends Context<HonoTypeImport> {}
 }

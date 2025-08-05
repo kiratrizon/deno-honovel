@@ -3,11 +3,11 @@ import { AuthConfig } from "./@types/index.d.ts";
 
 const constant: AuthConfig = {
   default: {
-    guard: "jwt_user",
+    guard: "user",
   },
   guards: {
-    jwt_user: {
-      driver: "jwt",
+    user_ses: {
+      driver: "session",
       provider: "users",
     },
     jwt_admin: {
@@ -15,7 +15,7 @@ const constant: AuthConfig = {
       provider: "admins",
     },
     user: {
-      driver: "session",
+      driver: "token",
       provider: "users",
     },
   },

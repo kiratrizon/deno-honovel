@@ -16,8 +16,8 @@ export abstract class Migration {
     return await this[type]();
   }
 
-  protected connection: SupportedDrivers = staticConfig("database").default;
-  public setConnection(connection: SupportedDrivers) {
+  protected connection: string = staticConfig("database").default;
+  public setConnection(connection: string) {
     if (!isset(connection)) {
       throw new Error("Database connection must be defined.");
     }

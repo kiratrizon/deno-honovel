@@ -1,3 +1,7 @@
+import { Builder } from "Illuminate/Database/Eloquent/index.ts";
+import { SupportedDrivers } from "configs/@types/index.d.ts";
+import { sqlstring } from "Illuminate/Database/Query/index.ts";
+
 export type PHPTimestampFormat =
   | "Y-m-d H:i:s"
   | "Y-m-d\\TH:i:sP"
@@ -133,7 +137,7 @@ declare class IBaseModel<T extends IBaseModelProperties> {
   public hasCast(attribute: string): boolean;
 
   /** Return raw attributes without casting or accessors */
-  public getRawAttributes(): Record<string, unknown>;
+  public getRawAttributes(): T["_attributes"];
 
   /** Soft delete the model by setting the deleted_at column */
   public softDelete(): this;
@@ -165,7 +169,12 @@ declare class IBaseModel<T extends IBaseModelProperties> {
   /** Static factory method for model creation (not implemented) */
   public static create<Attr extends Record<string, unknown>>(
     attributes?: Attr
-  ): boolean;
+  ): Promise<boolean>;
+
+  /**
+   * Start a new query builder for this model.
+   */
+  public static on(db: string | nullify): Builder;
 
   /**
    * Find a model by its primary key

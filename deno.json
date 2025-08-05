@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "artisan": "deno run -A vendor/bin/novel"
+    "smelt": "deno run -A vendor/bin/novel"
   },
   "imports": {
     "@avroit/memcached": "jsr:@avroit/memcached@^0.0.4",
@@ -17,6 +17,7 @@
     "ioredis": "npm:ioredis@^5.6.1",
     "isbot": "npm:isbot@^5.1.28",
     "luxon": "npm:luxon@^3.6.1",
+    "mongodb": "npm:mongodb@^6.18.0",
     "redis": "npm:redis@^5.5.5",
     "Illuminate/Routing/BaseController":"./vendor/honovel/framework/src/Base/BaseController.ts",
     "MyArtisan": "./vendor/honovel/framework/src/Maneuver/Honovel-CLI.ts",

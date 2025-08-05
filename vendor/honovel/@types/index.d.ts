@@ -133,10 +133,10 @@ declare global {
    * @param {string[]} keys - The list of keys to include in the new object.
    * @returns {Record<string, unknown>} A new object containing only the specified keys.
    */
-  function only(
-    source: Record<string, unknown>,
-    keys: string[]
-  ): Record<string, unknown>;
+  function only<T extends Record<string, unknown>, K extends keyof T>(
+    source: T,
+    keys: K[]
+  ): Pick<T, K>;
 
   /**
    * Removes the specified keys from an object.

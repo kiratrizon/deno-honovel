@@ -5,22 +5,49 @@ import {
   PreventRequestDuringMaintenance,
 } from "Illuminate/Foundation/Http/Middleware/index.ts";
 import { HttpKernel } from "Illuminate/Foundation/Http/index.ts";
-import { ThrottleRequests } from "Illuminate/Routing/Middleware/index.ts";
+import {
+  EnsureAcceptsJson,
+  ThrottleRequests,
+} from "Illuminate/Routing/Middleware/index.ts";
 import VerifyCsrfToken from "App/Http/Middlewares/VerifyCsrfToken.ts";
+import Authenticate from "./Middlewares/Authenticate.ts";
 class Kernel extends HttpKernel {
   protected override middleware = [
-    PreventRequestDuringMaintenance,
-    PayloadParser,
-    ConvertEmptyStringsToNull,
+    // Uncomment this line to enable maintenance mode, you can use it using `deno task artisan down --secret=your_secret`
+    // PreventRequestDuringMaintenance,
+    PayloadParser, // Parses the request payload
+    ConvertEmptyStringsToNull, // Converts empty strings to null
   ];
 
   protected override middlewareGroups = {
-    web: [StartSession, VerifyCsrfToken],
-    api: [],
+    web: [
+      StartSession, // Starts the session for web requests
+      VerifyCsrfToken, // Verifies CSRF tokens for web requests
+    ],
+    api: [
+      "throttle:60,1",
+      "ensure_accepts_json", // Ensures the request accepts JSON
+    ],
   };
 
+  /**
+   * to be implemented in the future
+   protected $routeMiddleware = [
+    'auth' => \App\Http\Middleware\Authenticate::class,
+    'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
+    'cache.headers' => \Illuminate\Http\Middleware\SetCacheHeaders::class,
+    'can' => \Illuminate\Auth\Middleware\Authorize::class,
+    'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
+    'password.confirm' => \Illuminate\Auth\Middleware\RequirePassword::class,
+    'signed' => \Illuminate\Routing\Middleware\ValidateSignature::class,
+    'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
+    'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
+  ];
+   */
   protected override routeMiddleware = {
+    auth: Authenticate,
     throttle: ThrottleRequests,
+    ensure_accepts_json: EnsureAcceptsJson,
   };
 }
 

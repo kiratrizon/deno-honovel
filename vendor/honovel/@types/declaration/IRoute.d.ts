@@ -377,6 +377,11 @@ export declare class IRoute extends IGroupRoute {
     data?: Record<string, unknown>
   ): void;
 
+  /**
+   * Register a resource route.
+   * @param uri - The URI pattern for the resource route. It is automatically pluralized.
+   * @param controller - The controller class to handle the resource.
+   */
   public static resource<T extends BaseController>(
     uri: string,
     controller: new () => T
@@ -435,6 +440,15 @@ export declare class IResourceRoute {
    */
   public whereAlphaNumeric(key: string): this;
 
+  /**
+   * Exclude specific resource keys from the route.
+   * @param arr - An array of resource keys to exclude.
+   */
   public except(arr: ResourceKeys[]): this;
+
+  /**
+   * Include specific resource keys in the route.
+   * @param arr - An array of resource keys to include.
+   */
   public only(arr: ResourceKeys[]): this;
 }

@@ -1,9 +1,9 @@
+import { SupportedDrivers } from "configs/@types/index.d.ts";
 import IBaseModel, {
   AccessorMap,
   IBaseModelProperties,
   PHPTimestampFormat,
 } from "../../../../../@types/declaration/Base/IBaseModel.d.ts";
-import { staticImplements } from "../../../framework-utils/index.ts";
 import { DB } from "../../Support/Facades/index.ts";
 
 export type ModelWithAttributes<
@@ -16,7 +16,7 @@ export function schemaKeys<T extends Record<string, unknown>>(
 ) {
   return keys;
 }
-class BaseModel<T extends IBaseModelProperties> {
+export class Model<T extends IBaseModelProperties> {
   constructor(attributes: T["_attributes"] = {} as T["_attributes"]) {
     for (const key of Object.keys(attributes) as (keyof T["_attributes"])[]) {
       this.setAttribute(key, attributes[key]);
@@ -42,6 +42,8 @@ class BaseModel<T extends IBaseModelProperties> {
   protected _dateFormat: PHPTimestampFormat = "Y-m-d H:i:s";
 
   protected _attributes: T["_attributes"] = {};
+
+  protected _connection: string = DB.getDefaultConnection();
 
   protected _casts: Record<
     keyof T["_attributes"],
@@ -307,6 +309,16 @@ class BaseModel<T extends IBaseModelProperties> {
     this._mutators[attribute] = fn;
   }
 
+  public static on(db: string = DB.getDefaultConnection()): Builder {
+    return new Builder(
+      {
+        model: this as unknown as typeof IBaseModel,
+        fields: ["*"],
+      },
+      db
+    ) as Builder<IBaseModelProperties, typeof IBaseModel<IBaseModelProperties>>;
+  }
+
   public static create<Attr extends Record<string, unknown>>(
     attributes?: Attr
   ): boolean {
@@ -326,6 +338,59 @@ class BaseModel<T extends IBaseModelProperties> {
     }
     return model.fill(data[0]);
   }
+
+  async save() {
+    const data = this.getRawAttributes();
+    const tableName = this.getTableName();
+    const primaryKey = this.getKeyName();
+
+    // @ts-ignore //
+    if (this[primaryKey]) {
+      // Update existing record
+      // @ts-ignore //
+      await DB.connection(this._connection).update(tableName, data, {
+        // @ts-ignore //
+        [primaryKey]: this[primaryKey],
+      });
+    } else {
+      // Create new record
+      await DB.connection(this._connection).insert(tableName, data);
+    }
+  }
 }
 
-export const Model = BaseModel as unknown as typeof IBaseModel;
+import { Builder as RawBuilder, sqlstring } from "../Query/index.ts";
+
+export class Builder<
+  B extends IBaseModelProperties = IBaseModelProperties,
+  T extends typeof IBaseModel<B> = typeof IBaseModel<B>
+> extends RawBuilder {
+  protected model: T;
+  constructor(
+    {
+      model,
+      fields = ["*"],
+    }: {
+      model: T;
+      fields?: sqlstring[];
+    },
+    dbUsed: string = DB.getDefaultConnection()
+  ) {
+    const table = new model().getTableName();
+    super({ table, fields }, dbUsed);
+    this.model = model;
+  }
+
+  // @ts-ignore //
+  public override async first(): Promise<InstanceType<T> | null> {
+    const data = await super.first();
+    if (!data) return null;
+    return new this.model(data) as InstanceType<T>;
+  }
+
+  // @ts-ignore //
+  public override async get(): Promise<InstanceType<T>[]> {
+    const data = await super.get();
+    return data.map((item) => new this.model(item) as InstanceType<T>);
+  }
+}
