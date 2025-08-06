@@ -309,12 +309,10 @@ class HonoRequest extends Macroable {
   public cookie(
     key?: string,
     value?: Exclude<unknown, undefined>,
-    options?: CookieOptions
+    options: CookieOptions = {}
   ): unknown {
     if (isset(key) && isset(value)) {
-      const newOpts =
-        isset(options) && !empty(options) && isObject(options) ? options : {};
-      setMyCookie(this.#c, key, value, newOpts);
+      setMyCookie(this.#c, key, value, options);
       return;
     }
     if (isset(key) && !isset(value)) {

@@ -34,7 +34,7 @@ class HonoDispatch {
       throw new Error("HEAD method cannot return a response.");
     }
     if (this.#returnedData instanceof Response) {
-      return this.#returnedData;
+      return this.convertToResponse(c, this.#returnedData);
     }
     if (isObject(this.#returnedData)) {
       if (this.#returnedData instanceof HonoView) {
@@ -65,7 +65,16 @@ class HonoDispatch {
         }
         const headers = new Headers(c.res.headers);
         // @ts-ignore //
-        return this.#returnedData.toResponse(headers);
+        const res = this.#returnedData.toResponse(headers);
+        // Convert Headers to a plain object
+        const headerObj = Object.fromEntries(res.headers.entries());
+
+        // return as a new HonoResponse
+        return c.newResponse(
+          res.body,
+          res.status as ContentfulStatusCode,
+          headerObj
+        );
       } else {
         return c.text(
           JSON.stringify(this.#returnedData, null, 2),
@@ -82,6 +91,17 @@ class HonoDispatch {
         );
       }
     }
+  }
+
+  private convertToResponse(c: MyContext, res: Response): Response {
+    const headers = new Headers(c.res.headers);
+
+    const newRes = c.newResponse(
+      res.body,
+      res.status as ContentfulStatusCode,
+      Object.fromEntries(headers.entries())
+    );
+    return newRes;
   }
 
   public get isNext(): boolean {

@@ -1,7 +1,7 @@
 import { CacheConfig } from "./@types/index.d.ts";
 
 const constant: CacheConfig = {
-  default: "mongo",
+  default: env("CACHE_DRIVER", "memory"),
   stores: {
     file: {
       driver: "file",

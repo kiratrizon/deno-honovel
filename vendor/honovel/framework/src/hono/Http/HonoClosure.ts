@@ -11,7 +11,7 @@ class HonoClosure {
   get headers() {
     return {
       set: (key: string, value: string): HonoClosure => {
-        this.c.header(key, value);
+        this.c.res.headers.set(key, value);
         return this;
       },
     };
