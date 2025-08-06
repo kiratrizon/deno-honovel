@@ -487,6 +487,14 @@ declare global {
   function getFileContents(fileString?: string): string;
 
   /**
+   * Converts a path file to UInt8Array.
+   * @param fileString The relative file path from the base path.
+   * @returns The file contents as a Uint8Array. Returns an empty Uint8Array
+   */
+
+  function readFile(fileString: string): Uint8Array;
+
+  /**
    * Version Comparison
    * Compares two version strings and return boolean value.
    * @param version1 - The first version string.

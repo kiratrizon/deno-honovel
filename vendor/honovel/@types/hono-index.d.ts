@@ -13,6 +13,9 @@ import { HonoTypeImport } from "./declaration/imain.d.ts";
 
 import HttpHono from "HttpHono";
 import IRedirectResponse from "./declaration/IHonoRedirect.d.ts";
+import HonoResponseV2, {
+  HTMLResponse,
+} from "../framework/src/hono/Http/HonoResponseV2.ts";
 
 export {};
 declare global {
@@ -27,7 +30,8 @@ declare global {
    * @param html - Optional HTML content to initialize the response with.
    * @returns An instance of HonoResponse.
    */
-  function response(html?: string | null): IHonoResponse;
+  function response(): HonoResponseV2;
+  function response(html: string): HTMLResponse;
 
   /**
    * Instantiates a new HonoView object.

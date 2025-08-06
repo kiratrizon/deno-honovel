@@ -388,6 +388,14 @@ globalFn("getFileContents", function (fileString = "") {
   }
 });
 
+globalFn("readFile", (filePath: string = ""): Uint8Array => {
+  if (!filePath) {
+    return new Uint8Array(); // Empty buffer if no file path
+  }
+
+  return Deno.readFileSync(filePath); // Read file as Uint8Array
+});
+
 import Logger from "HonoLogger";
 
 globalFn(
