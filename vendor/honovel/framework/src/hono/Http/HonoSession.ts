@@ -1,5 +1,4 @@
 import { MiddlewareHandler } from "hono";
-import * as path from "https://deno.land/std/path/mod.ts";
 
 import { ISession } from "../../../../@types/declaration/ISession.d.ts";
 import { Str } from "Illuminate/Support/index.ts";

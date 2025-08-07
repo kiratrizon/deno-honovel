@@ -95,7 +95,7 @@ export class Authenticatable<
   }
 }
 
-abstract class BaseGuard {
+export abstract class BaseGuard {
   protected model: typeof Authenticatable;
   protected readonly connection: string;
   constructor(protected c: MyContext, protected guardName: string) {
@@ -113,6 +113,7 @@ abstract class BaseGuard {
   }
 
   abstract attempt(
+    // deno-lint-ignore no-explicit-any
     credentials: Record<string, any>,
     remember?: boolean
   ): Promise<boolean | string>;
@@ -137,7 +138,7 @@ abstract class BaseGuard {
     if (!(model.prototype instanceof Authenticatable)) {
       throw new Error(`Model ${model.name} does not extend Authenticatable`);
     }
-    const connection = provider.connection || DB.getDefaultConnection();
+    const connection = new model().getConnection();
     return [model as typeof Authenticatable, connection];
   }
 
@@ -181,8 +182,10 @@ abstract class BaseGuard {
 
   protected async attemptManager(
     driver: string,
+    // deno-lint-ignore no-explicit-any
     credentials: Record<string, any>,
     remember?: boolean
+    // deno-lint-ignore no-explicit-any
   ): Promise<any> {
     const { request } = this.c.get("myHono");
     const sessguardKey = `auth_${this.guardName}_user`;
@@ -209,6 +212,7 @@ abstract class BaseGuard {
       return false;
     }
     if (Hash.check(credentials[passwordKey], user.getAuthPassword())) {
+      this.authUser = user;
       const rawAttributes = user.getRawAttributes();
 
       if (driver === "token") {
@@ -245,7 +249,6 @@ abstract class BaseGuard {
   }
 }
 
-// @ts-ignore //
 export class JwtGuard extends BaseGuard {
   async check(): Promise<boolean> {
     // Implement JWT check logic
@@ -259,35 +262,51 @@ export class JwtGuard extends BaseGuard {
     const keysAuth = JwtGuard.authConf?.guards?.[this.guardName];
     return true;
   }
+
+  user(): Authenticatable | null {
+    // Implement JWT user retrieval logic
+    return null; // Placeholder
+  }
+
+  logout(): void {
+    // Implement JWT logout logic
+  }
+
+  viaRemember(): boolean {
+    return false; // Placeholder
+  }
 }
 
 export class SessionGuard extends BaseGuard {
   async check(): Promise<boolean> {
     // Implement session check logic
 
+    if (this.authUser) {
+      // If user is already set in context, return true
+      return true;
+    }
     const { request } = this.c.get("myHono");
     const sessguardKey = `auth_${this.guardName}_user`;
 
     // @ts-ignore //
     const checkUser = request.session.get(sessguardKey) as Record<
       string,
+      // deno-lint-ignore no-explicit-any
       any
     > | null;
     if (checkUser) {
       // If user is already set in context, return true
-      // @ts-ignore //
-      this.c.set(sessguardKey, new this.model(checkUser));
+      this.authUser = new this.model(checkUser as AuthenticatableAttrSession);
       return true;
     }
     const rememberToken = request.cookie(sessguardKey);
     if (rememberToken) {
-      const user = await this.model
+      const user = (await this.model
         .on(this.connection)
         .where("remember_token", rememberToken)
-        .first();
+        .first()) as Authenticatable | null;
       if (user) {
-        // @ts-ignore //
-        this.c.set(sessguardKey, user);
+        this.authUser = user;
         return true;
       }
     }
@@ -295,6 +314,7 @@ export class SessionGuard extends BaseGuard {
   }
 
   async attempt(
+    // deno-lint-ignore no-explicit-any
     credentials: Record<string, any>,
     remember?: boolean
   ): Promise<boolean> {

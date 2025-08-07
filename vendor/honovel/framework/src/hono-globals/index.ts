@@ -1,4 +1,5 @@
-import * as path from "https://deno.land/std/path/mod.ts";
+import * as path from "node:path";
+import * as url from "node:url";
 import { load } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
 try {
   const envObj = (await import("../../../../../environment.ts")).default;
@@ -266,7 +267,7 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
       if (file.isFile && file.name.endsWith(".ts")) {
         const configName = file.name.replace(".ts", "");
         const fullPath = path.join(configPath, file.name);
-        const fullUrl = path.toFileUrl(fullPath).href;
+        const fullUrl = url.pathToFileURL(fullPath).href;
         try {
           const module = await import(fullUrl);
           configData[configName] = module.default;
@@ -410,13 +411,13 @@ globalFn(
   }
 );
 
-import { plural } from "https://deno.land/x/deno_plural/mod.ts";
+import pluralize from "pluralize";
 globalFn("generateTableName", function (entity: string = "") {
   const splitWords = entity.split(/(?=[A-Z])/);
   const lastWord = splitWords.pop()!.toLowerCase();
 
   const pluralizedLastWord = (() => {
-    return plural(lastWord);
+    return pluralize.plural(lastWord);
   })();
 
   return [...splitWords, pluralizedLastWord].join("").toLowerCase();

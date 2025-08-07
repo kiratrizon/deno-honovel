@@ -1,4 +1,4 @@
-import User from "../app/Models/User.ts";
+import User from "App/Models/User.ts";
 import { AuthConfig } from "./@types/index.d.ts";
 
 const constant: AuthConfig = {

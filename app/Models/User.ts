@@ -8,13 +8,11 @@ export type UserSchema = {
   name: string;
 };
 
-class BaseUser extends Authenticatable<{ _attributes: UserSchema }> {
+class User extends Authenticatable<{ _attributes: UserSchema }> {
   // Laravel-like implementation here
   protected override _fillable = [];
 
   protected override _hidden = [];
 }
-
-const User = BaseUser as ModelWithAttributes<UserSchema, typeof BaseUser>;
 
 export default User;

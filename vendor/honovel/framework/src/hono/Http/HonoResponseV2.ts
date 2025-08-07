@@ -173,13 +173,7 @@ export class HonoResponse {
     });
   }
 
-  protected toResponse(additionalHeaders: Headers): Response {
-    for (const [key, value] of additionalHeaders.entries()) {
-      if (!this.headers.has(key)) {
-        this.headers.set(key, value);
-      }
-    }
-
+  protected toResponse(): Response {
     return new Response(this.body, {
       status: this.status,
       headers: this.headers,

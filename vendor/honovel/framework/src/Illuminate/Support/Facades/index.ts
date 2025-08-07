@@ -5,9 +5,10 @@ import {
 } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 import { Blueprint, TableSchema } from "../../Database/Schema/index.ts";
 import BaseController from "Illuminate/Routing/BaseController";
-import { plural, singular } from "https://deno.land/x/deno_plural/mod.ts";
+import pluralize from "pluralize";
 import authConf from "configs/auth.ts";
 import {
+  BaseGuard,
   JwtGuard,
   SessionGuard,
   TokenGuard,
@@ -177,6 +178,10 @@ export class Schema {
 }
 
 export class DB {
+  public static hasConnection(connection: string): boolean {
+    const connections = staticConfig("database").connections;
+    return keyExist(connections, connection);
+  }
   public static getDefaultConnection(): string {
     return staticConfig("database").default;
   }
@@ -700,8 +705,8 @@ class MyRoute {
     if (!regexObj.alpha.test(uri))
       throw new Error(`${uri} should be an alpha character.`);
     const rsrcId = ++this.resourceId;
-    const pluralized = plural(uri);
-    const singularized = singular(pluralized);
+    const pluralized = pluralize.plural(uri);
+    const singularized = pluralize.singular(pluralized);
     const baseUri = `/${pluralized}`;
     const thisRoutes: IResourceRouteConf["thisRoutes"] = {};
     const identifier: IResourceRouteConf["identifier"] = {
@@ -870,7 +875,14 @@ export class Auth {
     this.#c = c;
   }
 
-  public guard<G extends GuardName>(guardName: G = this.#defaultGuard as G) {
+  private _guards: Record<string, BaseGuard> = {};
+
+  public guard<G extends GuardName>(
+    guardName: G = this.#defaultGuard as G
+  ): BaseGuard {
+    if (keyExist(this._guards, guardName)) {
+      return this._guards[guardName] as GuardInstance<G>;
+    }
     const driver = authConf?.guards?.[guardName].driver;
 
     let guard;
@@ -890,7 +902,8 @@ export class Auth {
       default:
         throw new Error(`Unsupported guard driver: ${driver}`);
     }
-    return new guard(this.#c, guardName as GuardName);
+    this._guards[guardName] = new guard(this.#c, guardName as GuardName);
+    return this._guards[guardName] as GuardInstance<G>;
   }
 
   public setGuard<G extends GuardName>(guardName: G): void {
@@ -913,9 +926,8 @@ export class Auth {
     return await this.guard().check();
   }
 
-  public async user() {
-    // @ts-ignore //
-    return await this.guard().user();
+  public user() {
+    return this.guard().user();
   }
 }
 

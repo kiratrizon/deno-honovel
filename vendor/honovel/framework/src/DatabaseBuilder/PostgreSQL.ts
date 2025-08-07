@@ -1,8 +1,4 @@
-import {
-  Pool,
-  QueryArguments,
-  QueryObjectResult,
-} from "https://deno.land/x/postgres@v0.19.3/mod.ts";
+import { Pool, QueryArguments, QueryObjectResult } from "pg";
 import { QueryResultDerived } from "Database";
 
 class PgSQL {

@@ -1,11 +1,10 @@
 import mysql, { Pool, PoolConnection } from "npm:mysql2@^3.6.0/promise";
 import "../hono-globals/index.ts";
 
-import { Command } from "https://deno.land/x/cliffy@v1.0.0-rc.4/command/mod.ts";
-import { join } from "https://deno.land/std@0.224.0/path/mod.ts";
+import { Command } from "@cliffy/command";
 import { Migration } from "Illuminate/Database/Migrations/index.ts";
 import { DB, Schema } from "Illuminate/Support/Facades/index.ts";
-import { Confirm } from "https://deno.land/x/cliffy@v1.0.0-rc.3/prompt/confirm.ts";
+import { Confirm } from "@cliffy/prompt";
 
 import MySQL from "../DatabaseBuilder/MySQL.ts";
 
@@ -447,7 +446,9 @@ class MyArtisan {
       .command("make:config", "Make a new config file")
       .arguments("<name:string>")
       .option("--force", "Force overwrite existing config file")
-      .action((options, name) => this.createConfig.bind(this)(options, name))
+      .action((options: { force?: boolean }, name: string) =>
+        this.createConfig.bind(this)(options, name)
+      )
 
       .command("make:controller", "Generate a controller file")
       .arguments("<name:string>")
@@ -455,7 +456,9 @@ class MyArtisan {
         "--resource",
         "Generate a resourceful controller (index, create, store, etc.)"
       )
-      .action((options, name) => this.makeController.bind(this)(options, name))
+      .action((options: { resource?: boolean }, name: string) =>
+        this.makeController.bind(this)(options, name)
+      )
 
       .command("make:migration", "Generate a migration file")
       .arguments("<name:string>")
@@ -463,14 +466,16 @@ class MyArtisan {
         "--table <table:string>",
         "Specify the table to alter in the migration"
       )
-      .action((options, name) => this.makeMigration(options, name))
+      .action((options: { table?: string }, name: string) =>
+        this.makeMigration(options, name)
+      )
 
       .command("migrate", "Run the database migrations")
       .option("--seed", "Seed the database after migration")
       .option("--path <path:string>", "Specify a custom migrations directory")
       .option("--db <db:string>", "Specify the database connection to use")
       .option("--force", "Force the migration without confirmation")
-      .action((options) => {
+      .action((options: any) => {
         const db: string =
           (options.db as string) ||
           (staticConfig("database").default as string) ||
@@ -484,7 +489,7 @@ class MyArtisan {
 
       .command("make:middleware", "Generate a middleware class")
       .arguments("<name:string>")
-      .action((_, name) => this.makeMiddleware(name))
+      .action((_: unknown, name: string) => this.makeMiddleware(name))
 
       .command("make:model", "Generate a model class")
       .arguments("<name:string>")
@@ -494,21 +499,33 @@ class MyArtisan {
       .option("-r, --resource", "Make the controller resourceful")
       .option("--all", "Generate migration, factory, and controller")
       .option("--pivot", "Indicate the model is a pivot table")
-      .action((options, name) => this.makeModel(options, name))
+      .action(
+        (
+          options: {
+            migration?: boolean;
+            factory?: boolean;
+            controller?: boolean;
+            resource?: boolean;
+            all?: boolean;
+            pivot?: boolean;
+          },
+          name: string
+        ) => this.makeModel(options, name)
+      )
 
       .command(
         "make:provider",
         "Generate a service provider class for the application"
       )
       .arguments("<name:string>")
-      .action((_, name) => this.makeProvider(name))
+      .action((_: unknown, name: string) => this.makeProvider(name))
 
       .command("migrate:fresh", "Drop all tables and rerun all migrations")
       .option("--seed", "Seed the database after fresh migration")
       .option("--path <path:string>", "Specify a custom migrations directory")
       .option("--db <db:string>", "Specify the database connection to use")
       .option("--force", "Force the fresh migration without confirmation")
-      .action((options) => {
+      .action((options: any) => {
         const db: string =
           (options.db as string) ||
           (staticConfig("database").default as string) ||
@@ -529,7 +546,7 @@ class MyArtisan {
       .option("--path <path:string>", "Specify a custom migrations directory")
       .option("--db <db:string>", "Specify the database connection to use")
       .option("--force", "Force the refresh migration without confirmation")
-      .action((options) => {
+      .action((options: any) => {
         const db: string =
           (options.db as string) ||
           (staticConfig("database").default as string) ||
@@ -554,7 +571,9 @@ class MyArtisan {
       .option("--host <host:string>", "Host to run the server on", {
         default: "0.0.0.0",
       })
-      .action((options) => this.serve.bind(this)(options))
+      .action((options: { port?: number | null | string; host: string }) =>
+        this.serve.bind(this)(options)
+      )
 
       // for maintenance mode
       .command("down", "Put the application into maintenance mode")
@@ -579,7 +598,16 @@ class MyArtisan {
         "Custom view to render during maintenance"
       )
       .option("--redirect <url:string>", "Redirect URL during maintenance mode")
-      .action((options) => this.down.bind(this)(options))
+      .action(
+        (options: {
+          message?: string;
+          retry?: number;
+          allow?: string[];
+          secret?: string;
+          render?: string;
+          redirect?: string;
+        }) => this.down.bind(this)(options)
+      )
 
       .command("up", "Bring the application out of maintenance mode")
       .action(() => this.up.bind(this)())
@@ -646,7 +674,7 @@ export async function loadMigrationModules(): Promise<ModuleMigration[]> {
 
   for await (const entry of Deno.readDir(migrationsPath)) {
     if (entry.isFile && entry.name.endsWith(".ts")) {
-      const fullPath = join(migrationsPath, entry.name);
+      const fullPath = path.join(migrationsPath, entry.name);
       const fileUrl = `file://${fullPath}`;
       const mod = await import(fileUrl);
       if (mod?.default) {

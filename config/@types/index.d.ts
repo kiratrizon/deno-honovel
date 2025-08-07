@@ -92,13 +92,15 @@ export interface AppConfig {
   providers?: (typeof ServiceProvider)[];
 }
 
+// deno-lint-ignore no-explicit-any
+type AuthenticatableConstructor = new (...args: any[]) => Authenticatable<any>;
+
 /**
  * A provider config structure (like 'users', 'admins').
  */
 interface AuthProvider {
   driver: "eloquent";
-  model: typeof Authenticatable;
-  connection?: string;
+  model: AuthenticatableConstructor;
   /**
    * This is the key used to check in database for the model.
    */

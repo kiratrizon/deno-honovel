@@ -63,18 +63,10 @@ class HonoDispatch {
         for (const [name, [value, options]] of Object.entries(cookies)) {
           request.cookie(name, value, options);
         }
-        const headers = new Headers(c.res.headers);
         // @ts-ignore //
-        const res = this.#returnedData.toResponse(headers);
-        // Convert Headers to a plain object
-        const headerObj = Object.fromEntries(res.headers.entries());
+        const res = this.#returnedData.toResponse();
 
-        // return as a new HonoResponse
-        return c.newResponse(
-          res.body,
-          res.status as ContentfulStatusCode,
-          headerObj
-        );
+        return this.convertToResponse(c, res);
       } else {
         return c.text(
           JSON.stringify(this.#returnedData, null, 2),
@@ -94,12 +86,10 @@ class HonoDispatch {
   }
 
   private convertToResponse(c: MyContext, res: Response): Response {
-    const headers = new Headers(c.res.headers);
-
     const newRes = c.newResponse(
       res.body,
       res.status as ContentfulStatusCode,
-      Object.fromEntries(headers.entries())
+      Object.fromEntries(res.headers)
     );
     return newRes;
   }

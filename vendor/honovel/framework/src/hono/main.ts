@@ -4,7 +4,7 @@ import { cors } from "hono/cors";
 // import { secureHeaders } from "hono/secure-headers";
 import { serveStatic } from "hono/deno";
 import fs from "node:fs";
-import * as path from "https://deno.land/std/path/mod.ts";
+import * as path from "node:path";
 
 import { Hono, MiddlewareHandler, Next } from "hono";
 import Boot from "../Maneuver/Boot.ts";

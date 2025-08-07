@@ -652,7 +652,7 @@ import {
   DeleteItemCommand,
   ScanCommand,
   BatchWriteItemCommand,
-} from "https://esm.sh/@aws-sdk/client-dynamodb?dts";
+} from "@aws-sdk/client-dynamodb";
 import MongoDB from "../../DatabaseBuilder/MongoDB.ts";
 import { Collection } from "mongodb";
 class DynamoDBStore extends AbstractStore {

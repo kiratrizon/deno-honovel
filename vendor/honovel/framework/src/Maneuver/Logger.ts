@@ -1,4 +1,4 @@
-import * as path from "https://deno.land/std/path/mod.ts";
+import * as path from "node:path";
 
 class Logger {
   public static log(

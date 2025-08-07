@@ -71,6 +71,18 @@ export class Model<T extends IBaseModelProperties> {
     return generateTableName(className);
   }
 
+  public getConnection(): string {
+    return this._connection;
+  }
+
+  public setConnection(connection: string): this {
+    if (!DB.hasConnection(connection)) {
+      throw new Error(`Database connection "${connection}" does not exist.`);
+    }
+    this._connection = connection;
+    return this;
+  }
+
   public getKeyName(): string {
     return this._primaryKey;
   }

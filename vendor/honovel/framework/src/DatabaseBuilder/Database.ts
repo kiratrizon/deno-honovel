@@ -7,10 +7,7 @@ import mysql, {
 import MySQL from "./MySQL.ts";
 
 // postgresql
-import {
-  Pool as PPool,
-  TLSOptions,
-} from "https://deno.land/x/postgres@v0.19.3/mod.ts";
+import { Pool as PPool, TLSOptions } from "pg";
 import PgSQL from "./PostgreSQL.ts";
 import { Carbon } from "honovel:helpers";
 import {

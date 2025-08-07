@@ -1,9 +1,8 @@
 import {
-  HonoNext,
   IGroupInstance,
   IHeaderChildRoutes,
 } from "../../../../@types/declaration/IRoute.d.ts";
-import * as path from "https://deno.land/std/path/mod.ts";
+import * as path from "node:path";
 import { regexObj, URLArranger } from "./FunctionRoute.ts";
 
 class Group {
