@@ -45,7 +45,10 @@ const placeHolderuse: string = "?";
 
 // where
 export class WhereInterpolator {
-  constructor(private dbType: string) {}
+  protected database: Database;
+  constructor(private dbType: string) {
+    this.database = new Database(dbType);
+  }
   protected fromJoin: boolean = false;
   protected whereClauses: [string, any[]][] = [];
 
@@ -129,9 +132,7 @@ export class WhereInterpolator {
       }
       return;
     }
-    columnOrFn = new Database(this.dbType).quoteIdentifier(
-      columnOrFn as string
-    );
+    columnOrFn = this.database.quoteIdentifier(columnOrFn as string);
     let column: string;
     // deno-lint-ignore no-explicit-any
     let value: any;
@@ -201,7 +202,7 @@ export class WhereInterpolator {
     column: string,
     values: WherePrimitive[] | SQLRaw
   ): void {
-    column = new Database(this.dbType).quoteIdentifier(column);
+    column = this.database.quoteIdentifier(column);
     if (values instanceof SQLRaw) {
       const placeHolderOrValue = values.toString();
       values = [];
@@ -285,7 +286,7 @@ export class WhereInterpolator {
     type: WhereSeparator,
     column: string
   ): void {
-    column = new Database(this.dbType).quoteIdentifier(column);
+    column = this.database.quoteIdentifier(column);
     const mainStr = `${column} ${operator}`;
     switch (type) {
       case "AND": {
@@ -338,7 +339,7 @@ export class WhereInterpolator {
       );
     }
 
-    column = new Database(this.dbType).quoteIdentifier(column);
+    column = this.database.quoteIdentifier(column);
 
     let placeHolderOrValue1,
       placeHolderOrValue2 = placeHolderuse;
@@ -454,7 +455,6 @@ export class Builder extends WhereInterpolator {
   private groupByValue: string[] = [];
   #bindings: Record<string, WhereValue[]> = {};
   #params: WherePrimitive[] = [];
-  private database: Database;
   #sql: string = "";
   private fields: Array<[string, false | number]>;
   private table: [string, false | number];
@@ -471,7 +471,6 @@ export class Builder extends WhereInterpolator {
     super(dbUsed);
     this.table = this.extract(table);
     this.fields = fields.map((field) => this.extract(field));
-    this.database = new Database(this.dbUsed);
   }
 
   public select(...fields: sqlstring[]): this {
@@ -1159,7 +1158,7 @@ export class Builder extends WhereInterpolator {
       columns.map((col) => row[col] || null)
     );
 
-    const db = new Database(this.dbUsed);
+    const db = this.database;
     columns = columns.map((col) => db.quoteIdentifier(col));
     let sql = `INSERT INTO ${input.table} (${columns.join(
       ", "
@@ -1336,7 +1335,7 @@ export class Builder extends WhereInterpolator {
     operator: HavingOperator,
     value: WhereValue
   ): void {
-    const db = new Database(this.dbUsed);
+    const db = this.database;
     column = db.quoteIdentifier(column);
     const clause = `${column} ${operator} ?`;
     const values: WhereValue[] = [value];
