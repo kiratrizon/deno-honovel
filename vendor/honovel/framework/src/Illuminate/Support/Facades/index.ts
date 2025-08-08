@@ -76,7 +76,7 @@ export class Schema {
     callback: (blueprint: Blueprint) => void,
     connection: string
   ): Promise<void> {
-    const driver = staticConfig("database").connections[connection]
+    const driver = config("database").connections[connection]
       .driver as SupportedDrivers;
     this.validateDB(driver);
     const blueprint = new Blueprint(table, driver);
@@ -94,7 +94,7 @@ export class Schema {
     table: string,
     connection: string
   ): Promise<boolean> {
-    const driver = staticConfig("database").connections[connection]
+    const driver = config("database").connections[connection]
       .driver as SupportedDrivers;
     this.validateDB(driver);
     let query = "";
@@ -137,7 +137,7 @@ export class Schema {
     table: string,
     connection: string
   ): Promise<void> {
-    const driver = staticConfig("database").connections[connection]
+    const driver = config("database").connections[connection]
       .driver as SupportedDrivers;
     this.validateDB(driver);
 
@@ -166,7 +166,7 @@ export class Schema {
     callback: (blueprint: Blueprint) => void,
     connection: string
   ): Promise<void> {
-    const driver = staticConfig("database").connections[connection]
+    const driver = config("database").connections[connection]
       .driver as SupportedDrivers;
     this.validateDB(driver);
     const blueprint = new Blueprint(table, driver);
@@ -179,15 +179,15 @@ export class Schema {
 
 export class DB {
   public static hasConnection(connection: string): boolean {
-    const connections = staticConfig("database").connections;
+    const connections = config("database").connections;
     return keyExist(connections, connection);
   }
   public static getDefaultConnection(): string {
-    return staticConfig("database").default;
+    return config("database").default;
   }
   public static connection(dbUsed?: string): DBConnection {
     if (!isset(dbUsed)) {
-      dbUsed = staticConfig("database").default;
+      dbUsed = config("database").default;
     }
     return new DBConnection(dbUsed);
   }
@@ -195,7 +195,7 @@ export class DB {
   private static dbUsed: string;
 
   public static init() {
-    this.dbUsed = staticConfig("database").default;
+    this.dbUsed = config("database").default;
   }
 
   public static table(table: sqlstring) {
@@ -249,7 +249,7 @@ export class DB {
 
 class DBConnection {
   constructor(private readonly connection: string) {
-    const dbUsed = staticConfig("database").connections[this.connection]
+    const dbUsed = config("database").connections[this.connection]
       .driver as SupportedDrivers;
     if (!["mysql", "sqlite", "pgsql", "sqlsrv"].includes(dbUsed)) {
       throw new Error(`Unsupported database type: ${dbUsed}`);
@@ -486,7 +486,7 @@ export class Validator {
 
         const tryTable = tableRef.split(".");
         const connection = (
-          tryTable.length === 2 ? tryTable[0] : staticConfig("database").default
+          tryTable.length === 2 ? tryTable[0] : config("database").default
         ) as string;
 
         if (!isset(connection)) {
@@ -942,7 +942,7 @@ export class Cache {
     }
 
     if (!keyExist(this.stores, connection)) {
-      const cacheConfig = staticConfig("cache");
+      const cacheConfig = config("cache");
 
       // Validate cache config presence
       if (!isset(cacheConfig) || !isset(cacheConfig.stores)) {
@@ -983,7 +983,7 @@ export class Cache {
    * Initialize the cache system by loading the default connection from config.
    */
   static init() {
-    const cacheConfig = staticConfig("cache");
+    const cacheConfig = config("cache");
 
     if (empty(cacheConfig)) {
       throw new Error("Cache configuration is not defined.");

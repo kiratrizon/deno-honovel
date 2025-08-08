@@ -324,11 +324,11 @@ export class Model<T extends IBaseModelProperties> {
   public static on(db: string = DB.getDefaultConnection()): Builder {
     return new Builder(
       {
-        model: this as unknown as typeof IBaseModel,
+        model: this,
         fields: ["*"],
       },
       db
-    ) as Builder<IBaseModelProperties, typeof IBaseModel<IBaseModelProperties>>;
+    ) as Builder<IBaseModelProperties, typeof Model<IBaseModelProperties>>;
   }
 
   public static create<Attr extends Record<string, unknown>>(
@@ -337,18 +337,98 @@ export class Model<T extends IBaseModelProperties> {
     return true;
   }
 
+  public static where(column: string, value: unknown): Builder {
+    return new Builder({
+      model: this,
+      fields: ["*"],
+    }).where(column, value);
+  }
+
+  public static whereIn(
+    column: string,
+    values: unknown[]
+  ): Builder<IBaseModelProperties, typeof Model<IBaseModelProperties>> {
+    return new Builder({
+      model: this,
+      fields: ["*"],
+    }).whereIn(column, values);
+  }
+
+  public static whereNotIn(
+    column: string,
+    values: unknown[]
+  ): Builder<IBaseModelProperties, typeof Model<IBaseModelProperties>> {
+    return new Builder({
+      model: this,
+      fields: ["*"],
+    }).whereNotIn(column, values);
+  }
+
+  public static whereNull(
+    column: string
+  ): Builder<IBaseModelProperties, typeof Model<IBaseModelProperties>> {
+    return new Builder({
+      model: this,
+      fields: ["*"],
+    }).whereNull(column);
+  }
+
+  public static whereNotNull(
+    column: string
+  ): Builder<IBaseModelProperties, typeof Model<IBaseModelProperties>> {
+    return new Builder({
+      model: this,
+      fields: ["*"],
+    }).whereNotNull(column);
+  }
+
+  public static whereBetween(
+    column: string,
+    values: [unknown, unknown]
+  ): Builder<IBaseModelProperties, typeof Model<IBaseModelProperties>> {
+    return new Builder({
+      model: this,
+      fields: ["*"],
+    }).whereBetween(column, values);
+  }
+
+  public static whereNotBetween(
+    column: string,
+    values: [unknown, unknown]
+  ): Builder<IBaseModelProperties, typeof Model<IBaseModelProperties>> {
+    return new Builder({
+      model: this,
+      fields: ["*"],
+    }).whereNotBetween(column, values);
+  }
+
+  public static async all(): Promise<
+    InstanceType<typeof Model<IBaseModelProperties>>[]
+  > {
+    return await new Builder({
+      model: this,
+      fields: ["*"],
+    }).get();
+  }
+
+  public static async first(): Promise<InstanceType<
+    typeof Model<IBaseModelProperties>
+  > | null> {
+    return await new Builder({
+      model: this,
+      fields: ["*"],
+    }).first();
+  }
+
   public static async find(id: string | number) {
-    const model = new this();
-    const tableName = model.getTableName();
-    const primaryKey = model.getKeyName();
-    const data = await DB.select(
-      `SELECT * FROM ${tableName} WHERE ${primaryKey} = ?`,
-      [id]
-    );
-    if (data.length === 0) {
-      return null;
-    }
-    return model.fill(data[0]);
+    const instanceModel = new this() as Model<IBaseModelProperties>;
+    const primaryKey = instanceModel.getKeyName();
+    return await new Builder({
+      model: this,
+      fields: ["*"],
+    })
+      .where(primaryKey, id)
+      .first();
   }
 
   async save() {
@@ -375,20 +455,16 @@ import { Builder as RawBuilder, sqlstring } from "../Query/index.ts";
 
 export class Builder<
   B extends IBaseModelProperties = IBaseModelProperties,
-  T extends typeof IBaseModel<B> = typeof IBaseModel<B>
+  T extends typeof Model<B> = typeof Model<B>
 > extends RawBuilder {
   protected model: T;
   constructor(
-    {
-      model,
-      fields = ["*"],
-    }: {
-      model: T;
-      fields?: sqlstring[];
-    },
-    dbUsed: string = DB.getDefaultConnection()
+    { model, fields = ["*"] }: { model: T; fields?: sqlstring[] },
+    db?: string
   ) {
-    const table = new model().getTableName();
+    const instanceModel = new model();
+    const table = instanceModel.getTableName();
+    const dbUsed = db || instanceModel.getConnection();
     super({ table, fields }, dbUsed);
     this.model = model;
   }

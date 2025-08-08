@@ -1,15 +1,15 @@
 import "./index.ts";
 
-import HonoView from "../hono/Http/HonoView.ts";
+import HonoView from "HonoHttp/HonoView.ts";
 import { AbortError, DDError } from "../Maneuver/HonovelErrors.ts";
-import HonoRedirect from "../hono/Http/HonoRedirect.ts";
-import HonoResponseV2 from "../hono/Http/HonoResponseV2.ts";
+import HonoRedirect from "HonoHttp/HonoRedirect.ts";
+import HonoResponseV2 from "HonoHttp/HonoResponseV2.ts";
 
-globalFn("response", function (html = null) {
+globalFn("response", function (html = null, status = 200) {
   if (!isset(html)) {
     return new HonoResponseV2();
   } else if (isString(html)) {
-    return new HonoResponseV2().html(html);
+    return new HonoResponseV2().status(status).html(html);
   }
 });
 

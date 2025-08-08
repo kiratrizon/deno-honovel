@@ -289,7 +289,7 @@ class RedisStore extends AbstractStore {
     }
   ) {
     super();
-    const dbConf = staticConfig("database");
+    const dbConf = config("database");
     if (!RedisStore.redisClient) {
       RedisStore.redisClient = dbConf.redis?.client || "upstash";
     }
@@ -406,14 +406,13 @@ class DatabaseStore extends AbstractStore {
     connection: string;
   }) {
     super();
-    this.prefix = prefix || staticConfig("cache").prefix || "";
+    this.prefix = prefix || config("cache").prefix || "";
     if (!isset(table) || !isString(table)) {
       throw new Error("DatabaseStore requires a valid table name.");
     }
     this.table = table;
-    this.connection =
-      connection || (staticConfig("database").default as string);
-    const dbConf = staticConfig("database");
+    this.connection = connection || (config("database").default as string);
+    const dbConf = config("database");
     if (!keyExist(dbConf.connections, this.connection)) {
       throw new Error(
         `DatabaseStore requires a valid connection in the database config: ${this.connection}`
@@ -693,7 +692,7 @@ class DynamoDBStore extends AbstractStore {
       throw new Error("DynamoDBStore requires a valid partition key.");
     }
     this.partitionKey = partitionKey;
-    this.prefix = prefix || staticConfig("cache").prefix || "";
+    this.prefix = prefix || config("cache").prefix || "";
     this.table = table;
   }
 
@@ -881,7 +880,7 @@ class MongoDBStore extends AbstractStore {
     connection?: string;
   }) {
     super();
-    this.prefix = prefix || staticConfig("cache").prefix || "";
+    this.prefix = prefix || config("cache").prefix || "";
     if (!isset(collection) || !isString(collection) || empty(collection)) {
       throw new Error("MongoDBStore requires a valid collection name.");
     }
@@ -890,7 +889,7 @@ class MongoDBStore extends AbstractStore {
       throw new Error("MongoDBStore requires a valid connection name.");
     }
     this.connection = connection;
-    const dbConf = staticConfig("database");
+    const dbConf = config("database");
     if (!keyExist(dbConf.connections, this.connection)) {
       throw new Error(
         `MongoDBStore requires a valid connection in the database config: ${this.connection}`
@@ -1030,7 +1029,7 @@ class CacheManager {
       partitionKey,
       collection,
     } = options;
-    this.prefix = prefix || staticConfig("cache").prefix || "";
+    this.prefix = prefix || config("cache").prefix || "";
     switch (driver) {
       case "object": {
         this.store = new ObjectStore({ prefix: this.prefix });

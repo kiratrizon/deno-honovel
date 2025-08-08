@@ -58,7 +58,7 @@ export class Str {
    * Check if string contains a given substring
    */
   static contains(haystack: string, needle: string | string[]): boolean {
-    if (Array.isArray(needle)) {
+    if (isArray(needle)) {
       return needle.some((n) => haystack.includes(n));
     }
     return haystack.includes(needle);
@@ -68,7 +68,7 @@ export class Str {
    * Check if a string starts with a given value
    */
   static startsWith(haystack: string, needle: string | string[]): boolean {
-    if (Array.isArray(needle)) {
+    if (isArray(needle)) {
       return needle.some((n) => haystack.startsWith(n));
     }
     return haystack.startsWith(needle);
@@ -78,7 +78,7 @@ export class Str {
    * Check if a string ends with a given value
    */
   static endsWith(haystack: string, needle: string | string[]): boolean {
-    if (Array.isArray(needle)) {
+    if (isArray(needle)) {
       return needle.some((n) => haystack.endsWith(n));
     }
     return haystack.endsWith(needle);
@@ -109,6 +109,25 @@ export class Str {
       .replace(/[^a-z0-9\s]/g, "") // remove special chars
       .trim()
       .replace(/\s+/g, separator);
+  }
+
+  /**
+   * Check if a string matches a given pattern.
+   * Supports '*' as a wildcard (matches any characters).
+   */
+  static is(pattern: string | string[], value: string): boolean {
+    if (isArray(pattern)) {
+      return pattern.some((p) => this.is(p, value));
+    }
+
+    // Escape regex special chars except '*', then replace '*' with '.*'
+    const regexPattern =
+      "^" + pattern.split("*").map(this.escapeRegex).join(".*") + "$";
+    return new RegExp(regexPattern).test(value);
+  }
+
+  private static escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 }
 

@@ -18,6 +18,7 @@ import {
   MySQLConnectionConfig,
   SupportedDrivers,
 } from "configs/@types/index.d.ts";
+import { Encrypter } from "Illuminate/Encryption/index.ts";
 class MyArtisan {
   constructor() {}
   private async createConfig(options: { force?: boolean }, name: string) {
@@ -129,24 +130,22 @@ class MyArtisan {
   }
 
   private async askIfDBNotExist(connection: string) {
-    const dbType = staticConfig("database").connections[connection]
+    const dbType = config("database").connections[connection]
       .driver as SupportedDrivers;
     switch (dbType) {
       case "mysql": {
-        const config = (staticConfig("database").connections?.[connection] ||
+        const conf = (config("database").connections?.[connection] ||
           {}) as MySQLConnectionConfig;
         const poolParams = {
-          host:
-            (isArray(config.host) ? config.host[0] : config.host) ||
-            "localhost",
-          port: Number(config.port || 3306),
-          user: config.user,
-          password: config.password,
+          host: (isArray(conf.host) ? conf.host[0] : conf.host) || "localhost",
+          port: Number(conf.port || 3306),
+          user: conf.user,
+          password: conf.password,
           waitForConnections: true,
         };
         const pool = mysql.createPool(poolParams) as Pool;
 
-        const dbName = config.database;
+        const dbName = conf.database;
         const rows = await MySQL.query<"select">(
           pool,
           `SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`,
@@ -303,7 +302,7 @@ class MyArtisan {
       case "mysql": {
         const result = await DB.connection(dbType).select(
           `SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND table_type = 'BASE TABLE'`,
-          [staticConfig("database.connections.mysql.database")]
+          [config("database.connections.mysql.database")]
         );
         tables = result.map((row) => `\`${row.TABLE_NAME}\``);
         break;
@@ -443,6 +442,18 @@ class MyArtisan {
       .name("deno task")
       .description("Honovel CLI")
       .version(frameworkVersion().honovelVersion)
+
+      .command("key:generate", "Generate a new application key")
+      .option("--force", "Force overwrite existing APP_KEY")
+      .option(
+        "--env <env:string>",
+        "Specify the environment name (e.g. staging, production)"
+      )
+      .action((options: { force?: boolean; env?: string }) => {
+        const envPath = options.env ? `.env.${options.env}` : ".env";
+        Encrypter.generateAppKey(envPath, options.force);
+      })
+
       .command("make:config", "Make a new config file")
       .arguments("<name:string>")
       .option("--force", "Force overwrite existing config file")
@@ -478,7 +489,7 @@ class MyArtisan {
       .action((options: any) => {
         const db: string =
           (options.db as string) ||
-          (staticConfig("database").default as string) ||
+          (config("database").default as string) ||
           "mysql";
         return this.runMigrations({
           ...options,
@@ -528,7 +539,7 @@ class MyArtisan {
       .action((options: any) => {
         const db: string =
           (options.db as string) ||
-          (staticConfig("database").default as string) ||
+          (config("database").default as string) ||
           "mysql";
         return this.freshMigrations({
           ...options,
@@ -549,7 +560,7 @@ class MyArtisan {
       .action((options: any) => {
         const db: string =
           (options.db as string) ||
-          (staticConfig("database").default as string) ||
+          (config("database").default as string) ||
           "mysql";
         return this.refreshMigrations({
           ...options,

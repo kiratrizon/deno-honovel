@@ -1,4 +1,4 @@
-import { DatabaseConfig } from "./@types/index.d.ts";
+import { DatabaseConfig } from "configs/@types/index.d.ts";
 
 const constant: DatabaseConfig = {
   default: env("DB_CONNECTION", "mysql"),

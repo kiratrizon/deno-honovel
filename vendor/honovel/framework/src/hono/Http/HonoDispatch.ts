@@ -1,9 +1,9 @@
 import HonoClosure from "./HonoClosure.ts";
 import HonoView from "./HonoView.ts";
-import HonoRedirect from "./HonoRedirect.ts";
+import HonoRedirect from "HonoHttp/HonoRedirect.ts";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 import HttpHono from "HttpHono";
-import { HonoResponse } from "./HonoResponseV2.ts";
+import { HonoResponse } from "HonoHttp/HonoResponseV2.ts";
 
 class HonoDispatch {
   #type: "dispatch" | "middleware";

@@ -1,21 +1,19 @@
 /// <reference path="./index.d.ts" />
 
-import HonoClosure from "../framework/src/hono/Http/HonoClosure.ts";
+import HonoClosure from "HonoHttp/HonoClosure.ts";
 import { HttpStatusCodeValue } from "../framework/src/Maneuver/HonovelErrors.ts";
 import IHonoRequest from "../@types/declaration/IHonoRequest.d.ts";
 import IHonoResponse from "../@types/declaration/IHonoResponse.d.ts";
 import IHonoView from "../@types/declaration/IHonoView.d.ts";
 import { IConfigure } from "../@types/declaration/MyImports.d.ts";
 import { ContentfulStatusCode } from "hono/utils/http-status";
-import { SessionModifier } from "../framework/src/hono/Http/HonoSession.ts";
+import { SessionModifier } from "HonoHttp/HonoSession.ts";
 import { Context } from "hono";
 import { HonoTypeImport } from "./declaration/imain.d.ts";
 
 import HttpHono from "HttpHono";
 import IRedirectResponse from "./declaration/IHonoRedirect.d.ts";
-import HonoResponseV2, {
-  HTMLResponse,
-} from "../framework/src/hono/Http/HonoResponseV2.ts";
+import HonoResponseV2, { HTMLResponse } from "HonoHttp/HonoResponseV2.ts";
 
 export {};
 declare global {
@@ -31,7 +29,7 @@ declare global {
    * @returns An instance of HonoResponse.
    */
   function response(): HonoResponseV2;
-  function response(html: string): HTMLResponse;
+  function response(html: string, status?: number): HTMLResponse;
 
   /**
    * Instantiates a new HonoView object.

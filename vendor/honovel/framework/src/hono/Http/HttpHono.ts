@@ -1,6 +1,5 @@
 import { IConfigure } from "../../../../@types/declaration/MyImports.d.ts";
-import { Session } from "Illuminate/Session/index.ts";
-import HonoRequest from "./HonoRequest.ts";
+import HonoRequest from "HonoHttp/HonoRequest.ts";
 import Constants from "Constants";
 import { Auth } from "Illuminate/Support/Facades/index.ts";
 

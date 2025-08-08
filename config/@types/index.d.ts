@@ -468,7 +468,7 @@ export interface CacheConfig {
 }
 
 // this is the basis for the config items
-// example staticConfig("database") will return this type
+// example config("database") will return this type
 // or from Configure inside the function of route
 // Route.get("/example", async ({request, Configure}) => {
 //  const dbConfig = Configure.read("database");
@@ -476,11 +476,33 @@ export interface CacheConfig {
 //  console.log(dbConfig.default); // "mysql", "pgsql", "sqlite", or "sqlsrv"
 // })
 
+export interface JWTProviders {
+  jwt: string;
+  auth: string;
+  storage: string;
+}
+
+export type JWTRequiredClaims = "iss" | "iat" | "exp" | "nbf" | "sub" | "jti";
+
+export interface JWTConfig {
+  secret: string;
+  ttl: number; // token lifetime in minutes
+  refresh_ttl: number; // refresh token lifetime in minutes
+  algo: "HS256" | "HS384" | "HS512"; // JWT signing algorithm
+  required_claims: JWTRequiredClaims[]; // required claims in the token
+  blacklist_enabled: boolean; // blacklist enabled or not
+  blacklist_grace_period: number; // grace period in seconds
+  issuer: string; // token issuer
+  audience: string[]; // token audience
+  providers: JWTProviders;
+}
+
 export interface ConfigItems {
   app: AppConfig;
   auth: AuthConfig;
   cache: CacheConfig;
   database: DatabaseConfig;
+  jwt: JWTConfig;
   logging: LogConfig;
   cors: CorsConfig;
   session: SessionConfig;

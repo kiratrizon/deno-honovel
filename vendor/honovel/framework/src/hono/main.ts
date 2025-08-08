@@ -20,13 +20,13 @@ import {
   URLArranger,
 } from "./Support/FunctionRoute.ts";
 import { IMyConfig } from "./Support/MethodRoute.ts";
-import { honoSession } from "./Http/HonoSession.ts";
+import { honoSession } from "HonoHttp/HonoSession.ts";
 import { myError } from "./Http/builder.ts";
 import { Route as Router } from "Illuminate/Support/Facades/index.ts";
 const Route = Router as typeof INRoute;
 
 import ChildKernel from "./Support/ChildKernel.ts";
-import AppServiceProvider from "App/Providers/AppServiceProvider.ts";
+import GroupRoute from "./Support/GroupRoute.ts";
 
 const headFunction: MiddlewareHandler = async (c: MyContext, next) => {
   const { request } = c.get("myHono");
@@ -126,19 +126,15 @@ class Server {
   public static app: HonoType;
   public static domainPattern: Record<string, Record<string, HonoType>> = {};
 
-  private routes: Record<string, unknown> = {};
+  private static routes: Record<string, unknown> = {};
   public static async init() {
     await Boot.init();
     this.app = this.generateNewApp({}, true);
-    const ServiceProvider = new AppServiceProvider(this.app as unknown as Hono);
-    await ServiceProvider.register();
-    await ServiceProvider.boot();
 
-    const allProviders = staticConfig("app").providers || [];
+    const allProviders = config("app").providers || [];
 
     for (const ProviderClass of allProviders) {
       // Optional: Skip base AppServiceProvider if it was added
-      if (ProviderClass === AppServiceProvider) continue;
 
       // @ts-ignore //
       const providerInstance = new ProviderClass(this.app as Hono);
@@ -190,12 +186,12 @@ class Server {
   }
 
   private static generateNewApp(
-    config?: Record<string, unknown>,
+    conf?: Record<string, unknown>,
     withDefaults: boolean = false
   ): HonoType {
     let app: HonoType;
-    if (isset(config) && !empty(config)) {
-      app = new this.Hono(config);
+    if (isset(conf) && !empty(conf)) {
+      app = new this.Hono(conf);
     } else {
       app = new this.Hono();
     }
@@ -224,7 +220,7 @@ class Server {
     });
 
     if (withDefaults) {
-      const corsConfig = staticConfig("cors") || {};
+      const corsConfig = config("cors") || {};
       const corsOptions = {
         origin: (origin: string) => {
           if (!origin) return null;
@@ -254,8 +250,19 @@ class Server {
     return app;
   }
 
-  private static applyMainMiddleware(key: string, app: HonoType) {
-    const mainMiddleware = [key];
+  private static applyMainMiddleware(filePath: string, app: HonoType): string {
+    const mainMiddleware = [];
+    // @ts-ignore //
+    const groupRoutes = GroupRoute.groupRouteMain as Record<
+      string,
+      { middleware: string[]; prefix?: string }
+    >;
+    if (isset(groupRoutes) && !empty(groupRoutes)) {
+      if (isset(groupRoutes[filePath]) && keyExist(groupRoutes, filePath)) {
+        mainMiddleware.push(...groupRoutes[filePath].middleware);
+      }
+    }
+
     const routeGroupMiddleware = [...toMiddleware(mainMiddleware)];
     app.use(
       "*",
@@ -265,6 +272,8 @@ class Server {
       ...globalMiddleware,
       ...routeGroupMiddleware
     );
+    // return the prefix if exists
+    return groupRoutes[filePath]?.prefix || "/";
   }
 
   private static async loadAndValidateRoutes() {
@@ -284,9 +293,7 @@ class Server {
     }
     for (const file of routeFiles) {
       const key = file.replace(".ts", "");
-      const routePrefix = key === "web" ? "" : key;
       // let route: typeof INRoute;
-
       try {
         if (file === "web.ts") {
           await import("../../../../../routes/web.ts");
@@ -298,10 +305,14 @@ class Server {
       } catch (err) {
         console.warn(`Route file "${file}" could not be loaded.`, err);
       }
+      const filePath = basePath(`routes/${file}`);
       if (isset(Route)) {
         Server.domainPattern[key] = {};
         const byEndpointsRouter = this.generateNewApp();
-        this.applyMainMiddleware(key, byEndpointsRouter);
+        const routePrefix = this.applyMainMiddleware(
+          filePath,
+          byEndpointsRouter
+        );
         const instancedRoute = new Route();
         const allGroup = instancedRoute.getAllGroupsAndMethods();
 
@@ -500,8 +511,8 @@ class Server {
                 byEndpointsRouter.route("/", newAppGroup);
               } else if (isset(domain) && !empty(domain)) {
                 this.applyMainMiddleware(
-                  key,
-                  Server.domainPattern[key][domainName]
+                  "",
+                  Server.domainPattern[key][domainName] as HonoType
                 );
                 Server.domainPattern[key][domainName].route(
                   routePrefix,
@@ -517,32 +528,6 @@ class Server {
         }
       }
     }
-  }
-
-  private static useCors(key: string, router: HonoType) {
-    const corsConfig = staticConfig("cors") || {};
-    const corsPaths = corsConfig.paths || [];
-
-    corsPaths.forEach((cpath) => {
-      if (cpath.startsWith(key + "/")) {
-        router.use(
-          cpath.replace(key, ""),
-          cors({
-            origin: corsConfig.allowed_origins || "*",
-            allowMethods: corsConfig.allowed_methods || [
-              "GET",
-              "POST",
-              "PUT",
-              "DELETE",
-            ],
-            allowHeaders: corsConfig.allowed_headers || ["*"],
-            exposeHeaders: corsConfig.exposed_headers || [],
-            maxAge: corsConfig.max_age || 3600,
-            credentials: corsConfig.supports_credentials || false,
-          })
-        );
-      }
-    });
   }
 
   private static endInit() {

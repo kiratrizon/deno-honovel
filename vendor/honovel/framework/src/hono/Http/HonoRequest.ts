@@ -16,10 +16,17 @@ import {
 
 import { CookieOptions } from "hono/utils/cookie";
 import { deleteCookie } from "hono/cookie";
-import { SessionModifier } from "./HonoSession.ts";
+import { SessionModifier } from "HonoHttp/HonoSession.ts";
 import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 
 class HonoRequest extends Macroable {
+  public static HEADER_X_FORWARDED_ALL = [
+    "X-Forwarded-For",
+    "X-Forwarded-Proto",
+    "X-Forwarded-Host",
+    "X-Forwarded-Port",
+  ];
+
   #c: MyContext;
   #files: Record<string, FormFile[]> = {};
   #myAll: Record<string, unknown> = {};

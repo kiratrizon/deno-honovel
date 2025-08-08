@@ -16,18 +16,6 @@ function createExpectedSignature(base64Value: string, key: Uint8Array): string {
   return toBase64Url(sig);
 }
 
-export function generateAppKey(): string {
-  const key = crypto.getRandomValues(new Uint8Array(32));
-
-  // Convert Uint8Array to binary string
-  const binary = String.fromCharCode(...key);
-
-  // Then base64 encode it
-  const base64Key = btoa(binary);
-
-  return `base64:${base64Key}`;
-}
-
 export const setMyCookie = (
   c: MyContext,
   key: string,
@@ -35,10 +23,10 @@ export const setMyCookie = (
   value: Exclude<any, undefined>,
   options: CookieOptions = {}
 ) => {
-  const appConfig = staticConfig("app");
+  const appConfig = config("app");
   if (empty(appConfig.key) || !isString(appConfig.key)) {
     throw new Error(
-      "APP_KEY is not set. Please set it in your environment variables."
+      'APP_KEY is not set. Please run "deno task smelt key:generate" to generate a key.'
     );
   }
   if (value === undefined || !isString(key)) {
@@ -63,13 +51,13 @@ export class CookieKeysCache {
   public static keys: Buffer[] = [];
   public static mainKey: Buffer;
   public static init() {
-    const appConfig = staticConfig("app");
+    const appConfig = config("app");
     const allKeys = [appConfig.key, ...appConfig.previous_keys]
       .filter((k) => isset(k) && !empty(k) && isString(k))
       .map(resolveAppKey);
     if (empty(allKeys)) {
       throw new Error(
-        "APP_KEY is not set. Please set it in your environment variables."
+        'APP_KEY is not set. Please run "deno task smelt key:generate" to generate a key.'
       );
     }
     this.keys = allKeys;

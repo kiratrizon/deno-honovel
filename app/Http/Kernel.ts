@@ -3,6 +3,7 @@ import {
   ConvertEmptyStringsToNull,
   PayloadParser,
   PreventRequestDuringMaintenance,
+  ValidatePostSize,
 } from "Illuminate/Foundation/Http/Middleware/index.ts";
 import { HttpKernel } from "Illuminate/Foundation/Http/index.ts";
 import {
@@ -11,12 +12,20 @@ import {
 } from "Illuminate/Routing/Middleware/index.ts";
 import VerifyCsrfToken from "App/Http/Middlewares/VerifyCsrfToken.ts";
 import Authenticate from "./Middlewares/Authenticate.ts";
+import { HandleCors } from "Illuminate/Http/Middleware/index.ts";
+import TrimStrings from "App/Http/Middlewares/TrimStrings.ts";
+import TrustProxies from "App/Http/Middlewares/TrustProxies.ts";
+
 class Kernel extends HttpKernel {
   protected override middleware = [
+    TrustProxies,
     // Uncomment this line to enable maintenance mode, you can use it using `deno task artisan down --secret=your_secret`
     // PreventRequestDuringMaintenance,
-    PayloadParser, // Parses the request payload
-    ConvertEmptyStringsToNull, // Converts empty strings to null
+    HandleCors,
+    PayloadParser, // Parses the request payload, handling JSON and form data.
+    ValidatePostSize,
+    TrimStrings,
+    ConvertEmptyStringsToNull,
   ];
 
   protected override middlewareGroups = {

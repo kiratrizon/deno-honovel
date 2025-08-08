@@ -1,4 +1,4 @@
-import { LogConfig } from "./@types/index.d.ts";
+import { LogConfig } from "configs/@types/index.d.ts";
 
 const constant: LogConfig = {
   default: env("LOG_CHANNEL", "stack"),

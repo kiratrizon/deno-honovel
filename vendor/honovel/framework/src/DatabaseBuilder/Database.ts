@@ -173,7 +173,7 @@ export class Database {
   > = {};
   private readonly dbUsed: SupportedDrivers;
   constructor(private connection: string) {
-    this.dbUsed = staticConfig("database").connections[this.connection]
+    this.dbUsed = config("database").connections[this.connection]
       .driver as SupportedDrivers;
     if (!["mysql", "sqlite", "pgsql", "sqlsrv"].includes(this.dbUsed)) {
       throw new Error(`Unsupported database type: ${this.dbUsed}`);
@@ -238,7 +238,7 @@ export class Database {
     if (Database.doneInit && !force) {
       return;
     }
-    const dbObj = staticConfig("database");
+    const dbObj = config("database");
 
     const connections = dbObj?.connections || {};
     if (!isset(connections) || !isObject(connections)) {

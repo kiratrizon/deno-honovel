@@ -1,4 +1,4 @@
-import HonoRequest from "./HonoRequest.ts";
+import HonoRequest from "HonoHttp/HonoRequest.ts";
 
 class HonoClosure {
   constructor(private readonly c: MyContext) {}

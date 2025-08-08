@@ -3,6 +3,7 @@ import { IBaseModelProperties } from "../../../../../@types/declaration/Base/IBa
 import { DB, Hash } from "Illuminate/Support/Facades/index.ts";
 import { AuthConfig } from "configs/@types/index.d.ts";
 import { Carbon } from "honovel:helpers";
+import { JWTAuth } from "../../Auth/index.ts";
 
 type AuthenticatableAttr = {
   id: number | string;
@@ -95,12 +96,23 @@ export class Authenticatable<
   }
 }
 
+export interface JWTSubject {
+  /**
+   * Returns the unique identifier for the JWT subject.
+   */
+  getJWTIdentifier(): string | number;
+
+  /**
+   * Returns a key-value pair of custom claims to be added to the JWT.
+   */
+  getJWTCustomClaims(): Record<string, unknown>;
+}
+
 export abstract class BaseGuard {
   protected model: typeof Authenticatable;
-  protected readonly connection: string;
   constructor(protected c: MyContext, protected guardName: string) {
     BaseGuard.init();
-    [this.model, this.connection] = BaseGuard.getModelFromGuard(guardName);
+    this.model = BaseGuard.getModelFromGuard(guardName);
   }
   protected authUser: Authenticatable | null = null;
 
@@ -109,7 +121,7 @@ export abstract class BaseGuard {
   protected static authConf: AuthConfig;
   public static init(): void {
     if (this.authConf) return; // Already initialized
-    this.authConf = staticConfig("auth");
+    this.authConf = config("auth");
   }
 
   abstract attempt(
@@ -118,9 +130,7 @@ export abstract class BaseGuard {
     remember?: boolean
   ): Promise<boolean | string>;
 
-  private static getModelFromGuard(
-    guardName: string
-  ): [typeof Authenticatable, string] {
+  private static getModelFromGuard(guardName: string): typeof Authenticatable {
     const providerName = this.authConf?.guards?.[guardName]?.provider;
     if (!providerName) {
       throw new Error(`Guard ${guardName} does not have a provider defined`);
@@ -138,9 +148,13 @@ export abstract class BaseGuard {
     if (!(model.prototype instanceof Authenticatable)) {
       throw new Error(`Model ${model.name} does not extend Authenticatable`);
     }
-    const connection = new model().getConnection();
-    return [model as typeof Authenticatable, connection];
+    return model as typeof Authenticatable;
   }
+
+  abstract login(
+    user: Authenticatable | JWTSubject,
+    remember: boolean
+  ): Promise<unknown>;
 
   /**
    * Retrieves the currently authenticated user.
@@ -179,18 +193,60 @@ export abstract class BaseGuard {
   getGuardName(): string {
     return this.guardName;
   }
+}
 
-  protected async attemptManager(
-    driver: string,
-    // deno-lint-ignore no-explicit-any
-    credentials: Record<string, any>,
-    remember?: boolean
-    // deno-lint-ignore no-explicit-any
-  ): Promise<any> {
+export class JwtGuard extends BaseGuard {
+  async check(): Promise<boolean> {
+    // Implement JWT check logic
+    if (this.authUser) {
+      // If user is already set in context, return true
+      return true;
+    }
     const { request } = this.c.get("myHono");
-    const sessguardKey = `auth_${this.guardName}_user`;
-    const provider = TokenGuard.authConf?.guards?.[this.guardName]?.provider;
-    const selectedProvider = TokenGuard.authConf?.providers?.[provider];
+    const key = `auth_${this.guardName}_user`;
+    // @ts-ignore //
+    const checkUser = this.c.get(key) as Authenticatable | null;
+    if (checkUser) {
+      // If user is already set in context, return true
+      this.authUser = checkUser;
+      return true;
+    }
+    // Check if JWT token exists in headers
+    const token = request.header("Authorization")?.replace("Bearer ", "");
+    if (!token) {
+      return false; // No token provided
+    }
+    // Verify the JWT token
+    const user = JWTAuth.verify(token) as Record<string, unknown> | null;
+    if (!user) {
+      return false; // Invalid token
+    }
+    // Check if the user exists in the database
+    const id = user.sub as string | number;
+    const instanceUser = (await this.model.find(id)) as Authenticatable | null;
+    if (!instanceUser) {
+      return false; // User not found
+    }
+    if (user.remember) {
+      // If the user has a "remember me" token, set it
+      this.rememberUser = user.remember as boolean;
+    }
+    // Set the authenticated user
+    this.authUser = instanceUser;
+
+    // Store the user in the context for later use
+    // @ts-ignore //
+    this.c.set(key, instanceUser);
+
+    return true; // Placeholder
+  }
+
+  async attempt(
+    credentials: Record<string, any>,
+    remember: boolean = false
+  ): Promise<string | false> {
+    const provider = JwtGuard.authConf?.guards?.[this.guardName]?.provider;
+    const selectedProvider = JwtGuard.authConf?.providers?.[provider];
     if (!selectedProvider) {
       throw new Error(
         `Provider ${provider} not found for guard ${this.guardName}`
@@ -205,75 +261,56 @@ export abstract class BaseGuard {
       return false;
     }
     const user = (await this.model
-      .on(this.connection)
       .where(credentialKey, credentials[credentialKey])
       .first()) as Authenticatable | null;
     if (!user) {
       return false;
     }
-    if (Hash.check(credentials[passwordKey], user.getAuthPassword())) {
-      this.authUser = user;
-      const rawAttributes = user.getRawAttributes();
-
-      if (driver === "token") {
-        if (!keyExist(rawAttributes, "api_token")) {
-          throw new Error(
-            `Table ${new this.model().getTableName()} have no api_token column.`
-          );
-        }
-        // @ts-ignore //
-        return rawAttributes.api_token as string;
-      } else if (driver === "session") {
-        request.session.put(
-          // @ts-ignore //
-          sessguardKey,
-          rawAttributes as AuthenticatableAttrSession
-        );
-        if (remember) {
-          // If "remember me" is checked, set the remember token
-          const generatedToken = `${this.guardName}_${user.id}_${strToTime(
-            Carbon.now().addDays(30)
-          )}`;
-          const rememberToken = Hash.make(generatedToken);
-          user.setRememberToken(rememberToken);
-          await user.save();
-          request.cookie(sessguardKey, rememberToken, {
-            maxAge: 30 * 24 * 60 * 60, // 30 days
-          });
-          this.rememberUser = true;
-        }
-        return true;
-      }
+    if (!Hash.check(credentials[passwordKey], user.getAuthPassword())) {
+      return false;
     }
-    return false;
-  }
-}
 
-export class JwtGuard extends BaseGuard {
-  async check(): Promise<boolean> {
-    // Implement JWT check logic
-    return true; // Placeholder
+    return await this.login(user, remember);
   }
 
-  async attempt(
-    credentials: Record<string, any>,
-    remember?: boolean
-  ): Promise<boolean> {
-    const keysAuth = JwtGuard.authConf?.guards?.[this.guardName];
-    return true;
+  async login(
+    user: Authenticatable | JWTSubject,
+    remember: boolean = false
+  ): Promise<string | false> {
+    // check if it has a method of JWTSubject
+    if (
+      !methodExist(user, "getJWTIdentifier") ||
+      !methodExist(user, "getJWTCustomClaims")
+    ) {
+      abort(400, "User model is not JWTSubject");
+    }
+
+    const token = JWTAuth.fromUser(user as unknown as JWTSubject, remember);
+
+    this.rememberUser = remember;
+    this.authUser = user as Authenticatable;
+    const key = `auth_${this.guardName}_user`;
+    // @ts-ignore //
+    this.c.set(key, user);
+    return token; // Return the generated JWT token
   }
 
   user(): Authenticatable | null {
     // Implement JWT user retrieval logic
-    return null; // Placeholder
+    return this.authUser;
   }
 
   logout(): void {
-    // Implement JWT logout logic
+    // No logout logic for JWT, but you can clear the user from context
+    const key = `auth_${this.guardName}_user`;
+    // @ts-ignore //
+    this.c.set(key, null);
+    this.authUser = null;
   }
 
   viaRemember(): boolean {
-    return false; // Placeholder
+    // JWT does not have a "remember me" concept, but you can implement custom logic if needed
+    return this.rememberUser;
   }
 }
 
@@ -299,13 +336,15 @@ export class SessionGuard extends BaseGuard {
       this.authUser = new this.model(checkUser as AuthenticatableAttrSession);
       return true;
     }
+
+    // Check if remember token exists in cookies
     const rememberToken = request.cookie(sessguardKey);
     if (rememberToken) {
       const user = (await this.model
-        .on(this.connection)
         .where("remember_token", rememberToken)
         .first()) as Authenticatable | null;
       if (user) {
+        this.rememberUser = true;
         this.authUser = user;
         return true;
       }
@@ -316,13 +355,33 @@ export class SessionGuard extends BaseGuard {
   async attempt(
     // deno-lint-ignore no-explicit-any
     credentials: Record<string, any>,
-    remember?: boolean
+    remember: boolean = false
   ): Promise<boolean> {
-    return (await this.attemptManager(
-      "session",
-      credentials,
-      remember
-    )) as Promise<boolean>;
+    const provider = TokenGuard.authConf?.guards?.[this.guardName]?.provider;
+    const selectedProvider = TokenGuard.authConf?.providers?.[provider];
+    if (!selectedProvider) {
+      throw new Error(
+        `Provider ${provider} not found for guard ${this.guardName}`
+      );
+    }
+    const credentialKey = selectedProvider.credentialKey || "email";
+    const passwordKey = selectedProvider.passwordKey || "password";
+    if (
+      !keyExist(credentials, credentialKey) ||
+      !keyExist(credentials, passwordKey)
+    ) {
+      return false;
+    }
+    const user = (await this.model
+      .where(credentialKey, credentials[credentialKey])
+      .first()) as Authenticatable | null;
+    if (!user) {
+      return false;
+    }
+    if (!Hash.check(credentials[passwordKey], user.getAuthPassword())) {
+      return false;
+    }
+    return await this.login(user, remember);
   }
 
   user(): Authenticatable | null {
@@ -330,6 +389,35 @@ export class SessionGuard extends BaseGuard {
     const sessguardKey = `auth_${this.guardName}_user`;
     // @ts-ignore //
     return request.session.get(sessguardKey) as Authenticatable | null;
+  }
+
+  async login(
+    user: Authenticatable,
+    remember: boolean = false
+  ): Promise<boolean> {
+    this.authUser = user;
+    const rawAttributes = user.getRawAttributes();
+    const { request } = this.c.get("myHono");
+    request.session.put(
+      // @ts-ignore //
+      sessguardKey,
+      rawAttributes as AuthenticatableAttrSession
+    );
+    if (remember) {
+      // If "remember me" is checked, set the remember token
+      const generatedToken = `${this.guardName}_${user.id}_${strToTime(
+        Carbon.now().addDays(30)
+      )}`;
+      const rememberToken = Hash.make(generatedToken);
+      user.setRememberToken(rememberToken);
+      await user.save();
+      const sessguardKey = `auth_${this.guardName}_user`;
+      request.cookie(sessguardKey, rememberToken, {
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+      });
+      this.rememberUser = true;
+    }
+    return true; // Login successful
   }
 
   logout(): void {
@@ -370,10 +458,7 @@ export class TokenGuard extends BaseGuard {
       return false;
     }
 
-    const user = await this.model
-      .on(this.connection)
-      .where("api_token", token)
-      .first();
+    const user = await this.model.where("api_token", token).first();
     if (!user) {
       return false;
     }
@@ -384,9 +469,47 @@ export class TokenGuard extends BaseGuard {
 
   // deno-lint-ignore no-explicit-any
   async attempt(credentials: Record<string, any>): Promise<string | false> {
-    return (await this.attemptManager("token", credentials)) as Promise<
-      string | false
-    >;
+    const provider = TokenGuard.authConf?.guards?.[this.guardName]?.provider;
+    const selectedProvider = TokenGuard.authConf?.providers?.[provider];
+    if (!selectedProvider) {
+      throw new Error(
+        `Provider ${provider} not found for guard ${this.guardName}`
+      );
+    }
+    const credentialKey = selectedProvider.credentialKey || "email";
+    const passwordKey = selectedProvider.passwordKey || "password";
+    if (
+      !keyExist(credentials, credentialKey) ||
+      !keyExist(credentials, passwordKey)
+    ) {
+      return false;
+    }
+    const user = (await this.model
+      .where(credentialKey, credentials[credentialKey])
+      .first()) as Authenticatable | null;
+    if (!user) {
+      return false;
+    }
+    if (!Hash.check(credentials[passwordKey], user.getAuthPassword())) {
+      return false;
+    }
+    return await this.login(user);
+  }
+
+  async login(user: Authenticatable): Promise<string | false> {
+    this.authUser = user;
+    const rawAttributes = user.getRawAttributes();
+
+    const key = `auth_${this.guardName}_user`;
+    // @ts-ignore //
+    this.c.set(key, user);
+    if (!keyExist(rawAttributes, "api_token")) {
+      throw new Error(
+        `Table ${new this.model().getTableName()} have no api_token column.`
+      );
+    }
+    // @ts-ignore //
+    return rawAttributes.api_token as string;
   }
 
   user() {

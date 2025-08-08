@@ -19,6 +19,7 @@
     "HonoLogger": "./vendor/honovel/framework/src/Maneuver/Logger.ts",
     "ioredis": "npm:ioredis@^5.6.1",
     "isbot": "npm:isbot@^5.1.28",
+    "jsonwebtoken": "npm:jsonwebtoken@^9.0.2",
     "luxon": "npm:luxon@^3.6.1",
     "mongodb": "npm:mongodb@^6.18.0",
     "pg": "npm:pg@^8.16.3",
@@ -31,7 +32,9 @@
     "HttpHono": "./vendor/honovel/framework/src/hono/Http/HttpHono.ts",
     "honovel:helpers": "./vendor/honovel/framework/src/framework-utils/index.ts",
     "configs/":"./config/",
-    "App/": "./app/"
+    "App/": "./app/",
+    "HonoHttp/": "./vendor/honovel/framework/src/hono/Http/",
+    "uuid": "npm:uuid@^11.1.0"
   },
   "lint": {
     "rules": {

@@ -1021,6 +1021,9 @@ export class Builder extends WhereInterpolator {
       sql += " GROUP BY " + groupBy.join(", ");
     }
     if (having.length > 0) {
+      if (groupBy.length === 0) {
+        throw new SQLError("HAVING clause requires a GROUP BY clause");
+      }
       sql +=
         " HAVING " +
         having

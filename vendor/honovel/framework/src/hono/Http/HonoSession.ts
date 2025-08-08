@@ -70,14 +70,14 @@ export class SessionModifier {
   }
 
   public static init() {
-    SessionModifier.sesConfig = staticConfig("session");
+    SessionModifier.sesConfig = config("session");
     if (!SessionModifier.sesConfig) {
       throw new Error("Session configuration is not set.");
     }
     const type = SessionModifier.sesConfig.driver || "file";
     const keyStore = `${type}_session`;
     const prefix = SessionModifier.sesConfig.prefix || "sess:";
-    const stores = staticConfig("cache").stores || {};
+    const stores = config("cache").stores || {};
     const configuration: {
       // For file driver
       path: string | null;
@@ -145,11 +145,11 @@ export class SessionModifier {
       this.store = Cache.store(keyStore);
     } else {
       const storeConfig =
-        SessionModifier.sesConfig.store || staticConfig("cache").default;
+        SessionModifier.sesConfig.store || config("cache").default;
       if (!isset(storeConfig)) {
         throw new Error("Session store configuration is not set.");
       }
-      const stores = staticConfig("cache").stores || {};
+      const stores = config("cache").stores || {};
       if (!keyExist(stores, storeConfig)) {
         throw new Error(`Session store "${storeConfig}" does not exist.`);
       }
@@ -242,7 +242,7 @@ export class SessionModifier {
   }
 
   async encrypt(data: Record<string, unknown>): Promise<string> {
-    const appConfig = staticConfig("app");
+    const appConfig = config("app");
     const cipher = appConfig.cipher;
 
     const mode = cipher.toUpperCase().includes("GCM") ? "AES-GCM" : "AES-CBC";
@@ -278,7 +278,7 @@ export class SessionModifier {
   }
 
   async decrypt(data: string): Promise<Record<string, unknown> | null> {
-    const appConfig = staticConfig("app");
+    const appConfig = config("app");
     const keys = SessionInitializer.appKeys;
     const cipher = appConfig.cipher;
 
@@ -355,7 +355,7 @@ export class SessionInitializer {
 
   public static async init() {
     // Initialize app keys for encryption
-    const appConfig = staticConfig("app");
+    const appConfig = config("app");
     const cipher = appConfig.cipher || "AES-256-CBC";
     const keySize = parseInt(cipher.match(/AES-(\d+)-/)?.[1] || "256", 10);
     const keyBytes = keySize / 8;
@@ -364,7 +364,7 @@ export class SessionInitializer {
       .map((k) => resolveAppKey(k, keyBytes));
     if (keys.length === 0) {
       throw new Error(
-        "APP_KEY is not set. Please set it in your environment variables."
+        'APP_KEY is not set. Please run "deno task smelt key:generate" to generate a key.'
       );
     }
     this.appKeys = keys;

@@ -185,7 +185,7 @@ export declare class IGroupInstance {
    * The callback should contain route definitions to which the group parameters will apply.
    * @param callback - A function containing the route definitions within this group.
    */
-  public group(callback: () => void): void;
+  public group(callback: (() => void) | string): void;
 }
 
 interface FlagConfig {

@@ -157,6 +157,11 @@ export class HonoResponse {
     return this;
   }
 
+  public header(key: string, value: string): this {
+    this.headers.set(key, value);
+    return this;
+  }
+
   public cookie(
     name: string,
     value: string,

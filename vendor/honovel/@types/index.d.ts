@@ -115,8 +115,11 @@ declare global {
    * @param {string} key - The configuration key, which can use dot notation for nested values.
    * @returns {unknown} The value of the configuration option, or `undefined` if the key does not exist.
    */
-  function staticConfig<T extends keyof ConfigItems>(key: T): ConfigItems[T];
-  function staticConfig(key: string): unknown;
+  function config<T extends keyof ConfigItems>(
+    key: T,
+    defaultValue?: ConfigItems[T]
+  ): ConfigItems[T];
+  function config(key: string, defaultValue?: unknown): unknown;
   /**
    * Initializes the configuration store by reading all configuration files in the config directory.
    */

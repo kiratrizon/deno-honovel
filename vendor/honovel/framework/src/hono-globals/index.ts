@@ -298,19 +298,17 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
 
 define("myConfigData", await getConfigStore(), false);
 const configure = new Constants(myConfigData as Record<string, unknown>);
-globalFn("staticConfig", function (key: string) {
+globalFn("config", function (key: string) {
   return configure.read(key);
 });
 
 globalFn("viewPath", function (concatenation = "") {
   const dir = path.join(
-    (staticConfig("view.defaultViewDir") as string) || "views",
+    (config("view.defaultViewDir") as string) || "views",
     concatenation
   );
   return resourcePath(dir);
 });
-const dbUsed = staticConfig("database.database") || "sqlite";
-define("dbUsed", dbUsed, false);
 
 // deno-lint-ignore no-explicit-any
 globalFn("only", function (obj: Record<string, any>, keys: string[]) {
@@ -482,8 +480,7 @@ const getRelativeTime = (
 };
 
 const timeZone =
-  staticConfig("app.timezone") ||
-  Intl.DateTimeFormat().resolvedOptions().timeZone;
+  config("app.timezone") || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 globalFn("strToTime", function (time, now) {
   if (time instanceof Carbon) {

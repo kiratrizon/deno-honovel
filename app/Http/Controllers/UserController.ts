@@ -1,4 +1,6 @@
 import Controller from "App/Http/Controllers/Controller.ts";
+import User from "App/Models/User.ts";
+import { Hash } from "Illuminate/Support/Facades/index.ts";
 
 class UserController extends Controller {
   // GET /resource
@@ -12,8 +14,9 @@ class UserController extends Controller {
   // GET /resource/{id}
   public show: HttpDispatch = async ({ request }, id) => {
     // Show a single resource by ID
+    const user = await User.where("id", id).first();
     return response().json({
-      message: `show ${id}`,
+      user,
     });
   };
 
@@ -28,8 +31,19 @@ class UserController extends Controller {
   // POST /resource
   public store: HttpDispatch = async ({ request }) => {
     // Create a new resource
+    const creds = await request.validate({
+      email: "required|email|unique:users,email",
+      password: "required|min:6|confirmed",
+      name: "required|min:6",
+    });
+    creds["password"] = Hash.make(creds["password"]);
+
+    const newCreds: Record<string, string> = { ...creds };
+    newCreds["api_token"] = crypto.randomUUID();
+
+    await User.on().insert(newCreds);
     return response().json({
-      message: `store`,
+      user: newCreds,
     });
   };
 

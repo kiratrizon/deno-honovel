@@ -16,18 +16,18 @@ class Constants implements IConstants {
    * @returns A requested configuration value or null if not found.
    */
   // deno-lint-ignore no-explicit-any
-  public read(key: string): any {
+  public read(key: string, defaultValue: any = null) {
     if (this.#configStore === undefined) {
       throw new Error("Config store is not initialized");
     }
 
     const keys = key.split(".");
     if (!keys.length) {
-      return null;
+      return defaultValue;
     }
     const firstKey: string = keys.shift()!;
     if (!this.#configStore[firstKey]) {
-      return null;
+      return defaultValue;
     }
     // deno-lint-ignore no-explicit-any
     let currentValue: any = this.#configStore[firstKey];
@@ -48,7 +48,7 @@ class Constants implements IConstants {
       }
     }
 
-    return currentValue;
+    return currentValue ?? defaultValue;
   }
 
   /**

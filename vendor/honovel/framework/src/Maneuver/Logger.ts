@@ -7,7 +7,7 @@ class Logger {
     destination: string = "",
     identifier: string = ""
   ) {
-    const logging = staticConfig("logging");
+    const logging = config("logging");
     const defaultChannel = destination || logging.default;
     const channels = logging.channels;
 
