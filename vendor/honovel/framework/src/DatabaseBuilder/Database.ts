@@ -11,6 +11,9 @@ import {
   MySQLConnectionConfigRaw,
   SupportedDrivers,
 } from "configs/@types/index.d.ts";
+
+// sqlsrv
+import mssql from "mssql";
 import {
   ColumnDefinition,
   DBType,
@@ -687,20 +690,22 @@ export class Database {
   }
 }
 
-export const dbCloser = async () => {
+export const dbCloser = () => {
   const entries = Object.entries(Database.connections);
   for (const [driver, connections] of entries) {
     switch (driver as SupportedDrivers) {
       case "mysql":
       case "pgsql":
         for (const pool of [...connections.read, ...connections.write]) {
-          try {
-            await pool.end();
-          } catch (e) {
-            console.error(`[${driver}] Error closing pool:`, e);
-          }
+          pool
+            .end()
+            .then(() => {
+              console.log(`Closed ${driver} pool successfully.`);
+            })
+            .catch((err: Error) => {
+              console.error(`Error closing ${driver} pool:`, err);
+            });
         }
-        Deno.exit(0);
         break;
       case "sqlite":
       case "sqlsrv":
@@ -711,9 +716,8 @@ export const dbCloser = async () => {
         break;
     }
   }
+  Deno.exit(0);
 };
-
-import mssql from "mssql";
 
 export class DatabaseHelper {
   private dbConfig = config("database");

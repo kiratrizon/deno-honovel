@@ -1,4 +1,3 @@
-import mysql, { Pool, PoolConnection } from "npm:mysql2@^3.6.0/promise";
 import "../hono-globals/index.ts";
 
 import { Command } from "@cliffy/command";
@@ -6,18 +5,12 @@ import { Migration } from "Illuminate/Database/Migrations/index.ts";
 import { DB, Schema } from "Illuminate/Support/Facades/index.ts";
 import { Confirm } from "@cliffy/prompt";
 
-import MySQL from "../DatabaseBuilder/MySQL.ts";
-
 const myCommand = new Command();
 
 import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import path from "node:path";
 import { envs } from "../../../../../environment.ts";
 import { PreventRequestDuringMaintenance } from "Illuminate/Foundation/Http/Middleware/index.ts";
-import {
-  MySQLConnectionConfig,
-  SupportedDrivers,
-} from "configs/@types/index.d.ts";
 import { Encrypter } from "Illuminate/Encryption/index.ts";
 import { DatabaseHelper } from "Database";
 class MyArtisan {
