@@ -1,4 +1,4 @@
-import mysql, { Pool, PoolConnection } from "npm:mysql2@^3.6.0/promise";
+import mysql, { Pool, PoolConnection } from "mysql2/promise";
 import { QueryResultDerived } from "Database";
 
 class MySQL {

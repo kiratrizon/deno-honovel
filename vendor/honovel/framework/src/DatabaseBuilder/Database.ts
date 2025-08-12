@@ -1,13 +1,10 @@
 // mysql
-import mysql, {
-  ConnectionOptions,
-  Pool as MPool,
-} from "npm:mysql2@^3.6.0/promise";
+import mysql, { ConnectionOptions, Pool as MPool } from "mysql2/promise";
 // sqlite
 import MySQL from "./MySQL.ts";
 
 // postgresql
-import { Pool as PPool, TLSOptions } from "pg";
+import { Pool as PPool, Client as PgClient } from "pg";
 import PgSQL from "./PostgreSQL.ts";
 import { Carbon } from "honovel:helpers";
 import {
@@ -715,3 +712,168 @@ export const dbCloser = async () => {
     }
   }
 };
+
+import mssql from "mssql";
+
+export class DatabaseHelper {
+  private dbConfig = config("database");
+
+  constructor(private connection: string) {}
+
+  private async getConnectionConfig() {
+    const connection = this.connection;
+    const dbConfig = this.dbConfig.connections[connection];
+    if (!dbConfig) {
+      throw new Error(`Database connection "${connection}" not found.`);
+    }
+    const driver = dbConfig.driver;
+    switch (driver) {
+      case "mysql": {
+        const fromReadOrWrite = dbConfig.read || dbConfig.write;
+        const conf: Record<string, unknown> = {};
+        if (isset(fromReadOrWrite)) {
+          conf.host =
+            (isArray(fromReadOrWrite.host)
+              ? fromReadOrWrite.host[0]
+              : fromReadOrWrite.host) ||
+            dbConfig.host ||
+            "localhost";
+          conf.port = fromReadOrWrite.port || dbConfig.port || 3306;
+          conf.user = fromReadOrWrite.user || dbConfig.user || "root";
+          conf.password = fromReadOrWrite.password || dbConfig.password || "";
+        } else {
+          conf.host = dbConfig.host || "localhost";
+          conf.port = dbConfig.port || 3306;
+          conf.user = dbConfig.user || "root";
+          conf.password = dbConfig.password || "";
+        }
+        const client = await mysql.createConnection(conf);
+        return client as MPool;
+      }
+      case "pgsql": {
+        const fromReadOrWrite = dbConfig.read || dbConfig.write;
+        const conf: Record<string, unknown> = {};
+        if (isset(fromReadOrWrite)) {
+          conf.host =
+            (isArray(fromReadOrWrite.host)
+              ? fromReadOrWrite.host[0]
+              : fromReadOrWrite.host) ||
+            dbConfig.host ||
+            "localhost";
+          conf.port = fromReadOrWrite.port || dbConfig.port || 5432;
+          conf.user = fromReadOrWrite.user || dbConfig.user || "postgres";
+          conf.password = fromReadOrWrite.password || dbConfig.password || "";
+        } else {
+          conf.host = dbConfig.host || "localhost";
+          conf.port = dbConfig.port || 5432;
+          conf.user = dbConfig.user || "postgres";
+          conf.password = dbConfig.password || "";
+        }
+        conf.database = "postgres";
+        const client = new PgClient(conf);
+        await client.connect();
+        return client as PPool;
+      }
+      case "sqlite": {
+        const dbPath = dbConfig.database || databasePath("database.sqlite");
+        const module = await import("jsr:@db/sqlite");
+        const SqliteDB = module.Database;
+        const client = new SqliteDB(dbPath);
+        return client;
+      }
+      case "sqlsrv": {
+        const fromReadOrWrite = dbConfig.read || dbConfig.write;
+        const conf: Record<string, unknown> = {};
+        if (isset(fromReadOrWrite)) {
+          conf.server =
+            (isArray(fromReadOrWrite.host)
+              ? fromReadOrWrite.host[0]
+              : fromReadOrWrite.host) ||
+            dbConfig.host ||
+            "localhost";
+          conf.port = fromReadOrWrite.port || dbConfig.port || 1433;
+          conf.user = fromReadOrWrite.user || dbConfig.user || "sa";
+          conf.password = fromReadOrWrite.password || dbConfig.password || "";
+        } else {
+          conf.server = dbConfig.host || "localhost";
+          conf.port = dbConfig.port || 1433;
+          conf.user = dbConfig.user || "sa";
+          conf.password = dbConfig.password || "";
+        }
+        conf.database = "master"; // SQL Server requires a database to connect
+        const client = new mssql.ConnectionPool(conf);
+        await client.connect();
+        return client;
+      }
+    }
+
+    throw new Error(`Unsupported database driver: ${dbConfig.driver}`);
+  }
+
+  public async askIfDBExist(): Promise<boolean> {
+    const dbType = this.dbConfig.connections[this.connection].driver;
+    const conn = await this.getConnectionConfig();
+    switch (dbType) {
+      case "mysql": {
+        const sql = `SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`;
+        const result = await MySQL.query<"select">(conn, sql, [
+          this.dbConfig.connections[this.connection].database,
+        ]);
+        await (conn as MPool).end();
+        return result.length > 0;
+      }
+      case "pgsql": {
+        const sql = `SELECT datname FROM pg_database WHERE datname = $1`;
+        const result = await PgSQL.query<"select">(conn, sql, [
+          this.dbConfig.connections[this.connection].database,
+        ]);
+        await (conn as PPool).end();
+        return result.length > 0;
+      }
+      case "sqlite": {
+        return pathExist(this.dbConfig.connections[this.connection].database);
+      }
+      case "sqlsrv": {
+        // const sql = `SELECT name FROM sys.databases WHERE name = @dbName`;
+        // const request = new mssql.Request(conn);
+        // request.input("dbName", mssql.NVarChar, this.dbConfig.connections[connection].database);
+        // const result = await request.query(sql);
+        // return result.recordset.length > 0;
+        return false;
+      }
+    }
+    throw new Error(`Unsupported database type: ${dbType}`);
+  }
+
+  public async createDatabase(): Promise<void> {
+    const dbType = this.dbConfig.connections[this.connection].driver;
+    const conn = await this.getConnectionConfig();
+    const dbName = this.dbConfig.connections[this.connection].database;
+    switch (dbType) {
+      case "mysql": {
+        const sql = `CREATE DATABASE IF NOT EXISTS \`${dbName}\``;
+        await MySQL.query<"create">(conn, sql);
+        await (conn as MPool).end();
+        break;
+      }
+      case "pgsql": {
+        const sql = `CREATE DATABASE \`${dbName}\``;
+        await PgSQL.query<"create">(conn, sql);
+        await (conn as PPool).end();
+        break;
+      }
+      case "sqlite": {
+        // SQLite databases are created automatically when connecting
+        break;
+      }
+      case "sqlsrv": {
+        // SQL Server requires a different approach
+        throw new Error("SQL Server database creation is not implemented yet.");
+      }
+    }
+  }
+
+  public getDatabaseName(): string {
+    return this.dbConfig.connections[this.connection].database as string;
+  }
+}

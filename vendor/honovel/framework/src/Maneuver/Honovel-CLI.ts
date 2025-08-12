@@ -19,6 +19,7 @@ import {
   SupportedDrivers,
 } from "configs/@types/index.d.ts";
 import { Encrypter } from "Illuminate/Encryption/index.ts";
+import { DatabaseHelper } from "Database";
 class MyArtisan {
   constructor() {}
   private async createConfig(options: { force?: boolean }, name: string) {
@@ -130,56 +131,18 @@ class MyArtisan {
   }
 
   private async askIfDBNotExist(connection: string) {
-    const dbType = config("database").connections[connection]
-      .driver as SupportedDrivers;
-    switch (dbType) {
-      case "mysql": {
-        const conf = (config("database").connections?.[connection] ||
-          {}) as MySQLConnectionConfig;
-        const poolParams = {
-          host: (isArray(conf.host) ? conf.host[0] : conf.host) || "localhost",
-          port: Number(conf.port || 3306),
-          user: conf.user,
-          password: conf.password,
-          waitForConnections: true,
-        };
-        const pool = mysql.createPool(poolParams) as Pool;
-
-        const dbName = conf.database;
-        const rows = await MySQL.query<"select">(
-          pool,
-          `SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`,
-          [dbName]
-        );
-
-        if (!rows || (Array.isArray(rows) && rows.length === 0)) {
-          const confirmed = await Confirm.prompt(
-            `❗ Database "${dbName}" does not exist. Do you want to create it now?`
-          );
-
-          if (confirmed) {
-            await MySQL.query(pool, `CREATE DATABASE \`${dbName}\``);
-            console.log(`✅ Database "${dbName}" has been created.`);
-          } else {
-            console.log(
-              `⚠️ Operation aborted. Database "${dbName}" does not exist.`
-            );
-            await pool.end();
-            Deno.exit(1);
-          }
-        }
-
-        await pool.end();
-        break;
-      }
-      case "pgsql": {
-        break;
-      }
-      case "sqlite": {
-        break;
-      }
-      case "sqlsrv": {
-        break;
+    const dbHelper = new DatabaseHelper(connection);
+    if (!(await dbHelper.askIfDBExist())) {
+      const dbName = dbHelper.getDatabaseName();
+      const createDB = await Confirm.prompt(
+        `Database \`${dbName}\` does not exist. Do you want to create it?`
+      );
+      if (createDB) {
+        await dbHelper.createDatabase();
+        console.log(`✅ Database \`${dbName}\` created successfully.`);
+      } else {
+        console.error("❌ Migration aborted due to missing database.");
+        Deno.exit(1);
       }
     }
   }
@@ -194,7 +157,7 @@ class MyArtisan {
       await this.askIfDBNotExist(options.db);
     }
     await this.createMigrationTable(options.db);
-    const modules = await loadMigrationModules();
+    const modules = await loadMigrationModules(options.path);
     const batchNumber = await this.getBatchNumber(options.db);
 
     const type = "up"; // or "down" based on your requirement
@@ -230,7 +193,7 @@ class MyArtisan {
     }
     await this.dropAllTables(options.db);
     await this.createMigrationTable(options.db);
-    const modules = await loadMigrationModules();
+    const modules = await loadMigrationModules(options.path);
     const batchNumber = await this.getBatchNumber(options.db);
     const type = "up"; // or "down" based on your requirement
     for (const module of modules) {
@@ -265,6 +228,67 @@ class MyArtisan {
       await this.askIfDBNotExist(options.db);
     }
     await this.createMigrationTable(options.db);
+
+    const extractModule: string[] = [];
+    if (options.step && options.step > 0) {
+      const batchRows = await DB.table("migrations")
+        .select("batch")
+        .groupBy("batch")
+        .orderBy("batch", "desc")
+        .limit(options.step)
+        .get();
+      const batches = batchRows.map((row) => row.batch);
+      if (batches.length) {
+        const batchMigrations = await DB.table("migrations")
+          .whereIn("batch", batches)
+          .select("name")
+          .orderBy("id", "desc")
+          .get();
+
+        extractModule.push(...batchMigrations.map((row) => row.name as string));
+      }
+    }
+
+    const modules = await loadMigrationModules(options.path, extractModule);
+    if (modules.length === 0) {
+      console.log("⚠️ No migrations found to refresh.");
+      return;
+    }
+    console.log(`Rolling back ${modules.length} migrations...`);
+    for (const module of modules) {
+      const { name, migration } = module;
+      // need query
+      migration.setConnection(options.db);
+      await migration.run("down");
+      // delete migration record
+      await DB.connection(options.db)
+        .table("migrations")
+        .where("name", name)
+        .delete();
+      console.log(`Migration ${name} rolled back successfully.`);
+    }
+
+    console.log(`Re-running migrations...`);
+    const batchNumber = await this.getBatchNumber(options.db);
+    for (const module of modules) {
+      const { name, migration } = module;
+      // need query
+      const isApplied = await DB.connection(options.db)
+        .table("migrations")
+        .where("name", name)
+        .count();
+      if (isApplied) {
+        console.log(`Migration ${name} already applied.`);
+        continue;
+      }
+      migration.setConnection(options.db);
+      await migration.run("up");
+      await DB.connection(options.db).insert("migrations", {
+        name,
+        batch: batchNumber,
+      });
+      console.log(`Migration ${name} applied successfully.`);
+    }
 
     // Logic to rollback and re-run migrations
   }
@@ -679,10 +703,12 @@ interface ModuleMigration {
   migration: Migration;
 }
 
-export async function loadMigrationModules(): Promise<ModuleMigration[]> {
-  const migrationsPath = databasePath("migrations");
+export async function loadMigrationModules(
+  modulePath: string = "database/migrations",
+  extractModule: string[] = []
+): Promise<ModuleMigration[]> {
   const modules: ModuleMigration[] = [];
-
+  const migrationsPath = basePath(modulePath);
   for await (const entry of Deno.readDir(migrationsPath)) {
     if (entry.isFile && entry.name.endsWith(".ts")) {
       const fullPath = path.join(migrationsPath, entry.name);
@@ -699,6 +725,15 @@ export async function loadMigrationModules(): Promise<ModuleMigration[]> {
 
   // Sort modules by name to ensure consistent order
   modules.sort((a, b) => a.name.localeCompare(b.name));
+  if (extractModule.length > 0) {
+    const filteredModules: ModuleMigration[] = [];
+    for (const module of modules) {
+      if (extractModule.includes(module.name)) {
+        filteredModules.push(module);
+      }
+    }
+    return filteredModules;
+  }
 
   return modules;
 }

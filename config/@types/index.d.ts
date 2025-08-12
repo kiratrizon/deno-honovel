@@ -181,9 +181,18 @@ export interface MySQLConnectionConfigRaw {
 
 type MySQLConnectionConfig = MySQLConnectionConfigRaw;
 
+type PgSQLReadWriteConfig = {
+  host?: string | string[];
+  port?: number;
+  user?: string;
+  password?: string;
+};
+
 export interface PostgresConnectionConfig {
   driver: "pgsql";
   host: string;
+  read?: PgSQLReadWriteConfig;
+  write?: PgSQLReadWriteConfig;
   port: number;
   user: string;
   password: string;
@@ -200,10 +209,19 @@ interface SQLiteConnectionConfig {
   database: string;
 }
 
+type SQLSrvReadWriteConfig = {
+  host?: string | string[];
+  port?: number;
+  user?: string;
+  password?: string;
+};
+
 export interface SqlSrvConnectionConfig {
   driver: "sqlsrv";
   host: string;
   port?: number;
+  read?: SQLSrvReadWriteConfig;
+  write?: SQLSrvReadWriteConfig;
   user: string;
   password: string;
   database: string;

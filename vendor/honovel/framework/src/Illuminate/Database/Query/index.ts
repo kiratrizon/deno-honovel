@@ -971,7 +971,7 @@ export class Builder extends WhereInterpolator {
   }
 
   #built: boolean = false;
-  private toSqlWithValues() {
+  private toSqlWithValues(type: string = "select") {
     if (this.#built) {
       return;
     }
@@ -984,7 +984,14 @@ export class Builder extends WhereInterpolator {
     const offset = this.offsetValue;
     const limit = this.limitValue;
 
-    let sql = `SELECT`;
+    let sql;
+    if (type === "insert") {
+      sql = "INSERT INTO";
+    } else if (type === "delete") {
+      sql = "DELETE";
+    } else {
+      sql = "SELECT";
+    }
     const fieldStr: string[] = [];
     field.forEach(([str, bool]) => {
       if (bool) {
@@ -992,7 +999,10 @@ export class Builder extends WhereInterpolator {
       }
       fieldStr.push(str);
     });
-    sql += ` ${fieldStr.join(", ")} ${this.buildFromClause()}`;
+    if (type === "select") {
+      sql += ` ${fieldStr.join(", ")}`;
+    }
+    sql += ` ${this.buildFromClause()}`;
     if (joins.length > 0) {
       sql +=
         " " +
@@ -1095,14 +1105,15 @@ export class Builder extends WhereInterpolator {
     return Number(result[0]?.count || 0);
   }
 
-  // public async delete() {
-  //   const { sql, values } = {
-  //     sql: `DELETE FROM ${this.table[0]} ${this.buildFromClause()}`,
-  //     values: this.getBindings(),
-  //   };
-  //   const result = await this.database.runQuery<"delete">(sql, values);
-  //   return result;
-  // }
+  public async delete() {
+    this.toSqlWithValues("delete");
+    const { sql, values } = {
+      sql: this.#sql,
+      values: this.#params,
+    };
+    const result = await this.database.runQuery<"delete">(sql, values);
+    return result;
+  }
 
   public mergeBindings(param: Builder): this {
     if (!(param instanceof Builder)) {
