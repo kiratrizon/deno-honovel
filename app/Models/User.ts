@@ -2,6 +2,7 @@ import {
   Authenticatable,
   JWTSubject,
 } from "Illuminate/Contracts/Auth/index.ts";
+import { HasFactory } from "Illuminate/Database/Eloquent/Factories/index.ts";
 
 export type UserSchema = {
   id?: number;
@@ -10,12 +11,14 @@ export type UserSchema = {
   name: string;
 };
 
-class User
-  extends Authenticatable<{ _attributes: UserSchema }>
-  implements JWTSubject
-{
+class User extends Authenticatable<UserSchema> implements JWTSubject {
   // Laravel-like implementation here
-  protected override _fillable = [];
+  protected _fillable = ["email", "password", "name", "api_token"];
+  protected _guarded: string[] = [];
+
+  static override use: Record<string, unknown> = {
+    HasFactories: HasFactory,
+  };
 
   protected override _hidden = ["password"];
 
@@ -27,7 +30,7 @@ class User
   }
 
   public getJWTIdentifier(): string | number {
-    return this.id || "";
+    return this.getAuthIdentifier() || "";
   }
 }
 

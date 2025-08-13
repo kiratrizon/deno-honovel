@@ -10,7 +10,7 @@ export type {{ ClassName }}Schema = {
   name: string;
 };
 
-class {{ ClassName }} extends Model<{ _attributes: {{ ClassName }}Schema }> {
+class {{ ClassName }} extends Model<{{ ClassName }}Schema> {
   // Laravel-like implementation here
   protected override _fillable = schemaKeys<{{ ClassName }}Schema>([
     "email",

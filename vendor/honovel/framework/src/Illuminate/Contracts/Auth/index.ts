@@ -1,14 +1,16 @@
 import { Model } from "Illuminate/Database/Eloquent/index.ts";
-import { IBaseModelProperties } from "../../../../../@types/declaration/Base/IBaseModel.d.ts";
 import { DB, Hash } from "Illuminate/Support/Facades/index.ts";
 import { AuthConfig } from "configs/@types/index.d.ts";
 import { Carbon } from "honovel:helpers";
 import { JWTAuth } from "../../Auth/index.ts";
+import {
+  AccessorMap,
+  IBaseModelProperties,
+} from "../../../../../@types/declaration/Base/IBaseModel.d.ts";
 
 type AuthenticatableAttr = {
-  id: number | string;
   password: string;
-  rememberToken?: string | null;
+  remember_token?: string;
 };
 
 type AuthenticatableAttrToken = AuthenticatableAttr & {
@@ -19,26 +21,20 @@ type AuthenticatableAttrSession = AuthenticatableAttr & {
 };
 
 // New attributes type that merges both
-type WithAuthAttributes<T> = T extends { _attributes: infer A }
-  ? A & AuthenticatableAttr
-  : AuthenticatableAttr;
+type WithAuthAttributes<T> = AuthenticatableAttr & T;
 
 /**
  * Provides authentication-related logic for a model,
  * including identifier access and remember token management.
  */
-export class Authenticatable<
-  T extends IBaseModelProperties = { _attributes: AuthenticatableAttr }
+export abstract class Authenticatable<
+  S extends IBaseModelProperties = IBaseModelProperties,
+  T extends Record<string, unknown> = WithAuthAttributes<S>
 > extends Model<T> {
   /**
    * Internal attributes, merged with authentication fields.
    */
-  declare _attributes: WithAuthAttributes<T>;
-
-  /**
-   * The unique identifier of the user (usually "id").
-   */
-  declare id: AuthenticatableAttr["id"];
+  declare _attributes: T;
 
   /**
    * The hashed password of the user.
@@ -48,7 +44,7 @@ export class Authenticatable<
   /**
    * Optional remember token for persistent login sessions.
    */
-  declare rememberToken?: AuthenticatableAttr["rememberToken"];
+  declare remember_token?: AuthenticatableAttr["remember_token"];
 
   /**
    * Returns the name of the unique identifier field.
@@ -62,7 +58,8 @@ export class Authenticatable<
    * Returns the value of the user's unique identifier.
    */
   getAuthIdentifier(): number | string {
-    return this.id;
+    // @ts-ignore //
+    return this[this.getAuthIdentifierName()] || "";
   }
 
   /**
@@ -76,16 +73,17 @@ export class Authenticatable<
    * Gets the user's current "remember me" token.
    */
   getRememberToken(): string | null {
-    return this.rememberToken || null;
+    return this.remember_token || null;
   }
 
   /**
    * Sets a new "remember me" token for the user.
    */
-  setRememberToken(token: string): void {
-    this.fill({
-      rememberToken: token,
-    });
+  async setRememberToken(token: string): Promise<void> {
+    // @ts-ignore //
+    this.fill({ remember_token: token });
+    // Save the model to persist the new token
+    await this.save();
   }
 
   /**
@@ -148,6 +146,7 @@ export abstract class BaseGuard {
     if (!(model.prototype instanceof Authenticatable)) {
       throw new Error(`Model ${model.name} does not extend Authenticatable`);
     }
+    // @ts-ignore - We assume the model is compatible with the Authenticatable //
     return model as typeof Authenticatable;
   }
 
@@ -333,6 +332,7 @@ export class SessionGuard extends BaseGuard {
     > | null;
     if (checkUser) {
       // If user is already set in context, return true
+      // @ts-ignore //
       this.authUser = new this.model(checkUser as AuthenticatableAttrSession);
       return true;
     }
@@ -405,11 +405,11 @@ export class SessionGuard extends BaseGuard {
     );
     if (remember) {
       // If "remember me" is checked, set the remember token
-      const generatedToken = `${this.guardName}_${user.id}_${strToTime(
-        Carbon.now().addDays(30)
-      )}`;
+      const generatedToken = `${
+        this.guardName
+      }_${user.getAuthIdentifier()}_${strToTime(Carbon.now().addDays(30))}`;
       const rememberToken = Hash.make(generatedToken);
-      user.setRememberToken(rememberToken);
+      await user.setRememberToken(rememberToken);
       await user.save();
       const sessguardKey = `auth_${this.guardName}_user`;
       request.cookie(sessguardKey, rememberToken, {
@@ -437,7 +437,7 @@ export class SessionGuard extends BaseGuard {
     const sessguardKey = `auth_${this.guardName}_user`;
     // @ts-ignore //
     const user = request.session.get(sessguardKey) as Authenticatable | null;
-    return user ? !!user.rememberToken : false;
+    return user ? !!user.remember_token : false;
   }
 }
 
@@ -505,6 +505,7 @@ export class TokenGuard extends BaseGuard {
     this.c.set(key, user);
     if (!keyExist(rawAttributes, "api_token")) {
       throw new Error(
+        // @ts-ignore //
         `Table ${new this.model().getTableName()} have no api_token column.`
       );
     }

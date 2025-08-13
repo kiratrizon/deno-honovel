@@ -1,5 +1,4 @@
-import { SupportedDrivers } from "configs/@types/index.d.ts";
-import IBaseModel, {
+import {
   AccessorMap,
   IBaseModelProperties,
   PHPTimestampFormat,
@@ -16,12 +15,11 @@ export function schemaKeys<T extends Record<string, unknown>>(
 ) {
   return keys;
 }
-export class Model<T extends IBaseModelProperties> {
-  constructor(attributes: T["_attributes"] = {} as T["_attributes"]) {
-    for (const key of Object.keys(attributes) as (keyof T["_attributes"])[]) {
-      this.setAttribute(key, attributes[key]);
-    }
-  }
+export abstract class Model<
+  T extends IBaseModelProperties = IBaseModelProperties
+> {
+  static use: Record<string, unknown> = {};
+
   protected _timeStamps: boolean = true;
 
   protected _table?: string;
@@ -32,8 +30,8 @@ export class Model<T extends IBaseModelProperties> {
 
   protected _keyType: "int" | "string" | "uuid" = "int";
 
-  protected _fillable: (keyof T["_attributes"])[] = [];
-  protected _guarded: (keyof T["_attributes"])[] = [];
+  protected abstract _fillable?: (keyof T | string)[];
+  protected abstract _guarded?: (keyof T | string)[];
 
   protected _hidden: Array<string> = [];
 
@@ -41,17 +39,14 @@ export class Model<T extends IBaseModelProperties> {
 
   protected _dateFormat: PHPTimestampFormat = "Y-m-d H:i:s";
 
-  protected _attributes: T["_attributes"] = {};
+  protected _attributes: T = {} as T;
 
   protected _connection: string = DB.getDefaultConnection();
 
   protected _casts: Record<
-    keyof T["_attributes"],
+    keyof T,
     "string" | "boolean" | "object" | "int" | "array"
-  > = {} as Record<
-    keyof T["_attributes"],
-    "string" | "boolean" | "object" | "int" | "array"
-  >;
+  > = {} as Record<keyof T, "string" | "boolean" | "object" | "int" | "array">;
 
   protected _timestampsFields: [string, string] = ["created_at", "updated_at"];
 
@@ -59,16 +54,15 @@ export class Model<T extends IBaseModelProperties> {
 
   protected _deletedAtColumn: string = "deleted_at";
 
-  protected _accessors: AccessorMap<T["_attributes"]> = {};
+  protected _accessors: AccessorMap<T> = {};
 
-  protected _mutators: AccessorMap<T["_attributes"]> = {};
+  protected _mutators: AccessorMap<T> = {};
 
   public getTableName(): string {
     if (this._table) {
       return this._table;
     }
-    const className = this.constructor.name.replace(/^Base/, "");
-    return generateTableName(className);
+    return generateTableName(this.constructor.name);
   }
 
   public getConnection(): string {
@@ -95,9 +89,7 @@ export class Model<T extends IBaseModelProperties> {
     return this._timeStamps;
   }
 
-  public getAttribute<K extends keyof T["_attributes"]>(
-    key: K
-  ): T["_attributes"][K] | null {
+  public getAttribute<K extends keyof T>(key: K): T[K] | null {
     let value: unknown = this._attributes[key] ?? null;
 
     const cast = this._casts?.[key];
@@ -153,7 +145,7 @@ export class Model<T extends IBaseModelProperties> {
     if (isset(accessor) && isFunction(accessor)) {
       value = accessor(value);
     }
-    return value as T["_attributes"][K] | null;
+    return value as T[K] | null;
   }
 
   public getAttributes(): Record<string, unknown> {
@@ -165,17 +157,14 @@ export class Model<T extends IBaseModelProperties> {
     return data;
   }
 
-  public setAttribute<K extends keyof T["_attributes"]>(
-    key: K,
-    value: T["_attributes"][K]
-  ): void {
+  public setAttribute<K extends keyof T>(key: K, value: T[K]): void {
     if (isset(this._guarded) && keyExist(this._guarded, key)) {
       throw new Error(
         `Attribute "${String(key)}" is guarded and cannot be set.`
       );
     }
     if (keyExist(this._mutators, key) && isFunction(this._mutators[key])) {
-      value = this._mutators[key](value) as T["_attributes"][K];
+      value = this._mutators[key](value) as T[K];
     }
     if (!Object.prototype.hasOwnProperty.call(this, key)) {
       Object.defineProperty(this, key, {
@@ -187,20 +176,25 @@ export class Model<T extends IBaseModelProperties> {
     this._attributes[key] = value;
   }
 
-  public fill(attributes: T["_attributes"]): this {
+  public fill(attributes: Partial<T>): this {
+    // console.log("Filling attributes:", this._fillable);
     if (isset(this._fillable) && this._fillable.length > 0) {
-      for (const key of this._fillable) {
-        if (key in attributes) {
-          this.setAttribute(key, attributes[key]);
+      for (const [key, value] of Object.entries(attributes)) {
+        if (this._fillable.includes(key as keyof T)) {
+          this.setAttribute(key as keyof T, value as T[keyof T]);
+        } else {
+          throw new Error(`Attribute "${key}" is not fillable.`);
         }
       }
     } else {
+      if (!isset(this._guarded) || !this._guarded.length) {
+        throw new Error(
+          `No fillable attributes defined for model ${this.constructor.name}.`
+        );
+      }
       for (const [key, value] of Object.entries(attributes)) {
         if (isset(this._guarded) && !this._guarded.includes(key as string)) {
-          this.setAttribute(
-            key as keyof T["_attributes"],
-            value as T["_attributes"][keyof T["_attributes"]]
-          );
+          this.setAttribute(key as keyof T, value as T[keyof T]);
         } else {
           throw new Error(`Attribute "${key}" is guarded and cannot be set.`);
         }
@@ -209,7 +203,7 @@ export class Model<T extends IBaseModelProperties> {
     return this;
   }
 
-  public forceFill(attributes: T["_attributes"]): this {
+  public forceFill(attributes: T): this {
     for (const [key, value] of Object.entries(attributes)) {
       // @ts-ignore //
       this.setAttribute(key, value);
@@ -285,8 +279,8 @@ export class Model<T extends IBaseModelProperties> {
   }
 
   public addAccessor(
-    attribute: keyof T["_attributes"],
-    fn: (value: T["_attributes"][keyof T["_attributes"]]) => unknown
+    attribute: keyof T,
+    fn: (value: T[keyof T]) => unknown
   ): void {
     if (!isFunction(fn)) {
       throw new Error("Accessor must be a function.");
@@ -311,9 +305,9 @@ export class Model<T extends IBaseModelProperties> {
     }
   }
 
-  public addMutator<K extends keyof T["_attributes"]>(
+  public addMutator<K extends keyof T>(
     attribute: K,
-    fn: (value: T["_attributes"][K]) => unknown
+    fn: (value: T[K]) => unknown
   ): void {
     if (typeof fn !== "function") {
       throw new Error("Mutator must be a function.");
@@ -331,10 +325,38 @@ export class Model<T extends IBaseModelProperties> {
     ) as Builder<IBaseModelProperties, typeof Model<IBaseModelProperties>>;
   }
 
-  public static create<Attr extends Record<string, unknown>>(
+  public static async create<Attr extends Record<string, unknown>>(
     attributes?: Attr
-  ): boolean {
-    return true;
+  ) {
+    // @ts-ignore //
+    const instance = new this(attributes);
+    await instance.save();
+    return instance;
+  }
+
+  // Never use this in production code, it's for development CLI only.
+  public static async factory(connection: string): Promise<Factory> {
+    if (!isset(this.use["HasFactories"])) {
+      throw new Error("This model does not support factories.");
+    }
+    if (!isset(connection)) {
+      throw new Error("Connection must be specified for factory.");
+    }
+    if (!DB.hasConnection(connection)) {
+      throw new Error(`Database connection "${connection}" does not exist.`);
+    }
+    const factoryClass = this.use["HasFactories"] as typeof HasFactory;
+
+    if (!isset(factoryClass)) {
+      throw new Error("Factory class not found for this model.");
+    }
+    if (!methodExist(factoryClass, "getFactoryByModel")) {
+      throw new Error(`${this.name} does not have a factory method.`);
+    }
+    const factory = await factoryClass.getFactoryByModel(this);
+    // @ts-ignore //
+    factory.setConnection(connection);
+    return factory as Factory;
   }
 
   public static where(column: string, value: unknown): Builder {
@@ -421,6 +443,7 @@ export class Model<T extends IBaseModelProperties> {
   }
 
   public static async find(id: string | number) {
+    // @ts-ignore //
     const instanceModel = new this() as Model<IBaseModelProperties>;
     const primaryKey = instanceModel.getKeyName();
     return await new Builder({
@@ -452,6 +475,7 @@ export class Model<T extends IBaseModelProperties> {
 }
 
 import { Builder as RawBuilder, sqlstring } from "../Query/index.ts";
+import { Factory, HasFactory } from "./Factories/index.ts";
 
 export class Builder<
   B extends IBaseModelProperties = IBaseModelProperties,
@@ -462,6 +486,7 @@ export class Builder<
     { model, fields = ["*"] }: { model: T; fields?: sqlstring[] },
     db?: string
   ) {
+    // @ts-ignore //
     const instanceModel = new model();
     const table = instanceModel.getTableName();
     const dbUsed = db || instanceModel.getConnection();
@@ -473,12 +498,14 @@ export class Builder<
   public override async first(): Promise<InstanceType<T> | null> {
     const data = await super.first();
     if (!data) return null;
-    return new this.model(data) as InstanceType<T>;
+    // @ts-ignore //
+    return new this.model(data as B) as InstanceType<T>;
   }
 
   // @ts-ignore //
   public override async get(): Promise<InstanceType<T>[]> {
     const data = await super.get();
-    return data.map((item) => new this.model(item) as InstanceType<T>);
+    // @ts-ignore //
+    return data.map((item) => new this.model(item as B) as InstanceType<T>);
   }
 }

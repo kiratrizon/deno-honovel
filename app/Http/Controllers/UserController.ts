@@ -41,9 +41,9 @@ class UserController extends Controller {
     const newCreds: Record<string, string> = { ...creds };
     newCreds["api_token"] = crypto.randomUUID();
 
-    await User.on().insert(newCreds);
+    const user = await User.create(newCreds);
     return response().json({
-      user: newCreds,
+      user: user,
     });
   };
 

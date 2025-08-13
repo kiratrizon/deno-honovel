@@ -13,6 +13,7 @@ import { envs } from "../../../../../environment.ts";
 import { PreventRequestDuringMaintenance } from "Illuminate/Foundation/Http/Middleware/index.ts";
 import { Encrypter } from "Illuminate/Encryption/index.ts";
 import { DatabaseHelper } from "Database";
+import Seeder from "Illuminate/Database/Seeder.ts";
 class MyArtisan {
   constructor() {}
   private async createConfig(options: { force?: boolean }, name: string) {
@@ -145,6 +146,7 @@ class MyArtisan {
     path?: string;
     db: string;
     force: boolean;
+    seeder?: string;
   }) {
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
@@ -173,6 +175,15 @@ class MyArtisan {
       });
       console.log(`Migration ${name} applied successfully.`);
     }
+    if (options.seed) {
+      if (!options.seeder) {
+        options.seeder = "DatabaseSeeder";
+      }
+      await this.runSeed({
+        seederClass: options.seeder,
+        db: options.db,
+      });
+    }
   }
 
   private async freshMigrations(options: {
@@ -180,6 +191,7 @@ class MyArtisan {
     path?: string;
     db: string;
     force: boolean;
+    seeder?: string;
   }) {
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
@@ -208,6 +220,15 @@ class MyArtisan {
       });
       console.log(`Migration ${name} applied successfully.`);
     }
+    if (options.seed) {
+      if (!options.seeder) {
+        options.seeder = "DatabaseSeeder";
+      }
+      await this.runSeed({
+        seederClass: options.seeder,
+        db: options.db,
+      });
+    }
   }
 
   private async refreshMigrations(options: {
@@ -216,6 +237,7 @@ class MyArtisan {
     path?: string;
     db: string;
     force: boolean;
+    seeder?: string;
   }) {
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
@@ -283,7 +305,15 @@ class MyArtisan {
       console.log(`Migration ${name} applied successfully.`);
     }
 
-    // Logic to rollback and re-run migrations
+    if (options.seed) {
+      if (!options.seeder) {
+        options.seeder = "DatabaseSeeder";
+      }
+      await this.runSeed({
+        seederClass: options.seeder,
+        db: options.db,
+      });
+    }
   }
 
   private async createMigrationTable(dbType: string) {
@@ -454,11 +484,49 @@ class MyArtisan {
     );
   }
 
+  private async runSeed({
+    seederClass = "DatabaseSeeder",
+    db = DB.getDefaultConnection(),
+  }: {
+    seederClass?: string;
+    db?: string;
+  }) {
+    const moduleSeeder = await import(
+      databasePath(`seeders/${seederClass}.ts`)
+    );
+    if (!moduleSeeder.default) {
+      console.error(`❌ Seeder class ${seederClass} not found.`);
+      return;
+    }
+    const SeederClass = new moduleSeeder.default() as Seeder;
+    SeederClass.setConnection(db);
+    try {
+      console.log(`Running seeder: ${seederClass} on database: ${db}`);
+      await SeederClass.run();
+      console.log(`✅ Seeding completed successfully.`);
+    } catch (err) {
+      console.error(`❌ Error running ${seederClass}:`, err);
+    }
+  }
+
   public async command(args: string[]): Promise<void> {
     await myCommand
       .name("deno task")
       .description("Honovel CLI")
       .version(frameworkVersion().honovelVersion)
+
+      .command("db:seed", "Run the database seeds")
+      .option("--class <class:string>", "Specify the seeder class to run")
+      .option(
+        "--database <db:string>",
+        "Specify the database connection to use"
+      )
+      .action((options: { class?: string; database?: string }) =>
+        this.runSeed.bind(this)({
+          seederClass: options.class,
+          db: options.database,
+        })
+      )
 
       .command("key:generate", "Generate a new application key")
       .option("--force", "Force overwrite existing APP_KEY")
@@ -503,6 +571,10 @@ class MyArtisan {
       .option("--path <path:string>", "Specify a custom migrations directory")
       .option("--db <db:string>", "Specify the database connection to use")
       .option("--force", "Force the migration without confirmation")
+      .option(
+        "--seeder <seeder:string>",
+        "Specify a seeder class to run after migration"
+      )
       .action((options: any) => {
         const db: string =
           (options.db as string) ||
@@ -553,6 +625,10 @@ class MyArtisan {
       .option("--path <path:string>", "Specify a custom migrations directory")
       .option("--db <db:string>", "Specify the database connection to use")
       .option("--force", "Force the fresh migration without confirmation")
+      .option(
+        "--seeder <seeder:string>",
+        "Specify a seeder class to run after fresh migration"
+      )
       .action((options: any) => {
         const db: string =
           (options.db as string) ||
@@ -574,6 +650,10 @@ class MyArtisan {
       .option("--path <path:string>", "Specify a custom migrations directory")
       .option("--db <db:string>", "Specify the database connection to use")
       .option("--force", "Force the refresh migration without confirmation")
+      .option(
+        "--seeder <seeder:string>",
+        "Specify a seeder class to run after refresh"
+      )
       .action((options: any) => {
         const db: string =
           (options.db as string) ||
