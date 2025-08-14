@@ -32,11 +32,6 @@ export abstract class Authenticatable<
   T extends Record<string, unknown> = WithAuthAttributes<S>
 > extends Model<T> {
   /**
-   * Internal attributes, merged with authentication fields.
-   */
-  declare _attributes: T;
-
-  /**
    * The hashed password of the user.
    */
   declare password: AuthenticatableAttr["password"];
@@ -333,7 +328,9 @@ export class SessionGuard extends BaseGuard {
     if (checkUser) {
       // If user is already set in context, return true
       // @ts-ignore //
-      this.authUser = new this.model(checkUser as AuthenticatableAttrSession);
+      this.authUser = new this.model(
+        checkUser as AuthenticatableAttrSession
+      ) as Authenticatable;
       return true;
     }
 

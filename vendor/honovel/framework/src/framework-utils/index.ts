@@ -46,11 +46,13 @@ export class Carbon extends String {
     this.#currentDate = date;
   }
 
-  private static get dateNow() {
+  private static dateNow() {
+    console.log(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    console.log(Carbon.defaultTimezone);
     const timeNow = new Date().toLocaleString("en-US", {
       timeZone: Carbon.defaultTimezone || "UTC",
     });
-    const unixTimestamp = Math.floor(new Date(timeNow).getTime() / 1000);
+    const unixTimestamp = Math.floor(new Date(timeNow).getTime());
     return unixTimestamp;
   }
 
@@ -68,8 +70,8 @@ export class Carbon extends String {
     timestamp: number | null,
     format?: string
   ): Carbon {
-    const date = luxonDate.fromMillis(timestamp ?? Carbon.dateNow, {
-      zone: this.defaultTimezone,
+    const date = luxonDate.fromMillis(timestamp ?? Carbon.dateNow(), {
+      zone: timestamp ? Carbon.defaultTimezone : undefined,
     });
     return new Carbon(date, format);
   }

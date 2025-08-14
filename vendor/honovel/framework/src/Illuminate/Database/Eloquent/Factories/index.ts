@@ -59,16 +59,11 @@ export abstract class Factory {
     const models: Model<Record<string, unknown>>[] = [];
 
     for (const def of defs) {
-      try {
-        // @ts-ignore - We assume the model is compatible with the factory //
-        const instance = new this._model() as Model<Record<string, unknown>>;
-        instance.setConnection(this._connection);
-        instance.fill(def);
-        await instance.save();
-        models.push(instance);
-      } catch (error) {
-        console.error("Error creating model:", error);
-      }
+      // @ts-ignore - We assume the model is compatible with the factory //
+      const instance = new this._model(def) as Model<Record<string, unknown>>;
+      instance.setConnection(this._connection);
+      await instance.save();
+      models.push(instance);
     }
 
     return this._count === 1 ? models[0] : models;

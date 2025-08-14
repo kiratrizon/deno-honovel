@@ -3,6 +3,7 @@ import {
   IBaseModelProperties,
   PHPTimestampFormat,
 } from "../../../../../@types/declaration/Base/IBaseModel.d.ts";
+import { Carbon } from "honovel:helpers";
 import { DB } from "../../Support/Facades/index.ts";
 
 export type ModelWithAttributes<
@@ -18,55 +19,63 @@ export function schemaKeys<T extends Record<string, unknown>>(
 export abstract class Model<
   T extends IBaseModelProperties = IBaseModelProperties
 > {
-  static use: Record<string, unknown> = {};
+  constructor(attributes: Partial<T> = {}) {
+    this.fill(attributes);
+  }
+  protected static createdAtColumn: string = "created_at";
+  protected static updatedAtColumn: string = "updated_at";
 
-  protected _timeStamps: boolean = true;
+  protected static use?: Record<string, unknown>;
 
-  protected _table?: string;
+  protected static _timeStamps: boolean = true;
 
-  protected _primaryKey: string = "id";
+  protected static _table?: string;
 
-  protected _incrementing: boolean = true;
+  protected static _primaryKey: string = "id";
 
-  protected _keyType: "int" | "string" | "uuid" = "int";
+  protected static _incrementing: boolean = true;
 
-  protected abstract _fillable?: (keyof T | string)[];
-  protected abstract _guarded?: (keyof T | string)[];
+  protected static _keyType: "int" | "string" | "uuid" = "int";
 
-  protected _hidden: Array<string> = [];
+  protected static _fillable: Array<string> = [];
+  protected static _guarded: Array<string> = [];
 
-  protected _visible: Array<string> = [];
+  protected static _hidden: Array<string> = [];
 
-  protected _dateFormat: PHPTimestampFormat = "Y-m-d H:i:s";
+  protected static _visible: Array<string> = [];
 
-  protected _attributes: T = {} as T;
+  protected static _dateFormat: PHPTimestampFormat = "Y-m-d H:i:s";
 
-  protected _connection: string = DB.getDefaultConnection();
+  private _attributes: T = {} as T;
 
-  protected _casts: Record<
-    keyof T,
+  private _defaultConnection: string = DB.getDefaultConnection();
+
+  protected static _casts: Record<
+    string,
     "string" | "boolean" | "object" | "int" | "array"
-  > = {} as Record<keyof T, "string" | "boolean" | "object" | "int" | "array">;
+  > = {};
 
-  protected _timestampsFields: [string, string] = ["created_at", "updated_at"];
+  protected static _softDelete: boolean = false;
 
-  protected _softDelete: boolean = false;
+  protected static _deletedAtColumn: string = "deleted_at";
 
-  protected _deletedAtColumn: string = "deleted_at";
+  protected static _accessors: AccessorMap<Record<string, unknown>> = {};
 
-  protected _accessors: AccessorMap<T> = {};
-
-  protected _mutators: AccessorMap<T> = {};
+  protected static _mutators: AccessorMap<Record<string, unknown>> = {};
 
   public getTableName(): string {
-    if (this._table) {
-      return this._table;
+    const ctor = this.constructor as typeof Model;
+    if (ctor._table) {
+      return ctor._table;
     }
-    return generateTableName(this.constructor.name);
+    return generateTableName(ctor.name);
   }
 
+  private _connection?: string;
+
   public getConnection(): string {
-    return this._connection;
+    const connection = this._connection || this._defaultConnection;
+    return connection;
   }
 
   public setConnection(connection: string): this {
@@ -78,21 +87,23 @@ export abstract class Model<
   }
 
   public getKeyName(): string {
-    return this._primaryKey;
+    return (this.constructor as typeof Model)._primaryKey;
   }
 
   public getKey(): string | number {
-    return this._attributes[this._primaryKey] as string | number;
+    return this._attributes[(this.constructor as typeof Model)._primaryKey] as
+      | string
+      | number;
   }
 
   public usesTimestamps(): boolean {
-    return this._timeStamps;
+    return (this.constructor as typeof Model)._timeStamps;
   }
 
   public getAttribute<K extends keyof T>(key: K): T[K] | null {
     let value: unknown = this._attributes[key] ?? null;
 
-    const cast = this._casts?.[key];
+    const cast = (this.constructor as typeof Model)._casts?.[String(key)];
     if (isset(cast)) {
       switch (cast) {
         case "string": {
@@ -141,7 +152,9 @@ export abstract class Model<
       }
     }
 
-    const accessor = this._accessors?.[key];
+    const accessor = (this.constructor as typeof Model)._accessors?.[
+      String(key)
+    ];
     if (isset(accessor) && isFunction(accessor)) {
       value = accessor(value);
     }
@@ -158,13 +171,22 @@ export abstract class Model<
   }
 
   public setAttribute<K extends keyof T>(key: K, value: T[K]): void {
-    if (isset(this._guarded) && keyExist(this._guarded, key)) {
+    if (
+      isset((this.constructor as typeof Model)._guarded) &&
+      keyExist((this.constructor as typeof Model)._guarded, key)
+    ) {
       throw new Error(
         `Attribute "${String(key)}" is guarded and cannot be set.`
       );
     }
-    if (keyExist(this._mutators, key) && isFunction(this._mutators[key])) {
-      value = this._mutators[key](value) as T[K];
+    if (
+      keyExist((this.constructor as typeof Model)._mutators, key) &&
+      isFunction((this.constructor as typeof Model)._mutators[key])
+    ) {
+      const mutator = (this.constructor as typeof Model)._mutators[key];
+      if (mutator) {
+        value = mutator(value) as T[K];
+      }
     }
     if (!Object.prototype.hasOwnProperty.call(this, key)) {
       Object.defineProperty(this, key, {
@@ -177,23 +199,33 @@ export abstract class Model<
   }
 
   public fill(attributes: Partial<T>): this {
-    // console.log("Filling attributes:", this._fillable);
-    if (isset(this._fillable) && this._fillable.length > 0) {
+    if (
+      isset((this.constructor as typeof Model)._fillable) &&
+      (this.constructor as typeof Model)._fillable.length > 0
+    ) {
       for (const [key, value] of Object.entries(attributes)) {
-        if (this._fillable.includes(key as keyof T)) {
+        if (
+          (this.constructor as typeof Model)._fillable.includes(String(key))
+        ) {
           this.setAttribute(key as keyof T, value as T[keyof T]);
         } else {
-          throw new Error(`Attribute "${key}" is not fillable.`);
+          // ignore the attribute if not fillable
         }
       }
     } else {
-      if (!isset(this._guarded) || !this._guarded.length) {
+      if (
+        !isset((this.constructor as typeof Model)._guarded) ||
+        !(this.constructor as typeof Model)._guarded.length
+      ) {
         throw new Error(
           `No fillable attributes defined for model ${this.constructor.name}.`
         );
       }
       for (const [key, value] of Object.entries(attributes)) {
-        if (isset(this._guarded) && !this._guarded.includes(key as string)) {
+        if (
+          isset((this.constructor as typeof Model)._guarded) &&
+          !(this.constructor as typeof Model)._guarded.includes(key as string)
+        ) {
           this.setAttribute(key as keyof T, value as T[keyof T]);
         } else {
           throw new Error(`Attribute "${key}" is guarded and cannot be set.`);
@@ -214,9 +246,9 @@ export abstract class Model<
   public toObject(): Record<Array<string>[number], unknown> {
     const data = { ...this._attributes };
 
-    if (this._visible.length) {
+    if ((this.constructor as typeof Model)._visible.length) {
       const visibleData = {} as Record<Array<string>[number], unknown>;
-      for (const key of this._visible) {
+      for (const key of (this.constructor as typeof Model)._visible) {
         if (keyExist(data, key)) {
           visibleData[key] = data[key];
         }
@@ -224,8 +256,8 @@ export abstract class Model<
       return visibleData;
     }
 
-    if (this._hidden.length) {
-      for (const key of this._hidden) {
+    if ((this.constructor as typeof Model)._hidden.length) {
+      for (const key of (this.constructor as typeof Model)._hidden) {
         delete data[key];
       }
     }
@@ -238,15 +270,19 @@ export abstract class Model<
   }
 
   public hasCast(attribute: string): boolean {
-    return keyExist(this._casts, attribute);
+    return keyExist((this.constructor as typeof Model)._casts, attribute);
   }
 
   public getRawAttributes(): Record<string, unknown> {
     return { ...this._attributes };
   }
 
+  public getRawAttribute<K extends keyof T>(key: K): T[K] | null {
+    return this._attributes[key] ?? null;
+  }
+
   public softDelete(): this {
-    if (!this._softDelete) {
+    if (!(this.constructor as typeof Model)._softDelete) {
       throw new Error("Soft delete is not enabled for this model.");
     }
     // @ts-ignore //
@@ -255,7 +291,7 @@ export abstract class Model<
   }
 
   public restore(): this {
-    if (!this._softDelete) {
+    if (!(this.constructor as typeof Model)._softDelete) {
       throw new Error("Soft delete is not enabled for this model.");
     }
     // @ts-ignore //
@@ -264,14 +300,17 @@ export abstract class Model<
   }
 
   public isTrashed(): boolean {
-    if (!this._softDelete) {
+    if (!(this.constructor as typeof Model)._softDelete) {
       throw new Error("Soft delete is not enabled for this model.");
     }
-    return this.getAttribute(this._deletedAtColumn) !== null;
+    return (
+      this.getAttribute((this.constructor as typeof Model)._deletedAtColumn) !==
+      null
+    );
   }
 
   public getDeletedAtColumn(): string {
-    return this._deletedAtColumn;
+    return (this.constructor as typeof Model)._deletedAtColumn;
   }
 
   public serializeDate(format: PHPTimestampFormat = "Y-m-d H:i:s"): string {
@@ -285,16 +324,22 @@ export abstract class Model<
     if (!isFunction(fn)) {
       throw new Error("Accessor must be a function.");
     }
-    this._accessors[attribute] = fn;
+    (this.constructor as typeof Model)._accessors[String(attribute)] = fn;
     if (!Object.prototype.hasOwnProperty.call(this, attribute)) {
       Object.defineProperty(this, attribute, {
         get: () => {
           const raw = this._attributes[attribute] ?? null;
           if (
-            keyExist(this._accessors, attribute) &&
-            isFunction(this._accessors[attribute])
+            keyExist(
+              (this.constructor as typeof Model)._accessors,
+              attribute
+            ) &&
+            isFunction((this.constructor as typeof Model)._accessors[attribute])
           ) {
-            return this._accessors[attribute](raw);
+            const accessorFn = (this.constructor as typeof Model)._accessors[
+              attribute
+            ];
+            return accessorFn ? accessorFn(raw) : raw;
           } else {
             return raw;
           }
@@ -312,10 +357,17 @@ export abstract class Model<
     if (typeof fn !== "function") {
       throw new Error("Mutator must be a function.");
     }
-    this._mutators[attribute] = fn;
+    (this.constructor as typeof Model)._mutators[String(attribute)] = fn as (
+      value: unknown
+    ) => unknown;
   }
 
-  public static on(db: string = DB.getDefaultConnection()): Builder {
+  public static on(db?: string): Builder {
+    if (!isset(db)) {
+      // @ts-ignore //
+      const instanceModel = new this() as Model<IBaseModelProperties>;
+      db = instanceModel.getConnection();
+    }
     return new Builder(
       {
         model: this,
@@ -329,13 +381,16 @@ export abstract class Model<
     attributes?: Attr
   ) {
     // @ts-ignore //
-    const instance = new this(attributes);
+    const instance = new this(attributes) as Model<IBaseModelProperties>;
     await instance.save();
     return instance;
   }
 
   // Never use this in production code, it's for development CLI only.
   public static async factory(connection: string): Promise<Factory> {
+    if (!isset(this.use)) {
+      throw new Error("This model does not support factories.");
+    }
     if (!isset(this.use["HasFactories"])) {
       throw new Error("This model does not support factories.");
     }
@@ -458,10 +513,20 @@ export abstract class Model<
     const data = this.getRawAttributes();
     const tableName = this.getTableName();
     const primaryKey = this.getKeyName();
+    const isUsingTimestamps = this.usesTimestamps();
+    const now = this.serializeDate();
+    if (isUsingTimestamps) {
+      data[(this.constructor as typeof Model).createdAtColumn] = now;
+      data[(this.constructor as typeof Model).updatedAtColumn] = now;
+    }
 
     // @ts-ignore //
     if (this[primaryKey]) {
       // Update existing record
+      if (isUsingTimestamps) {
+        // delete the created_at field if it exists
+        delete data[(this.constructor as typeof Model).createdAtColumn];
+      }
       // @ts-ignore //
       await DB.connection(this._connection).update(tableName, data, {
         // @ts-ignore //

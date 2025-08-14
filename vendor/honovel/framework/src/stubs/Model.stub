@@ -1,6 +1,5 @@
 import {
   Model,
-  schemaKeys,
 } from "Illuminate/Database/Eloquent/index.ts";
 
 export type {{ ClassName }}Schema = {
@@ -11,14 +10,9 @@ export type {{ ClassName }}Schema = {
 };
 
 class {{ ClassName }} extends Model<{{ ClassName }}Schema> {
-  // Laravel-like implementation here
-  protected override _fillable = schemaKeys<{{ ClassName }}Schema>([
-    "email",
-    "password",
-    "name",
-  ]);
+  protected static override _fillable = [];
 
-  protected override _hidden = schemaKeys<{{ ClassName }}Schema>(["password"]);
+  
 }
 
 export default {{ ClassName }};

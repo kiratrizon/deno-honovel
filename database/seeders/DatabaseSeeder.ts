@@ -6,8 +6,8 @@ export default class DatabaseSeeder extends Seeder {
     // Call your factories here
     const UserFactory = await User.factory(this.connection);
     const createUsers = await UserFactory.createMany(10);
-    // createUsers.forEach((user) => {
-    //   console.log(user.toObject());
-    // });
+    createUsers.forEach((user) => {
+      // console.log(user.toObject());
+    });
   }
 }

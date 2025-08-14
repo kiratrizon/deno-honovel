@@ -14,6 +14,9 @@ import { PreventRequestDuringMaintenance } from "Illuminate/Foundation/Http/Midd
 import { Encrypter } from "Illuminate/Encryption/index.ts";
 import { DatabaseHelper } from "Database";
 import Seeder from "Illuminate/Database/Seeder.ts";
+import Boot from "./Boot.ts";
+
+await Boot.init();
 class MyArtisan {
   constructor() {}
   private async createConfig(options: { force?: boolean }, name: string) {
@@ -121,6 +124,14 @@ class MyArtisan {
         { resource: options.resource },
         `${name}Controller`
       );
+    }
+    if (options.pivot) {
+      // Logic to handle pivot model creation
+      console.log(`Pivot model creation logic not implemented yet.`);
+    }
+    // factory
+    if (options.factory || options.all) {
+      await this.makeFactory({ model: name }, `${name}Factory`);
     }
   }
 
@@ -509,6 +520,30 @@ class MyArtisan {
     }
   }
 
+  private async makeFactory(
+    option: {
+      model?: string;
+    },
+    name: string
+  ) {
+    const stub = option.model
+      ? honovelPath("stubs/FactoryModel.stub")
+      : honovelPath("stubs/Factory.stub");
+    const stubContent = getFileContents(stub);
+    const factoryContent = stubContent.replace(/{{ ClassName }}/g, name);
+    if (option.model) {
+      factoryContent.replace(/{{ ModelName }}/g, option.model);
+    }
+    writeFile(databasePath(`factories/${name}.ts`), factoryContent);
+
+    console.log(
+      `✅ Factory file created at ${path.relative(
+        Deno.cwd(),
+        databasePath(`factories/${name}.ts`)
+      )}`
+    );
+  }
+
   public async command(args: string[]): Promise<void> {
     await myCommand
       .name("deno task")
@@ -554,6 +589,16 @@ class MyArtisan {
       )
       .action((options: { resource?: boolean }, name: string) =>
         this.makeController.bind(this)(options, name)
+      )
+
+      .command("make:factory", "Generate a factory file")
+      .arguments("<name:string>")
+      .option(
+        "--model <model:string>",
+        "Specify the model to associate with the factory"
+      )
+      .action((options: { model?: string }, name: string) =>
+        this.makeFactory.bind(this)(options, name)
       )
 
       .command("make:migration", "Generate a migration file")
@@ -619,6 +664,21 @@ class MyArtisan {
       )
       .arguments("<name:string>")
       .action((_: unknown, name: string) => this.makeProvider(name))
+
+      .command("make:seeder", "Generate a seeder class")
+      .arguments("<name:string>")
+      .action((_: unknown, name: string) => {
+        const stubPath = honovelPath("stubs/Seeder.stub");
+        const stubContent = getFileContents(stubPath);
+        const seederContent = stubContent.replace(/{{ ClassName }}/g, name);
+        writeFile(databasePath(`seeders/${name}.ts`), seederContent);
+        console.log(
+          `✅ Seeder file created at ${path.relative(
+            Deno.cwd(),
+            databasePath(`seeders/${name}.ts`)
+          )}`
+        );
+      })
 
       .command("migrate:fresh", "Drop all tables and rerun all migrations")
       .option("--seed", "Seed the database after fresh migration")

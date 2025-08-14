@@ -13,19 +13,24 @@ export type UserSchema = {
 
 class User extends Authenticatable<UserSchema> implements JWTSubject {
   // Laravel-like implementation here
-  protected _fillable = ["email", "password", "name", "api_token"];
-  protected _guarded: string[] = [];
+  protected static override _fillable = [
+    "email",
+    "password",
+    "name",
+    "api_token",
+  ];
+  protected static override _guarded: string[] = [];
 
-  static override use: Record<string, unknown> = {
+  protected static override use: Record<string, unknown> = {
     HasFactories: HasFactory,
   };
 
-  protected override _hidden = ["password"];
+  protected static override _hidden = ["password"];
 
   public getJWTCustomClaims(): Record<string, unknown> {
     return {
-      email: this._attributes.email,
-      name: this._attributes.name,
+      email: this.getRawAttribute("email"),
+      name: this.getRawAttribute("name"),
     };
   }
 
