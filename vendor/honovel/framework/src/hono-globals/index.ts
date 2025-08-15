@@ -300,14 +300,16 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
         const configName = file.name.replace(".ts", "");
         try {
           const module = await import(`configs/${file.name}`);
+          console.log(module, configName);
           conf[configName] = module.default;
-          if (!isset(conf[configName])) {
-            throw new Error();
-          }
+          console.log(conf[configName], configName);
+          // if (!isset(conf[configName])) {
+          //   throw new Error();
+          // }
         } catch (_e) {
-          console.log(
-            `Config file "configs/${file.name}" does not export a default value.`
-          );
+          // console.log(
+          //   `Config file "configs/${file.name}" does not export a default value.`
+          // );
         }
       }
     }
