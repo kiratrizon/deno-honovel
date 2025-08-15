@@ -299,7 +299,7 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
       if (file.isFile && file.name.endsWith(".ts")) {
         const configName = file.name.replace(".ts", "");
         try {
-          const module = await import(`configs/${file.name}`);
+          const module = await import(basePath(`config/${file.name}`));
           conf[configName] = module.default;
           if (!isset(conf[configName])) {
             throw new Error();
