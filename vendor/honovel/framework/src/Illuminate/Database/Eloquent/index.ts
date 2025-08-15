@@ -559,12 +559,16 @@ export abstract class Model<
       const primaryKey = this.getKeyName();
       foreignKey = `${this.getTableName()}_${primaryKey}`;
     }
-    return (fields: string[] = ["*"]) => {
-      return new Builder({
-        model: relationModel,
-        fields,
-      }).where(foreignKey, this.getKey());
-    };
+    const primaryValue = this.getKey();
+    if (!isset(primaryValue)) {
+      throw new Error(
+        `Model ${this.constructor.name} does not have a primary key set.`
+      );
+    }
+    return new Builder({
+      model: relationModel,
+      fields: ["*"],
+    }).where(foreignKey, this.getKey());
   }
 }
 
@@ -662,11 +666,11 @@ class WithBuilder {
             item
           ) as Model<IBaseModelProperties>;
           if (methodExist(instance, action)) {
-            const relatedData = (instance as any)[action]()(
-              fieldsForAction
-            ) as Builder;
+            const relatedData = (instance as any)[action]() as Builder;
             if (relatedData instanceof Builder) {
-              const relatedItems = await relatedData.get();
+              const relatedItems = await relatedData
+                .select(...fieldsForAction)
+                .get();
               if (relatedItems.length > 0) {
                 item[action] = relatedItems.map((relatedItem) => {
                   return relatedItem.toObject();
