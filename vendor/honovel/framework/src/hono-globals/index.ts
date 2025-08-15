@@ -327,7 +327,9 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
       const configName = file.name.replace(".ts", "");
       console.log(configName);
       try {
-        const module = await import(`configs/${file.name}`);
+        // read the config file first before importing
+        Deno.readFileSync(basePath(`config/${file.name}`));
+        const module = await import(basePath(`config/${file.name}`));
         conf[configName] = module.default;
         console.log(configName);
         // if (!isset(conf[configName])) {
