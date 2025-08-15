@@ -35,7 +35,7 @@ class Kernel extends HttpKernel {
     ],
     api: [
       "throttle:60,1",
-      // "ensure_accepts_json", // Ensures the request accepts JSON
+      "ensure_accepts_json", // Ensures the request accepts JSON
     ],
   };
 
