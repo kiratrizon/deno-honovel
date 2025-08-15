@@ -293,7 +293,7 @@ export abstract class Model<
       throw new Error("Soft delete is not enabled for this model.");
     }
     // @ts-ignore //
-    this.setAttribute("_deletedAtColumn", null);
+    this.setAttribute(this.getDeletedAtColumn(), null);
     return this;
   }
 
@@ -413,67 +413,16 @@ export abstract class Model<
   }
 
   // separated with dot
-  public static async with(modelActions: string) {
-    const actions = modelActions.split("."); // ["posts", "comments"]
+  public static with(modelActions: string) {
+    const separateActions = modelActions.split("."); // ["posts", "comments"]
+    const actionFields = separateActions.map((action) => {
+      const [a, fields = "*"] = action.split(":");
+      return { action: a, fields };
+    });
+    const actions = actionFields.map((item) => item.action);
+    const fields = actionFields.map((item) => item.fields.split(","));
 
-    // Load all parent records
-    const allThisData = (await this.all()).map((item) => item.toObject());
-    if (!allThisData.length) return allThisData;
-
-    const currentLevel = {
-      data: [allThisData],
-      model: this as typeof Model<IBaseModelProperties>,
-    };
-
-    await this.iterateWith(currentLevel, [...actions]);
-
-    return allThisData;
-  }
-
-  private static async iterateWith(
-    currentLevel: {
-      data: Record<string, unknown>[][];
-      model: typeof Model<IBaseModelProperties>;
-    },
-    actions: string[]
-  ) {
-    while (actions.length > 0 && currentLevel.data.length > 0) {
-      const action = actions.shift();
-      if (!action) break;
-      const nextLevel: {
-        data: Record<string, unknown>[][];
-        model: typeof Model<IBaseModelProperties>;
-      } = {
-        data: [],
-        model: null as unknown as typeof Model<IBaseModelProperties>,
-      };
-      for (const items of currentLevel.data) {
-        for (const item of items) {
-          // @ts-ignore //
-          const instance = new currentLevel.model(
-            item
-          ) as Model<IBaseModelProperties>;
-          if (methodExist(instance, action)) {
-            const relatedData = (instance as any)[action]() as Builder;
-            if (relatedData instanceof Builder) {
-              const relatedItems = await relatedData.get();
-              if (relatedItems.length > 0) {
-                item[action] = relatedItems.map((relatedItem) => {
-                  return relatedItem.toObject();
-                });
-                nextLevel.data.push([
-                  ...(item[action] as Record<string, unknown>[]),
-                ]);
-                // @ts-ignore //
-                nextLevel.model = relatedData.model;
-              }
-            }
-          }
-        }
-      }
-      currentLevel.data = nextLevel.data;
-      currentLevel.model = nextLevel.model;
-    }
+    return new WithBuilder(this, actions, fields);
   }
 
   public static where(column: string, value: unknown): Builder {
@@ -606,14 +555,16 @@ export abstract class Model<
     relationModel: typeof Model<IBaseModelProperties>,
     foreignKey?: string
   ) {
-    const primaryKey = this.getKeyName();
     if (!foreignKey) {
+      const primaryKey = this.getKeyName();
       foreignKey = `${this.getTableName()}_${primaryKey}`;
     }
-    return new Builder({
-      model: relationModel,
-      fields: ["*"],
-    }).where(foreignKey, this.getKey());
+    return (fields: string[] = ["*"]) => {
+      return new Builder({
+        model: relationModel,
+        fields,
+      }).where(foreignKey, this.getKey());
+    };
   }
 }
 
@@ -650,5 +601,88 @@ export class Builder<
     const data = await super.get();
     // @ts-ignore //
     return data.map((item) => new this.model(item as B) as InstanceType<T>);
+  }
+}
+
+class WithBuilder {
+  constructor(
+    private model: typeof Model<IBaseModelProperties>,
+    private actions: string[],
+    private fields: string[][]
+  ) {}
+
+  async get() {
+    const allThisData = (await this.model.all()).map((item) => item.toObject());
+    if (!allThisData.length) return allThisData;
+
+    const currentLevel = {
+      data: [allThisData],
+      model: this.model,
+    };
+
+    await this.iterateWith(currentLevel, [...this.actions], [...this.fields]);
+
+    return allThisData;
+  }
+
+  async first() {
+    const allThisData = (await this.model.first())?.toObject();
+    if (!allThisData) return null;
+    const currentLevel = {
+      data: [[allThisData]],
+      model: this.model,
+    };
+    await this.iterateWith(currentLevel, [...this.actions], [...this.fields]);
+    return allThisData;
+  }
+
+  private async iterateWith(
+    currentLevel: {
+      data: Record<string, unknown>[][];
+      model: typeof Model<IBaseModelProperties>;
+    },
+    actions: string[],
+    fields: string[][]
+  ) {
+    while (actions.length > 0 && currentLevel.data.length > 0) {
+      const action = actions.shift();
+      const fieldsForAction = fields.shift() || ["*"];
+      if (!action) break;
+      const nextLevel: {
+        data: Record<string, unknown>[][];
+        model: typeof Model<IBaseModelProperties>;
+      } = {
+        data: [],
+        model: null as unknown as typeof Model<IBaseModelProperties>,
+      };
+      for (const items of currentLevel.data) {
+        for (const item of items) {
+          // @ts-ignore //
+          const instance = new currentLevel.model(
+            item
+          ) as Model<IBaseModelProperties>;
+          if (methodExist(instance, action)) {
+            const relatedData = (instance as any)[action]()(
+              fieldsForAction
+            ) as Builder;
+            if (relatedData instanceof Builder) {
+              const relatedItems = await relatedData.get();
+              if (relatedItems.length > 0) {
+                item[action] = relatedItems.map((relatedItem) => {
+                  return relatedItem.toObject();
+                });
+                nextLevel.data.push([
+                  ...(item[action] as Record<string, unknown>[]),
+                ]);
+                // @ts-ignore //
+                nextLevel.model = relatedData.model;
+              }
+            }
+          }
+        }
+      }
+      currentLevel.data = nextLevel.data;
+      currentLevel.model = nextLevel.model;
+    }
   }
 }

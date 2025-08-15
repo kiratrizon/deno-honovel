@@ -284,6 +284,7 @@ export class Database {
                   database: defaultDatabase,
                   charset: defaultCharset,
                   ssl: defaultSSL,
+                  dateStrings: true, // MySQL date strings
                 };
                 if (isset(defaultOptions?.maxConnection)) {
                   poolParams.connectionLimit = defaultOptions.maxConnection;
@@ -305,6 +306,7 @@ export class Database {
                   database: forMySQL.write?.database || defaultDatabase,
                   charset: forMySQL.write?.charset || defaultCharset,
                   ssl: forMySQL.write?.ssl || defaultSSL,
+                  dateStrings: true, // MySQL date strings
                 };
                 if (isset(defaultOptions?.maxConnection)) {
                   poolParams.connectionLimit = defaultOptions.maxConnection;
@@ -333,6 +335,7 @@ export class Database {
                   database: forMySQL.read?.database || defaultDatabase,
                   charset: forMySQL.read?.charset || defaultCharset,
                   ssl: forMySQL.read?.ssl || defaultSSL,
+                  dateStrings: true, // MySQL date strings
                 };
                 if (isset(defaultOptions?.maxConnection)) {
                   poolParams.connectionLimit = defaultOptions.maxConnection;
