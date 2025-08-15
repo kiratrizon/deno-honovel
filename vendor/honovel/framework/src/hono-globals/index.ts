@@ -325,6 +325,7 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
   for (const file of configFiles) {
     if (file.isFile && file.name.endsWith(".ts")) {
       const configName = file.name.replace(".ts", "");
+      console.log(configName);
       try {
         const module = await import(`configs/${file.name}`);
         conf[configName] = module.default;
@@ -332,14 +333,11 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
         // if (!isset(conf[configName])) {
         //   throw new Error();
         // }
-      } catch (_e) {
-        // console.log(
-        //   `Config file "configs/${file.name}" does not export a default value.`
-        // );
+      } catch (_e: any) {
+        console.log(_e);
       }
     }
   }
-  console.log(conf);
   return conf;
 });
 
