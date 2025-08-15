@@ -1,0 +1,8 @@
+import Seeder from "Illuminate/Database/Seeder.ts";
+
+export default class {{ ClassName }} extends Seeder {
+  public async run() {
+    // Call your factories here
+    
+  }
+}

@@ -299,6 +299,30 @@ export function toMiddleware(
               }
             }
           });
+        } else if (keyExist(RouteMiddleware, firstKey)) {
+          arg = firstKey;
+
+          const middlewareClass = RouteMiddleware[arg];
+          const middlewareInstance = new (middlewareClass as new (
+            // deno-lint-ignore no-explicit-any
+            ...args: any[]
+          ) => // deno-lint-ignore no-explicit-any
+          any)();
+          if (methodExist(middlewareInstance, "handle")) {
+            middlewareCallback.push({
+              debugString: `// class ${
+                middlewareClass.name
+              }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+              middleware: [
+                middlewareInstance.handle.bind(
+                  middlewareInstance
+                ) as HttpMiddleware,
+                argParts.flatMap((part) =>
+                  part.split(",").map((p) => p.trim())
+                ),
+              ],
+            });
+          }
         }
       } else if (keyExist(RouteMiddleware, firstKey)) {
         arg = firstKey;
@@ -460,11 +484,24 @@ function generateMiddlewareOrDispatch(
           if (request.expectsJson()) {
             resp = e.toJson();
           } else {
-            resp = await myError(c, e.code as ContentfulStatusCode, e.msg);
+            const data = isString(e.msg)
+              ? e.msg
+              : `Error: ${e.code} - ${e.msg}`;
+            resp = await myError(c, e.code as ContentfulStatusCode, data);
           }
         } else if (e instanceof SQLError) {
           // console.log(e);
-          resp = c.json({ message: e.message }, 400);
+          if (request.expectsJson()) {
+            resp = c.json(
+              {
+                message: e.message,
+                error_type: e.name,
+              },
+              500
+            );
+          } else {
+            resp = c.html(renderErrorHtml(e), 500);
+          }
         } else if (e instanceof Error) {
           // populate e with additional information
           const populatedError: Record<string, unknown> = {};
@@ -493,16 +530,11 @@ function generateMiddlewareOrDispatch(
               );
             }
           } else {
-            log(
-              populatedError,
-              "error",
-              `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-                "HTTP_X_REQUEST_ID"
-              )}`
-            );
+            console.log(populatedError);
             resp = c.html("Internal server error", 500);
           }
         } else {
+          console.error("Unexpected error:", e);
           resp = c.json({ message: "Internal server error" }, 500);
         }
       }

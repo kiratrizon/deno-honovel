@@ -110,7 +110,7 @@ export async function buildRequest(c: MyContext): Promise<RequestData> {
   const query = c.req.query() || {};
   const rawQuery = c.req.url.split("?")[1] || "";
   const signedCookies = getMyCookie(c) || {};
-  const sessionConfig = staticConfig("session");
+  const sessionConfig = config("session");
 
   const cookieKey =
     sessionConfig.cookie || Str.snake(env("APP_NAME", "honovel") + "_session");

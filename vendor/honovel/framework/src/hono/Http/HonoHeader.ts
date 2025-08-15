@@ -37,6 +37,12 @@ class HonoHeader implements IHonoHeader {
     return value;
   }
 
+  set(key: string, value: string): void {
+    const headers = this.getRawHeaders();
+    headers[key.toLowerCase()] = value;
+    this.#c.req.raw.headers.set(key, value);
+  }
+
   has(key: string): boolean {
     const headers = this.getRawHeaders();
     const value = headers[key.toLowerCase()];

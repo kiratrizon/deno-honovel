@@ -23,7 +23,7 @@ declare global {
       | "critical"
       | "alert"
       | "emergency";
-    readonly DB_CONNECTION: "mysql" | "pgsql" | "sqlite" | "sqlsrv";
+    readonly DB_CONNECTION: string;
     readonly DB_HOST: string;
     readonly DB_PORT: number;
     readonly DB_DATABASE: string;

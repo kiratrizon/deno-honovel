@@ -1,5 +1,5 @@
 export class DDError {
-  constructor(private _data: unknown) { }
+  constructor(private _data: unknown) {}
 
   public get data(): unknown {
     return this._data;
@@ -70,7 +70,7 @@ export type HttpStatusCodeValue =
   | 510
   | 511;
 
-export class AbortError {
+export class AbortError extends Error {
   private httpStatusMessages: Record<HttpStatusCodeValue, string> = {
     // 1xx
     100: "Continue",
@@ -145,21 +145,22 @@ export class AbortError {
     511: "Network Authentication Required",
   };
 
-
   constructor(
     private readonly statusCode: HttpStatusCodeValue = 500,
-    private readonly message: string = ""
+    private readonly mess: string | Record<string, unknown> = ""
   ) {
+    super("");
     if (!keyExist(this.httpStatusMessages, this.statusCode)) {
       this.statusCode = 500;
     }
-    if (empty(this.message) || !isString(this.message)) {
-      this.message = this.httpStatusMessages[this.statusCode];
+    if (empty(this.mess)) {
+      this.mess = this.httpStatusMessages[this.statusCode];
     }
   }
 
   public toJson(): Response {
-    return new Response(JSON.stringify({ message: this.msg }), {
+    const data = isString(this.msg) ? { message: this.msg } : this.msg;
+    return new Response(JSON.stringify(data), {
       status: this.code,
       headers: {
         "Content-Type": "application/json",
@@ -170,7 +171,7 @@ export class AbortError {
   public get code(): HttpStatusCodeValue {
     return this.statusCode;
   }
-  public get msg(): string {
-    return this.message;
+  public get msg(): string | Record<string, unknown> {
+    return this.mess;
   }
 }

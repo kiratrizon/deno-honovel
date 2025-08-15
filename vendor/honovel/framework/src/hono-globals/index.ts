@@ -1,4 +1,5 @@
-import * as path from "https://deno.land/std/path/mod.ts";
+import * as path from "node:path";
+import * as url from "node:url";
 import { load } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
 try {
   const envObj = (await import("../../../../../environment.ts")).default;
@@ -256,60 +257,105 @@ globalFn(
 
 import Constants from "Constants";
 
-globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
-  const configData: Record<string, unknown> = {};
-  const configPath = basePath("config");
-  const configFiles = Deno.readDirSync(configPath);
-  const allModules: string[] = [];
-  if (!isset(env("DENO_DEPLOYMENT_ID"))) {
-    for (const file of configFiles) {
-      if (file.isFile && file.name.endsWith(".ts")) {
-        const configName = file.name.replace(".ts", "");
-        const fullPath = path.join(configPath, file.name);
-        const fullUrl = path.toFileUrl(fullPath).href;
-        try {
-          const module = await import(fullUrl);
-          configData[configName] = module.default;
-          if (!isset(configData[configName])) {
-            throw new Error();
+/**
+  globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
+    const configData: Record<string, unknown> = {};
+    const configPath = basePath("config");
+    const configFiles = Deno.readDirSync(configPath);
+    const allModules: string[] = [];
+    if (!isset(env("DENO_DEPLOYMENT_ID"))) {
+      for (const file of configFiles) {
+        if (file.isFile && file.name.endsWith(".ts")) {
+          const configName = file.name.replace(".ts", "");
+          const fullPath = path.join(configPath, file.name);
+          const fullUrl = url.pathToFileURL(fullPath).href;
+          try {
+            const module = await import(fullUrl);
+            configData[configName] = module.default;
+            if (!isset(configData[configName])) {
+              throw new Error();
+            }
+            allModules.push(configName);
+          } catch (_e) {
+            console.log(
+              `Config file "config/${file.name}" does not export a default value.`
+            );
           }
-          allModules.push(configName);
-        } catch (_e) {
-          console.log(
-            `Config file "config/${file.name}" does not export a default value.`
-          );
         }
       }
-    }
-  } else {
-    const conf = {};
-    try {
-      const module = await import("../../../../../config/build/myConfig.ts");
-      const defaultConfig = module.default as Record<string, unknown>;
-      Object.assign(conf, defaultConfig);
-    } catch (_e) {
+    } else {
+      // const conf = {};
+      // try {
+      //   const module = await import("configs/build/myConfig.ts");
+      //   const defaultConfig = module.default as Record<string, unknown>;
+      //   Object.assign(conf, defaultConfig);
+      // } catch (_e) {
+      //   //
+      // }
       // return conf;
+
+      const conf: Record<string, unknown> = {};
+      const configFiles = Deno.readDirSync(basePath("config"));
+      for (const file of configFiles) {
+        if (file.isFile && file.name.endsWith(".ts")) {
+          const configName = file.name.replace(".ts", "");
+          try {
+            const module = await import(`configs/${file.name}`);
+            conf[configName] = module.default;
+            console.log(conf[configName], configName);
+            // if (!isset(conf[configName])) {
+            //   throw new Error();
+            // }
+          } catch (_e) {
+            // console.log(
+            //   `Config file "configs/${file.name}" does not export a default value.`
+            // );
+          }
+        }
+      }
+      return conf;
     }
-    return conf;
+    return configData;
+  });
+*/
+
+globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
+  const conf: Record<string, unknown> = {};
+  const configFiles = Deno.readDirSync(basePath("config"));
+  for (const file of configFiles) {
+    if (file.isFile && file.name.endsWith(".ts")) {
+      const configName = file.name.replace(".ts", "");
+      try {
+        const module = await import(`configs/${file.name}`);
+        conf[configName] = module.default;
+        console.log(configName);
+        // if (!isset(conf[configName])) {
+        //   throw new Error();
+        // }
+      } catch (_e) {
+        // console.log(
+        //   `Config file "configs/${file.name}" does not export a default value.`
+        // );
+      }
+    }
   }
-  return configData;
+  console.log(conf);
+  return conf;
 });
 
 define("myConfigData", await getConfigStore(), false);
 const configure = new Constants(myConfigData as Record<string, unknown>);
-globalFn("staticConfig", function (key: string) {
+globalFn("config", function (key: string) {
   return configure.read(key);
 });
 
 globalFn("viewPath", function (concatenation = "") {
   const dir = path.join(
-    (staticConfig("view.defaultViewDir") as string) || "views",
+    (config("view.defaultViewDir") as string) || "views",
     concatenation
   );
   return resourcePath(dir);
 });
-const dbUsed = staticConfig("database.database") || "sqlite";
-define("dbUsed", dbUsed, false);
 
 // deno-lint-ignore no-explicit-any
 globalFn("only", function (obj: Record<string, any>, keys: string[]) {
@@ -388,6 +434,14 @@ globalFn("getFileContents", function (fileString = "") {
   }
 });
 
+globalFn("readFile", (filePath: string = ""): Uint8Array => {
+  if (!filePath) {
+    return new Uint8Array(); // Empty buffer if no file path
+  }
+
+  return Deno.readFileSync(filePath); // Read file as Uint8Array
+});
+
 import Logger from "HonoLogger";
 
 globalFn(
@@ -402,13 +456,13 @@ globalFn(
   }
 );
 
-import { plural } from "https://deno.land/x/deno_plural/mod.ts";
+import pluralize from "pluralize";
 globalFn("generateTableName", function (entity: string = "") {
   const splitWords = entity.split(/(?=[A-Z])/);
   const lastWord = splitWords.pop()!.toLowerCase();
 
   const pluralizedLastWord = (() => {
-    return plural(lastWord);
+    return pluralize.plural(lastWord);
   })();
 
   return [...splitWords, pluralizedLastWord].join("").toLowerCase();
@@ -473,8 +527,7 @@ const getRelativeTime = (
 };
 
 const timeZone =
-  staticConfig("app.timezone") ||
-  Intl.DateTimeFormat().resolvedOptions().timeZone;
+  config("app.timezone") || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 globalFn("strToTime", function (time, now) {
   if (time instanceof Carbon) {

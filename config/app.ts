@@ -1,8 +1,7 @@
 // config/app.ts
 
-import AppServiceProvider from "App/Providers/AppServiceProvider.ts";
-import { AppConfig } from "./@types/index.d.ts";
-import CacheProvider from "App/Providers/CacheProvider.ts";
+import RouteServiceProvider from "App/Providers/RouteServiceProvider.ts";
+import { AppConfig } from "configs/@types/index.d.ts";
 
 const constant: AppConfig = {
   /*
@@ -72,6 +71,8 @@ const constant: AppConfig = {
     driver: env("MAINTENANCE_DRIVER", "database"),
     store: env("MAINTENANCE_STORE", null),
   },
+
+  providers: [RouteServiceProvider],
 };
 
 export default constant;

@@ -1,0 +1,15 @@
+import { Factory } from "Illuminate/Database/Eloquent/Factories/index.ts";
+import {{ ModelName }} from "App/Models/{{ ModelName }}.ts";
+
+export default class {{ ClassName }} extends Factory {
+
+  protected override _model = {{ ModelName }};
+
+  public definition() {
+    return {
+      email: this.faker.email(),
+      password: this.faker.password(12),
+      name: this.faker.name()
+    };
+  }
+}

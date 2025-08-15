@@ -1,4 +1,4 @@
-import * as path from "https://deno.land/std/path/mod.ts";
+import * as path from "node:path";
 
 class Logger {
   public static log(
@@ -7,7 +7,7 @@ class Logger {
     destination: string = "",
     identifier: string = ""
   ) {
-    const logging = staticConfig("logging");
+    const logging = config("logging");
     const defaultChannel = destination || logging.default;
     const channels = logging.channels;
 

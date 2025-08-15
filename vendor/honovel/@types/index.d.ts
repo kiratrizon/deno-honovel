@@ -115,8 +115,11 @@ declare global {
    * @param {string} key - The configuration key, which can use dot notation for nested values.
    * @returns {unknown} The value of the configuration option, or `undefined` if the key does not exist.
    */
-  function staticConfig<T extends keyof ConfigItems>(key: T): ConfigItems[T];
-  function staticConfig(key: string): unknown;
+  function config<T extends keyof ConfigItems>(
+    key: T,
+    defaultValue?: ConfigItems[T]
+  ): ConfigItems[T];
+  function config(key: string, defaultValue?: unknown): unknown;
   /**
    * Initializes the configuration store by reading all configuration files in the config directory.
    */
@@ -133,10 +136,10 @@ declare global {
    * @param {string[]} keys - The list of keys to include in the new object.
    * @returns {Record<string, unknown>} A new object containing only the specified keys.
    */
-  function only(
-    source: Record<string, unknown>,
-    keys: string[]
-  ): Record<string, unknown>;
+  function only<T extends Record<string, unknown>, K extends keyof T>(
+    source: T,
+    keys: K[]
+  ): Pick<T, K>;
 
   /**
    * Removes the specified keys from an object.
@@ -485,6 +488,14 @@ declare global {
    * @returns The file contents as a UTF-8 string. Returns an empty string if reading fails or no path is provided.
    */
   function getFileContents(fileString?: string): string;
+
+  /**
+   * Converts a path file to UInt8Array.
+   * @param fileString The relative file path from the base path.
+   * @returns The file contents as a Uint8Array. Returns an empty Uint8Array
+   */
+
+  function readFile(fileString: string): Uint8Array;
 
   /**
    * Version Comparison

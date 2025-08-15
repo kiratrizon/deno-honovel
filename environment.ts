@@ -33,7 +33,7 @@ export interface ImportEnvConfig {
   readonly SESSION_CONNECTION: SupportedDrivers;
 }
 
+// define your interface "ImportSession" here
 export type ImportSession = {
-  // define your session interface here
-  readonly hello: string;
+
 };

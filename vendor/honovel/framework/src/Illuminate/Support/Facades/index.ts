@@ -5,9 +5,10 @@ import {
 } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 import { Blueprint, TableSchema } from "../../Database/Schema/index.ts";
 import BaseController from "Illuminate/Routing/BaseController";
-import { plural, singular } from "https://deno.land/x/deno_plural/mod.ts";
-import authConf from "../../../../../../../config/auth.ts";
+import pluralize from "pluralize";
+import authConf from "configs/auth.ts";
 import {
+  BaseGuard,
   JwtGuard,
   SessionGuard,
   TokenGuard,
@@ -33,7 +34,6 @@ import { Database, QueryResultDerived } from "Database";
 import { Builder, SQLRaw, sqlstring } from "../../Database/Query/index.ts";
 import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
 import { SupportedDrivers } from "configs/@types/index.d.ts";
-import { init } from "https://deno.land/x/base64@v0.2.1/base.ts";
 import {
   AbstractStore,
   CacheManager,
@@ -61,12 +61,25 @@ export class Hash {
 }
 
 export class Schema {
+  private static validateDB(db: SupportedDrivers): void {
+    const supportedSchemaDrivers = ["mysql", "pgsql", "sqlite", "sqlsrv"];
+    if (!supportedSchemaDrivers.includes(db)) {
+      throw new Error(
+        `Unsupported database type for schema operations: ${db}. Supported types are: ${supportedSchemaDrivers.join(
+          ", "
+        )}.`
+      );
+    }
+  }
   public static async create(
     table: string,
     callback: (blueprint: Blueprint) => void,
-    db: SupportedDrivers
+    connection: string
   ): Promise<void> {
-    const blueprint = new Blueprint(table, db);
+    const driver = config("database").connections[connection]
+      .driver as SupportedDrivers;
+    this.validateDB(driver);
+    const blueprint = new Blueprint(table, driver);
     callback(blueprint);
     if (blueprint.drops.length) {
       throw new Error(
@@ -74,17 +87,19 @@ export class Schema {
       );
     }
     const converted = blueprint.toSql();
-    await DB.connection(db).statement(converted);
+    await DB.connection(connection).statement(converted);
   }
 
   public static async hasTable(
     table: string,
-    db: SupportedDrivers
+    connection: string
   ): Promise<boolean> {
-    const dbType = db;
+    const driver = config("database").connections[connection]
+      .driver as SupportedDrivers;
+    this.validateDB(driver);
     let query = "";
 
-    switch (dbType) {
+    switch (driver) {
       case "mysql":
         query = `SHOW TABLES LIKE '${table}'`;
         break;
@@ -98,10 +113,10 @@ export class Schema {
         query = `SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '${table}'`;
         break;
       default:
-        throw new Error(`Unsupported DB_CONNECTION: ${dbType}`);
+        throw new Error(`Unsupported driver: ${driver}`);
     }
 
-    const result = await DB.connection(db).select(query);
+    const result = await DB.connection(connection).select(query);
 
     if (!result || result.length === 0) {
       return false;
@@ -109,7 +124,7 @@ export class Schema {
 
     // Special handling for PostgreSQL because to_regclass can return null
     if (
-      dbType.includes("postgres") &&
+      driver.includes("pgsql") &&
       (!result[0] || Object.values(result[0])[0] === null)
     ) {
       return false;
@@ -120,13 +135,15 @@ export class Schema {
 
   public static async dropIfExists(
     table: string,
-    db: SupportedDrivers
+    connection: string
   ): Promise<void> {
-    const dbType = db;
+    const driver = config("database").connections[connection]
+      .driver as SupportedDrivers;
+    this.validateDB(driver);
 
     let sql: string;
 
-    switch (dbType) {
+    switch (driver) {
       case "mysql":
         sql = `DROP TABLE IF EXISTS \`${table}\`;`;
         break;
@@ -138,34 +155,48 @@ export class Schema {
         sql = `DROP TABLE IF EXISTS [${table}];`;
         break;
       default:
-        throw new Error(`Unsupported database type: ${dbType}`);
+        throw new Error(`Unsupported driver type: ${driver}`);
     }
 
-    await DB.connection(dbType).statement(sql);
+    await DB.connection(connection).statement(sql);
   }
 
   public static async table(
     table: string,
     callback: (blueprint: Blueprint) => void,
-    db: SupportedDrivers
+    connection: string
   ): Promise<void> {
-    const blueprint = new Blueprint(table, db);
+    const driver = config("database").connections[connection]
+      .driver as SupportedDrivers;
+    this.validateDB(driver);
+    const blueprint = new Blueprint(table, driver);
     callback(blueprint);
     blueprint.alterMode();
     const converted = blueprint.toSql();
-    await DB.connection(db).statement(converted);
+    await DB.connection(connection).statement(converted);
   }
 }
 
 export class DB {
-  public static connection(dbUsed: SupportedDrivers = "mysql"): DBConnection {
+  public static hasConnection(connection: string): boolean {
+    const connections = config("database").connections;
+    return keyExist(connections, connection);
+  }
+  public static getDefaultConnection(): string {
+    return config("database").default;
+  }
+  public static connection(dbUsed?: string): DBConnection {
+    if (!isset(dbUsed)) {
+      dbUsed = config("database").default;
+    }
     return new DBConnection(dbUsed);
   }
 
-  private static dbUsed: SupportedDrivers;
+  private static dbUsed: string;
 
   public static init() {
-    this.dbUsed = staticConfig("database").default;
+    this.dbUsed = config("database").default;
+    console.log(`Using database connection: ${this.dbUsed}`);
   }
 
   public static table(table: sqlstring) {
@@ -218,14 +249,16 @@ export class DB {
 }
 
 class DBConnection {
-  constructor(private dbUsed: SupportedDrivers) {
+  constructor(private readonly connection: string) {
+    const dbUsed = config("database").connections[this.connection]
+      .driver as SupportedDrivers;
     if (!["mysql", "sqlite", "pgsql", "sqlsrv"].includes(dbUsed)) {
       throw new Error(`Unsupported database type: ${dbUsed}`);
     }
   }
 
   public table(table: sqlstring) {
-    return new Builder({ table }, this.dbUsed);
+    return new Builder({ table }, this.connection);
   }
 
   public async statement(
@@ -235,7 +268,7 @@ class DBConnection {
     if (empty(query) || !isString(query)) {
       throw new Error("Query must be a non-empty string.");
     }
-    const db = new Database(this.dbUsed);
+    const db = new Database(this.connection);
 
     try {
       await db.runQuery(query, params);
@@ -257,7 +290,7 @@ class DBConnection {
     if (["select", "show", "pragma"].indexOf(queryType) === -1) {
       throw new Error("Only SELECT, SHOW, and PRAGMA queries are allowed.");
     }
-    const db = new Database(this.dbUsed);
+    const db = new Database(this.connection);
 
     try {
       const result = await db.runQuery<"select">(query, params);
@@ -275,7 +308,7 @@ class DBConnection {
     if (empty(table) || !isString(table)) {
       throw new Error("Table name must be a non-empty string.");
     }
-    const instance = new Builder({ table }, this.dbUsed);
+    const instance = new Builder({ table }, this.connection);
     return await instance.insert(...data);
   }
 
@@ -291,9 +324,27 @@ class DBConnection {
       throw new Error("Data must be a non-empty objects.");
     }
 
-    const db = new Database(this.dbUsed);
+    const db = new Database(this.connection);
     const [sql, values] = db.insertOrUpdateBuilder({ table, data }, uniqueKeys);
     const result = await db.runQuery<"insert">(sql, values);
+    return result;
+  }
+
+  public async update(
+    table: string,
+    data: Record<string, unknown>,
+    where: Record<string, unknown>
+  ): Promise<QueryResultDerived["update"]> {
+    if (empty(table) || !isString(table)) {
+      throw new Error("Table name must be a non-empty string.");
+    }
+    if (empty(data) || !isObject(data)) {
+      throw new Error("Data must be a non-empty objects.");
+    }
+
+    const db = new Database(this.connection);
+    const [sql, values] = db.updateBuilder(table, data, where);
+    const result = await db.runQuery<"update">(sql, values);
     return result;
   }
 
@@ -334,7 +385,7 @@ export class Validator {
     data: Record<string, unknown> = {},
     validations: Record<string, string> = {}
   ) {
-    const v = new Validator(data, validations);
+    const v = new this(data, validations);
     await v.#validateAll();
     return v;
   }
@@ -435,19 +486,23 @@ export class Validator {
         }
 
         const tryTable = tableRef.split(".");
-        const dbUse = (
-          tryTable.length === 2 ? tryTable[0] : staticConfig("database").default
-        ) as SupportedDrivers;
+        const connection = (
+          tryTable.length === 2 ? tryTable[0] : config("database").default
+        ) as string;
 
-        if (!isset(dbUse)) {
+        if (!isset(connection)) {
           throw new Error(
-            `Database connection '${dbUse}' is not defined in config.`
+            `Database connection '${connection}' is not defined in config.`
           );
         }
 
         const table = tryTable.length === 2 ? tryTable[1] : tableRef;
 
-        const exists = await DB.connection(dbUse)
+        if (!isset(v) || empty(v)) {
+          e.push(`The ${key} is required for unique validation.`);
+          break;
+        }
+        const exists = await DB.connection(connection)
           .table(table)
           .where(column, v)
           .first(); // Faster and more precise
@@ -651,8 +706,8 @@ class MyRoute {
     if (!regexObj.alpha.test(uri))
       throw new Error(`${uri} should be an alpha character.`);
     const rsrcId = ++this.resourceId;
-    const pluralized = plural(uri);
-    const singularized = singular(pluralized);
+    const pluralized = pluralize.plural(uri);
+    const singularized = pluralize.singular(pluralized);
     const baseUri = `/${pluralized}`;
     const thisRoutes: IResourceRouteConf["thisRoutes"] = {};
     const identifier: IResourceRouteConf["identifier"] = {
@@ -809,11 +864,11 @@ type GuardInstance<G extends GuardName> = GuardDriver<G> extends "jwt"
   ? TokenGuard
   : never;
 
-export class HonoAuth {
+export class Auth {
   private static defaultGuard: string = authConf?.default?.guard;
 
   #c: MyContext;
-  #defaultGuard: string = HonoAuth.defaultGuard;
+  #defaultGuard: string = Auth.defaultGuard;
   constructor(c: MyContext) {
     if (empty(c) || !isObject(c)) {
       throw new Error("Context must be a valid object.");
@@ -821,7 +876,14 @@ export class HonoAuth {
     this.#c = c;
   }
 
-  public guard<G extends GuardName>(guardName: G = this.#defaultGuard as G) {
+  private _guards: Record<string, BaseGuard> = {};
+
+  public guard<G extends GuardName>(
+    guardName: G = this.#defaultGuard as G
+  ): BaseGuard {
+    if (keyExist(this._guards, guardName)) {
+      return this._guards[guardName] as GuardInstance<G>;
+    }
     const driver = authConf?.guards?.[guardName].driver;
 
     let guard;
@@ -841,7 +903,8 @@ export class HonoAuth {
       default:
         throw new Error(`Unsupported guard driver: ${driver}`);
     }
-    return new guard(this.#c, guardName as GuardName);
+    this._guards[guardName] = new guard(this.#c, guardName as GuardName);
+    return this._guards[guardName] as GuardInstance<G>;
   }
 
   public setGuard<G extends GuardName>(guardName: G): void {
@@ -863,6 +926,10 @@ export class HonoAuth {
   public async check(): Promise<boolean> {
     return await this.guard().check();
   }
+
+  public user() {
+    return this.guard().user();
+  }
 }
 
 // The main Cache facade class, similar to Laravel's Cache:: facade
@@ -870,13 +937,13 @@ export class Cache {
   /**
    * Retrieve or create the cache store instance for the given connection name.
    */
-  static store(connection: string | nullify): AbstractStore {
+  static store(connection?: nullify | string): AbstractStore {
     if (!isset(connection)) {
       connection = this.defaultConnection; // use default if none provided
     }
 
     if (!keyExist(this.stores, connection)) {
-      const cacheConfig = staticConfig("cache");
+      const cacheConfig = config("cache");
 
       // Validate cache config presence
       if (!isset(cacheConfig) || !isset(cacheConfig.stores)) {
@@ -917,7 +984,7 @@ export class Cache {
    * Initialize the cache system by loading the default connection from config.
    */
   static init() {
-    const cacheConfig = staticConfig("cache");
+    const cacheConfig = config("cache");
 
     if (empty(cacheConfig)) {
       throw new Error("Cache configuration is not defined.");

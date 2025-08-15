@@ -1,21 +1,22 @@
-import mysql, { Pool, PoolConnection } from "npm:mysql2@^3.6.0/promise";
 import "../hono-globals/index.ts";
 
-import { Command } from "https://deno.land/x/cliffy@v1.0.0-rc.4/command/mod.ts";
-import { join } from "https://deno.land/std@0.224.0/path/mod.ts";
+import { Command } from "@cliffy/command";
 import { Migration } from "Illuminate/Database/Migrations/index.ts";
 import { DB, Schema } from "Illuminate/Support/Facades/index.ts";
-import { Confirm } from "https://deno.land/x/cliffy@v1.0.0-rc.3/prompt/confirm.ts";
-
-import MySQL from "../DatabaseBuilder/MySQL.ts";
+import { Confirm } from "@cliffy/prompt";
 
 const myCommand = new Command();
 
 import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import path from "node:path";
-import { SupportedDrivers } from "configs/@types/index.d.ts";
 import { envs } from "../../../../../environment.ts";
 import { PreventRequestDuringMaintenance } from "Illuminate/Foundation/Http/Middleware/index.ts";
+import { Encrypter } from "Illuminate/Encryption/index.ts";
+import { DatabaseHelper } from "Database";
+import Seeder from "Illuminate/Database/Seeder.ts";
+import Boot from "./Boot.ts";
+
+await Boot.init();
 class MyArtisan {
   constructor() {}
   private async createConfig(options: { force?: boolean }, name: string) {
@@ -74,7 +75,7 @@ class MyArtisan {
     return;
   }
 
-  private async getBatchNumber(db: SupportedDrivers): Promise<number> {
+  private async getBatchNumber(db: string): Promise<number> {
     const result = await DB.connection(db)
       .table("migrations")
       .select(DB.raw("MAX(batch) as max_batch"))
@@ -113,69 +114,35 @@ class MyArtisan {
       this.makeMigration({}, generateTableName(name));
     }
 
-    if (options.factory || options.all) {
-      // Logic to create factory
-      console.log(`Factory creation logic not implemented yet.`);
-    }
-
     if (options.controller || options.all) {
       await this.makeController(
         { resource: options.resource },
         `${name}Controller`
       );
     }
+    if (options.pivot) {
+      // Logic to handle pivot model creation
+      console.log(`Pivot model creation logic not implemented yet.`);
+    }
+    // factory
+    if (options.factory || options.all) {
+      await this.makeFactory({ model: name }, `${name}Factory`);
+    }
   }
 
-  private async askIfDBNotExist(dbType: SupportedDrivers) {
-    switch (dbType) {
-      case "mysql": {
-        const config = staticConfig("database").connections?.mysql || {};
-        const poolParams = {
-          host:
-            (isArray(config.host) ? config.host[0] : config.host) ||
-            "localhost",
-          port: Number(config.port || 3306),
-          user: config.user,
-          password: config.password,
-          waitForConnections: true,
-        };
-        const pool = mysql.createPool(poolParams) as Pool;
-
-        const dbName = config.database;
-        const rows = await MySQL.query<"select">(
-          pool,
-          `SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`,
-          [dbName]
-        );
-
-        if (!rows || (Array.isArray(rows) && rows.length === 0)) {
-          const confirmed = await Confirm.prompt(
-            `❗ Database "${dbName}" does not exist. Do you want to create it now?`
-          );
-
-          if (confirmed) {
-            await MySQL.query(pool, `CREATE DATABASE \`${dbName}\``);
-            console.log(`✅ Database "${dbName}" has been created.`);
-          } else {
-            console.log(
-              `⚠️ Operation aborted. Database "${dbName}" does not exist.`
-            );
-            await pool.end();
-            Deno.exit(1);
-          }
-        }
-
-        await pool.end();
-        break;
-      }
-      case "pgsql": {
-        break;
-      }
-      case "sqlite": {
-        break;
-      }
-      case "sqlsrv": {
-        break;
+  private async askIfDBNotExist(connection: string) {
+    const dbHelper = new DatabaseHelper(connection);
+    if (!(await dbHelper.askIfDBExist())) {
+      const dbName = dbHelper.getDatabaseName();
+      const createDB = await Confirm.prompt(
+        `Database \`${dbName}\` does not exist. Do you want to create it?`
+      );
+      if (createDB) {
+        await dbHelper.createDatabase();
+        console.log(`✅ Database \`${dbName}\` created successfully.`);
+      } else {
+        console.error("❌ Migration aborted due to missing database.");
+        Deno.exit(1);
       }
     }
   }
@@ -183,14 +150,15 @@ class MyArtisan {
   private async runMigrations(options: {
     seed?: boolean;
     path?: string;
-    db: SupportedDrivers;
+    db: string;
     force: boolean;
+    seeder?: string;
   }) {
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
     }
     await this.createMigrationTable(options.db);
-    const modules = await loadMigrationModules();
+    const modules = await loadMigrationModules(options.path);
     const batchNumber = await this.getBatchNumber(options.db);
 
     const type = "up"; // or "down" based on your requirement
@@ -212,21 +180,31 @@ class MyArtisan {
         batch: batchNumber,
       });
       console.log(`Migration ${name} applied successfully.`);
+    }
+    if (options.seed) {
+      if (!options.seeder) {
+        options.seeder = "DatabaseSeeder";
+      }
+      await this.runSeed({
+        seederClass: options.seeder,
+        db: options.db,
+      });
     }
   }
 
   private async freshMigrations(options: {
     seed?: boolean;
     path?: string;
-    db: SupportedDrivers;
+    db: string;
     force: boolean;
+    seeder?: string;
   }) {
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
     }
     await this.dropAllTables(options.db);
     await this.createMigrationTable(options.db);
-    const modules = await loadMigrationModules();
+    const modules = await loadMigrationModules(options.path);
     const batchNumber = await this.getBatchNumber(options.db);
     const type = "up"; // or "down" based on your requirement
     for (const module of modules) {
@@ -247,6 +225,15 @@ class MyArtisan {
         batch: batchNumber,
       });
       console.log(`Migration ${name} applied successfully.`);
+    }
+    if (options.seed) {
+      if (!options.seeder) {
+        options.seeder = "DatabaseSeeder";
+      }
+      await this.runSeed({
+        seederClass: options.seeder,
+        db: options.db,
+      });
     }
   }
 
@@ -254,18 +241,88 @@ class MyArtisan {
     seed?: boolean;
     step?: number;
     path?: string;
-    db: SupportedDrivers;
+    db: string;
     force: boolean;
+    seeder?: string;
   }) {
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
     }
     await this.createMigrationTable(options.db);
 
-    // Logic to rollback and re-run migrations
+    const extractModule: string[] = [];
+    if (options.step && options.step > 0) {
+      const batchRows = await DB.table("migrations")
+        .select("batch")
+        .groupBy("batch")
+        .orderBy("batch", "desc")
+        .limit(options.step)
+        .get();
+      const batches = batchRows.map((row) => row.batch);
+      if (batches.length) {
+        const batchMigrations = await DB.table("migrations")
+          .whereIn("batch", batches)
+          .select("name")
+          .orderBy("id", "desc")
+          .get();
+
+        extractModule.push(...batchMigrations.map((row) => row.name as string));
+      }
+    }
+
+    const modules = await loadMigrationModules(options.path, extractModule);
+    if (modules.length === 0) {
+      console.log("⚠️ No migrations found to refresh.");
+      return;
+    }
+    console.log(`Rolling back ${modules.length} migrations...`);
+    for (const module of modules) {
+      const { name, migration } = module;
+      // need query
+      migration.setConnection(options.db);
+      await migration.run("down");
+      // delete migration record
+      await DB.connection(options.db)
+        .table("migrations")
+        .where("name", name)
+        .delete();
+      console.log(`Migration ${name} rolled back successfully.`);
+    }
+
+    console.log(`Re-running migrations...`);
+    const batchNumber = await this.getBatchNumber(options.db);
+    for (const module of modules) {
+      const { name, migration } = module;
+      // need query
+      const isApplied = await DB.connection(options.db)
+        .table("migrations")
+        .where("name", name)
+        .count();
+      if (isApplied) {
+        console.log(`Migration ${name} already applied.`);
+        continue;
+      }
+      migration.setConnection(options.db);
+      await migration.run("up");
+      await DB.connection(options.db).insert("migrations", {
+        name,
+        batch: batchNumber,
+      });
+      console.log(`Migration ${name} applied successfully.`);
+    }
+
+    if (options.seed) {
+      if (!options.seeder) {
+        options.seeder = "DatabaseSeeder";
+      }
+      await this.runSeed({
+        seederClass: options.seeder,
+        db: options.db,
+      });
+    }
   }
 
-  private async createMigrationTable(dbType: SupportedDrivers) {
+  private async createMigrationTable(dbType: string) {
     const tableName = "migrations";
     const migrationClass = new (class extends Migration {
       async up() {
@@ -291,14 +348,14 @@ class MyArtisan {
     await migrationClass.up();
   }
 
-  private async dropAllTables(dbType: SupportedDrivers): Promise<void> {
+  private async dropAllTables(dbType: string): Promise<void> {
     let tables: string[] = [];
 
     switch (dbType) {
       case "mysql": {
         const result = await DB.connection(dbType).select(
           `SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND table_type = 'BASE TABLE'`,
-          [staticConfig("database.connections.mysql.database")]
+          [config("database.connections.mysql.database")]
         );
         tables = result.map((row) => `\`${row.TABLE_NAME}\``);
         break;
@@ -433,15 +490,91 @@ class MyArtisan {
     );
   }
 
+  private async runSeed({
+    seederClass = "DatabaseSeeder",
+    db = DB.getDefaultConnection(),
+  }: {
+    seederClass?: string;
+    db?: string;
+  }) {
+    const moduleSeeder = await import(
+      databasePath(`seeders/${seederClass}.ts`)
+    );
+    if (!moduleSeeder.default) {
+      console.error(`❌ Seeder class ${seederClass} not found.`);
+      return;
+    }
+    const SeederClass = new moduleSeeder.default() as Seeder;
+    SeederClass.setConnection(db);
+    try {
+      console.log(`Running seeder: ${seederClass} on database: ${db}`);
+      await SeederClass.run();
+      console.log(`✅ Seeding completed successfully.`);
+    } catch (err) {
+      console.error(`❌ Error running ${seederClass}:`, err);
+    }
+  }
+
+  private async makeFactory(
+    option: {
+      model?: string;
+    },
+    name: string
+  ) {
+    const stub = isset(option.model)
+      ? honovelPath("stubs/FactoryModel.stub")
+      : honovelPath("stubs/Factory.stub");
+    const stubContent = getFileContents(stub);
+    let factoryContent = stubContent.replace(/{{ ClassName }}/g, name);
+    if (isset(option.model)) {
+      factoryContent = factoryContent.replace(/{{ ModelName }}/g, option.model);
+    }
+    writeFile(databasePath(`factories/${name}.ts`), factoryContent);
+
+    console.log(
+      `✅ Factory file created at ${path.relative(
+        Deno.cwd(),
+        databasePath(`factories/${name}.ts`)
+      )}`
+    );
+  }
+
   public async command(args: string[]): Promise<void> {
     await myCommand
       .name("deno task")
       .description("Honovel CLI")
       .version(frameworkVersion().honovelVersion)
+
+      .command("db:seed", "Run the database seeds")
+      .option("--class <class:string>", "Specify the seeder class to run")
+      .option(
+        "--database <db:string>",
+        "Specify the database connection to use"
+      )
+      .action((options: { class?: string; database?: string }) =>
+        this.runSeed.bind(this)({
+          seederClass: options.class,
+          db: options.database,
+        })
+      )
+
+      .command("key:generate", "Generate a new application key")
+      .option("--force", "Force overwrite existing APP_KEY")
+      .option(
+        "--env <env:string>",
+        "Specify the environment name (e.g. staging, production)"
+      )
+      .action((options: { force?: boolean; env?: string }) => {
+        const envPath = options.env ? `.env.${options.env}` : ".env";
+        Encrypter.generateAppKey(envPath, options.force);
+      })
+
       .command("make:config", "Make a new config file")
       .arguments("<name:string>")
       .option("--force", "Force overwrite existing config file")
-      .action((options, name) => this.createConfig.bind(this)(options, name))
+      .action((options: { force?: boolean }, name: string) =>
+        this.createConfig.bind(this)(options, name)
+      )
 
       .command("make:controller", "Generate a controller file")
       .arguments("<name:string>")
@@ -449,7 +582,19 @@ class MyArtisan {
         "--resource",
         "Generate a resourceful controller (index, create, store, etc.)"
       )
-      .action((options, name) => this.makeController.bind(this)(options, name))
+      .action((options: { resource?: boolean }, name: string) =>
+        this.makeController.bind(this)(options, name)
+      )
+
+      .command("make:factory", "Generate a factory file")
+      .arguments("<name:string>")
+      .option(
+        "--model <model:string>",
+        "Specify the model to associate with the factory"
+      )
+      .action((options: { model?: string }, name: string) =>
+        this.makeFactory.bind(this)(options, name)
+      )
 
       .command("make:migration", "Generate a migration file")
       .arguments("<name:string>")
@@ -457,17 +602,23 @@ class MyArtisan {
         "--table <table:string>",
         "Specify the table to alter in the migration"
       )
-      .action((options, name) => this.makeMigration(options, name))
+      .action((options: { table?: string }, name: string) =>
+        this.makeMigration(options, name)
+      )
 
       .command("migrate", "Run the database migrations")
       .option("--seed", "Seed the database after migration")
       .option("--path <path:string>", "Specify a custom migrations directory")
       .option("--db <db:string>", "Specify the database connection to use")
       .option("--force", "Force the migration without confirmation")
-      .action((options) => {
-        const db: SupportedDrivers =
-          (options.db as SupportedDrivers) ||
-          (staticConfig("database").default as SupportedDrivers) ||
+      .option(
+        "--seeder <seeder:string>",
+        "Specify a seeder class to run after migration"
+      )
+      .action((options: any) => {
+        const db: string =
+          (options.db as string) ||
+          (config("database").default as string) ||
           "mysql";
         return this.runMigrations({
           ...options,
@@ -478,7 +629,7 @@ class MyArtisan {
 
       .command("make:middleware", "Generate a middleware class")
       .arguments("<name:string>")
-      .action((_, name) => this.makeMiddleware(name))
+      .action((_: unknown, name: string) => this.makeMiddleware(name))
 
       .command("make:model", "Generate a model class")
       .arguments("<name:string>")
@@ -488,24 +639,55 @@ class MyArtisan {
       .option("-r, --resource", "Make the controller resourceful")
       .option("--all", "Generate migration, factory, and controller")
       .option("--pivot", "Indicate the model is a pivot table")
-      .action((options, name) => this.makeModel(options, name))
+      .action(
+        (
+          options: {
+            migration?: boolean;
+            factory?: boolean;
+            controller?: boolean;
+            resource?: boolean;
+            all?: boolean;
+            pivot?: boolean;
+          },
+          name: string
+        ) => this.makeModel(options, name)
+      )
 
       .command(
         "make:provider",
         "Generate a service provider class for the application"
       )
       .arguments("<name:string>")
-      .action((_, name) => this.makeProvider(name))
+      .action((_: unknown, name: string) => this.makeProvider(name))
+
+      .command("make:seeder", "Generate a seeder class")
+      .arguments("<name:string>")
+      .action((_: unknown, name: string) => {
+        const stubPath = honovelPath("stubs/Seeder.stub");
+        const stubContent = getFileContents(stubPath);
+        const seederContent = stubContent.replace(/{{ ClassName }}/g, name);
+        writeFile(databasePath(`seeders/${name}.ts`), seederContent);
+        console.log(
+          `✅ Seeder file created at ${path.relative(
+            Deno.cwd(),
+            databasePath(`seeders/${name}.ts`)
+          )}`
+        );
+      })
 
       .command("migrate:fresh", "Drop all tables and rerun all migrations")
       .option("--seed", "Seed the database after fresh migration")
       .option("--path <path:string>", "Specify a custom migrations directory")
       .option("--db <db:string>", "Specify the database connection to use")
       .option("--force", "Force the fresh migration without confirmation")
-      .action((options) => {
-        const db: SupportedDrivers =
-          (options.db as SupportedDrivers) ||
-          (staticConfig("database").default as SupportedDrivers) ||
+      .option(
+        "--seeder <seeder:string>",
+        "Specify a seeder class to run after fresh migration"
+      )
+      .action((options: any) => {
+        const db: string =
+          (options.db as string) ||
+          (config("database").default as string) ||
           "mysql";
         return this.freshMigrations({
           ...options,
@@ -523,10 +705,14 @@ class MyArtisan {
       .option("--path <path:string>", "Specify a custom migrations directory")
       .option("--db <db:string>", "Specify the database connection to use")
       .option("--force", "Force the refresh migration without confirmation")
-      .action((options) => {
-        const db: SupportedDrivers =
-          (options.db as SupportedDrivers) ||
-          (staticConfig("database").default as SupportedDrivers) ||
+      .option(
+        "--seeder <seeder:string>",
+        "Specify a seeder class to run after refresh"
+      )
+      .action((options: any) => {
+        const db: string =
+          (options.db as string) ||
+          (config("database").default as string) ||
           "mysql";
         return this.refreshMigrations({
           ...options,
@@ -548,7 +734,9 @@ class MyArtisan {
       .option("--host <host:string>", "Host to run the server on", {
         default: "0.0.0.0",
       })
-      .action((options) => this.serve.bind(this)(options))
+      .action((options: { port?: number | null | string; host: string }) =>
+        this.serve.bind(this)(options)
+      )
 
       // for maintenance mode
       .command("down", "Put the application into maintenance mode")
@@ -573,7 +761,16 @@ class MyArtisan {
         "Custom view to render during maintenance"
       )
       .option("--redirect <url:string>", "Redirect URL during maintenance mode")
-      .action((options) => this.down.bind(this)(options))
+      .action(
+        (options: {
+          message?: string;
+          retry?: number;
+          allow?: string[];
+          secret?: string;
+          render?: string;
+          redirect?: string;
+        }) => this.down.bind(this)(options)
+      )
 
       .command("up", "Bring the application out of maintenance mode")
       .action(() => this.up.bind(this)())
@@ -634,13 +831,15 @@ interface ModuleMigration {
   migration: Migration;
 }
 
-export async function loadMigrationModules(): Promise<ModuleMigration[]> {
-  const migrationsPath = databasePath("migrations");
+export async function loadMigrationModules(
+  modulePath: string = "database/migrations",
+  extractModule: string[] = []
+): Promise<ModuleMigration[]> {
   const modules: ModuleMigration[] = [];
-
+  const migrationsPath = basePath(modulePath);
   for await (const entry of Deno.readDir(migrationsPath)) {
     if (entry.isFile && entry.name.endsWith(".ts")) {
-      const fullPath = join(migrationsPath, entry.name);
+      const fullPath = path.join(migrationsPath, entry.name);
       const fileUrl = `file://${fullPath}`;
       const mod = await import(fileUrl);
       if (mod?.default) {
@@ -654,6 +853,15 @@ export async function loadMigrationModules(): Promise<ModuleMigration[]> {
 
   // Sort modules by name to ensure consistent order
   modules.sort((a, b) => a.name.localeCompare(b.name));
+  if (extractModule.length > 0) {
+    const filteredModules: ModuleMigration[] = [];
+    for (const module of modules) {
+      if (extractModule.includes(module.name)) {
+        filteredModules.push(module);
+      }
+    }
+    return filteredModules;
+  }
 
   return modules;
 }

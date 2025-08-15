@@ -1,9 +1,8 @@
 import {
-  HonoNext,
   IGroupInstance,
   IHeaderChildRoutes,
 } from "../../../../@types/declaration/IRoute.d.ts";
-import * as path from "https://deno.land/std/path/mod.ts";
+import * as path from "node:path";
 import { regexObj, URLArranger } from "./FunctionRoute.ts";
 
 class Group {
@@ -112,7 +111,22 @@ class Group {
     return;
   }
 
-  public group(callback: () => void): void {
+  public static groupRouteMain: Record<
+    string,
+    {
+      middleware: string[];
+      prefix?: string;
+    }
+  > = {};
+
+  public group(callback: (() => void) | string): void {
+    if (isString(callback)) {
+      Group.groupRouteMain[callback] = {
+        middleware: [...(this.flag["middleware"] as string[])],
+        prefix: this.flag["prefix"] as string | undefined,
+      };
+      return;
+    }
     Group.groupId++;
     const currentGroup = Group.currentGroup;
     if (empty(this.flag["prefix"])) {

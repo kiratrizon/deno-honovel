@@ -70,7 +70,7 @@ const warmups = ["/__warmup", "/api/__warmup"];
 for (const path of warmups) {
   const url = baseWarmup(path);
   // console.log("🔥 Warming up:", url);
-  await Server.app.fetch(new Request(url));
+  // await Server.app.fetch(new Request(url));
 }
 
 serveObj.port = port;

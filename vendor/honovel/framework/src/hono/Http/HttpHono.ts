@@ -1,16 +1,18 @@
 import { IConfigure } from "../../../../@types/declaration/MyImports.d.ts";
-import { Session } from "Illuminate/Session/index.ts";
-import HonoRequest from "./HonoRequest.ts";
+import HonoRequest from "HonoHttp/HonoRequest.ts";
 import Constants from "Constants";
+import { Auth } from "Illuminate/Support/Facades/index.ts";
 
 class HttpHono {
   #request: HonoRequest;
   #config: typeof IConfigure;
   #c: MyContext;
+  #auth: Auth;
   constructor(c: MyContext) {
     this.#c = c;
     this.#request = new HonoRequest(this.#c);
     this.#config = new Constants(myConfigData) as unknown as typeof IConfigure;
+    this.#auth = new Auth(this.#c);
   }
 
   public get request() {
@@ -29,6 +31,10 @@ class HttpHono {
       }
       return self.#request.session.token();
     };
+  }
+
+  public get Auth() {
+    return this.#auth;
   }
 }
 

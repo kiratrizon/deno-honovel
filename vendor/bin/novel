@@ -3,8 +3,5 @@ import { dbCloser } from "Database";
 
 await artisan.command(Deno.args);
 Deno.addSignalListener("SIGINT", dbCloser);
-if (Deno.build.os !== "windows") {
-    Deno.addSignalListener("SIGTERM", dbCloser);
-}
 
 Deno.exit(0);

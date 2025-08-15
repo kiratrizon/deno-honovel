@@ -1,7 +1,5 @@
 import {
   Model,
-  schemaKeys,
-  ModelWithAttributes,
 } from "Illuminate/Database/Eloquent/index.ts";
 
 export type {{ ClassName }}Schema = {
@@ -11,17 +9,10 @@ export type {{ ClassName }}Schema = {
   name: string;
 };
 
-class Base{{ ClassName }} extends Model<{ _attributes: {{ ClassName }}Schema }> {
-  // Laravel-like implementation here
-  protected override _fillable = schemaKeys<{{ ClassName }}Schema>([
-    "email",
-    "password",
-    "name",
-  ]);
+class {{ ClassName }} extends Model<{{ ClassName }}Schema> {
+  protected static override _fillable = [];
 
-  protected override _hidden = schemaKeys<{{ ClassName }}Schema>(["password"]);
+  
 }
-
-const {{ ClassName }} = Base{{ ClassName }} as ModelWithAttributes<{{ ClassName }}Schema, typeof Base{{ ClassName }}>;
 
 export default {{ ClassName }};

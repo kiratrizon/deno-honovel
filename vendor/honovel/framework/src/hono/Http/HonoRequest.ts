@@ -9,14 +9,24 @@ import { isbot } from "isbot";
 import Macroable from "../../Maneuver/Macroable.ts";
 import { Validator } from "Illuminate/Support/Facades/index.ts";
 import { getMyCookie, setMyCookie } from "./HonoCookie.ts";
-import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
-import { multiParser } from "https://deno.land/x/multiparser@0.114.0/lib/multiParserV2.ts";
+import {
+  multiParser,
+  FormFile,
+} from "https://deno.land/x/multiparser@0.114.0/lib/multiParserV2.ts";
 
 import { CookieOptions } from "hono/utils/cookie";
 import { deleteCookie } from "hono/cookie";
-import { SessionModifier } from "./HonoSession.ts";
+import { SessionModifier } from "HonoHttp/HonoSession.ts";
+import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 
 class HonoRequest extends Macroable {
+  public static HEADER_X_FORWARDED_ALL = [
+    "X-Forwarded-For",
+    "X-Forwarded-Proto",
+    "X-Forwarded-Host",
+    "X-Forwarded-Port",
+  ];
+
   #c: MyContext;
   #files: Record<string, FormFile[]> = {};
   #myAll: Record<string, unknown> = {};
@@ -169,9 +179,11 @@ class HonoRequest extends Macroable {
     return this.#myAll[key] ?? null;
   }
 
-  public only(keys: string[]): Record<string, unknown> {
-    const result: Record<string, unknown> = only(this.#myAll, keys);
-    return result;
+  public only<K extends readonly string[]>(
+    keys: K
+  ): Pick<Record<string, unknown>, K[number]> {
+    const result: Record<string, unknown> = only(this.#myAll, [...keys]);
+    return result as Pick<Record<string, unknown>, K[number]>;
   }
 
   public except(keys: string[]): Record<string, unknown> {
@@ -306,12 +318,10 @@ class HonoRequest extends Macroable {
   public cookie(
     key?: string,
     value?: Exclude<unknown, undefined>,
-    options?: CookieOptions
+    options: CookieOptions = {}
   ): unknown {
     if (isset(key) && isset(value)) {
-      const newOpts =
-        isset(options) && !empty(options) && isObject(options) ? options : {};
-      setMyCookie(this.#c, key, value, newOpts);
+      setMyCookie(this.#c, key, value, options);
       return;
     }
     if (isset(key) && !isset(value)) {
@@ -389,8 +399,9 @@ class HonoRequest extends Macroable {
     return this.server("SERVER_PORT") as number;
   }
 
-  public async user(): Promise<Record<string, unknown> | null> {
-    return null; // Placeholder for user retrieval logic
+  public user(guard?: string): Authenticatable | null {
+    const { Auth } = this.#c.get("myHono");
+    return Auth.guard(guard).user();
   }
 
   public isJson(): boolean {
@@ -449,6 +460,11 @@ class HonoRequest extends Macroable {
     return this.#c.get("session");
   }
 
+  public flash(key: string, value: unknown): void {
+    // deno-lint-ignore no-explicit-any
+    this.#c.get("session").flash(key as any, value);
+  }
+
   public get $_SESSION() {
     // @ts-ignore //
     return this.#c.get("session").values;
@@ -496,15 +512,26 @@ class HonoRequest extends Macroable {
     await this.#sessionMod.dispose(sessionValue);
   }
 
-  public async validate(
-    data: Record<string, unknown> = {},
-    validations: Record<string, string> = {}
-  ): Promise<Record<string, unknown>> {
+  public async validate<T extends Record<string, string>>(
+    validations: T
+  ): Promise<Record<keyof T, string>>;
+  public async validate<T extends Record<string, string>>(
+    validations: T
+  ): Promise<Record<keyof T | string, string>> {
+    const data = this.all();
     const validation = await Validator.make(data, validations);
+
     if (validation.fails()) {
-      throw new Error(`Validation failed: ${validation.getErrors()}`);
+      abort(422, {
+        message: "Validation failed",
+        errors: validation.getErrors(),
+      });
     }
-    return data;
+
+    return this.only(Object.keys(validations)) as Record<
+      keyof T | string,
+      string
+    >;
   }
 
   protected resetRoute(params = {}): void {

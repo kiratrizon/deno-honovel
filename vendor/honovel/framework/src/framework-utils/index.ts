@@ -1,11 +1,13 @@
-
-export function staticImplements<T>() {
-  return <U extends T>(constructor: U) => {
-    constructor;
-  };
-}
-
 import { DateTime as luxonDate } from "luxon";
+
+type timeValue =
+  | "seconds"
+  | "minutes"
+  | "hours"
+  | "days"
+  | "months"
+  | "years"
+  | "milliseconds";
 export class Carbon extends String {
   private static defaultTimezone: string = "UTC";
   private static defaultFormat: string = "yyyy-MM-dd HH:mm:ss";
@@ -44,9 +46,11 @@ export class Carbon extends String {
     this.#currentDate = date;
   }
 
-  private static get dateNow() {
-    const timeNow = new Date().toLocaleString("en-US", { timeZone: Carbon.defaultTimezone || "UTC" });
-    const unixTimestamp = Math.floor(new Date(timeNow).getTime() / 1000);
+  private static dateNow() {
+    const timeNow = new Date().toLocaleString("en-US", {
+      timeZone: Carbon.defaultTimezone || "UTC",
+    });
+    const unixTimestamp = Math.floor(new Date(timeNow).getTime());
     return unixTimestamp;
   }
 
@@ -64,8 +68,8 @@ export class Carbon extends String {
     timestamp: number | null,
     format?: string
   ): Carbon {
-    const date = luxonDate.fromMillis(timestamp ?? Carbon.dateNow, {
-      zone: this.defaultTimezone,
+    const date = luxonDate.fromMillis(timestamp ?? Carbon.dateNow(), {
+      zone: timestamp ? Carbon.defaultTimezone : undefined,
     });
     return new Carbon(date, format);
   }
@@ -186,6 +190,44 @@ export class Carbon extends String {
 
   public toTimeString(): string {
     return this.#currentDate.toFormat("HH:mm:ss");
+  }
+
+  public to(toTime: timeValue, floored: boolean = true): number {
+    let convertedTime: number;
+    switch (toTime) {
+      case "seconds": {
+        convertedTime = this.#currentDate.toSeconds(); // Returns seconds since epoch
+        break;
+      }
+      case "minutes": {
+        convertedTime = this.#currentDate.toMinutes(); // Returns minutes since epoch
+        break;
+      }
+      case "hours": {
+        convertedTime = this.#currentDate.toHours(); // Returns hours since epoch
+        break;
+      }
+      case "days": {
+        convertedTime = this.#currentDate.toDays(); // Returns days since epoch
+        break;
+      }
+      case "months": {
+        convertedTime = this.#currentDate.toMonths(); // Returns months since epoch
+        break;
+      }
+      case "years": {
+        convertedTime = this.#currentDate.toYears(); // Returns years since epoch
+        break;
+      }
+      case "milliseconds": {
+        convertedTime = this.#currentDate.toMillis(); // Returns milliseconds since epoch
+        break;
+      }
+      default: {
+        throw new Error(`Unsupported time value: ${toTime}`);
+      }
+    }
+    return floored ? Math.floor(convertedTime) : convertedTime;
   }
 
   public static today(): Carbon {

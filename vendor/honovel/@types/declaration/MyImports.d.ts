@@ -4,10 +4,16 @@ export declare class IConfigure {
   /**
    * Reads configuration values from the config store based on a dot-notation string.
    * @param key - Dot-separated string indicating the config path.
+   * @param defaultValue - Optional default value to return if the key is not found.
    * @returns The requested configuration value or null if not found.
    */
-  public static read<T extends keyof ConfigItems>(key: T): ConfigItems[T];
-  public static read(key: string): unknown;
+  public static read<T extends keyof ConfigItems>(
+    key: T,
+    // deno-lint-ignore no-explicit-any
+    defaultValue?: any
+  ): ConfigItems[T];
+  // deno-lint-ignore no-explicit-any
+  public static read<D extends any>(key: string, defaultValue?: D): null | D;
 
   /**
    * Writes a value to the specified config path in the in-memory store.

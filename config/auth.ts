@@ -1,21 +1,13 @@
-import User from "../app/Models/User.ts";
-import { AuthConfig } from "./@types/index.d.ts";
+import User from "App/Models/User.ts";
+import { AuthConfig } from "configs/@types/index.d.ts";
 
 const constant: AuthConfig = {
   default: {
-    guard: "jwt_user",
+    guard: "user",
   },
   guards: {
-    jwt_user: {
-      driver: "jwt",
-      provider: "users",
-    },
-    jwt_admin: {
-      driver: "jwt",
-      provider: "admins",
-    },
     user: {
-      driver: "session",
+      driver: "jwt",
       provider: "users",
     },
   },

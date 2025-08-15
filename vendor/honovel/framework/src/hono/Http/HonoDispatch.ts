@@ -1,13 +1,9 @@
 import HonoClosure from "./HonoClosure.ts";
 import HonoView from "./HonoView.ts";
-import HonoRedirect from "./HonoRedirect.ts";
-import { IERedirectResponse } from "../../../../@types/declaration/IHonoRedirect.d.ts";
-import HonoResponse from "./HonoResponse.ts";
+import HonoRedirect from "HonoHttp/HonoRedirect.ts";
 import { ContentfulStatusCode } from "hono/utils/http-status";
-import { existsSync } from "https://deno.land/std/fs/mod.ts";
-import * as path from "https://deno.land/std/path/mod.ts";
-import { contentType } from "https://deno.land/std@0.224.0/media_types/mod.ts";
 import HttpHono from "HttpHono";
+import { HonoResponse } from "HonoHttp/HonoResponseV2.ts";
 
 class HonoDispatch {
   #type: "dispatch" | "middleware";
@@ -38,7 +34,7 @@ class HonoDispatch {
       throw new Error("HEAD method cannot return a response.");
     }
     if (this.#returnedData instanceof Response) {
-      return this.#returnedData;
+      return this.convertToResponse(c, this.#returnedData);
     }
     if (isObject(this.#returnedData)) {
       if (this.#returnedData instanceof HonoView) {
@@ -50,9 +46,10 @@ class HonoDispatch {
         this.#statusCode = 200;
         return c.html(rendered, 200);
       } else if (this.#returnedData instanceof HonoRedirect) {
-        switch ((this.#returnedData as IERedirectResponse).type) {
+        switch (this.#returnedData.type) {
           case "back":
-            return c.redirect(request.header("referer") || "/", 302);
+            // @ts-ignore //
+            return c.redirect(request.session.get("_newUrl") || "/", 302);
           case "redirect":
           case "to":
           case "route":
@@ -61,135 +58,40 @@ class HonoDispatch {
             throw new Error("Invalid use of redirect()");
         }
       } else if (this.#returnedData instanceof HonoResponse) {
-        const accessData = this.#returnedData.accessData();
-        const {
-          returnType,
-          statusCode = 200,
-          error,
-          file,
-          download,
-          headers = {},
-          html,
-          json,
-        } = accessData;
-        this.#statusCode = statusCode;
-        if (error) {
-          throw new Error(error);
+        // @ts-ignore //
+        const cookies = this.#returnedData.getCookies();
+        for (const [name, [value, options]] of Object.entries(cookies)) {
+          request.cookie(name, value, options);
         }
-        if (request.isMethod("HEAD")) {
-          return new Response(null, {
-            status: statusCode,
-            headers,
-          });
-        }
-        const instantceHeaders = new Headers();
+        // @ts-ignore //
+        const res = this.#returnedData.toResponse();
 
-        switch (returnType) {
-          case "download":
-          case "file": {
-            c.res.headers.forEach((value, key) => {
-              instantceHeaders.set(key, value);
-            });
-            for (const [key, value] of Object.entries(headers)) {
-              instantceHeaders.set(key, value);
-            }
-          }
-        }
-        switch (returnType) {
-          case "html":
-            if (html) {
-              return c.html(html, {
-                headers,
-                status: this.#statusCode,
-              });
-            }
-            throw new Error("HTML content is missing in the response.");
-          case "json":
-            if (json) {
-              return c.json(json, {
-                headers,
-                status: this.#statusCode,
-              });
-            }
-            throw new Error("JSON content is missing in the response.");
-          case "file":
-            if (file) {
-              if (!existsSync(file)) {
-                return c.text("File not found", 404);
-              }
-              // Open file for reading
-              const fileHandle = await Deno.open(file, { read: true });
-
-              instantceHeaders.set(
-                "Content-Type",
-                contentType(file) || "text/plain"
-              );
-              return new Response(fileHandle.readable, {
-                status: this.#statusCode,
-                headers: instantceHeaders,
-              });
-            }
-            throw new Error("File content is missing in the response.");
-          case "download":
-            if (download) {
-              const filePath = Array.isArray(download) ? download[0] : download;
-              const downloadName =
-                Array.isArray(download) && download.length > 1
-                  ? download[1]
-                  : undefined;
-
-              // Using Deno or Node fs to stream the file
-              const fileStream = (await Deno.open(filePath, { read: true }))
-                .readable;
-              instantceHeaders.set("Content-Type", "application/octet-stream");
-              instantceHeaders.set(
-                "Content-Disposition",
-                `attachment; filename="${
-                  downloadName || path.basename(filePath)
-                }"`
-              );
-
-              return new Response(fileStream, {
-                status: this.#statusCode || 200,
-                headers: instantceHeaders,
-              });
-            }
-            break;
-          default:
-            if (!empty(headers)) {
-              throw new Error(
-                `${request.method} methods cannot return with headers only.`
-              );
-            } else {
-              throw new Error(
-                `${request.method} methods should have html, json, file, or download.`
-              );
-            }
-        }
+        return this.convertToResponse(c, res);
       } else {
-        this.#statusCode = 200;
-        return c.json(JSON.parse(JSON.stringify(this.#returnedData)), 200);
+        return c.text(
+          JSON.stringify(this.#returnedData, null, 2),
+          this.#statusCode
+        );
       }
-    } else if (isArray(this.#returnedData)) {
-      this.#statusCode = 200;
-      if (request.expectsJson()) {
-        return c.json(this.#returnedData, 200);
+    } else {
+      if (isString(this.#returnedData)) {
+        return c.text(this.#returnedData, this.#statusCode);
       } else {
-        return c.text(JSON.stringify(this.#returnedData, null, 2), 200);
+        return c.text(
+          JSON.stringify(this.#returnedData, null, 2),
+          this.#statusCode
+        );
       }
-    } else if (isNumeric(this.#returnedData) || isString(this.#returnedData)) {
-      this.#statusCode = 200;
-      if (request.expectsJson()) {
-        return c.json(this.#returnedData, 200);
-      } else {
-        return c.text(String(this.#returnedData), 200);
-      }
-    } else if (isNull(this.#returnedData)) {
-      if (request.expectsJson()) {
-        return c.json(null, 200);
-      }
-      return c.text("null", 200);
     }
+  }
+
+  private convertToResponse(c: MyContext, res: Response): Response {
+    const newRes = c.newResponse(
+      res.body,
+      res.status as ContentfulStatusCode,
+      Object.fromEntries(res.headers)
+    );
+    return newRes;
   }
 
   public get isNext(): boolean {

@@ -1,5 +1,9 @@
-import { ModelWithAttributes } from "Illuminate/Database/Eloquent/index.ts";
-import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
+import {
+  Authenticatable,
+  JWTSubject,
+} from "Illuminate/Contracts/Auth/index.ts";
+import { HasFactory } from "Illuminate/Database/Eloquent/Factories/index.ts";
+import Post from "./Post.ts";
 
 export type UserSchema = {
   id?: number;
@@ -8,13 +12,36 @@ export type UserSchema = {
   name: string;
 };
 
-class BaseUser extends Authenticatable<{ _attributes: UserSchema }> {
+class User extends Authenticatable<UserSchema> implements JWTSubject {
   // Laravel-like implementation here
-  protected override _fillable = [];
+  protected static override _fillable = [
+    "email",
+    "password",
+    "name",
+    "api_token",
+  ];
+  protected static override _guarded: string[] = [];
 
-  protected override _hidden = [];
+  protected static override use = {
+    HasFactory,
+  };
+
+  protected static override _hidden = ["password"];
+
+  public getJWTCustomClaims(): Record<string, unknown> {
+    return {
+      email: this.getRawAttribute("email"),
+      name: this.getRawAttribute("name"),
+    };
+  }
+
+  public getJWTIdentifier(): string | number {
+    return this.getAuthIdentifier() || "";
+  }
+
+  public posts() {
+    return this.hasMany(Post);
+  }
 }
-
-const User = BaseUser as ModelWithAttributes<UserSchema, typeof BaseUser>;
 
 export default User;

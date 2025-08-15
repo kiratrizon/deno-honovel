@@ -1,10 +1,11 @@
-import { DatabaseConfig } from "./@types/index.d.ts";
+import { DatabaseConfig } from "configs/@types/index.d.ts";
 
 const constant: DatabaseConfig = {
   default: env("DB_CONNECTION", "mysql"),
 
   connections: {
     mysql: {
+      driver: "mysql",
       // host: env("DB_HOST", "127.0.0.1"),
       write: {
         host: env("DB_HOST", "127.0.0.1"),
@@ -22,6 +23,7 @@ const constant: DatabaseConfig = {
       },
     },
     pgsql: {
+      driver: "pgsql",
       host: env("DB_HOST", "127.0.0.1"),
       port: Number(env("DB_PORT", 5432)),
       user: env("DB_USERNAME", "postgres"),
@@ -29,7 +31,16 @@ const constant: DatabaseConfig = {
       database: env("DB_DATABASE", "honovel"),
     },
     sqlite: {
+      driver: "sqlite",
       database: databasePath("database.sqlite"),
+    },
+    mongodb: {
+      driver: "mongodb",
+      uri: env("MONGODB_URI", "mongodb://localhost:27017"),
+      database: env("MONGODB_DATABASE", "honovel"),
+      options: {
+        database: env("DB_AUTH_DATABASE", "admin"),
+      },
     },
   },
 

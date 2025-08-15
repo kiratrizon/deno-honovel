@@ -11,3 +11,4 @@ mydocker
 !/storage/framework/.gitignore
 /storage/logs/*
 !/storage/logs/.gitignore
+node_modules

@@ -1,6 +1,6 @@
 import { Redis as IORedis } from "ioredis";
-import { Redis as UpstashRedis } from "https://deno.land/x/upstash_redis@v1.14.0/mod.ts";
-import { createClient, RedisClientType } from "npm:redis";
+import { Redis as UpstashRedis } from "@upstash/redis";
+import { createClient, RedisClientType } from "redis";
 import {
   connect,
   Redis as DenoRedis,
@@ -32,7 +32,7 @@ export class RedisManager {
   }
 
   public async init(connection?: string) {
-    const redisConfig = staticConfig("database").redis;
+    const redisConfig = config("database").redis;
     if (!isset(redisConfig)) {
       throw new Error("Redis configuration is not set in the database config.");
     }
@@ -44,18 +44,18 @@ export class RedisManager {
       throw new Error(`Redis connection "${connection}" is not defined.`);
     }
 
-    const config = connections[connection];
+    const conf = connections[connection];
 
     switch (this.#redisType) {
       case "ioredis":
         this.#client = new IORedis(
-          (config as RedisConfigure<"ioredis">).ioredisUrl
+          (conf as RedisConfigure<"ioredis">).ioredisUrl
         );
         break;
       case "upstash": {
         const upstashConf = {
-          url: (config as RedisConfigure<"upstash">).upstashUrl,
-          token: (config as RedisConfigure<"upstash">).upstashToken,
+          url: (conf as RedisConfigure<"upstash">).upstashUrl,
+          token: (conf as RedisConfigure<"upstash">).upstashToken,
         };
         if (!upstashConf.url || !upstashConf.token) {
           throw new Error(
@@ -67,7 +67,7 @@ export class RedisManager {
       }
       case "node-redis": {
         const client = createClient({
-          url: (config as RedisConfigure<"node-redis">).nodeRedisUrl,
+          url: (conf as RedisConfigure<"node-redis">).nodeRedisUrl,
         });
         await client.connect();
         this.#client = client as RedisClientType; // Explicitly cast to RedisClientType
@@ -75,7 +75,7 @@ export class RedisManager {
       }
       case "deno-redis":
         this.#client = await connectToRedis(
-          config as RedisConfigure<"deno-redis">
+          conf as RedisConfigure<"deno-redis">
         );
         break;
       default:

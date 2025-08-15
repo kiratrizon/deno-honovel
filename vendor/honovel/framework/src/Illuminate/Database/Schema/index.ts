@@ -907,10 +907,11 @@ export class Blueprint {
         return "FLOAT";
       case "double":
         return "DOUBLE";
-      case "decimal":
+      case "decimal": {
         const precision = opts.precision ?? 8;
         const scale = opts.scale ?? 2;
         return `DECIMAL(${precision}, ${scale})`;
+      }
       case "boolean":
         return db === "mysql" ? "TINYINT(1)" : "BOOLEAN";
       case "date":
