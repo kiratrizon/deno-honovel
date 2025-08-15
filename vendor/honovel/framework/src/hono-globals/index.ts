@@ -298,9 +298,8 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
     for (const file of configFiles) {
       if (file.isFile && file.name.endsWith(".ts")) {
         const configName = file.name.replace(".ts", "");
-        const importPath = `configs/${configName}`;
         try {
-          const module = await import(importPath);
+          const module = await import(`configs/${file.name}`);
           conf[configName] = module.default;
           if (!isset(conf[configName])) {
             throw new Error();
