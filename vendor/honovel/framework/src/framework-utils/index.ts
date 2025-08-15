@@ -47,8 +47,6 @@ export class Carbon extends String {
   }
 
   private static dateNow() {
-    console.log(Intl.DateTimeFormat().resolvedOptions().timeZone);
-    console.log(Carbon.defaultTimezone);
     const timeNow = new Date().toLocaleString("en-US", {
       timeZone: Carbon.defaultTimezone || "UTC",
     });

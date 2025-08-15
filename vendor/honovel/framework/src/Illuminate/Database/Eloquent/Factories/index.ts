@@ -3,7 +3,7 @@ import { DB } from "../../../Support/Facades/index.ts";
 import { Model } from "../index.ts";
 
 export abstract class Factory {
-  protected faker = new FakerFactory();
+  protected faker = FakerFactory.create();
   // deno-lint-ignore no-explicit-any
   protected _model?: typeof Model<any>;
   protected _count = 1;
@@ -11,15 +11,15 @@ export abstract class Factory {
    * Create a new factory instance for the given model.
    * @param model The model class to create instances of.
    */
-  // deno-lint-ignore no-explicit-any
-  constructor(model: typeof Model<any>) {
-    if (!isset(this._model)) this._model = model;
-  }
 
   private _connection: string = DB.getDefaultConnection();
 
   protected setConnection(connection: string) {
     this._connection = connection;
+  }
+
+  protected setModel(model: typeof Model<any>) {
+    if (!isset(this._model)) this._model = model;
   }
 
   /** Child factories must define fake data */
@@ -108,7 +108,9 @@ export class HasFactory {
       );
     }
     // @ts-ignore - We assume the factory is compatible with the model //
-    const newInstance = new model();
-    return new factoryModule.default(model) as Factory;
+    const factory = new factoryModule.default() as Factory;
+    // @ts-ignore - protected property access //
+    factory.setModel(model);
+    return factory;
   }
 }

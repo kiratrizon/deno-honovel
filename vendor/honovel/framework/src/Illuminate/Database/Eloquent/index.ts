@@ -20,7 +20,7 @@ export abstract class Model<
   T extends IBaseModelProperties = IBaseModelProperties
 > {
   constructor(attributes: Partial<T> = {}) {
-    this.fill(attributes);
+    this.fill(attributes as T);
   }
   protected static createdAtColumn: string = "created_at";
   protected static updatedAtColumn: string = "updated_at";
@@ -199,33 +199,31 @@ export abstract class Model<
   }
 
   public fill(attributes: Partial<T>): this {
-    if (
-      isset((this.constructor as typeof Model)._fillable) &&
-      (this.constructor as typeof Model)._fillable.length > 0
-    ) {
+    const fillable = [...(this.constructor as typeof Model)._fillable];
+    const guarded = [...(this.constructor as typeof Model)._guarded];
+    fillable.push((this.constructor as typeof Model)._primaryKey);
+    if (this.usesTimestamps()) {
+      fillable.push(
+        (this.constructor as typeof Model).createdAtColumn,
+        (this.constructor as typeof Model).updatedAtColumn
+      );
+    }
+    if (isset(fillable) && fillable.length > 0) {
       for (const [key, value] of Object.entries(attributes)) {
-        if (
-          (this.constructor as typeof Model)._fillable.includes(String(key))
-        ) {
+        if (fillable.includes(String(key))) {
           this.setAttribute(key as keyof T, value as T[keyof T]);
         } else {
           // ignore the attribute if not fillable
         }
       }
     } else {
-      if (
-        !isset((this.constructor as typeof Model)._guarded) ||
-        !(this.constructor as typeof Model)._guarded.length
-      ) {
+      if (!isset(guarded) || !guarded.length) {
         throw new Error(
           `No fillable attributes defined for model ${this.constructor.name}.`
         );
       }
       for (const [key, value] of Object.entries(attributes)) {
-        if (
-          isset((this.constructor as typeof Model)._guarded) &&
-          !(this.constructor as typeof Model)._guarded.includes(key as string)
-        ) {
+        if (isset(guarded) && !guarded.includes(key as string)) {
           this.setAttribute(key as keyof T, value as T[keyof T]);
         } else {
           throw new Error(`Attribute "${key}" is guarded and cannot be set.`);
@@ -391,7 +389,7 @@ export abstract class Model<
     if (!isset(this.use)) {
       throw new Error("This model does not support factories.");
     }
-    if (!isset(this.use["HasFactories"])) {
+    if (!isset(this.use["HasFactory"])) {
       throw new Error("This model does not support factories.");
     }
     if (!isset(connection)) {
@@ -400,7 +398,7 @@ export abstract class Model<
     if (!DB.hasConnection(connection)) {
       throw new Error(`Database connection "${connection}" does not exist.`);
     }
-    const factoryClass = this.use["HasFactories"] as typeof HasFactory;
+    const factoryClass = this.use["HasFactory"] as typeof HasFactory;
 
     if (!isset(factoryClass)) {
       throw new Error("Factory class not found for this model.");
@@ -412,6 +410,70 @@ export abstract class Model<
     // @ts-ignore //
     factory.setConnection(connection);
     return factory as Factory;
+  }
+
+  // separated with dot
+  public static async with(modelActions: string) {
+    const actions = modelActions.split("."); // ["posts", "comments"]
+
+    // Load all parent records
+    const allThisData = (await this.all()).map((item) => item.toObject());
+    if (!allThisData.length) return allThisData;
+
+    const currentLevel = {
+      data: [allThisData],
+      model: this as typeof Model<IBaseModelProperties>,
+    };
+
+    await this.iterateWith(currentLevel, [...actions]);
+
+    return allThisData;
+  }
+
+  private static async iterateWith(
+    currentLevel: {
+      data: Record<string, unknown>[][];
+      model: typeof Model<IBaseModelProperties>;
+    },
+    actions: string[]
+  ) {
+    while (actions.length > 0 && currentLevel.data.length > 0) {
+      const action = actions.shift();
+      if (!action) break;
+      const nextLevel: {
+        data: Record<string, unknown>[][];
+        model: typeof Model<IBaseModelProperties>;
+      } = {
+        data: [],
+        model: null as unknown as typeof Model<IBaseModelProperties>,
+      };
+      for (const items of currentLevel.data) {
+        for (const item of items) {
+          // @ts-ignore //
+          const instance = new currentLevel.model(
+            item
+          ) as Model<IBaseModelProperties>;
+          if (methodExist(instance, action)) {
+            const relatedData = (instance as any)[action]() as Builder;
+            if (relatedData instanceof Builder) {
+              const relatedItems = await relatedData.get();
+              if (relatedItems.length > 0) {
+                item[action] = relatedItems.map((relatedItem) => {
+                  return relatedItem.toObject();
+                });
+                nextLevel.data.push([
+                  ...(item[action] as Record<string, unknown>[]),
+                ]);
+                // @ts-ignore //
+                nextLevel.model = relatedData.model;
+              }
+            }
+          }
+        }
+      }
+      currentLevel.data = nextLevel.data;
+      currentLevel.model = nextLevel.model;
+    }
   }
 
   public static where(column: string, value: unknown): Builder {
@@ -497,16 +559,18 @@ export abstract class Model<
     }).first();
   }
 
-  public static async find(id: string | number) {
+  public static async find<
+    M extends Model<IBaseModelProperties> = Model<IBaseModelProperties>
+  >(id: string | number): Promise<M | null> {
     // @ts-ignore //
     const instanceModel = new this() as Model<IBaseModelProperties>;
     const primaryKey = instanceModel.getKeyName();
-    return await new Builder({
+    return (await new Builder({
       model: this,
       fields: ["*"],
     })
       .where(primaryKey, id)
-      .first();
+      .first()) as unknown as M;
   }
 
   async save() {
@@ -536,6 +600,20 @@ export abstract class Model<
       // Create new record
       await DB.connection(this._connection).insert(tableName, data);
     }
+  }
+
+  public hasMany(
+    relationModel: typeof Model<IBaseModelProperties>,
+    foreignKey?: string
+  ) {
+    const primaryKey = this.getKeyName();
+    if (!foreignKey) {
+      foreignKey = `${this.getTableName()}_${primaryKey}`;
+    }
+    return new Builder({
+      model: relationModel,
+      fields: ["*"],
+    }).where(foreignKey, this.getKey());
   }
 }
 

@@ -114,11 +114,6 @@ class MyArtisan {
       this.makeMigration({}, generateTableName(name));
     }
 
-    if (options.factory || options.all) {
-      // Logic to create factory
-      console.log(`Factory creation logic not implemented yet.`);
-    }
-
     if (options.controller || options.all) {
       await this.makeController(
         { resource: options.resource },
@@ -526,13 +521,13 @@ class MyArtisan {
     },
     name: string
   ) {
-    const stub = option.model
+    const stub = isset(option.model)
       ? honovelPath("stubs/FactoryModel.stub")
       : honovelPath("stubs/Factory.stub");
     const stubContent = getFileContents(stub);
-    const factoryContent = stubContent.replace(/{{ ClassName }}/g, name);
-    if (option.model) {
-      factoryContent.replace(/{{ ModelName }}/g, option.model);
+    let factoryContent = stubContent.replace(/{{ ClassName }}/g, name);
+    if (isset(option.model)) {
+      factoryContent = factoryContent.replace(/{{ ModelName }}/g, option.model);
     }
     writeFile(databasePath(`factories/${name}.ts`), factoryContent);
 

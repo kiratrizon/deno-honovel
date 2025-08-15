@@ -3,6 +3,7 @@ import {
   JWTSubject,
 } from "Illuminate/Contracts/Auth/index.ts";
 import { HasFactory } from "Illuminate/Database/Eloquent/Factories/index.ts";
+import Post from "./Post.ts";
 
 export type UserSchema = {
   id?: number;
@@ -21,8 +22,8 @@ class User extends Authenticatable<UserSchema> implements JWTSubject {
   ];
   protected static override _guarded: string[] = [];
 
-  protected static override use: Record<string, unknown> = {
-    HasFactories: HasFactory,
+  protected static override use = {
+    HasFactory,
   };
 
   protected static override _hidden = ["password"];
@@ -36,6 +37,10 @@ class User extends Authenticatable<UserSchema> implements JWTSubject {
 
   public getJWTIdentifier(): string | number {
     return this.getAuthIdentifier() || "";
+  }
+
+  public posts() {
+    return this.hasMany(Post);
   }
 }
 

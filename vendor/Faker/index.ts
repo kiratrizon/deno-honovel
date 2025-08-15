@@ -1,10 +1,19 @@
 import { faker as baseFaker, type Faker as FakerType } from "@faker-js/faker";
 
 export class FakerFactory {
+  // @ts-ignore //
   private faker: FakerType;
 
-  constructor() {
-    this.faker = baseFaker;
+  public static create() {
+    const instance = new FakerFactory(baseFaker);
+    return instance;
+  }
+
+  constructor(faker: FakerType) {
+    if (!faker) {
+      throw new Error("Faker instance is required");
+    }
+    this.faker = faker;
   }
 
   /**
