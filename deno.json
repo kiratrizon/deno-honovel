@@ -9,6 +9,7 @@
     "@cliffy/prompt": "jsr:@cliffy/prompt@^1.0.0-rc.8",
     "@faker-js/faker": "npm:@faker-js/faker@^9.9.0",
     "@opentelemetry/api": "npm:@opentelemetry/api@^1.9.0",
+    "@std/io": "jsr:@std/io@^0.225.2",
     "@upstash/redis": "npm:@upstash/redis@^1.35.3",
     "@vef/deno-memcached": "jsr:@vef/deno-memcached@^0.1.1",
     "axios": "npm:axios@^1.9.0",

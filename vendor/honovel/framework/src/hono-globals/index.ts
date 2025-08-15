@@ -466,28 +466,36 @@ globalFn("generateTableName", function (entity: string = "") {
   return [...splitWords, pluralizedLastWord].join("").toLowerCase();
 });
 
-import { Buffer } from "node:buffer";
+import { Buffer } from "@std/io";
 
 globalFn("base64encode", function (str = "", safe = false) {
+  const buf = new Buffer();
+  buf.write(new TextEncoder().encode(str));
+  let encoded = btoa(String.fromCharCode(...buf.bytes()));
+
   if (safe) {
-    return Buffer.from(str)
-      .toString("base64") // Standard Base64 encode
-      .replace(/\+/g, "-") // Replace `+` with `-`
-      .replace(/\//g, "_") // Replace `/` with `_`
-      .replace(/=+$/, ""); // Remove any trailing `=` padding
+    encoded = encoded
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
   }
-  return Buffer.from(str).toString("base64");
+  return encoded;
 });
 
 globalFn("base64decode", function (str = "", safe = false) {
+  let base64 = str;
   if (safe) {
-    // Add necessary padding if missing
     const padding =
       str.length % 4 === 0 ? "" : "=".repeat(4 - (str.length % 4));
-    const base64 = str.replace(/-/g, "+").replace(/_/g, "/") + padding;
-    return Buffer.from(base64, "base64").toString("utf8");
+    base64 = str.replace(/-/g, "+").replace(/_/g, "/") + padding;
   }
-  return Buffer.from(str, "base64").toString("utf8");
+
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.split("").map((c) => c.charCodeAt(0)));
+  const buf = new Buffer();
+  buf.write(bytes);
+
+  return new TextDecoder().decode(buf.bytes());
 });
 import { DateTime } from "luxon";
 
@@ -680,33 +688,6 @@ globalFn(
       default:
         throw new Error("Invalid symbol: " + symbol);
     }
-  }
-);
-
-globalFn(
-  "moveUploadedFile",
-  function (destination: string, arrayBuffer: ArrayBuffer): boolean {
-    if (!destination.trim()) {
-      throw new Error("Destination is required.");
-    }
-
-    if (!arrayBuffer) {
-      throw new Error("File is required.");
-    }
-
-    // Ensure destination directory exists
-    const dir = path.dirname(destination);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-
-    // Convert ArrayBuffer to Node.js Buffer
-    const uint8Array = new Uint8Array(arrayBuffer);
-    const buffer = Buffer.from(uint8Array);
-
-    // Write file
-    fs.writeFileSync(destination, buffer);
-    return true;
   }
 );
 
