@@ -257,65 +257,90 @@ globalFn(
 
 import Constants from "Constants";
 
-globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
-  const configData: Record<string, unknown> = {};
-  const configPath = basePath("config");
-  const configFiles = Deno.readDirSync(configPath);
-  const allModules: string[] = [];
-  if (!isset(env("DENO_DEPLOYMENT_ID"))) {
-    for (const file of configFiles) {
-      if (file.isFile && file.name.endsWith(".ts")) {
-        const configName = file.name.replace(".ts", "");
-        const fullPath = path.join(configPath, file.name);
-        const fullUrl = url.pathToFileURL(fullPath).href;
-        try {
-          const module = await import(fullUrl);
-          configData[configName] = module.default;
-          if (!isset(configData[configName])) {
-            throw new Error();
+/**
+  globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
+    const configData: Record<string, unknown> = {};
+    const configPath = basePath("config");
+    const configFiles = Deno.readDirSync(configPath);
+    const allModules: string[] = [];
+    if (!isset(env("DENO_DEPLOYMENT_ID"))) {
+      for (const file of configFiles) {
+        if (file.isFile && file.name.endsWith(".ts")) {
+          const configName = file.name.replace(".ts", "");
+          const fullPath = path.join(configPath, file.name);
+          const fullUrl = url.pathToFileURL(fullPath).href;
+          try {
+            const module = await import(fullUrl);
+            configData[configName] = module.default;
+            if (!isset(configData[configName])) {
+              throw new Error();
+            }
+            allModules.push(configName);
+          } catch (_e) {
+            console.log(
+              `Config file "config/${file.name}" does not export a default value.`
+            );
           }
-          allModules.push(configName);
-        } catch (_e) {
-          console.log(
-            `Config file "config/${file.name}" does not export a default value.`
-          );
         }
       }
-    }
-  } else {
-    // const conf = {};
-    // try {
-    //   const module = await import("configs/build/myConfig.ts");
-    //   const defaultConfig = module.default as Record<string, unknown>;
-    //   Object.assign(conf, defaultConfig);
-    // } catch (_e) {
-    //   //
-    // }
-    // return conf;
+    } else {
+      // const conf = {};
+      // try {
+      //   const module = await import("configs/build/myConfig.ts");
+      //   const defaultConfig = module.default as Record<string, unknown>;
+      //   Object.assign(conf, defaultConfig);
+      // } catch (_e) {
+      //   //
+      // }
+      // return conf;
 
-    const conf: Record<string, unknown> = {};
-    const configFiles = Deno.readDirSync(basePath("config"));
-    for (const file of configFiles) {
-      if (file.isFile && file.name.endsWith(".ts")) {
-        const configName = file.name.replace(".ts", "");
-        try {
-          const module = await import(`configs/${file.name}`);
-          console.log(module, configName);
-          conf[configName] = module.default;
-          console.log(conf[configName], configName);
-          // if (!isset(conf[configName])) {
-          //   throw new Error();
-          // }
-        } catch (_e) {
-          // console.log(
-          //   `Config file "configs/${file.name}" does not export a default value.`
-          // );
+      const conf: Record<string, unknown> = {};
+      const configFiles = Deno.readDirSync(basePath("config"));
+      for (const file of configFiles) {
+        if (file.isFile && file.name.endsWith(".ts")) {
+          const configName = file.name.replace(".ts", "");
+          try {
+            const module = await import(`configs/${file.name}`);
+            conf[configName] = module.default;
+            console.log(conf[configName], configName);
+            // if (!isset(conf[configName])) {
+            //   throw new Error();
+            // }
+          } catch (_e) {
+            // console.log(
+            //   `Config file "configs/${file.name}" does not export a default value.`
+            // );
+          }
         }
       }
+      return conf;
     }
-    return conf;
+    return configData;
+  });
+*/
+
+globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
+  const conf: Record<string, unknown> = {};
+  const configFiles = Deno.readDirSync(basePath("config"));
+  for (const file of configFiles) {
+    if (file.isFile && file.name.endsWith(".ts")) {
+      const configName = file.name.replace(".ts", "");
+      try {
+        const module = await import(`configs/${file.name}`);
+        conf[configName] = module.default;
+        console.log(configName);
+        // if (!isset(conf[configName])) {
+        //   throw new Error();
+        // }
+      } catch (_e) {
+        // console.log(
+        //   `Config file "configs/${file.name}" does not export a default value.`
+        // );
+      }
+    }
   }
-  return configData;
+  console.log(conf);
+  return conf;
 });
 
 define("myConfigData", await getConfigStore(), false);
