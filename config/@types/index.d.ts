@@ -93,7 +93,7 @@ export interface AppConfig {
 }
 
 // deno-lint-ignore no-explicit-any
-type AuthenticatableConstructor = new (...args: any[]) => Authenticatable<any>;
+type AuthenticatableConstructor = typeof Authenticatable<any>;
 
 /**
  * A provider config structure (like 'users', 'admins').
