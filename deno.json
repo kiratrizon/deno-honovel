@@ -3,6 +3,8 @@
     "smelt": "deno run -A vendor/bin/novel"
   },
   "imports": {
+    "http":"node:http",
+    "buffer": "node:buffer",
     "@avroit/memcached": "jsr:@avroit/memcached@^0.0.4",
     "@aws-sdk/client-dynamodb": "npm:@aws-sdk/client-dynamodb@^3.862.0",
     "@cliffy/command": "jsr:@cliffy/command@^1.0.0-rc.8",

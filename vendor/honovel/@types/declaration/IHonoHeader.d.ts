@@ -1,6 +1,6 @@
 // HonoHeader.d.ts
 
-import { IncomingHttpHeaders } from "node:http";
+import { IncomingHttpHeaders } from "http";
 /**
  * HonoHeader class to manage HTTP headers.
  * It provides an easy interface to retrieve all headers.

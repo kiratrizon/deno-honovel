@@ -1,6 +1,6 @@
 import { CookieOptions } from "hono/utils/cookie";
 import { getCookie, setCookie } from "hono/cookie";
-import { Buffer } from "node:buffer";
+import { Buffer } from "buffer";
 import { hmac } from "jsr:@noble/hashes@1.8.0/hmac";
 import { sha256 } from "jsr:@noble/hashes@1.8.0/sha2";
 
