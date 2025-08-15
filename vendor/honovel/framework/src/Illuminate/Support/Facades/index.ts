@@ -195,7 +195,8 @@ export class DB {
   private static dbUsed: string;
 
   public static init() {
-    this.dbUsed = config("database").default;
+    const db = config("database");
+    this.dbUsed = db?.default;
     console.log(`Using database connection: ${this.dbUsed}`);
   }
 
