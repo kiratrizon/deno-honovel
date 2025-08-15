@@ -1,6 +1,6 @@
 import { CookieOptions } from "hono/utils/cookie";
 import { getCookie, setCookie } from "hono/cookie";
-import { Buffer } from "@std/io/buffer";
+import { Buffer } from "node:buffer";
 import { hmac } from "jsr:@noble/hashes@1.8.0/hmac";
 import { sha256 } from "jsr:@noble/hashes@1.8.0/sha2";
 
@@ -48,8 +48,8 @@ export const setMyCookie = (
 };
 
 export class CookieKeysCache {
-  public static keys: Uint8Array<ArrayBufferLike>[] = [];
-  public static mainKey: Uint8Array<ArrayBufferLike>;
+  public static keys: Buffer[] = [];
+  public static mainKey: Buffer;
   public static init() {
     const appConfig = config("app");
     const allKeys = [appConfig.key, ...appConfig.previous_keys]
@@ -132,12 +132,10 @@ export function getMyCookie(
   return null;
 }
 
-export function resolveAppKey(rawKey: string): Uint8Array {
+function resolveAppKey(rawKey: string): Buffer {
   if (rawKey.startsWith("base64:")) {
-    const decoded = atob(rawKey.slice(7));
-    return new Uint8Array(decoded.split("").map((c) => c.charCodeAt(0)));
+    return Buffer.from(rawKey.slice(7), "base64");
   }
 
-  const encoder = new TextEncoder();
-  return encoder.encode(rawKey);
+  return Buffer.from(rawKey, "utf-8");
 }
