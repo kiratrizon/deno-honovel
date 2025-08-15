@@ -283,13 +283,34 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
       }
     }
   } else {
-    const conf = {};
-    try {
-      const module = await import("../../../../../config/build/myConfig.ts");
-      const defaultConfig = module.default as Record<string, unknown>;
-      Object.assign(conf, defaultConfig);
-    } catch (_e) {
-      // return conf;
+    // const conf = {};
+    // try {
+    //   const module = await import("configs/build/myConfig.ts");
+    //   const defaultConfig = module.default as Record<string, unknown>;
+    //   Object.assign(conf, defaultConfig);
+    // } catch (_e) {
+    //   //
+    // }
+    // return conf;
+
+    const conf: Record<string, unknown> = {};
+    const configFiles = Deno.readDirSync(basePath("configs"));
+    for (const file of configFiles) {
+      if (file.isFile && file.name.endsWith(".ts")) {
+        const configName = file.name.replace(".ts", "");
+        const importPath = `configs/${configName}`;
+        try {
+          const module = await import(importPath);
+          conf[configName] = module.default;
+          if (!isset(conf[configName])) {
+            throw new Error();
+          }
+        } catch (_e) {
+          console.log(
+            `Config file "configs/${file.name}" does not export a default value.`
+          );
+        }
+      }
     }
     return conf;
   }
