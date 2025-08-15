@@ -294,12 +294,12 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
     // return conf;
 
     const conf: Record<string, unknown> = {};
-    const configFiles = Deno.readDirSync(basePath("configs"));
+    const configFiles = Deno.readDirSync(basePath("config"));
     for (const file of configFiles) {
       if (file.isFile && file.name.endsWith(".ts")) {
         const configName = file.name.replace(".ts", "");
         try {
-          const module = await import(basePath(`config/${file.name}`));
+          const module = await import(`configs/${file.name}`);
           conf[configName] = module.default;
           if (!isset(conf[configName])) {
             throw new Error();
