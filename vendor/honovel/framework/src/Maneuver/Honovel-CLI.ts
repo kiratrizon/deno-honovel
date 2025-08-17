@@ -18,7 +18,7 @@ import Boot from "./Boot.ts";
 
 await Boot.init();
 class MyArtisan {
-  constructor() {}
+  constructor() { }
   private async createConfig(options: { force?: boolean }, name: string) {
     const stubPath = honovelPath("stubs/ConfigDefault.stub");
     const stubContent = getFileContents(stubPath);
@@ -51,6 +51,9 @@ class MyArtisan {
       output += `  ${name},\n`;
     }
     output += `};\n`;
+    if (!pathExist(basePath("config/build"))) {
+      makeDir(basePath("config/build"));
+    }
     writeFile(basePath("config/build/myConfig.ts"), output);
     console.log(`✅ Generated ${basePath("config/build/myConfig.ts")}`);
   }

@@ -20,7 +20,7 @@ import { AuthenticateWithBasicAuth } from "Illuminate/Auth/Middleware/index.ts";
 class Kernel extends HttpKernel {
   protected override middleware = [
     TrustProxies,
-    // Uncomment this line to enable maintenance mode, you can use it using `deno task artisan down --secret=your_secret`
+    // Uncomment this line to enable maintenance mode, you can use it using `deno task smelt down --secret=your_secret`
     // PreventRequestDuringMaintenance,
     HandleCors,
     PayloadParser, // Parses the request payload, handling JSON and form data.
