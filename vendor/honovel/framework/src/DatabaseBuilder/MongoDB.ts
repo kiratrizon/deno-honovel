@@ -25,10 +25,10 @@ class MongoDB {
   public async connect() {
     if (!this.#doneInit) {
       try {
-        await this.client.connect();
         if (isset(this.dbAuth)) {
           await this.client.db(this.dbAuth).command({ ping: 1 });
         }
+        await this.client.connect();
         this.#doneInit = true;
       } catch (error) {
         console.error("Failed to connect to MongoDB:", error);

@@ -1,7 +1,7 @@
 import { CacheConfig } from "configs/@types/index.d.ts";
 
 const constant: CacheConfig = {
-  default: "mydb", // Default cache store
+  default: env("CACHE_DRIVER", "memory"),
   stores: {
     file: {
       driver: "file",
