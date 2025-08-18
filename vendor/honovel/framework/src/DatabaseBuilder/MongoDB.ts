@@ -26,7 +26,7 @@ class MongoDB {
     if (!this.#doneInit) {
       try {
         if (isset(this.dbAuth)) {
-          // await this.client.db(this.dbAuth).command({ ping: 1 });
+          await this.client.db(this.dbAuth).command({ ping: 1 });
         }
         await this.client.connect();
         this.#doneInit = true;
