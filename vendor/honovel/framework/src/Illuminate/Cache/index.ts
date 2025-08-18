@@ -1087,6 +1087,7 @@ class CacheManager {
           key,
           secret,
           region,
+          table,
           partitionKey,
         });
         break;
