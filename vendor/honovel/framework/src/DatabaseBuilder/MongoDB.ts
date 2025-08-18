@@ -26,12 +26,13 @@ class MongoDB {
     if (!this.#doneInit) {
       try {
         if (isset(this.dbAuth)) {
-          await this.client.db(this.dbAuth).command({ ping: 1 });
+          // await this.client.db(this.dbAuth).command({ ping: 1 });
         }
         await this.client.connect();
         this.#doneInit = true;
       } catch (error) {
         console.error("Failed to connect to MongoDB:", error);
+        this.#doneInit = false;
         throw error;
       }
     }
