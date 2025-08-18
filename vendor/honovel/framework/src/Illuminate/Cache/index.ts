@@ -862,7 +862,7 @@ class DynamoDBStore extends AbstractStore {
 }
 
 import MongoDB from "../../DatabaseBuilder/MongoDB.ts";
-import { Collection } from "@db/mongo";
+import { Collection, Document } from "@db/mongo";
 
 class MongoDBStore extends AbstractStore {
   private db: MongoDB;
@@ -918,7 +918,7 @@ class MongoDBStore extends AbstractStore {
     await this.init();
     const newKey = this.validateKey(key);
     try {
-      const result = await this.Collection.findOne({
+      const result = await (this.Collection as Collection<Document>).findOne({
         key: newKey,
       });
       if (!result) return null; // Key does not exist
