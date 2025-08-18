@@ -40,7 +40,16 @@ class MongoDB {
   public collection<T extends Document = Document>(
     name: string
   ): Collection<T> {
-    return this.client.db(this.database).collection<T>(name);
+    try {
+      return this.client.db(this.database).collection<T>(name);
+    } catch (error: unknown) {
+      this.#doneInit = false;
+      throw new Error(
+        `Failed to get collection "${name}": ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
   }
 
   public async close() {

@@ -912,9 +912,7 @@ class MongoDBStore extends AbstractStore {
     }
   }
 
-  #doneInitialized = false;
   private async init() {
-    if (this.#doneInitialized) return;
     await this.db.connect();
     this.Collection = this.db.collection(this.collection);
   }
