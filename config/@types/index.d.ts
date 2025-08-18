@@ -456,7 +456,8 @@ type CacheStoreDynamoDB = {
   key: string;
   secret: string;
   region: string;
-  partitionKey?: string;
+  partitionKey: string;
+  table: string;
   prefix?: string;
 };
 

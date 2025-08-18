@@ -37,6 +37,16 @@ const constant: CacheConfig = {
       collection: env("MONGODB_CACHE_COLLECTION", "cache"),
       connection: "mongodb",
     },
+
+    // dynamodb
+    dynamo: {
+      driver: "dynamodb",
+      key: env("AWS_ACCESS_KEY_ID", ""),
+      secret: env("AWS_SECRET_ACCESS_KEY", ""),
+      region: env("AWS_DEFAULT_REGION", "us-east-1"),
+      table: env("AWS_CACHE_TABLE", "honovel_cache"),
+      partitionKey: env("AWS_CACHE_PARTITION_KEY", "id"),
+    },
   },
 };
 
