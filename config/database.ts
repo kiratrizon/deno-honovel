@@ -31,11 +31,12 @@ const constant: DatabaseConfig = {
     mongodb: {
       driver: "mongodb",
       uri: env("MONGODB_URI", "mongodb://localhost:27017"),
-      database: env("MONGODB_DATABASE", "honovel"),
+      database: env("MONGO_DB", "honovel"),
       host: env("MONGO_HOST", "localhost"),
-      port: env("MONGO_PORT", "27017"),
+      port: env("MONGO_PORT", 27017),
       username: env("MONGO_USER", ""),
       password: env("MONGO_PASS", ""),
+      tls: env("MONGO_TLS", false),
       options: {
         database: env("MONGO_AUTH_DB", "admin"),
       },

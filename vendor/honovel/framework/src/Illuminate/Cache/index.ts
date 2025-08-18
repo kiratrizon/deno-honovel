@@ -652,9 +652,7 @@ import {
   ScanCommand,
   BatchWriteItemCommand,
 } from "@aws-sdk/client-dynamodb";
-import MongoDB from "../../DatabaseBuilder/MongoDB.ts";
-import { Collection } from "mongodb";
-import { MongoDBHttp } from "../../DatabaseBuilder/MongoDBHttp.ts";
+
 class DynamoDBStore extends AbstractStore {
   private client: DynamoDBClient;
   private readonly prefix: string;
@@ -863,8 +861,11 @@ class DynamoDBStore extends AbstractStore {
   }
 }
 
+import MongoDB from "../../DatabaseBuilder/MongoDB.ts";
+import { Collection } from "@db/mongo";
+
 class MongoDBStore extends AbstractStore {
-  private db: MongoDB | MongoDBHttp;
+  private db: MongoDB;
   private readonly prefix: string;
   private readonly collection: string;
   private readonly connection: string;
@@ -904,12 +905,7 @@ class MongoDBStore extends AbstractStore {
     const connectionObj = dbConf.connections[
       this.connection
     ] as MongoConnectionConfig;
-    if (isset(connectionObj.uri) && isString(connectionObj.uri)) {
-      this.db = new MongoDB({ ...connectionObj, uri: connectionObj.uri });
-    } else {
-      const instance = new MongoDBHttp(connectionObj);
-      this.db = instance;
-    }
+    this.db = new MongoDB(connectionObj);
   }
 
   private async init() {

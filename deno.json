@@ -3,6 +3,7 @@
     "smelt": "deno run -A vendor/bin/novel"
   },
   "imports": {
+    "@db/mongo": "jsr:@db/mongo@^0.34.0",
     "http":"node:http",
     "buffer": "node:buffer",
     "@avroit/memcached": "jsr:@avroit/memcached@^0.0.4",

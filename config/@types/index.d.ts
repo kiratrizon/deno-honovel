@@ -236,16 +236,16 @@ export interface MongoConnectionConfig {
   database: string;
   uri?: string;
   host?: string;
-  port?: string;
+  port?: number;
   tls?: boolean;
   username?: string;
   password?: string;
 
   options?: {
     database?: "admin" | string; // 👈 this is the authDb
-    appId?: string; // only used if driver = "mongodb-http"
-    apiKey?: string;
-    dataSource?: string;
+    mechanism?: "SCRAM-SHA-1" | "SCRAM-SHA-256" | "MONGODB-X509";
+    retryWrites?: boolean;
+    appName?: string;
   };
 }
 
