@@ -2,6 +2,7 @@
 
 import { SupportedDrivers } from "configs/@types/index.d.ts";
 import { Database } from "Database";
+import { th } from "@faker-js/faker";
 
 export type ColumnType =
   | "string" // VARCHAR
@@ -835,7 +836,7 @@ export class Blueprint {
     ];
 
     // Unsigned (only for MySQL/PostgreSQL)
-    if (options.unsigned && ["mysql", "pgsql"].includes(this.connection)) {
+    if (options.unsigned && ["mysql"].includes(this.connection)) {
       parts.push("UNSIGNED");
     }
 
@@ -846,8 +847,10 @@ export class Blueprint {
     if (options.autoIncrement) {
       if (this.connection === "sqlite") {
         parts.push("AUTOINCREMENT");
-      } else if (["mysql", "pgsql"].includes(this.connection)) {
+      } else if (this.connection === "mysql") {
         parts.push("AUTO_INCREMENT");
+      } else if (this.connection === "pgsql") {
+        parts.push("GENERATED ALWAYS AS IDENTITY");
       }
     }
 
@@ -867,7 +870,7 @@ export class Blueprint {
     }
 
     // Ignore onUpdate in SQLite
-    if (options.onUpdate && this.connection !== "sqlite") {
+    if (options.onUpdate && this.connection === "mysql") {
       parts.push(`ON UPDATE ${options.onUpdate}`);
     }
 
@@ -946,10 +949,17 @@ export class Blueprint {
         return "TEXT";
       case "binary":
         return "BLOB";
-      case "id":
-        return db === "sqlite"
-          ? "INTEGER PRIMARY KEY AUTOINCREMENT"
-          : "BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY";
+      case "id": {
+        if (db === "sqlite") {
+          return "INTEGER PRIMARY KEY AUTOINCREMENT";
+        } else if (db === "mysql") {
+          return "BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY";
+        } else if (db === "pgsql") {
+          return "BIGSERIAL PRIMARY KEY";
+        }
+        throw new Error(`Unsupported database type: ${db}`);
+      }
+
       case "foreignId":
         return db === "sqlite" ? "INTEGER" : "BIGINT UNSIGNED";
       default:

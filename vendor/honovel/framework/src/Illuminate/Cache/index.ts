@@ -654,6 +654,7 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import MongoDB from "../../DatabaseBuilder/MongoDB.ts";
 import { Collection } from "mongodb";
+import { MongoDBHttp } from "../../DatabaseBuilder/MongoDBHttp.ts";
 class DynamoDBStore extends AbstractStore {
   private client: DynamoDBClient;
   private readonly prefix: string;
@@ -703,7 +704,6 @@ class DynamoDBStore extends AbstractStore {
       await this.client.send(
         new DescribeTableCommand({ TableName: this.table })
       );
-      console.log(`Table "${this.table}" already exists.`);
       this.#initialized = true; // Mark as initialized
       return;
     } catch (error) {
@@ -864,7 +864,7 @@ class DynamoDBStore extends AbstractStore {
 }
 
 class MongoDBStore extends AbstractStore {
-  private db: MongoDB;
+  private db: MongoDB | MongoDBHttp;
   private readonly prefix: string;
   private readonly collection: string;
   private readonly connection: string;
@@ -904,7 +904,12 @@ class MongoDBStore extends AbstractStore {
     const connectionObj = dbConf.connections[
       this.connection
     ] as MongoConnectionConfig;
-    this.db = new MongoDB(connectionObj);
+    if (isset(connectionObj.uri) && isString(connectionObj.uri)) {
+      this.db = new MongoDB({ ...connectionObj, uri: connectionObj.uri });
+    } else {
+      const instance = new MongoDBHttp(connectionObj);
+      this.db = instance;
+    }
   }
 
   #doneInitialized = false;

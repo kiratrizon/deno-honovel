@@ -1,4 +1,4 @@
-import { Pool, QueryArguments, QueryObjectResult } from "pg";
+import { Pool } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
 import { QueryResultDerived } from "Database";
 
 class PgSQL {
@@ -14,10 +14,8 @@ class PgSQL {
       : cleanedQuery.split(/\s+/)[0];
 
     try {
-      const result: QueryObjectResult = await client.queryObject(
-        query,
-        params as QueryArguments
-      );
+      // infer type automatically, no need to import
+      const result = await client.queryObject(query, params);
 
       switch (queryType) {
         case "select":

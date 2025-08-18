@@ -4,7 +4,7 @@ import mysql, { ConnectionOptions, Pool as MPool } from "mysql2/promise";
 import MySQL from "./MySQL.ts";
 
 // postgresql
-import { Pool as PPool, Client as PgClient } from "pg";
+import { Pool as PgPool } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
 import PgSQL from "./PostgreSQL.ts";
 import { Carbon } from "honovel:helpers";
 import {
@@ -160,15 +160,15 @@ export const sqlReservedWords = [
 
 // This is for RDBMS like MySQL, PostgreSQL, etc.
 export class Database {
-  public static client: MPool | PPool | undefined;
+  public static client: MPool | PgPool | undefined;
   // deno-lint-ignore no-explicit-any
   private static bindings: any[] = [Carbon]; // bindings that needs to use toString() method
   public static connections: Record<
     string,
     {
       driver: SupportedDrivers;
-      read: (MPool | PPool)[];
-      write: (MPool | PPool)[];
+      read: (MPool | PgPool)[];
+      write: (MPool | PgPool)[];
     }
   > = {};
   private readonly dbUsed: SupportedDrivers;
@@ -351,10 +351,41 @@ export class Database {
         case "pgsql": {
           const forPgSQL = value;
           if (isset(forPgSQL)) {
-            // to be implemented later
+            const defaultHosts = Array.isArray(forPgSQL.host)
+              ? forPgSQL.host
+              : [forPgSQL.host || "localhost"];
+
+            const defaultPort = forPgSQL.port || 5432;
+            const defaultDatabase = forPgSQL.database || "honovel";
+            const defaultUser = forPgSQL.user || "postgres";
+            const defaultPassword = forPgSQL.password || "";
+            const defaultOptions = forPgSQL.options || {};
+
+            // In clever setups: pick the first host as primary (for now)
+            for (const host of defaultHosts) {
+              const pool = new PgPool(
+                {
+                  hostname: host,
+                  port: defaultPort,
+                  user: defaultUser,
+                  password: defaultPassword,
+                  database: defaultDatabase,
+                  ...defaultOptions,
+                },
+                // pool size (connections per host)
+                5,
+                true // lazy
+              );
+
+              Database.connections[key].write.push(pool);
+            }
+
+            // Mirror read/write if you don't separate them
+            Database.connections[key].read = Database.connections[key].write;
           }
           break;
         }
+
         case "sqlite": {
           const forSQLite = value;
           if (isset(forSQLite)) {
@@ -759,27 +790,26 @@ export class DatabaseHelper {
       }
       case "pgsql": {
         const fromReadOrWrite = dbConfig.read || dbConfig.write;
-        const conf: Record<string, unknown> = {};
-        if (isset(fromReadOrWrite)) {
-          conf.host =
-            (isArray(fromReadOrWrite.host)
+
+        const conf = {
+          hostname:
+            (isArray(fromReadOrWrite?.host)
               ? fromReadOrWrite.host[0]
-              : fromReadOrWrite.host) ||
+              : fromReadOrWrite?.host) ||
             dbConfig.host ||
-            "localhost";
-          conf.port = fromReadOrWrite.port || dbConfig.port || 5432;
-          conf.user = fromReadOrWrite.user || dbConfig.user || "postgres";
-          conf.password = fromReadOrWrite.password || dbConfig.password || "";
-        } else {
-          conf.host = dbConfig.host || "localhost";
-          conf.port = dbConfig.port || 5432;
-          conf.user = dbConfig.user || "postgres";
-          conf.password = dbConfig.password || "";
-        }
-        conf.database = "postgres";
-        const client = new PgClient(conf);
-        await client.connect();
-        return client as PPool;
+            "localhost",
+          port: fromReadOrWrite?.port || dbConfig.port || 5432,
+          user: fromReadOrWrite?.user || dbConfig.user || "postgres",
+          password: fromReadOrWrite?.password || dbConfig.password || "",
+          database: "postgres",
+        };
+
+        const poolSize = dbConfig.poolSize || 5;
+
+        // Lazy connect
+        const pool = new PgPool(conf, poolSize, true);
+
+        return pool;
       }
       case "sqlite": {
         const dbPath = dbConfig.database || databasePath("database.sqlite");
@@ -834,7 +864,7 @@ export class DatabaseHelper {
         const result = await PgSQL.query<"select">(conn, sql, [
           this.dbConfig.connections[this.connection].database,
         ]);
-        await (conn as PPool).end();
+        await (conn as PgPool).end();
         return result.length > 0;
       }
       case "sqlite": {
@@ -866,7 +896,7 @@ export class DatabaseHelper {
       case "pgsql": {
         const sql = `CREATE DATABASE \`${dbName}\``;
         await PgSQL.query<"create">(conn, sql);
-        await (conn as PPool).end();
+        await (conn as PgPool).end();
         break;
       }
       case "sqlite": {

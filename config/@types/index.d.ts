@@ -198,6 +198,7 @@ export interface PostgresConnectionConfig {
   password: string;
   database: string;
   charset?: string;
+  poolSize?: number;
   ssl?: boolean | Record<string, unknown>;
   searchPath?: string | string[];
   application_name?: string;
@@ -231,11 +232,20 @@ export interface SqlSrvConnectionConfig {
 }
 
 export interface MongoConnectionConfig {
-  driver: "mongodb"; // 👈 required
-  uri: string;
+  driver: "mongodb";
   database: string;
+  uri?: string;
+  host?: string;
+  port?: string;
+  tls?: boolean;
+  username?: string;
+  password?: string;
+
   options?: {
-    database: "admin" | string;
+    database?: "admin" | string; // 👈 this is the authDb
+    appId?: string; // only used if driver = "mongodb-http"
+    apiKey?: string;
+    dataSource?: string;
   };
 }
 
