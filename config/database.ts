@@ -30,7 +30,7 @@ const constant: DatabaseConfig = {
     },
     mongodb: {
       driver: "mongodb",
-      // uri: env("MONGODB_URI", "mongodb://localhost:27017"),
+      uri: env("MONGODB_URI", "mongodb://localhost:27017"),
       database: env("MONGODB_DATABASE", "honovel"),
       host: env("MONGO_HOST", "localhost"),
       port: env("MONGO_PORT", "27017"),
