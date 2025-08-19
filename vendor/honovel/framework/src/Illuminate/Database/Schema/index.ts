@@ -271,20 +271,13 @@ export class Blueprint {
    */
   id(columnName: string = "id") {
     this.columns.push({
-      type: this.connection === "sqlite" ? "integer" : "bigint",
+      type: "id",
       name: columnName,
-      options: {
-        primary: true,
-        autoIncrement: true,
-        unsigned: true,
-      },
+      options: {},
     });
     const count = this.columnCount;
     this.columnCount++;
-    return this.optionsSelector(this.columns[count])
-      .primary()
-      .autoIncrement()
-      .unsigned();
+    return this.optionsSelector(this.columns[count]);
   }
   /**
    * Adds a standard INTEGER column.

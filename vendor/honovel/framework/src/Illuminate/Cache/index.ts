@@ -319,6 +319,7 @@ class RedisStore extends AbstractStore {
   async put(key: string, value: any, seconds: number): Promise<void> {
     await this.init();
     const newKey = this.validateKey(key);
+    console.log(`Setting Redis key: ${newKey} with value: ${value}`);
     await this.manager.set(newKey, value, {
       ex: seconds > 0 ? seconds : undefined,
     });

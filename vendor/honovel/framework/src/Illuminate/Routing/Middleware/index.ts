@@ -34,7 +34,7 @@ export class ThrottleRequests {
       entry.count++;
     }
 
-    if (entry.count > limit) {
+    if (entry.count >= limit) {
       abort(429, "Too Many Requests");
     }
 

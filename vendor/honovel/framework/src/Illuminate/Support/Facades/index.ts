@@ -6,7 +6,6 @@ import {
 import { Blueprint, TableSchema } from "../../Database/Schema/index.ts";
 import BaseController from "Illuminate/Routing/BaseController";
 import pluralize from "pluralize";
-import authConf from "configs/auth.ts";
 import {
   BaseGuard,
   JwtGuard,
@@ -33,7 +32,7 @@ import ResourceRoute, {
 import { Database, QueryResultDerived } from "Database";
 import { Builder, SQLRaw, sqlstring } from "../../Database/Query/index.ts";
 import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
-import { SupportedDrivers } from "configs/@types/index.d.ts";
+import { AuthConfig, SupportedDrivers } from "configs/@types/index.d.ts";
 import {
   AbstractStore,
   CacheManager,
@@ -853,8 +852,8 @@ export const Route: typeof IRoute = MyRoute;
 
 // Auth and Guard Implementation
 
-type GuardName = keyof typeof authConf.guards;
-type GuardDriver<G extends GuardName> = (typeof authConf.guards)[G]["driver"];
+type GuardName = keyof AuthConfig["guards"];
+type GuardDriver<G extends GuardName> = AuthConfig["guards"][G]["driver"];
 
 type GuardInstance<G extends GuardName> = GuardDriver<G> extends "jwt"
   ? JwtGuard
@@ -865,8 +864,9 @@ type GuardInstance<G extends GuardName> = GuardDriver<G> extends "jwt"
   : never;
 
 export class Auth {
-  private static defaultGuard: string = authConf?.default?.guard;
+  private static defaultGuard: string;
 
+  static authConf: AuthConfig;
   #c: MyContext;
   #defaultGuard: string = Auth.defaultGuard;
   constructor(c: MyContext) {
@@ -874,6 +874,11 @@ export class Auth {
       throw new Error("Context must be a valid object.");
     }
     this.#c = c;
+  }
+
+  public static setAuth() {
+    this.authConf = config("auth");
+    this.defaultGuard = this.authConf?.default?.guard || "web";
   }
 
   private _guards: Record<string, BaseGuard> = {};
@@ -884,7 +889,7 @@ export class Auth {
     if (keyExist(this._guards, guardName)) {
       return this._guards[guardName] as GuardInstance<G>;
     }
-    const driver = authConf?.guards?.[guardName].driver;
+    const driver = Auth.authConf?.guards?.[guardName].driver;
 
     let guard;
     switch (driver) {
@@ -908,7 +913,7 @@ export class Auth {
   }
 
   public setGuard<G extends GuardName>(guardName: G): void {
-    if (!keyExist(authConf.guards, guardName)) {
+    if (!keyExist(Auth.authConf.guards, guardName)) {
       throw new Error(
         `Guard ${guardName} is not defined in auth configuration.`
       );

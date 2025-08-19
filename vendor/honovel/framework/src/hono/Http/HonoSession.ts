@@ -220,11 +220,13 @@ export class SessionModifier {
   }
 
   private async saveSession() {
+    console.log("Saving session data...");
     const sid = this.#sessionId;
     let data = this.#value;
     if (!isset(SessionModifier.sesConfig.lifetime)) {
       throw new Error("Session lifetime is not set in configuration");
     }
+    console.log(SessionModifier.store);
     const type = SessionModifier.sesConfig.driver || "file";
     const isEncrypt = SessionModifier.sesConfig.encrypt || false;
     if (isEncrypt) {

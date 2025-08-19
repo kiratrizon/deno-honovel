@@ -4,7 +4,7 @@ import mysql, { ConnectionOptions, Pool as MPool } from "mysql2/promise";
 import MySQL from "./MySQL.ts";
 
 // postgresql
-import { Pool as PgPool } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
+import { Pool as PgPool } from "@db/pgsql";
 import PgSQL from "./PostgreSQL.ts";
 import { Carbon } from "honovel:helpers";
 import {
@@ -232,10 +232,10 @@ export class Database {
         );
       } catch (error) {
         console.error(`Query failed: ${newQuery}`, `Params:`, newParams);
-        console.error("Error:", error);
+        throw error;
       }
     }
-    throw new Error(`Unsupported database type: ${dbType}`);
+    throw new Error(`Unsupported database driver: ${dbType}`);
   }
 
   private static doneInit = false;

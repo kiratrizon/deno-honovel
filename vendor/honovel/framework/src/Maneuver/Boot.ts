@@ -1,5 +1,5 @@
 import { Database } from "Database";
-import { Cache } from "Illuminate/Support/Facades/index.ts";
+import { Auth, Cache } from "Illuminate/Support/Facades/index.ts";
 import { Carbon } from "honovel:helpers";
 import { SessionInitializer, SessionModifier } from "HonoHttp/HonoSession.ts";
 import { CookieKeysCache } from "HonoHttp/HonoCookie.ts";
@@ -17,6 +17,7 @@ class Boot {
     Carbon.setCarbonTimezone((config("app.timezone") as string) || "UTC");
     Cache.init();
     await Database.init();
+    Auth.setAuth();
   }
 
   static async finalInit() {

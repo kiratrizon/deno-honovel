@@ -490,13 +490,13 @@ export abstract class Model<
     }).whereNotBetween(column, values);
   }
 
-  public static async all(): Promise<
-    InstanceType<typeof Model<IBaseModelProperties>>[]
-  > {
+  public static async all<
+    T extends Model<IBaseModelProperties> = Model<IBaseModelProperties>
+  >(): Promise<T[]> {
     return await new Builder({
       model: this,
       fields: ["*"],
-    }).get();
+    }).get<T>();
   }
 
   public static async first(): Promise<InstanceType<
@@ -601,10 +601,12 @@ export class Builder<
   }
 
   // @ts-ignore //
-  public override async get(): Promise<InstanceType<T>[]> {
+  public override async get<
+    B extends InstanceType<T> = InstanceType<T>
+  >(): Promise<B[]> {
     const data = await super.get();
     // @ts-ignore //
-    return data.map((item) => new this.model(item as B) as InstanceType<T>);
+    return data.map((item) => new this.model(item as B));
   }
 }
 

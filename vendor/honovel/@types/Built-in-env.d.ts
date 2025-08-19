@@ -33,7 +33,9 @@ declare global {
     readonly BROADCAST_DRIVER: string;
     readonly CACHE_DRIVER: string;
     readonly QUEUE_CONNECTION: string;
-    readonly SESSION_DRIVER: CacheDriver | "cache";
+    readonly SESSION_DRIVER:
+      | Exclude<CacheDriver, "dynamodb" | "mongodb">
+      | "cache";
     readonly SESSION_LIFETIME: number;
     readonly MEMCACHED_HOST: string;
     readonly MAIL_MAILER: string;

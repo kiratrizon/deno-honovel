@@ -16,7 +16,7 @@ export default class VerifyCsrfToken {
             403
           );
         } else {
-          return abort(403, "CSRF token mismatch.");
+          abort(403, "CSRF token mismatch.");
         }
       }
     }

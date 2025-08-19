@@ -35,7 +35,7 @@ class Kernel extends HttpKernel {
       VerifyCsrfToken, // Verifies CSRF tokens for web requests
     ],
     api: [
-      "throttle:60,1",
+      "throttle:10,1",
       "ensure_accepts_json", // Ensures the request accepts JSON
     ],
   };

@@ -43,7 +43,9 @@ export default class HonoResponseV2 {
   }
 
   public json(data: unknown, status = 200) {
-    this._body = JSON.stringify(data);
+    this._body = JSON.stringify(data, (_key, value) =>
+      typeof value === "bigint" ? value.toString() : value
+    );
     this._contentType = "application/json";
     this._status = status;
     return new JSONResponse(
