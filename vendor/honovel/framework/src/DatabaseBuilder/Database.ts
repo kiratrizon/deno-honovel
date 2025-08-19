@@ -223,12 +223,17 @@ export class Database {
         );
       }
 
-      // @ts-ignore //
-      return await mappedDBType[dbType.toLowerCase()].query(
-        client,
-        newQuery,
-        newParams
-      );
+      try {
+        // @ts-ignore //
+        return await mappedDBType[dbType.toLowerCase()].query(
+          client,
+          newQuery,
+          newParams
+        );
+      } catch (error) {
+        console.error(`Query failed: ${newQuery}`, `Params:`, newParams);
+        console.error("Error:", error);
+      }
     }
     throw new Error(`Unsupported database type: ${dbType}`);
   }

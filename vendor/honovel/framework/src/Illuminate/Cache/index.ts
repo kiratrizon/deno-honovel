@@ -464,9 +464,10 @@ class DatabaseStore extends AbstractStore {
     // Implement logic to remove key from database cache
     const newKey = this.validateKey(key);
     await this.init();
-    const sql = `DELETE FROM ${this.table} WHERE key = ?`;
-    const values = [newKey];
-    await DB.connection(this.connection).statement(sql, values);
+    await DB.connection(this.connection)
+      .table(this.table)
+      .where("key", newKey)
+      .delete();
   }
 
   async flush(): Promise<void> {
