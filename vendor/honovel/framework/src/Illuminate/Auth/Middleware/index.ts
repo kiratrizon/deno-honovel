@@ -1,4 +1,4 @@
-import { Hash } from "../../Support/Facades/index.ts";
+import { Gate, Hash } from "../../Support/Facades/index.ts";
 
 /**
  * A middleware to authenticate users using Basic Auth.
@@ -52,3 +52,52 @@ export class AuthenticateWithBasicAuth {
     return next();
   };
 }
+
+/**
+ * Authorize the user based on the provided credentials.
+ */
+
+export class Authorize {
+  public handle: HttpMiddleware = async (
+    { request },
+    next,
+    ability,
+    ...args
+  ) => {
+    const user = request.user();
+
+    if (!ability) {
+      abort(400, "Ability not specified");
+    }
+
+    if (!user) {
+      abort(401, "Unauthorized");
+    }
+
+    // Resolve route parameters
+    const newArgs = args.map((arg) => request.route(arg));
+
+    // Check via Gate
+    if (await Gate.allows(ability, user, ...newArgs)) {
+      return next();
+    }
+
+    abort(403, "Forbidden");
+  };
+}
+
+// export class RequirePassword {
+//   public handle: HttpMiddleware = async ({ request }, next) => {
+//     const confirmedAt = request.session.get("password_confirmed_at");
+
+//     // default: 3 hours
+//     const timeout = 3 * 60 * 60 * 1000;
+
+//     if (!confirmedAt || Date.now() - confirmedAt > timeout) {
+//       // redirect user to password confirmation page
+//       return redirect("/confirm-password");
+//     }
+
+//     return next();
+//   };
+// }

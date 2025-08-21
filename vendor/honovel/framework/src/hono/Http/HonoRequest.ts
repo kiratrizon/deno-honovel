@@ -399,9 +399,8 @@ class HonoRequest extends Macroable {
     return this.server("SERVER_PORT") as number;
   }
 
-  public user(guard?: string): Authenticatable | null {
-    const { Auth } = this.#c.get("myHono");
-    return Auth.guard(guard).user();
+  public user(): Authenticatable | null {
+    return this.#c.get("auth_user") || null;
   }
 
   public isJson(): boolean {

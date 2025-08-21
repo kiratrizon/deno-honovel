@@ -7,6 +7,7 @@ import { Blueprint, TableSchema } from "../../Database/Schema/index.ts";
 import BaseController from "Illuminate/Routing/BaseController";
 import pluralize from "pluralize";
 import {
+  Authenticatable,
   BaseGuard,
   JwtGuard,
   SessionGuard,
@@ -883,9 +884,10 @@ export class Auth {
 
   private _guards: Record<string, BaseGuard> = {};
 
-  public guard<G extends GuardName>(
-    guardName: G = this.#defaultGuard as G
-  ): BaseGuard {
+  public guard<G extends GuardName>(guardName?: G): BaseGuard {
+    if (!isset(guardName)) {
+      guardName = this.#defaultGuard as G;
+    }
     if (keyExist(this._guards, guardName)) {
       return this._guards[guardName] as GuardInstance<G>;
     }
@@ -1097,5 +1099,65 @@ export class Cache {
       return;
     }
     this.stores[key] = fn();
+  }
+}
+
+type AbilityCallback = (
+  user: Authenticatable,
+  ...args: (string | null)[]
+) => boolean | Promise<boolean>;
+
+/**
+ * A class to handle authorization gates.
+ */
+export class Gate {
+  private static abilities: Map<string, AbilityCallback> = new Map();
+
+  /**
+   * Define a new ability.
+   */
+  public static define(name: string, callback: AbilityCallback): void {
+    this.abilities.set(name, callback);
+  }
+
+  /**
+   * Check if the user has a given ability.
+   */
+  public static async allows(
+    ability: string,
+    user: Authenticatable,
+    ...args: (string | null)[]
+  ): Promise<boolean> {
+    const callback = this.abilities.get(ability);
+    if (!callback || !isFunction(callback)) {
+      throw new Error(`Ability "${ability}" is not defined.`);
+    }
+
+    return await callback(user, ...args);
+  }
+
+  /**
+   * Deny check (inverse of allows).
+   */
+  public static async denies(
+    ability: string,
+    user: Authenticatable,
+    ...args: (string | null)[]
+  ): Promise<boolean> {
+    return !(await this.allows(ability, user, ...args));
+  }
+
+  /**
+   * Throw error if the ability is not granted.
+   */
+  public static async authorize(
+    ability: string,
+    user: Authenticatable,
+    ...args: (string | null)[]
+  ): Promise<void> {
+    const allowed = await this.allows(ability, user, ...args);
+    if (!allowed) {
+      abort(401, `This action is unauthorized: "${ability}"`);
+    }
   }
 }

@@ -131,7 +131,7 @@ declare global {
    * @returns An instance of HonoRedirect.
    */
 
-  function redirect(): IRedirectResponse;
+  function redirect(path?: string): IRedirectResponse;
 
   interface MyContext extends Context<HonoTypeImport> {}
 }

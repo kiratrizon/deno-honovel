@@ -33,6 +33,6 @@ globalFn("abort", (statusCode = 500, message = null) => {
   throw new AbortError(statusCode, message);
 });
 
-globalFn("redirect", () => {
-  return new HonoRedirect();
+globalFn("redirect", (url = null) => {
+  return new HonoRedirect(url);
 });

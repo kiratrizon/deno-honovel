@@ -14,17 +14,27 @@ class Boot {
    */
   static async init() {
     //
-    Carbon.setCarbonTimezone((config("app.timezone") as string) || "UTC");
-    Cache.init();
-    await Database.init();
-    Auth.setAuth();
+    try {
+      Carbon.setCarbonTimezone((config("app.timezone") as string) || "UTC");
+      Cache.init();
+      await Database.init();
+      Auth.setAuth();
+    } catch (e) {
+      console.error(e);
+      Deno.exit(1);
+    }
   }
 
   static async finalInit() {
-    SessionModifier.init();
-    await SessionInitializer.init();
-    CookieKeysCache.init();
-    HonoView.init();
+    try {
+      SessionModifier.init();
+      await SessionInitializer.init();
+      CookieKeysCache.init();
+      HonoView.init();
+    } catch (e) {
+      console.error(e);
+      Deno.exit(1);
+    }
   }
 }
 

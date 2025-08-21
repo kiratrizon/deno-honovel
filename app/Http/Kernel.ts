@@ -15,7 +15,11 @@ import Authenticate from "./Middlewares/Authenticate.ts";
 import { HandleCors } from "Illuminate/Http/Middleware/index.ts";
 import TrimStrings from "App/Http/Middlewares/TrimStrings.ts";
 import TrustProxies from "App/Http/Middlewares/TrustProxies.ts";
-import { AuthenticateWithBasicAuth } from "Illuminate/Auth/Middleware/index.ts";
+import {
+  AuthenticateWithBasicAuth,
+  Authorize,
+} from "Illuminate/Auth/Middleware/index.ts";
+import RedirectIfAuthenticated from "./Middlewares/RedirectIfAuthenticated.ts";
 
 class Kernel extends HttpKernel {
   protected override middleware = [
@@ -57,8 +61,10 @@ class Kernel extends HttpKernel {
   protected override routeMiddleware = {
     auth: Authenticate,
     "auth.basic": AuthenticateWithBasicAuth,
-    throttle: ThrottleRequests,
+    can: Authorize,
     ensure_accepts_json: EnsureAcceptsJson,
+    guest: RedirectIfAuthenticated,
+    throttle: ThrottleRequests,
   };
 }
 

@@ -1,5 +1,6 @@
 import { IConfigure } from "../../../../@types/declaration/MyImports.d.ts";
 import HonoRequest from "HonoHttp/HonoRequest.ts";
+import HRequest from "HonoHttp/HonoRequest.d.ts";
 import Constants from "Constants";
 import { Auth } from "Illuminate/Support/Facades/index.ts";
 
@@ -15,7 +16,8 @@ class HttpHono {
     this.#auth = new Auth(this.#c);
   }
 
-  public get request() {
+  public get request(): HRequest {
+    // @ts-ignore //
     return this.#request;
   }
   public get Configure() {

@@ -19,4 +19,6 @@ export default class RouteServiceProvider extends ServiceProvider {
 
     // Route domain is not supported in boot, so we will not register domain routes here.
   }
+
+  public static home = "/home";
 }

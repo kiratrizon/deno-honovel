@@ -197,14 +197,12 @@ export class JwtGuard extends BaseGuard {
       return true;
     }
     const { request } = this.c.get("myHono");
-    const key = `auth_${this.guardName}_user`;
-    // @ts-ignore //
-    const checkUser = this.c.get(key) as Authenticatable | null;
-    if (checkUser) {
-      // If user is already set in context, return true
-      this.authUser = checkUser;
+    if (request.user()) {
+      this.authUser = request.user();
       return true;
     }
+    const key = `auth_user`;
+
     // Check if JWT token exists in headers
     const token = request.header("Authorization")?.replace("Bearer ", "");
     if (!token) {
@@ -229,7 +227,6 @@ export class JwtGuard extends BaseGuard {
     this.authUser = instanceUser;
 
     // Store the user in the context for later use
-    // @ts-ignore //
     this.c.set(key, instanceUser);
 
     return true; // Placeholder
@@ -283,9 +280,8 @@ export class JwtGuard extends BaseGuard {
 
     this.rememberUser = remember;
     this.authUser = user as Authenticatable;
-    const key = `auth_${this.guardName}_user`;
-    // @ts-ignore //
-    this.c.set(key, user);
+    const key = `auth_user`;
+    this.c.set(key, this.authUser);
     return token; // Return the generated JWT token
   }
 
@@ -312,11 +308,17 @@ export class SessionGuard extends BaseGuard {
   async check(): Promise<boolean> {
     // Implement session check logic
 
+    const key = "auth_user";
     if (this.authUser) {
       // If user is already set in context, return true
+      this.c.set(key, this.authUser);
       return true;
     }
     const { request } = this.c.get("myHono");
+    if (request.user()) {
+      this.authUser = request.user() as Authenticatable;
+      this.c.set(key, this.authUser);
+    }
     const sessguardKey = `auth_${this.guardName}_user`;
 
     // @ts-ignore //
@@ -331,6 +333,7 @@ export class SessionGuard extends BaseGuard {
       this.authUser = new this.model(
         checkUser as AuthenticatableAttrSession
       ) as Authenticatable;
+      this.c.set(key, this.authUser);
       return true;
     }
 
@@ -343,6 +346,7 @@ export class SessionGuard extends BaseGuard {
       if (user) {
         this.rememberUser = true;
         this.authUser = user;
+        this.c.set(key, this.authUser);
         return true;
       }
     }
@@ -395,11 +399,13 @@ export class SessionGuard extends BaseGuard {
     this.authUser = user;
     const rawAttributes = user.getRawAttributes();
     const { request } = this.c.get("myHono");
+    const key = "auth_user";
     request.session.put(
       // @ts-ignore //
       sessguardKey,
       rawAttributes as AuthenticatableAttrSession
     );
+    this.c.set(key, user);
     if (remember) {
       // If "remember me" is checked, set the remember token
       const generatedToken = `${
@@ -426,7 +432,7 @@ export class SessionGuard extends BaseGuard {
       maxAge: -1, // Delete the cookie
     });
     // @ts-ignore //
-    this.c.set(sessguardKey, null);
+    this.c.set("auth_user", null);
   }
 
   viaRemember(): boolean {
@@ -440,11 +446,14 @@ export class SessionGuard extends BaseGuard {
 
 export class TokenGuard extends BaseGuard {
   async check(): Promise<boolean> {
-    const key = `auth_${this.guardName}_user`;
-    // @ts-ignore //
-    const checkUser = this.c.get(key) as Authenticatable | null;
+    const key = `auth_user`;
+    if (this.authUser) {
+      this.c.set(key, this.authUser);
+      return true;
+    }
+    const checkUser = this.c.get(key);
     if (checkUser) {
-      // If user is already set in context, return true
+      this.c.set(key, checkUser);
       return true;
     }
     // Implement token check logic
@@ -455,11 +464,12 @@ export class TokenGuard extends BaseGuard {
       return false;
     }
 
-    const user = await this.model.where("api_token", token).first();
+    const user = (await this.model
+      .where("api_token", token)
+      .first()) as Authenticatable;
     if (!user) {
       return false;
     }
-    // @ts-ignore //
     this.c.set(key, user);
     return true; // Placeholder
   }
@@ -497,15 +507,14 @@ export class TokenGuard extends BaseGuard {
     this.authUser = user;
     const rawAttributes = user.getRawAttributes();
 
-    const key = `auth_${this.guardName}_user`;
-    // @ts-ignore //
-    this.c.set(key, user);
+    const key = `auth_user`;
     if (!keyExist(rawAttributes, "api_token")) {
       throw new Error(
         // @ts-ignore //
         `Table ${new this.model().getTableName()} have no api_token column.`
       );
     }
+    this.c.set(key, user);
     // @ts-ignore //
     return rawAttributes.api_token as string;
   }
@@ -517,8 +526,7 @@ export class TokenGuard extends BaseGuard {
   }
 
   logout() {
-    const key = `auth_${this.guardName}_user`;
-    // @ts-ignore //
+    const key = "auth_user";
     this.c.set(key, null);
     // Optionally, you can also delete the token from the database
   }

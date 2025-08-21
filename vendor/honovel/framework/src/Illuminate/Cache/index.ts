@@ -319,7 +319,6 @@ class RedisStore extends AbstractStore {
   async put(key: string, value: any, seconds: number): Promise<void> {
     await this.init();
     const newKey = this.validateKey(key);
-    console.log(`Setting Redis key: ${newKey} with value: ${value}`);
     await this.manager.set(newKey, value, {
       ex: seconds > 0 ? seconds : undefined,
     });
@@ -585,7 +584,6 @@ class MemcachedStore extends AbstractStore {
 
   private async init() {
     if (this.client) return; // Already initialized
-    console.log("hello");
     this.client = new MemcachedClient(this.servers[0]);
   }
 
@@ -710,7 +708,6 @@ class DynamoDBStore extends AbstractStore {
       if ((error as Error).name !== "ResourceNotFoundException") {
         throw error; // Re-throw if it's not a "table doesn't exist" error
       }
-      console.log(`Table "${this.table}" not found. Creating...`);
     }
     const command = new CreateTableCommand({
       TableName: this.table,
@@ -731,7 +728,6 @@ class DynamoDBStore extends AbstractStore {
 
     try {
       await this.client.send(command);
-      console.log(`Table "${this.table}" created successfully.`);
       this.#initialized = true; // Mark as initialized
     } catch (error) {
       console.error(`Error creating table "${this.table}":`, error);

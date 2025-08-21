@@ -3,6 +3,7 @@ import HttpHono from "HttpHono";
 import HonoClosure from "HonoHttp/HonoClosure.ts";
 import { Session } from "Illuminate/Session/index.ts";
 import { ImportSession } from "../../../../environment.ts";
+import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 
 type ErrorAndData = {
   error: Record<string, unknown>;
@@ -26,6 +27,7 @@ export type Variables = {
   session: Session<SessionDataTypes>;
   logged_out: boolean;
   honoClosure: HonoClosure;
+  auth_user: Authenticatable | null;
 };
 
 export type HonoTypeImport = {
