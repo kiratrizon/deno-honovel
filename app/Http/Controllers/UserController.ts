@@ -3,6 +3,8 @@ import User from "App/Models/User.ts";
 import { Hash } from "Illuminate/Support/Facades/index.ts";
 
 class UserController extends Controller {
+  static override bindedModel = User;
+
   // GET /resource
   public index: HttpDispatch = async ({ request }) => {
     // List all resources

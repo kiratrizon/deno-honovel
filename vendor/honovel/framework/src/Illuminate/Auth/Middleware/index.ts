@@ -86,18 +86,21 @@ export class Authorize {
   };
 }
 
-// export class RequirePassword {
-//   public handle: HttpMiddleware = async ({ request }, next) => {
-//     const confirmedAt = request.session.get("password_confirmed_at");
+export class RequirePassword {
+  public handle: HttpMiddleware = async ({ request }, next, redirectRoute) => {
+    const confirmedAt = request.session.get("auth.password_confirmed_at") as
+      | number
+      | null; // in milliseconds
 
-//     // default: 3 hours
-//     const timeout = 3 * 60 * 60 * 1000;
+    // default: 3 hours
+    const timeout = 3 * 60 * 60 * 1000;
 
-//     if (!confirmedAt || Date.now() - confirmedAt > timeout) {
-//       // redirect user to password confirmation page
-//       return redirect("/confirm-password");
-//     }
+    if (!confirmedAt || Date.now() - confirmedAt > timeout) {
+      return request.expectsJson()
+        ? abort(403, "Password confirmation required")
+        : redirect(redirectRoute ?? "/confirm-password");
+    }
 
-//     return next();
-//   };
-// }
+    return next();
+  };
+}

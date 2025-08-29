@@ -18,6 +18,7 @@ import TrustProxies from "App/Http/Middlewares/TrustProxies.ts";
 import {
   AuthenticateWithBasicAuth,
   Authorize,
+  RequirePassword,
 } from "Illuminate/Auth/Middleware/index.ts";
 import RedirectIfAuthenticated from "./Middlewares/RedirectIfAuthenticated.ts";
 
@@ -64,6 +65,7 @@ class Kernel extends HttpKernel {
     can: Authorize,
     ensure_accepts_json: EnsureAcceptsJson,
     guest: RedirectIfAuthenticated,
+    "password.confirm": RequirePassword,
     throttle: ThrottleRequests,
   };
 }

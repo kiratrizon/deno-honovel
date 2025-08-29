@@ -1,9 +1,11 @@
-import Controller from "../../../../../../app/Http/Controllers/Controller.ts";
+import Controller from "App/Http/Controllers/Controller.ts";
 import {
   IMethodRoute,
   IMFlagConfig,
 } from "../../../../@types/declaration/IRoute.d.ts";
 import { regexObj } from "./FunctionRoute.ts";
+import { Model } from "Illuminate/Database/Eloquent/index.ts";
+import { IBaseModelProperties } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
 
 type argType = "function" | "controller";
 
@@ -13,6 +15,7 @@ export interface IMyConfig {
   method: string[];
   callback: HttpDispatch | null;
   debugString: string;
+  bindedModel?: typeof Model<IBaseModelProperties>;
 }
 class MethodRoute implements IMethodRoute {
   private flag: Record<string, unknown> = {
@@ -38,22 +41,26 @@ class MethodRoute implements IMethodRoute {
     let debugString: string = `// ${method
       .map((m) => m.toUpperCase())
       .join(", ")} ${uri} \n`;
+    let model;
     if (isFunction(arg)) {
       this.type = "function";
       myFunc = arg as HttpDispatch;
       debugString += `// Code Referrence \n${arg.toString()}`;
     } else if (isArray(arg) && arg.length === 2) {
-      const [controller, ctrlrmethod] = arg as [new () => Controller, string];
+      const [controller, ctrlrmethod] = arg as [typeof Controller, string];
       const controllerInstance = new controller();
       if (methodExist(controllerInstance, ctrlrmethod)) {
-        myFunc = controllerInstance[ctrlrmethod].bind(
-          controllerInstance
-        ) as unknown as HttpDispatch;
+        myFunc = (
+          controllerInstance[ctrlrmethod] as unknown as HttpDispatch
+        ).bind(controllerInstance) as unknown as HttpDispatch;
         debugString += `// class ${
           controller.name
-        }@${ctrlrmethod}\n// Code Referrence \n\n${controllerInstance[
-          ctrlrmethod
-        ].toString()}`;
+        }@${ctrlrmethod}\n// Code Referrence \n\n${(
+          controllerInstance[ctrlrmethod] as unknown as HttpDispatch
+        ).toString()}`;
+        if (isset(controller.bindedModel)) {
+          model = controller.bindedModel;
+        }
       } else {
         debugString += "empty function";
       }
@@ -68,6 +75,7 @@ class MethodRoute implements IMethodRoute {
       method: method.map((m) => m.toLowerCase()),
       callback: myFunc,
       debugString,
+      bindedModel: model,
     };
   }
   public name(name: string): this {
