@@ -1161,3 +1161,7 @@ export class Gate {
     }
   }
 }
+
+export class URL {
+  public static signedSignature() {}
+}

@@ -52,3 +52,7 @@ export class EnsureAcceptsJson {
     return next();
   };
 }
+
+export class ValidateSignature {
+  public handle: HttpMiddleware = async ({ request }, next) => {};
+}
