@@ -570,6 +570,11 @@ export abstract class Model<
       fields: ["*"],
     }).where(foreignKey, this.getKey());
   }
+
+  public hasVerifiedEmail(): boolean {
+    const emailVerifiedAt = this.getRawAttribute("email_verified_at");
+    return emailVerifiedAt !== null;
+  }
 }
 
 import { Builder as RawBuilder, sqlstring } from "../Query/index.ts";

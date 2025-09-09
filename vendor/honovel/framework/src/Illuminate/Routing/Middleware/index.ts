@@ -1,4 +1,4 @@
-import { Cache } from "../../Support/Facades/index.ts";
+import { Cache, URL } from "../../Support/Facades/index.ts";
 
 type Throttling = {
   [key: string]: {
@@ -54,5 +54,10 @@ export class EnsureAcceptsJson {
 }
 
 export class ValidateSignature {
-  public handle: HttpMiddleware = async ({ request }, next) => {};
+  public handle: HttpMiddleware = async ({ request }, next) => {
+    if (URL.verify(request.url)) {
+      return next();
+    }
+    abort(403, "Invalid or Expired Signature");
+  };
 }

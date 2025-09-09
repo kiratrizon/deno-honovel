@@ -322,8 +322,8 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
 
 define("myConfigData", await getConfigStore(), false);
 const configure = new Constants(myConfigData as Record<string, unknown>);
-globalFn("config", function (key: string) {
-  return configure.read(key);
+globalFn("config", function (key: string, defaultValue: unknown = null) {
+  return configure.read(key) || defaultValue;
 });
 
 globalFn("viewPath", function (concatenation = "") {

@@ -1162,6 +1162,93 @@ export class Gate {
   }
 }
 
+import { hmac } from "jsr:@noble/hashes@1.8.0/hmac";
+import { Buffer } from "buffer";
+import { sha256 } from "jsr:@noble/hashes@1.8.0/sha2";
+
 export class URL {
-  public static signedSignature() {}
+  private static signed(
+    path: string,
+    params: Record<string, string | number> = {},
+    expires?: number
+  ): string {
+    const app = config("app");
+    const secret = app.key;
+    const url = new globalThis.URL(path, app.url || "http://localhost");
+
+    // add user params
+    for (const [k, v] of Object.entries(params)) {
+      url.searchParams.set(k, String(v));
+    }
+
+    // add expiration timestamp if requested
+    if (expires) {
+      url.searchParams.set(
+        "expires",
+        String(Math.floor(Date.now() / 1000) + expires)
+      );
+    }
+
+    // unsigned string: path + query (without signature)
+    const unsignedUrl =
+      url.pathname + (url.search ? `?${url.searchParams}` : "");
+
+    // sign with HMAC-SHA256
+    const key = new TextEncoder().encode(secret);
+    const msg = new TextEncoder().encode(unsignedUrl);
+    const signatureBytes = hmac(sha256, key, msg);
+    const signature = Buffer.from(signatureBytes).toString("hex");
+
+    url.searchParams.set("signature", signature);
+
+    return url.toString();
+  }
+
+  public static signedRoute(
+    path: string,
+    params: Record<string, unknown>
+  ): string {
+    return this.signed(path, params as Record<string, string | number>);
+  }
+
+  public static temporarySignedRoute(
+    path: string,
+    params: Record<string, string | number> = {},
+    expiresIn: number
+  ): string {
+    return this.signed(path, params, expiresIn);
+  }
+
+  public static verify(requestUrl: string): boolean {
+    const app = config("app");
+    const keys = [app.key, ...(app.previous_keys ?? [])];
+    const url = new globalThis.URL(requestUrl, app.url || "http://localhost");
+
+    const signature = url.searchParams.get("signature");
+    if (!signature) return false;
+
+    // expiration check
+    const expires = url.searchParams.get("expires");
+    if (expires && parseInt(expires) < Math.floor(Date.now() / 1000)) {
+      return false;
+    }
+
+    // remove signature before recomputing
+    url.searchParams.delete("signature");
+    const unsignedUrl =
+      url.pathname + (url.search ? `?${url.searchParams}` : "");
+
+    const msg = new TextEncoder().encode(unsignedUrl);
+
+    // try verifying against all keys
+    for (const key of keys) {
+      const keyBytes = new TextEncoder().encode(key);
+      const expected = Buffer.from(hmac(sha256, keyBytes, msg)).toString("hex");
+      if (signature === expected) {
+        return true; // ✅ valid with this key
+      }
+    }
+
+    return false; // ❌ no keys matched
+  }
 }

@@ -70,7 +70,7 @@ declare class HonoRequest {
   path(): string;
 
   /** Get the full request URL */
-  url(): string;
+  readonly url: string;
 
   /** HTTP request method (GET, POST, etc.) */
   readonly method: RequestMethod;
