@@ -18,7 +18,6 @@ if (Deno.env.get("VERCEL") == "1") {
 }
 
 Object.defineProperty(globalThis, "globalFn", {
-  // deno-lint-ignore no-explicit-any
   value: function (key: string, value: (args: any[]) => void) {
     if (typeof key !== "string") {
       throw new Error("Key must be a string");
@@ -26,7 +25,6 @@ Object.defineProperty(globalThis, "globalFn", {
     if (typeof value !== "function") {
       throw new Error("Value must be a function");
     }
-    // deno-lint-ignore no-explicit-any
     (globalThis as any)[key] = value;
   },
   writable: false,
@@ -130,7 +128,6 @@ globalFn("getType", (variable: unknown) => {
   return type;
 });
 
-// deno-lint-ignore no-explicit-any
 globalFn("env", function (key: string, value: any = null): any {
   const raw = Deno.env.get(key);
   if (raw === undefined || raw === null) {
@@ -334,9 +331,7 @@ globalFn("viewPath", function (concatenation = "") {
   return resourcePath(dir);
 });
 
-// deno-lint-ignore no-explicit-any
 globalFn("only", function (obj: Record<string, any>, keys: string[]) {
-  // deno-lint-ignore no-explicit-any
   const result: Record<string, any> = {};
   for (const key of keys) {
     if (key in obj) {
@@ -346,9 +341,7 @@ globalFn("only", function (obj: Record<string, any>, keys: string[]) {
   return result;
 });
 
-// deno-lint-ignore no-explicit-any
 globalFn("except", function (obj: Record<string, any>, keys: string[]) {
-  // deno-lint-ignore no-explicit-any
   const result: Record<string, any> = {};
   for (const key in obj) {
     if (!keys.includes(key)) {
@@ -424,7 +417,6 @@ import Logger from "HonoLogger";
 globalFn(
   "log",
   function (
-    // deno-lint-ignore no-explicit-any
     value: any,
     destination: string = "debug",
     identifier: string = ""

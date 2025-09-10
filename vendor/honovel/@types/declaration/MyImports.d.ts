@@ -9,10 +9,8 @@ export declare class IConfigure {
    */
   public static read<T extends keyof ConfigItems>(
     key: T,
-    // deno-lint-ignore no-explicit-any
     defaultValue?: any
   ): ConfigItems[T];
-  // deno-lint-ignore no-explicit-any
   public static read<D extends any>(key: string, defaultValue?: D): null | D;
 
   /**

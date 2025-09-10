@@ -557,7 +557,6 @@ class MyRoute {
     const keys = Object.keys(config) as (keyof IGroupParams)[];
     keys.forEach((key) => {
       if (methodExist(groupInstance, key) && isset(config[key])) {
-        // deno-lint-ignore no-explicit-any
         groupInstance[key]((config as any)[key]);
       }
     });
@@ -1016,7 +1015,6 @@ export class Cache {
   /**
    * Store a value in the cache for a given number of seconds.
    */
-  // deno-lint-ignore no-explicit-any
   static async put(key: string, value: any, seconds: number) {
     await this.store(this.defaultConnection).put(
       key as keyof CacheStoreData,
@@ -1229,7 +1227,7 @@ export class URL {
 
     // expiration check
     const expires = url.searchParams.get("expires");
-    if (expires && parseInt(expires) < Math.floor(Date.now() / 1000)) {
+    if (expires && parseInt(expires) < Math.floor(time() / 1000)) {
       return false;
     }
 

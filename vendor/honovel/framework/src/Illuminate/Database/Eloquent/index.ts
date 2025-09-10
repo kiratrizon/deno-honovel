@@ -522,6 +522,18 @@ export abstract class Model<
       .first()) as unknown as M;
   }
 
+  public static async findOrFail<
+    M extends Model<IBaseModelProperties> = Model<IBaseModelProperties>
+  >(id: string | number): Promise<M> {
+    const record = await this.find<M>(id);
+    if (!record) {
+      throw new Error(
+        `${this.name} with primary key "${id}" not found in the database.`
+      );
+    }
+    return record;
+  }
+
   async save() {
     const data = this.getRawAttributes();
     const tableName = this.getTableName();

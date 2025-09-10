@@ -1,9 +1,7 @@
 import { IConstants } from "../../../@types/declaration/IConstants.d.ts";
 
 class Constants implements IConstants {
-  // deno-lint-ignore no-explicit-any
   #configStore: Record<string, any>;
-  // deno-lint-ignore no-explicit-any
   constructor(configStore: Record<string, any>) {
     this.#configStore = { ...configStore };
   }
@@ -15,7 +13,6 @@ class Constants implements IConstants {
    * @param key - Dot-separated string indicating the config path.
    * @returns A requested configuration value or null if not found.
    */
-  // deno-lint-ignore no-explicit-any
   public read(key: string, defaultValue: any = null) {
     if (this.#configStore === undefined) {
       throw new Error("Config store is not initialized");
@@ -29,7 +26,6 @@ class Constants implements IConstants {
     if (!this.#configStore[firstKey]) {
       return defaultValue;
     }
-    // deno-lint-ignore no-explicit-any
     let currentValue: any = this.#configStore[firstKey];
 
     while (
@@ -59,7 +55,6 @@ class Constants implements IConstants {
    * @param data - The value to store at the given path.
    * @returns @void
    */
-  // deno-lint-ignore no-explicit-any
   public write(key: string, data: any): void {
     if (!this.#configStore) {
       throw new Error("Config store is not initialized");

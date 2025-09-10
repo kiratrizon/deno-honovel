@@ -44,7 +44,6 @@ export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
    * * @returns The value associated with the key, or null if not found.
    */
   abstract get<K extends keyof T>(key: K): Promise<T[K]>;
-  // deno-lint-ignore no-explicit-any
   abstract get(key: string): Promise<any>;
 
   /**
@@ -58,12 +57,7 @@ export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
     value: T[K],
     seconds: number
   ): Promise<void>;
-  abstract put(
-    key: string,
-    // deno-lint-ignore no-explicit-any
-    value: any,
-    seconds: number
-  ): Promise<void>;
+  abstract put(key: string, value: any, seconds: number): Promise<void>;
 
   /**
    * Remove an item from the cache.
@@ -86,7 +80,6 @@ export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
   /**
    * Store an item in the cache indefinitely.
    */
-  // deno-lint-ignore no-explicit-any
   async forever<K extends keyof T>(key: K, value: T[K] | any): Promise<void> {
     // Convention: use 0 or -1 to mean "forever"
     await this.put(key, value, 0);
@@ -107,11 +100,9 @@ export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
     key: keyof T | string,
     value: number = 1
   ): Promise<number | null> {
-    // deno-lint-ignore no-explicit-any
     const current = await this.get(key as any);
     if (typeof current === "number") {
       const newVal = current + value;
-      // deno-lint-ignore no-explicit-any
       await this.put(key as any, newVal, 0);
       return newVal;
     }
@@ -130,11 +121,9 @@ export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
     key: keyof T | string,
     value: number = 1
   ): Promise<number | null> {
-    // deno-lint-ignore no-explicit-any
     const current = await this.get(key as any);
     if (typeof current === "number") {
       const newVal = current - value;
-      // deno-lint-ignore no-explicit-any
       await this.put(key as any, newVal, 0);
       return newVal;
     }
@@ -148,11 +137,8 @@ export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
     key: K,
     defaultValue: T[K]
   ): Promise<T[K]>;
-  // deno-lint-ignore no-explicit-any
   async getOrDefault(key: string, defaultValue: any): Promise<any>;
-  // deno-lint-ignore no-explicit-any
   async getOrDefault(key: keyof T | string, defaultValue: any): Promise<any> {
-    // deno-lint-ignore no-explicit-any
     const value = await this.get(key as any);
     return value !== null && value !== undefined ? value : defaultValue;
   }
@@ -163,7 +149,6 @@ export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
   async has<K extends keyof T>(key: K): Promise<boolean>;
   async has(key: string): Promise<boolean>;
   async has(key: keyof T | string): Promise<boolean> {
-    // deno-lint-ignore no-explicit-any
     const value = await this.get(key as any);
     return isset(value);
   }
@@ -200,7 +185,6 @@ class FileStore extends AbstractStore {
     this.path = opts.path;
   }
 
-  // deno-lint-ignore no-explicit-any
   async get(key: string): Promise<any> {
     // Implement logic to retrieve value from file cache
     const newKey = this.validateKey(key);
@@ -224,7 +208,6 @@ class FileStore extends AbstractStore {
     return cacheItem.value; // Return the cached value
   }
 
-  // deno-lint-ignore no-explicit-any
   async put(key: string, value: any, seconds: number): Promise<void> {
     // Implement logic to store value in file cache
     const newKey = this.validateKey(key);
@@ -308,14 +291,12 @@ class RedisStore extends AbstractStore {
     // Initialize Redis client here if needed
     this.#initialized = true;
   }
-  // deno-lint-ignore no-explicit-any
   async get(key: string): Promise<any> {
     await this.init();
     const newKey = this.validateKey(key);
     return await this.manager.get(newKey);
   }
 
-  // deno-lint-ignore no-explicit-any
   async put(key: string, value: any, seconds: number): Promise<void> {
     await this.init();
     const newKey = this.validateKey(key);
@@ -341,7 +322,6 @@ class RedisStore extends AbstractStore {
 }
 
 class ObjectStore extends AbstractStore {
-  // deno-lint-ignore no-explicit-any
   private store: Record<string, { value: any; expiresAt: number | null }> = {};
   private readonly prefix: string;
 
@@ -350,7 +330,6 @@ class ObjectStore extends AbstractStore {
     this.prefix = opts.prefix || "";
   }
 
-  // deno-lint-ignore no-explicit-any
   async get(key: string): Promise<any> {
     const newKey = this.validateKey(key);
     const cacheItem = this.store[newKey];
@@ -365,7 +344,6 @@ class ObjectStore extends AbstractStore {
     return cacheItem.value;
   }
 
-  // deno-lint-ignore no-explicit-any
   async put(key: string, value: any, seconds: number): Promise<void> {
     const newKey = this.validateKey(key);
 
@@ -420,7 +398,6 @@ class DatabaseStore extends AbstractStore {
     }
   }
 
-  // deno-lint-ignore no-explicit-any
   async get(key: string): Promise<any> {
     // Implement logic to retrieve value from database cache
     const newKey = this.validateKey(key);
@@ -444,7 +421,6 @@ class DatabaseStore extends AbstractStore {
     }
   }
 
-  // deno-lint-ignore no-explicit-any
   async put(key: string, value: any, seconds: number): Promise<void> {
     // Implement logic to store value in database cache
     const newKey = this.validateKey(key);
@@ -474,7 +450,6 @@ class DatabaseStore extends AbstractStore {
     // Implement logic to clear all items in the database cache
     await this.init();
     const sql = `DELETE FROM ${this.table}`;
-    // deno-lint-ignore no-explicit-any
     const values: any[] = [];
     await DB.connection(this.connection).statement(sql, values);
   }
@@ -523,14 +498,12 @@ class MemoryStore extends AbstractStore {
     super();
     this.prefix = opts.prefix || "";
   }
-  // deno-lint-ignore no-explicit-any
   async get(key: string): Promise<any> {
     const newKey = this.validateKey(key);
     const cacheItem = await this.store.get(newKey);
     if (!isset(cacheItem)) return null; // Key does not exist
     return jsonDecode(cacheItem);
   }
-  // deno-lint-ignore no-explicit-any
   async put(key: string, value: any, seconds: number): Promise<void> {
     value = jsonEncode(value);
     const newKey = this.validateKey(key);
@@ -587,7 +560,6 @@ class MemcachedStore extends AbstractStore {
     this.client = new MemcachedClient(this.servers[0]);
   }
 
-  // deno-lint-ignore no-explicit-any
   public async get(key: string): Promise<any> {
     await this.init();
     const newKey = this.validateKey(key);
@@ -603,7 +575,6 @@ class MemcachedStore extends AbstractStore {
     }
   }
 
-  // deno-lint-ignore no-explicit-any
   public async put(key: string, value: any, seconds: number): Promise<void> {
     await this.init();
     const newKey = this.validateKey(key);
@@ -735,7 +706,6 @@ class DynamoDBStore extends AbstractStore {
     }
   }
 
-  // deno-lint-ignore no-explicit-any
   public async get(key: string): Promise<any> {
     await this.init();
     const newKey = this.validateKey(key);
@@ -777,7 +747,6 @@ class DynamoDBStore extends AbstractStore {
     }
   }
 
-  // deno-lint-ignore no-explicit-any
   public async put(key: string, value: any, seconds: number): Promise<void> {
     await this.init();
     const newKey = this.validateKey(key);
@@ -911,7 +880,6 @@ class MongoDBStore extends AbstractStore {
     this.Collection = this.db.collection(this.collection);
   }
 
-  // deno-lint-ignore no-explicit-any
   async get(key: string): Promise<any> {
     await this.init();
     const newKey = this.validateKey(key);
@@ -943,7 +911,6 @@ class MongoDBStore extends AbstractStore {
     }
   }
 
-  // deno-lint-ignore no-explicit-any
   async put(key: string, value: any, seconds: number): Promise<void> {
     await this.init();
     const newKey = this.validateKey(key);

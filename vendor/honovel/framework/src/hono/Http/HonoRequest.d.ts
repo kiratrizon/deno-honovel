@@ -9,6 +9,8 @@ import { FormFile } from "https://deno.land/x/multiparser@0.114.0/lib/multiParse
 import { CookieOptions } from "hono/utils/cookie";
 import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";
+import { Model } from "Illuminate/Database/Eloquent/index.ts";
+import { IBaseModelProperties } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
 
 declare class HonoRequest {
   /** Common X-Forwarded headers used for proxies */
@@ -199,8 +201,10 @@ declare class HonoRequest {
     validations: T
   ): Promise<Record<keyof T | string, string>>;
 
-  /** Reset route parameters */
-  protected resetRoute(params?: Record<string, string | null>): void;
+  /** Bind route parameters to request */
+  public bindRoute(
+    params: Record<string, typeof Model<IBaseModelProperties>>
+  ): void;
 }
 
 export default HonoRequest;

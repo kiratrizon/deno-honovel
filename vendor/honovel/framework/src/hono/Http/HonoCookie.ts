@@ -19,7 +19,6 @@ function createExpectedSignature(base64Value: string, key: Uint8Array): string {
 export const setMyCookie = (
   c: MyContext,
   key: string,
-  // deno-lint-ignore no-explicit-any
   value: Exclude<any, undefined>,
   options: CookieOptions = {}
 ) => {
@@ -70,7 +69,6 @@ export function getMyCookie(c: MyContext): Record<string, string>;
 export function getMyCookie(
   c: MyContext,
   key: string
-  // deno-lint-ignore no-explicit-any
 ): Exclude<any, undefined> | null;
 
 // Implementation

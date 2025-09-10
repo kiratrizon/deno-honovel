@@ -38,7 +38,6 @@ declare global {
    * It includes utility functions, configuration options, and other helpers
    * that can be used throughout the application.
    */
-  // deno-lint-ignore no-explicit-any
   function globalFn<T extends (...args: any[]) => any>(
     name: string,
     fn: T
@@ -65,7 +64,6 @@ declare global {
     key: K,
     fallback: EnvConfig[K]
   ): EnvConfig[K];
-  // deno-lint-ignore no-explicit-any
   function env<K extends any = string>(key: string, fallback: K): K;
 
   /**

@@ -12,6 +12,8 @@ import { myError } from "../Http/builder.ts";
 import { buildRequest } from "../Http/builder.ts";
 import { MiddlewareLikeClass } from "Illuminate/Foundation/Http/index.ts";
 import { SQLError } from "Illuminate/Database/Query/index.ts";
+import { Model } from "Illuminate/Database/Eloquent/index.ts";
+import { IBaseModelProperties } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
 
 export const regexObj = {
   number: /^\d+$/,
@@ -304,10 +306,8 @@ export function toMiddleware(
 
           const middlewareClass = RouteMiddleware[arg];
           const middlewareInstance = new (middlewareClass as new (
-            // deno-lint-ignore no-explicit-any
             ...args: any[]
-          ) => // deno-lint-ignore no-explicit-any
-          any)();
+          ) => any)();
           if (methodExist(middlewareInstance, "handle")) {
             middlewareCallback.push({
               debugString: `// class ${
@@ -329,10 +329,8 @@ export function toMiddleware(
 
         const middlewareClass = RouteMiddleware[arg];
         const middlewareInstance = new (middlewareClass as new (
-          // deno-lint-ignore no-explicit-any
           ...args: any[]
-        ) => // deno-lint-ignore no-explicit-any
-        any)();
+        ) => any)();
         if (methodExist(middlewareInstance, "handle")) {
           middlewareCallback.push({
             debugString: `// class ${
@@ -352,10 +350,8 @@ export function toMiddleware(
       if (isClass) {
         const middlewareClass = arg as MiddlewareLikeClass;
         const middlewareInstance = new (middlewareClass as new (
-          // deno-lint-ignore no-explicit-any
           ...args: any[]
-        ) => // deno-lint-ignore no-explicit-any
-        any)();
+        ) => any)();
         if (methodExist(middlewareInstance, "handle")) {
           middlewareCallback.push({
             debugString: `// class ${
@@ -435,7 +431,10 @@ function generateMiddlewareOrDispatch(
           );
         } else {
           const params = request.route() as Record<string, string | null>;
-          const newParams: Record<string, string | null> = {};
+          const newParams: Record<
+            string,
+            Model<IBaseModelProperties> | string | null
+          > = {};
           sequenceParams.forEach((param) => {
             if (keyExist(params, param)) {
               newParams[param] = params[param] ?? null;
@@ -443,6 +442,27 @@ function generateMiddlewareOrDispatch(
               newParams[param] = null;
             }
           });
+          // @ts-ignore //
+          const bindedModels = request.bindedModels as Record<
+            string,
+            typeof Model<IBaseModelProperties>
+          >;
+          for (const paramKey of Object.keys(newParams)) {
+            if (keyExist(bindedModels, paramKey)) {
+              const modelClass = bindedModels[paramKey];
+              if (!isNull(newParams[paramKey])) {
+                try {
+                  newParams[paramKey] = await modelClass.findOrFail(
+                    newParams[paramKey] as string
+                  );
+                  continue;
+                } catch (_e) {
+                  abort(404);
+                }
+              }
+              abort(404);
+            }
+          }
           middlewareResp = await args(myHono, ...Object.values(newParams));
         }
         if (isNull(middlewareResp) && type === "dispatch") {

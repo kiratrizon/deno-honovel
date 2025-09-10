@@ -20,7 +20,6 @@ export interface IHeaderChildRoutes extends IChildRoutes {
   head: number[];
 }
 
-// deno-lint-ignore no-explicit-any
 export type ICallback = (httpObj: HttpHono, ...args: any[]) => Promise<unknown>;
 
 type KeysWithICallback<T> = {

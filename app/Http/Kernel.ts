@@ -8,6 +8,7 @@ import {
 import { HttpKernel } from "Illuminate/Foundation/Http/index.ts";
 import {
   EnsureAcceptsJson,
+  SubstituteBindings,
   ThrottleRequests,
   ValidateSignature,
 } from "Illuminate/Routing/Middleware/index.ts";
@@ -53,10 +54,12 @@ class Kernel extends HttpKernel {
     web: [
       StartSession, // Starts the session for web requests
       VerifyCsrfToken, // Verifies CSRF tokens for web requests
+      SubstituteBindings,
     ],
     api: [
       "throttle:10,1",
       "ensure_accepts_json", // Ensures the request accepts JSON
+      SubstituteBindings,
     ],
   };
 
