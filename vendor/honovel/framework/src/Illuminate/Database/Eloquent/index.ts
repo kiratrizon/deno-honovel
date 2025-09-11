@@ -1,6 +1,6 @@
 import {
   AccessorMap,
-  IBaseModelProperties,
+  ModelAttributes,
   PHPTimestampFormat,
 } from "../../../../../@types/declaration/Base/IBaseModel.d.ts";
 import { Carbon } from "honovel:helpers";
@@ -16,9 +16,7 @@ export function schemaKeys<T extends Record<string, unknown>>(
 ) {
   return keys;
 }
-export abstract class Model<
-  T extends IBaseModelProperties = IBaseModelProperties
-> {
+export abstract class Model<T extends ModelAttributes = ModelAttributes> {
   constructor(attributes: Partial<T> = {}) {
     this.fill(attributes as T);
   }
@@ -363,7 +361,7 @@ export abstract class Model<
   public static on(db?: string): Builder {
     if (!isset(db)) {
       // @ts-ignore //
-      const instanceModel = new this() as Model<IBaseModelProperties>;
+      const instanceModel = new this() as Model<ModelAttributes>;
       db = instanceModel.getConnection();
     }
     return new Builder(
@@ -372,14 +370,14 @@ export abstract class Model<
         fields: ["*"],
       },
       db
-    ) as Builder<IBaseModelProperties, typeof Model<IBaseModelProperties>>;
+    ) as Builder<ModelAttributes, typeof Model<ModelAttributes>>;
   }
 
   public static async create<Attr extends Record<string, unknown>>(
     attributes?: Attr
   ) {
     // @ts-ignore //
-    const instance = new this(attributes) as Model<IBaseModelProperties>;
+    const instance = new this(attributes) as Model<ModelAttributes>;
     await instance.save();
     return instance;
   }
@@ -435,7 +433,7 @@ export abstract class Model<
   public static whereIn(
     column: string,
     values: unknown[]
-  ): Builder<IBaseModelProperties, typeof Model<IBaseModelProperties>> {
+  ): Builder<ModelAttributes, typeof Model<ModelAttributes>> {
     return new Builder({
       model: this,
       fields: ["*"],
@@ -445,7 +443,7 @@ export abstract class Model<
   public static whereNotIn(
     column: string,
     values: unknown[]
-  ): Builder<IBaseModelProperties, typeof Model<IBaseModelProperties>> {
+  ): Builder<ModelAttributes, typeof Model<ModelAttributes>> {
     return new Builder({
       model: this,
       fields: ["*"],
@@ -454,7 +452,7 @@ export abstract class Model<
 
   public static whereNull(
     column: string
-  ): Builder<IBaseModelProperties, typeof Model<IBaseModelProperties>> {
+  ): Builder<ModelAttributes, typeof Model<ModelAttributes>> {
     return new Builder({
       model: this,
       fields: ["*"],
@@ -463,7 +461,7 @@ export abstract class Model<
 
   public static whereNotNull(
     column: string
-  ): Builder<IBaseModelProperties, typeof Model<IBaseModelProperties>> {
+  ): Builder<ModelAttributes, typeof Model<ModelAttributes>> {
     return new Builder({
       model: this,
       fields: ["*"],
@@ -473,7 +471,7 @@ export abstract class Model<
   public static whereBetween(
     column: string,
     values: [unknown, unknown]
-  ): Builder<IBaseModelProperties, typeof Model<IBaseModelProperties>> {
+  ): Builder<ModelAttributes, typeof Model<ModelAttributes>> {
     return new Builder({
       model: this,
       fields: ["*"],
@@ -483,7 +481,7 @@ export abstract class Model<
   public static whereNotBetween(
     column: string,
     values: [unknown, unknown]
-  ): Builder<IBaseModelProperties, typeof Model<IBaseModelProperties>> {
+  ): Builder<ModelAttributes, typeof Model<ModelAttributes>> {
     return new Builder({
       model: this,
       fields: ["*"],
@@ -491,7 +489,7 @@ export abstract class Model<
   }
 
   public static async all<
-    T extends Model<IBaseModelProperties> = Model<IBaseModelProperties>
+    T extends Model<ModelAttributes> = Model<ModelAttributes>
   >(): Promise<T[]> {
     return await new Builder({
       model: this,
@@ -500,7 +498,7 @@ export abstract class Model<
   }
 
   public static async first(): Promise<InstanceType<
-    typeof Model<IBaseModelProperties>
+    typeof Model<ModelAttributes>
   > | null> {
     return await new Builder({
       model: this,
@@ -509,10 +507,10 @@ export abstract class Model<
   }
 
   public static async find<
-    M extends Model<IBaseModelProperties> = Model<IBaseModelProperties>
+    M extends Model<ModelAttributes> = Model<ModelAttributes>
   >(id: string | number): Promise<M | null> {
     // @ts-ignore //
-    const instanceModel = new this() as Model<IBaseModelProperties>;
+    const instanceModel = new this() as Model<ModelAttributes>;
     const primaryKey = instanceModel.getKeyName();
     return (await new Builder({
       model: this,
@@ -523,7 +521,7 @@ export abstract class Model<
   }
 
   public static async findOrFail<
-    M extends Model<IBaseModelProperties> = Model<IBaseModelProperties>
+    M extends Model<ModelAttributes> = Model<ModelAttributes>
   >(id: string | number): Promise<M> {
     const record = await this.find<M>(id);
     if (!record) {
@@ -564,7 +562,7 @@ export abstract class Model<
   }
 
   public hasMany(
-    relationModel: typeof Model<IBaseModelProperties>,
+    relationModel: typeof Model<ModelAttributes>,
     foreignKey?: string
   ) {
     if (!foreignKey) {
@@ -593,7 +591,7 @@ import { Builder as RawBuilder, sqlstring } from "../Query/index.ts";
 import { Factory, HasFactory } from "./Factories/index.ts";
 
 export class Builder<
-  B extends IBaseModelProperties = IBaseModelProperties,
+  B extends ModelAttributes = ModelAttributes,
   T extends typeof Model<B> = typeof Model<B>
 > extends RawBuilder {
   protected model: T;
@@ -629,7 +627,7 @@ export class Builder<
 
 class WithBuilder {
   constructor(
-    private model: typeof Model<IBaseModelProperties>,
+    private model: typeof Model<ModelAttributes>,
     private actions: string[],
     private fields: string[][]
   ) {}
@@ -662,7 +660,7 @@ class WithBuilder {
   private async iterateWith(
     currentLevel: {
       data: Record<string, unknown>[][];
-      model: typeof Model<IBaseModelProperties>;
+      model: typeof Model<ModelAttributes>;
     },
     actions: string[],
     fields: string[][]
@@ -673,17 +671,17 @@ class WithBuilder {
       if (!action) break;
       const nextLevel: {
         data: Record<string, unknown>[][];
-        model: typeof Model<IBaseModelProperties>;
+        model: typeof Model<ModelAttributes>;
       } = {
         data: [],
-        model: null as unknown as typeof Model<IBaseModelProperties>,
+        model: null as unknown as typeof Model<ModelAttributes>,
       };
       for (const items of currentLevel.data) {
         for (const item of items) {
           // @ts-ignore //
           const instance = new currentLevel.model(
             item
-          ) as Model<IBaseModelProperties>;
+          ) as Model<ModelAttributes>;
           if (methodExist(instance, action)) {
             const relatedData = (instance as any)[action]() as Builder;
             if (relatedData instanceof Builder) {

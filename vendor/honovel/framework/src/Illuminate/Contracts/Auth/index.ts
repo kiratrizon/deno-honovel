@@ -5,7 +5,7 @@ import { Carbon } from "honovel:helpers";
 import { JWTAuth } from "../../Auth/index.ts";
 import {
   AccessorMap,
-  IBaseModelProperties,
+  ModelAttributes,
 } from "../../../../../@types/declaration/Base/IBaseModel.d.ts";
 
 type AuthenticatableAttr = {
@@ -28,7 +28,7 @@ type WithAuthAttributes<T> = AuthenticatableAttr & T;
  * including identifier access and remember token management.
  */
 export abstract class Authenticatable<
-  S extends IBaseModelProperties = IBaseModelProperties,
+  S extends ModelAttributes = ModelAttributes,
   T extends Record<string, unknown> = WithAuthAttributes<S>
 > extends Model<T> {
   /**

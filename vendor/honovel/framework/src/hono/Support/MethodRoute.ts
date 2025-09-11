@@ -5,7 +5,7 @@ import {
 } from "../../../../@types/declaration/IRoute.d.ts";
 import { regexObj } from "./FunctionRoute.ts";
 import { Model } from "Illuminate/Database/Eloquent/index.ts";
-import { IBaseModelProperties } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
+import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
 
 type argType = "function" | "controller";
 
@@ -15,7 +15,7 @@ export interface IMyConfig {
   method: string[];
   callback: HttpDispatch | null;
   debugString: string;
-  bindedModel?: typeof Model<IBaseModelProperties>;
+  bindedModel?: typeof Model<ModelAttributes>;
 }
 class MethodRoute implements IMethodRoute {
   private flag: Record<string, unknown> = {

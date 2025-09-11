@@ -10,7 +10,7 @@ import { CookieOptions } from "hono/utils/cookie";
 import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";
 import { Model } from "Illuminate/Database/Eloquent/index.ts";
-import { IBaseModelProperties } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
+import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
 
 declare class HonoRequest {
   /** Common X-Forwarded headers used for proxies */
@@ -202,9 +202,7 @@ declare class HonoRequest {
   ): Promise<Record<keyof T | string, string>>;
 
   /** Bind route parameters to request */
-  public bindRoute(
-    params: Record<string, typeof Model<IBaseModelProperties>>
-  ): void;
+  public bindRoute(params: Record<string, typeof Model<ModelAttributes>>): void;
 }
 
 export default HonoRequest;

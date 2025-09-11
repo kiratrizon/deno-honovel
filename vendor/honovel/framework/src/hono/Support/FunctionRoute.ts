@@ -13,7 +13,7 @@ import { buildRequest } from "../Http/builder.ts";
 import { MiddlewareLikeClass } from "Illuminate/Foundation/Http/index.ts";
 import { SQLError } from "Illuminate/Database/Query/index.ts";
 import { Model } from "Illuminate/Database/Eloquent/index.ts";
-import { IBaseModelProperties } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
+import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
 
 export const regexObj = {
   number: /^\d+$/,
@@ -433,7 +433,7 @@ function generateMiddlewareOrDispatch(
           const params = request.route() as Record<string, string | null>;
           const newParams: Record<
             string,
-            Model<IBaseModelProperties> | string | null
+            Model<ModelAttributes> | string | null
           > = {};
           sequenceParams.forEach((param) => {
             if (keyExist(params, param)) {
@@ -445,7 +445,7 @@ function generateMiddlewareOrDispatch(
           // @ts-ignore //
           const bindedModels = request.bindedModels as Record<
             string,
-            typeof Model<IBaseModelProperties>
+            typeof Model<ModelAttributes>
           >;
           for (const paramKey of Object.keys(newParams)) {
             if (keyExist(bindedModels, paramKey)) {
