@@ -130,6 +130,7 @@ class Server {
   public static async init() {
     await Boot.init();
     this.app = this.generateNewApp({}, true);
+    this.app.use(logger());
 
     const allProviders = config("app").providers || [];
 

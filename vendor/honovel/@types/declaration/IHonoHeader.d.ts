@@ -38,6 +38,13 @@ interface IHonoHeader {
    * @returns The authorization string or null if not found.
    */
   authorization(): string | null;
+
+  /**
+   * Sets a header value.
+   * @param key - The name of the header to set.
+   * @param value - The value to set for the header.
+   */
+  set(key: string, value: string): void;
 }
 
 export default IHonoHeader;

@@ -523,13 +523,17 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
   public static async findOrFail<
     M extends Model<ModelAttributes> = Model<ModelAttributes>
   >(id: string | number): Promise<M> {
-    const record = await this.find<M>(id);
-    if (!record) {
-      throw new Error(
-        `${this.name} with primary key "${id}" not found in the database.`
-      );
+    try {
+      const record = await this.find<M>(id);
+      if (!record) {
+        throw new Error(
+          `${this.name} with primary key "${id}" not found in the database.`
+        );
+      }
+      return record;
+    } catch (error) {
+      throw error;
     }
-    return record;
   }
 
   async save() {

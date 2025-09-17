@@ -456,8 +456,8 @@ function generateMiddlewareOrDispatch(
                     newParams[paramKey] as string
                   );
                   continue;
-                } catch (_e) {
-                  abort(404);
+                } catch (_e: unknown) {
+                  abort(404, (_e as Error).message);
                 }
               }
               abort(404);

@@ -15,7 +15,6 @@ export interface IMyConfig {
   method: string[];
   callback: HttpDispatch | null;
   debugString: string;
-  bindedModel?: typeof Model<ModelAttributes>;
 }
 class MethodRoute implements IMethodRoute {
   private flag: Record<string, unknown> = {
@@ -58,9 +57,6 @@ class MethodRoute implements IMethodRoute {
         }@${ctrlrmethod}\n// Code Referrence \n\n${(
           controllerInstance[ctrlrmethod] as unknown as HttpDispatch
         ).toString()}`;
-        if (isset(controller.bindedModel)) {
-          model = controller.bindedModel;
-        }
       } else {
         debugString += "empty function";
       }
@@ -75,7 +71,6 @@ class MethodRoute implements IMethodRoute {
       method: method.map((m) => m.toLowerCase()),
       callback: myFunc,
       debugString,
-      bindedModel: model,
     };
   }
   public name(name: string): this {
