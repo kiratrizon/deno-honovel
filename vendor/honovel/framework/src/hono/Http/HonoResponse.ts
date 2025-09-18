@@ -4,7 +4,6 @@ import fs from "node:fs";
 type ReturnType = "html" | "json" | "file" | "download" | undefined;
 type ReturnData = {
   html: string | null;
-  // deno-lint-ignore no-explicit-any
   json: Record<string, any> | null;
   file: string | null;
   download: [string] | [string, string] | null;
@@ -112,7 +111,6 @@ class HonoResponse {
    */
   accessData(): {
     html: string | null;
-    // deno-lint-ignore no-explicit-any
     json: Record<string, any> | null;
     file: string | null;
     download: [string] | [string, string] | null;

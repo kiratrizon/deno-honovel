@@ -84,7 +84,6 @@ declare global {
 
   type HttpDispatch = (
     myHono: HttpHono,
-    // deno-lint-ignore no-explicit-any
     ...args: any[]
   ) => Promise<number | null | boolean | string | object | []>;
 

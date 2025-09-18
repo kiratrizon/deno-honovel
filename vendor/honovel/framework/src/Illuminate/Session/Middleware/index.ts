@@ -11,7 +11,7 @@ export class StartSession {
         "_previousUrl",
         request.session.get("_newUrl") || "/"
       );
-      request.session.put("_newUrl", request.url());
+      request.session.put("_newUrl", request.url);
     }
 
     const currentFlash = request.session.get("_flash");

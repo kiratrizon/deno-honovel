@@ -12,7 +12,6 @@ declare class ExpressResponse {
    * @param data The JSON-serializable data.
    * @param statusCode Optional HTTP status code.
    */
-  // deno-lint-ignore no-explicit-any
   json(data: Record<string, any>, statusCode?: number): this;
 
   /**

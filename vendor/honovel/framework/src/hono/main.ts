@@ -126,10 +126,18 @@ class Server {
   public static app: HonoType;
   public static domainPattern: Record<string, Record<string, HonoType>> = {};
 
-  private static routes: Record<string, unknown> = {};
+  public static routes: Record<
+    string,
+    {
+      url: string;
+      requiredParams: string[];
+      optionalParams: string[];
+    }
+  > = {};
   public static async init() {
     await Boot.init();
     this.app = this.generateNewApp({}, true);
+    this.app.use(logger());
 
     const allProviders = config("app").providers || [];
 
@@ -351,6 +359,23 @@ class Server {
                 "dispatch",
                 flagWhere
               );
+              if (flagName !== "") {
+                const fixUri = `${routePrefix == "/" ? "" : routePrefix}${
+                  myConfig.uri
+                }`;
+                if (!keyExist(this.routes, flagName)) {
+                  this.routes[flagName] = {
+                    url: fixUri,
+                    requiredParams: arrangerDispatch.requiredParams,
+                    optionalParams: arrangerDispatch.optionalParams,
+                  };
+                } else {
+                  consoledeno.warn(
+                    `Route name "${flagName}" already exists. Overriding it is not allowed.`
+                  );
+                }
+              }
+
               const returnedDispatch = toDispatch(
                 {
                   args: myConfig.callback as IMyConfig["callback"],
@@ -470,6 +495,27 @@ class Server {
                   flagWhere
                 );
                 const flagName = flag.name || "";
+                if (flagName !== "") {
+                  // combine as and flagName
+                  let finalName = "";
+                  if (!empty(as)) {
+                    finalName += `${as}.`;
+                  }
+                  finalName += flagName;
+                  if (keyExist(this.routes, finalName)) {
+                    consoledeno.warn(
+                      `Route name "${flagName}" already exists. Overriding it is not allowed.`
+                    );
+                  } else {
+                    this.routes[finalName] = {
+                      url: `${routePrefix == "/" ? "" : routePrefix}${
+                        myConfig.uri
+                      }`,
+                      requiredParams: arrangerDispatch.requiredParams,
+                      optionalParams: arrangerDispatch.optionalParams,
+                    };
+                  }
+                }
                 const flagMiddleware = flag.middleware || [];
                 newGroupMiddleware.push(...toMiddleware(flagMiddleware));
                 const allBuilds = [
@@ -550,5 +596,48 @@ class Server {
 }
 
 await Server.init();
+
+globalFn(
+  "route",
+  function (routeName: string, params: Record<string, any> = {}) {
+    if (!keyExist(Server.routes, routeName)) {
+      throw new Error(`Route "${routeName}" not found`);
+    }
+
+    const { url, requiredParams, optionalParams } = Server.routes[routeName];
+
+    // Ensure all required params are present
+    requiredParams.forEach((param) => {
+      if (!keyExist(params, param)) {
+        throw new Error(`Missing required parameter: ${param}`);
+      }
+    });
+
+    let finalUrl = url;
+
+    // Replace required params
+    requiredParams.forEach((param) => {
+      finalUrl = finalUrl.replace(
+        `{${param}}`,
+        encodeURIComponent(params[param])
+      );
+    });
+
+    // Replace optional params if provided, otherwise strip them
+    optionalParams.forEach((param) => {
+      if (keyExist(params, param)) {
+        finalUrl = finalUrl.replace(
+          `{${param}?}`,
+          encodeURIComponent(params[param])
+        );
+      } else {
+        // remove segment with optional param cleanly
+        finalUrl = finalUrl.replace(new RegExp(`/\\{${param}\\?\\}`), "");
+      }
+    });
+
+    return finalUrl;
+  }
+);
 
 export default Server;

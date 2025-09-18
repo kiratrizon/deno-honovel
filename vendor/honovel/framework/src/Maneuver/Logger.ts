@@ -2,7 +2,6 @@ import * as path from "node:path";
 
 class Logger {
   public static log(
-    // deno-lint-ignore no-explicit-any
     value: any,
     destination: string = "",
     identifier: string = ""

@@ -13,11 +13,6 @@ export type AccessorMap<T extends Record<string, unknown>> = {
 
 export type FieldsPopulate<T extends Record<string, any>> = Array<keyof T>;
 
-export type IBaseModelProperties = Record<string, unknown>;
-
-export type ModelWithAttributes<
-  T extends Record<string, unknown>,
-  C extends new (attr: T) => unknown
-> = (new (...args: ConstructorParameters<C>) => InstanceType<C> & T) & C;
+export type ModelAttributes = Record<string, unknown>;
 
 export type CastType = "string" | "int" | "boolean" | "array" | "object";

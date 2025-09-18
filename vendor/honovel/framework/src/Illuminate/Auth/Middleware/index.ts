@@ -104,3 +104,17 @@ export class RequirePassword {
     return next();
   };
 }
+
+export class EnsureEmailIsVerified {
+  public handle: HttpMiddleware = async ({ request }, next, redirectRoute) => {
+    const user = request.user();
+    if (!user || !user.hasVerifiedEmail()) {
+      if (redirectRoute) {
+        return redirect(redirectRoute);
+      }
+      abort(401, "Unauthorized");
+    }
+
+    return next();
+  };
+}

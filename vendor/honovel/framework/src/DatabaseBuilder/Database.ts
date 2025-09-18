@@ -161,7 +161,6 @@ export const sqlReservedWords = [
 // This is for RDBMS like MySQL, PostgreSQL, etc.
 export class Database {
   public static client: MPool | PgPool | undefined;
-  // deno-lint-ignore no-explicit-any
   private static bindings: any[] = [Carbon]; // bindings that needs to use toString() method
   public static connections: Record<
     string,
@@ -416,7 +415,6 @@ export class Database {
     this.doneInit = true;
   }
 
-  // deno-lint-ignore no-explicit-any
   private beforeQuery(query: string, params: any[] = []): [string, any[]] {
     const dbType = this.dbUsed;
 

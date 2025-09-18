@@ -5,7 +5,7 @@ import { Carbon } from "honovel:helpers";
 import { JWTAuth } from "../../Auth/index.ts";
 import {
   AccessorMap,
-  IBaseModelProperties,
+  ModelAttributes,
 } from "../../../../../@types/declaration/Base/IBaseModel.d.ts";
 
 type AuthenticatableAttr = {
@@ -28,7 +28,7 @@ type WithAuthAttributes<T> = AuthenticatableAttr & T;
  * including identifier access and remember token management.
  */
 export abstract class Authenticatable<
-  S extends IBaseModelProperties = IBaseModelProperties,
+  S extends ModelAttributes = ModelAttributes,
   T extends Record<string, unknown> = WithAuthAttributes<S>
 > extends Model<T> {
   /**
@@ -118,7 +118,6 @@ export abstract class BaseGuard {
   }
 
   abstract attempt(
-    // deno-lint-ignore no-explicit-any
     credentials: Record<string, any>,
     remember?: boolean
   ): Promise<boolean | string>;
@@ -324,7 +323,6 @@ export class SessionGuard extends BaseGuard {
     // @ts-ignore //
     const checkUser = request.session.get(sessguardKey) as Record<
       string,
-      // deno-lint-ignore no-explicit-any
       any
     > | null;
     if (checkUser) {
@@ -354,7 +352,6 @@ export class SessionGuard extends BaseGuard {
   }
 
   async attempt(
-    // deno-lint-ignore no-explicit-any
     credentials: Record<string, any>,
     remember: boolean = false
   ): Promise<boolean> {
@@ -474,7 +471,6 @@ export class TokenGuard extends BaseGuard {
     return true; // Placeholder
   }
 
-  // deno-lint-ignore no-explicit-any
   async attempt(credentials: Record<string, any>): Promise<string | false> {
     const provider = TokenGuard.authConf?.guards?.[this.guardName]?.provider;
     const selectedProvider = TokenGuard.authConf?.providers?.[provider];

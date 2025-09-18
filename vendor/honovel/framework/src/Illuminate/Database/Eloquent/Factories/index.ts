@@ -4,7 +4,6 @@ import { Model } from "../index.ts";
 
 export abstract class Factory {
   protected faker = FakerFactory.create();
-  // deno-lint-ignore no-explicit-any
   protected _model?: typeof Model<any>;
   protected _count = 1;
   /**
@@ -97,7 +96,6 @@ export abstract class Factory {
 
 export class HasFactory {
   public static async getFactoryByModel<
-    // deno-lint-ignore no-explicit-any
     T extends typeof Model<any> = typeof Model<any>
   >(model: T): Promise<Factory> {
     const factoryPath = databasePath(`factories/${model.name}Factory.ts`);

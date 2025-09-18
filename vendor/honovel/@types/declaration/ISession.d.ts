@@ -44,4 +44,9 @@ export declare class ISession {
    * Get the session ID.
    */
   getId(): string | null;
+
+  /**
+   * Regenerate the CSRF token.
+   */
+  regenerateToken(): void;
 }

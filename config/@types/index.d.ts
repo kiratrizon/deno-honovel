@@ -92,7 +92,6 @@ export interface AppConfig {
   providers?: (typeof ServiceProvider)[];
 }
 
-// deno-lint-ignore no-explicit-any
 type AuthenticatableConstructor = typeof Authenticatable<any>;
 
 /**

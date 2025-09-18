@@ -14,7 +14,6 @@ type SessionEncrypt = {
 };
 
 // Recursive type to exclude functions from any nested property
-// deno-lint-ignore no-explicit-any
 type NonFunction<T> = T extends (...args: any[]) => any
   ? never // exclude functions
   : T extends object
@@ -23,7 +22,6 @@ type NonFunction<T> = T extends (...args: any[]) => any
 
 export function honoSession(): MiddlewareHandler {
   return async (c: MyContext, next) => {
-    // deno-lint-ignore no-explicit-any
     const value: Record<string, NonFunction<any>> = {};
     c.set("session", new Session(value));
     await next();
@@ -63,7 +61,6 @@ export class SessionModifier {
   #c: MyContext;
   #started = false;
   #sessionId = "";
-  // deno-lint-ignore no-explicit-any
   #value: Record<string, NonFunction<any>> = {};
   constructor(c: MyContext) {
     this.#c = c;

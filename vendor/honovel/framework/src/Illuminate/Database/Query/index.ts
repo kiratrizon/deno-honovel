@@ -22,7 +22,6 @@ type whereBetweenParams = [WherePrimitive | SQLRaw, WherePrimitive | SQLRaw];
 
 export type sqlstring = SQLRaw | Builder | string;
 type Raw = SQLRaw | string;
-// deno-lint-ignore no-explicit-any
 type WherePrimitive = Exclude<any, undefined>;
 type WhereValue = WherePrimitive | WherePrimitive[];
 type WhereOperator =
@@ -134,7 +133,6 @@ export class WhereInterpolator {
     }
     columnOrFn = this.database.quoteIdentifier(columnOrFn as string);
     let column: string;
-    // deno-lint-ignore no-explicit-any
     let value: any;
     let operator: WhereOperator = "=";
     if (!isset(valueArg)) {

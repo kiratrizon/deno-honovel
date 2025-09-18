@@ -18,6 +18,8 @@ import { CookieOptions } from "hono/utils/cookie";
 import { deleteCookie } from "hono/cookie";
 import { SessionModifier } from "HonoHttp/HonoSession.ts";
 import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
+import { Model } from "Illuminate/Database/Eloquent/index.ts";
+import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
 
 class HonoRequest extends Macroable {
   public static HEADER_X_FORWARDED_ALL = [
@@ -34,6 +36,7 @@ class HonoRequest extends Macroable {
   #routeParams: Record<string, string | null> = {};
   #built: boolean = false;
   #sessionMod: SessionModifier;
+  readonly #bindedModels: Record<string, typeof Model<ModelAttributes>> = {};
   // @ts-ignore //
   #server: SERVER = {};
   constructor(c: MyContext) {
@@ -255,7 +258,7 @@ class HonoRequest extends Macroable {
     return this.#c.req.path || "";
   }
 
-  public url(): string {
+  public get url(): string {
     return this.#c.req.url || "";
   }
 
@@ -460,7 +463,6 @@ class HonoRequest extends Macroable {
   }
 
   public flash(key: string, value: unknown): void {
-    // deno-lint-ignore no-explicit-any
     this.#c.get("session").flash(key as any, value);
   }
 
@@ -535,6 +537,14 @@ class HonoRequest extends Macroable {
 
   protected resetRoute(params = {}): void {
     this.#routeParams = params;
+  }
+
+  public bindRoute(params: Record<string, typeof Model<ModelAttributes>>) {
+    Object.assign(this.#bindedModels, params);
+  }
+
+  get bindedModels(): Record<string, typeof Model<ModelAttributes>> {
+    return this.#bindedModels;
   }
 }
 
