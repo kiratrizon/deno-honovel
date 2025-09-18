@@ -6,6 +6,7 @@
     "@db/mongo": "jsr:@db/mongo@^0.34.0",
     "@db/pgsql": "https://deno.land/x/postgres@v0.17.0/mod.ts",
     "http":"node:http",
+    "@denosaurs/plug": "jsr:@denosaurs/plug@1.1.0",
     "buffer": "node:buffer",
     "@avroit/memcached": "jsr:@avroit/memcached@^0.0.4",
     "@aws-sdk/client-dynamodb": "npm:@aws-sdk/client-dynamodb@^3.862.0",
