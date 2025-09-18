@@ -9,7 +9,6 @@ import { AbortError, DDError } from "../../Maneuver/HonovelErrors.ts";
 import util from "node:util";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 import { myError } from "../Http/builder.ts";
-import { buildRequest } from "../Http/builder.ts";
 import { MiddlewareLikeClass } from "Illuminate/Foundation/Http/index.ts";
 import { SQLError } from "Illuminate/Database/Query/index.ts";
 import { Model } from "Illuminate/Database/Eloquent/index.ts";

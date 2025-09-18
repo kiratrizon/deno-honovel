@@ -3,7 +3,6 @@ import {
   ModelAttributes,
   PHPTimestampFormat,
 } from "../../../../../@types/declaration/Base/IBaseModel.d.ts";
-import { Carbon } from "honovel:helpers";
 import { DB } from "../../Support/Facades/index.ts";
 
 export type ModelWithAttributes<

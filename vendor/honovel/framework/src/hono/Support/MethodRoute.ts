@@ -4,8 +4,6 @@ import {
   IMFlagConfig,
 } from "../../../../@types/declaration/IRoute.d.ts";
 import { regexObj } from "./FunctionRoute.ts";
-import { Model } from "Illuminate/Database/Eloquent/index.ts";
-import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
 
 type argType = "function" | "controller";
 
@@ -40,7 +38,6 @@ class MethodRoute implements IMethodRoute {
     let debugString: string = `// ${method
       .map((m) => m.toUpperCase())
       .join(", ")} ${uri} \n`;
-    let model;
     if (isFunction(arg)) {
       this.type = "function";
       myFunc = arg as HttpDispatch;
