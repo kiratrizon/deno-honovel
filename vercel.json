@@ -1,8 +1,8 @@
 {
   "builds": [
-    { "src": "api/index.ts", "use": "vercel-deno@3.1.1" }
+    { "src": "index.ts", "use": "vercel-deno@3.1.1" }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "api/index.ts" }
+    { "src": "/(.*)", "dest": "index.ts" }
   ]
 }
