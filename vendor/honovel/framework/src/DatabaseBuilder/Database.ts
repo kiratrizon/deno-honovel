@@ -6,7 +6,7 @@ import MySQL from "./MySQL.ts";
 // postgresql
 import { Pool as PgPool } from "@db/pgsql";
 import PgSQL from "./PostgreSQL.ts";
-import { Carbon } from "honovel:helpers";
+import { Carbon } from "helpers";
 import {
   MySQLConnectionConfigRaw,
   SupportedDrivers,

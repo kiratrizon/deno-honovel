@@ -8,7 +8,7 @@
 // mongodb
 // null
 
-import { Carbon } from "honovel:helpers";
+import { Carbon } from "helpers";
 import {
   CacheDriver,
   MongoConnectionConfig,

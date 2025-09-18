@@ -1,6 +1,6 @@
 import { ResponseType } from "axios";
-import { ConfigItems } from "../../../config/@types/index.d.ts";
-import { Carbon } from "honovel:helpers";
+import { ConfigItems } from "configs/@types/index.d.ts";
+import { Carbon } from "helpers";
 
 export {};
 export interface IFetchDataOption {

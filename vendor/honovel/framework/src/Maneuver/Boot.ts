@@ -1,6 +1,6 @@
 import { Database } from "Database";
 import { Auth, Cache } from "Illuminate/Support/Facades/index.ts";
-import { Carbon } from "honovel:helpers";
+import { Carbon } from "helpers";
 import { SessionInitializer, SessionModifier } from "HonoHttp/HonoSession.ts";
 import { CookieKeysCache } from "HonoHttp/HonoCookie.ts";
 import HonoView from "HonoHttp/HonoView.ts";

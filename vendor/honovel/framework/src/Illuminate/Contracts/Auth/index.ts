@@ -1,7 +1,7 @@
 import { Model } from "Illuminate/Database/Eloquent/index.ts";
 import { DB, Hash } from "Illuminate/Support/Facades/index.ts";
 import { AuthConfig } from "configs/@types/index.d.ts";
-import { Carbon } from "honovel:helpers";
+import { Carbon } from "helpers";
 import { JWTAuth } from "../../Auth/index.ts";
 import {
   AccessorMap,

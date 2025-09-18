@@ -664,7 +664,7 @@ globalFn(
 
 import axios, { AxiosRequestConfig, AxiosError } from "axios";
 import { IFetchDataOption } from "../../../@types/index.d.ts";
-import { Carbon } from "honovel:helpers";
+import { Carbon } from "helpers";
 import { DB } from "Illuminate/Support/Facades/index.ts";
 
 globalFn(
