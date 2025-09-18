@@ -1160,9 +1160,9 @@ export class Gate {
   }
 }
 
-import { hmac } from "jsr:@noble/hashes@1.8.0/hmac";
+import { hmac } from "hmac";
 import { Buffer } from "buffer";
-import { sha256 } from "jsr:@noble/hashes@1.8.0/sha2";
+import { sha256 } from "sha2";
 
 export class URL {
   private static signed(

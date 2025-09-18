@@ -1,8 +1,8 @@
 import { CookieOptions } from "hono/utils/cookie";
 import { getCookie, setCookie } from "hono/cookie";
 import { Buffer } from "buffer";
-import { hmac } from "jsr:@noble/hashes@1.8.0/hmac";
-import { sha256 } from "jsr:@noble/hashes@1.8.0/sha2";
+import { hmac } from "hmac";
+import { sha256 } from "sha2";
 
 // Utility to convert a Uint8Array to a base64url string
 function toBase64Url(bytes: Uint8Array): string {
