@@ -10,13 +10,5 @@
       "include": ["require-await", "no-this-alias", "no-explicit-any"],
       "exclude": ["require-await", "no-this-alias", "no-explicit-any"]
     }
-  },
-  "compilerOptions": {
-    "types": [
-      "./vendor/honovel/@types/index.d.ts",
-      "./vendor/honovel/@types/hono-index.d.ts",
-      "./vendor/honovel/@types/vars.d.ts",
-      "./vendor/honovel/@types/Built-in-env.d.ts"
-    ]
   }
 }
