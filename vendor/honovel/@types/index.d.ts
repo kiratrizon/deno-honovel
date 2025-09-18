@@ -531,4 +531,12 @@ declare global {
     denoVersion: string;
     honovelVersion: string;
   };
+
+  const consoledeno: {
+    error: (msg: any) => void;
+    warn: (msg: any) => void;
+    info: (msg: any) => void;
+    success: (msg: any) => void;
+    debug: (msg: any) => void;
+  };
 }

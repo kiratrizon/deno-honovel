@@ -719,6 +719,14 @@ globalFn("frameworkVersion", () => {
   };
 });
 
+define("consoledeno", {
+  error: (msg: any) => console.error(`\x1b[31m[x] Error: ${msg}\x1b[0m`), // Red
+  warn: (msg: any) => console.warn(`\x1b[33m[!] Warning: ${msg}\x1b[0m`), // Yellow
+  info: (msg: any) => console.info(`\x1b[34m[i] Info: ${msg}\x1b[0m `), // Blue
+  success: (msg: any) => console.log(`\x1b[32m[✓] Success: ${msg}\x1b[0m `), // Green
+  debug: (msg: any) => console.debug(`\x1b[90m[>] Debug: ${msg}\x1b[0m `), // Grey
+});
+
 // import process from "node:process";
 
 // process.on("warning", (warning) => {
