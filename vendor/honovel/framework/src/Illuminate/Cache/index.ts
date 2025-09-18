@@ -829,7 +829,7 @@ class DynamoDBStore extends AbstractStore {
 }
 
 import MongoDB from "../../DatabaseBuilder/MongoDB.ts";
-import { Collection, Document } from "@db/mongo";
+import { Collection, Document } from "mongodb";
 
 class MongoDBStore extends AbstractStore {
   private db: MongoDB;
