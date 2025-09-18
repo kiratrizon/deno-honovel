@@ -1161,7 +1161,6 @@ export class Gate {
 }
 
 import { hmac } from "hmac";
-import { Buffer } from "buffer";
 import { sha256 } from "sha2";
 
 export class URL {
@@ -1195,11 +1194,17 @@ export class URL {
     const key = new TextEncoder().encode(secret);
     const msg = new TextEncoder().encode(unsignedUrl);
     const signatureBytes = hmac(sha256, key, msg);
-    const signature = Buffer.from(signatureBytes).toString("hex");
+    const signature = this.toHex(signatureBytes);
 
     url.searchParams.set("signature", signature);
 
     return url.toString();
+  }
+
+  private static toHex(bytes: Uint8Array): string {
+    return Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
   }
 
   public static signedRoute(
@@ -1241,7 +1246,7 @@ export class URL {
     // try verifying against all keys
     for (const key of keys) {
       const keyBytes = new TextEncoder().encode(key);
-      const expected = Buffer.from(hmac(sha256, keyBytes, msg)).toString("hex");
+      const expected = this.toHex(hmac(sha256, keyBytes, msg));
       if (signature === expected) {
         return true; // ✅ valid with this key
       }

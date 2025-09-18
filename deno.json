@@ -3,10 +3,9 @@
     "smelt": "deno run -A vendor/bin/novel"
   },
   "imports": {
-    "@db/pgsql": "https://deno.land/x/postgres@v0.17.0/mod.ts",
     "http":"node:http",
+    "@db/pgsql": "https://deno.land/x/postgres@v0.17.0/mod.ts",
     "@denosaurs/plug": "jsr:@denosaurs/plug@1.1.0",
-    "buffer": "node:buffer",
     "@avroit/memcached": "jsr:@avroit/memcached@^0.0.4",
     "@aws-sdk/client-dynamodb": "npm:@aws-sdk/client-dynamodb@^3.862.0",
     "@cliffy/command": "jsr:@cliffy/command@^1.0.0-rc.8",
