@@ -12,4 +12,3 @@ mydocker
 /storage/logs/*
 !/storage/logs/.gitignore
 node_modules
-deno.lock
