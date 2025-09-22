@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { toFileUrl } from "testPath/mod.ts";
+import { toFileUrl } from "jsr:@std/path@0.224.0";
 import { load } from "dotenv";
 try {
   const envObj = (await import("../../../../../environment.ts")).default;
