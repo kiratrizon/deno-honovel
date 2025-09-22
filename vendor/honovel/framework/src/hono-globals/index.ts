@@ -1,4 +1,4 @@
-import * as path from "path";
+import * as path from "node:path";
 import { toFileUrl } from "testPath/mod.ts";
 import { load } from "dotenv";
 try {

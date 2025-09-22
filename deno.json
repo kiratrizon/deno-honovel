@@ -44,7 +44,7 @@
     "hmac":"jsr:@noble/hashes@1.8.0/hmac",
     "sha2":"jsr:@noble/hashes@1.8.0/sha2",
     "dotenv":"https://deno.land/std@0.224.0/dotenv/mod.ts",
-    "path":"https://deno.land/std@0.224.0/path/mod.ts",
+    "node:path":"https://deno.land/std@0.224.0/path/mod.ts",
     "testPath/":"https://deno.land/std@0.224.0/path/",
     "multiParser2":"https://deno.land/x/multiparser@0.114.0/lib/multiParserV2.ts",
     "deno-redis":"https://deno.land/x/redis@v0.29.4/mod.ts",

@@ -3,7 +3,7 @@ import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 // import { secureHeaders } from "hono/secure-headers";
 import { serveStatic } from "hono/deno";
-import * as path from "path";
+import * as path from "node:path";
 
 import { Hono, MiddlewareHandler, Next } from "hono";
 import Boot from "../Maneuver/Boot.ts";
