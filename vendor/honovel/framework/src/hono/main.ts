@@ -1,6 +1,5 @@
 import "../hono-globals/hono-index.ts";
 import { logger } from "hono/logger";
-import { cors } from "hono/cors";
 // import { secureHeaders } from "hono/secure-headers";
 import { serveStatic } from "hono/deno";
 import * as path from "node:path";
@@ -227,27 +226,6 @@ class Server {
     });
 
     if (withDefaults) {
-      const corsConfig = config("cors") || {};
-      const corsOptions = {
-        origin: (origin: string) => {
-          if (!origin) return null;
-          if (corsConfig.allowed_origins?.includes("*")) return "*";
-          if (corsConfig.allowed_origins?.includes(origin)) return origin;
-          return null;
-        },
-        allowMethods: corsConfig.allowed_methods,
-        allowHeaders: corsConfig.allowed_headers,
-        exposeHeaders: corsConfig.exposed_headers,
-        maxAge: corsConfig.max_age,
-        credentials: corsConfig.supports_credentials,
-      };
-
-      const paths = corsConfig.paths || [];
-
-      paths.forEach((path) => {
-        app.use(path, cors(corsOptions));
-      });
-
       app.use(...myStaticDefaults);
       app.use("*", async (c, next) => {
         c.set("subdomain", {});
