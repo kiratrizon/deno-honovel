@@ -737,10 +737,10 @@ export const dbCloser = () => {
           pool
             .end()
             .then(() => {
-              console.log(`Closed ${driver} pool successfully.`);
+              consoledeno.success(`Closed ${driver} pool successfully.`);
             })
             .catch((err: Error) => {
-              console.error(`Error closing ${driver} pool:`, err);
+              consoledeno.error(`Error closing ${driver} pool:`, err);
             });
         }
         break;
