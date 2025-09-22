@@ -3,7 +3,7 @@ import "./index.ts";
 import HonoView from "HonoHttp/HonoView.ts";
 import { AbortError, DDError } from "../Maneuver/HonovelErrors.ts";
 import HonoRedirect from "HonoHttp/HonoRedirect.ts";
-import HonoResponseV2 from "HonoHttp/HonoResponseV2.ts";
+import HonoResponseV2 from "HonoHttp/HonoResponse.ts";
 
 globalFn("response", function (html = null, status = 200) {
   if (!isset(html)) {

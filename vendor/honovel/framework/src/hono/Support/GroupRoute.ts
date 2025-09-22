@@ -2,7 +2,7 @@ import {
   IGroupInstance,
   IHeaderChildRoutes,
 } from "../../../../@types/declaration/IRoute.d.ts";
-import * as path from "node:path";
+import * as path from "https://deno.land/std@0.224.0/path/mod.ts";
 import { regexObj, URLArranger } from "./FunctionRoute.ts";
 
 class Group {

@@ -266,7 +266,7 @@ declare global {
    * @param fileString - Relative file path from the base path.
    * @returns `true` if the file exists, otherwise `false`.
    */
-  function pathExist(fileString?: string): boolean;
+  function pathExist(fileString?: string): Promise<boolean>;
 
   /**
    * Writes the provided content to a file relative to the base path.
@@ -533,10 +533,10 @@ declare global {
   };
 
   const consoledeno: {
-    error: (msg: any) => void;
-    warn: (msg: any) => void;
-    info: (msg: any) => void;
-    success: (msg: any) => void;
-    debug: (msg: any) => void;
+    error: (...msg: any) => void;
+    warn: (...msg: any) => void;
+    info: (...msg: any) => void;
+    success: (...msg: any) => void;
+    debug: (...msg: any) => void;
   };
 }

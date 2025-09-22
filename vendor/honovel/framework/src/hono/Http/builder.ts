@@ -167,7 +167,7 @@ export async function myError(
   }
 
   // this is for html
-  if (!pathExist(viewPath(`error/${code}.edge`))) {
+  if (!(await pathExist(viewPath(`error/${code}.edge`)))) {
     const content = getFileContents(honovelPath("hono/defaults/abort.stub"));
     const finalContent = content
       .replace(/{{ code }}/g, code.toString())

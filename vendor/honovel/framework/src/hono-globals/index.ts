@@ -1,4 +1,4 @@
-import * as path from "node:path";
+import * as path from "https://deno.land/std@0.224.0/path/mod.ts";
 import * as url from "node:url";
 import { load } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
 try {
@@ -237,17 +237,29 @@ define("IS_LOCAL", isLocal, false);
 
 globalFn(
   "writeFile",
-  function (fileString = "", content = "", encoding = "utf8") {
+  function (
+    fileString = "",
+    content = "",
+    encoding: "utf8" | "utf16le" = "utf8"
+  ) {
     if (!fileString) {
       console.warn("writeFile: Filename is required but not provided.");
       return;
     }
 
     try {
-      fs.writeFileSync(fileString, content, encoding);
+      if (encoding === "utf8") {
+        // Best for plain text
+        Deno.writeTextFileSync(fileString, content);
+      } else {
+        // For other encodings, convert manually
+        const encoder = new TextEncoder(); // Always UTF-8
+        const data = encoder.encode(content);
+        Deno.writeFileSync(fileString, data);
+      }
     } catch (err) {
       console.error(`writeFile: Failed to write to ${fileString}`, err);
-      // No throw
+      // no throw, just log
     }
   }
 );
@@ -358,22 +370,38 @@ globalFn("ucFirst", function (str: string) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 });
 
-import fs from "node:fs";
-globalFn("pathExist", function (fileString: string = "") {
-  if (fileString === "") {
-    return false;
+globalFn(
+  "pathExist",
+  async function (fileString: string = ""): Promise<boolean> {
+    if (fileString === "") {
+      return false;
+    }
+    try {
+      await Deno.stat(fileString);
+      return true;
+    } catch (err) {
+      if (err instanceof Deno.errors.NotFound) {
+        return false;
+      }
+      throw err;
+    }
   }
-  const returndata = fs.existsSync(fileString);
-  return returndata;
-});
+);
 
 globalFn("makeDir", function (dirString = "") {
   if (dirString === "") {
     return;
   }
-  // Check if the directory exists, and create it if it doesn't
-  if (!fs.existsSync(dirString)) {
-    fs.mkdirSync(dirString, { recursive: true });
+
+  try {
+    // Always recursive, same as Node's { recursive: true }
+    Deno.mkdirSync(dirString, { recursive: true });
+  } catch (err) {
+    if (err instanceof Deno.errors.AlreadyExists) {
+      // Directory already exists → ignore
+      return;
+    }
+    console.error(`makeDir: Failed to create directory ${dirString}`, err);
   }
 });
 
@@ -383,21 +411,21 @@ globalFn("appendFile", function (fileString = "", content = "") {
   }
 
   try {
-    // Append content to the file, creating it if it doesn't exist
-    fs.appendFileSync(fileString, content, "utf8");
+    // Append content, create file if it doesn't exist
+    Deno.writeTextFileSync(fileString, content, { append: true });
   } catch (_e) {
     log(_e, "error", arguments.callee.name);
-    return; // Return if there's an error, no exception thrown
+    return; // Swallow error, like your Node version
   }
 });
 
-globalFn("getFileContents", function (fileString = "") {
+globalFn("getFileContents", function (fileString = ""): string {
   if (fileString === "") {
     return ""; // Return empty string if no filename is provided
   }
   try {
     // Read and return the file content as a UTF-8 string
-    return fs.readFileSync(fileString, "utf8");
+    return Deno.readTextFileSync(fileString);
   } catch (_e) {
     // log(_e, "error", arguments.callee.name);
     return ""; // Return empty string if there's an error
@@ -411,19 +439,6 @@ globalFn("readFile", (filePath: string = ""): Uint8Array => {
 
   return Deno.readFileSync(filePath); // Read file as Uint8Array
 });
-
-import Logger from "HonoLogger";
-
-globalFn(
-  "log",
-  function (
-    value: any,
-    destination: string = "debug",
-    identifier: string = ""
-  ) {
-    Logger.log(value, destination, identifier);
-  }
-);
 
 import pluralize from "pluralize";
 globalFn("generateTableName", function (entity: string = "") {
@@ -720,12 +735,21 @@ globalFn("frameworkVersion", () => {
 });
 
 define("consoledeno", {
-  error: (msg: any) => console.error(`\x1b[31m[x] Error: ${msg}\x1b[0m`), // Red
-  warn: (msg: any) => console.warn(`\x1b[33m[!] Warning: ${msg}\x1b[0m`), // Yellow
-  info: (msg: any) => console.info(`\x1b[34m[i] Info: ${msg}\x1b[0m `), // Blue
-  success: (msg: any) => console.log(`\x1b[32m[✓] Success: ${msg}\x1b[0m `), // Green
-  debug: (msg: any) => console.debug(`\x1b[90m[>] Debug: ${msg}\x1b[0m `), // Grey
+  error: (...msg: any) => console.error(`\x1b[31m[x] Error: \x1b[0m`, ...msg), // Red
+  warn: (...msg: any) => console.warn(`\x1b[33m[!] Warning: \x1b[0m`, ...msg), // Yellow
+  info: (...msg: any) => console.info(`\x1b[34m[i] Info: \x1b[0m`, ...msg), // Blue
+  success: (...msg: any) => console.log(`\x1b[32m[✓] Success: \x1b[0m`, ...msg), // Green
+  debug: (...msg: any) => console.debug(`\x1b[90m[>] Debug: \x1b[0m`, ...msg), // Grey
 });
+
+globalFn(
+  "log",
+  function (
+    value: any,
+    destination: string = "debug",
+    identifier: string = ""
+  ) {}
+);
 
 // import process from "node:process";
 

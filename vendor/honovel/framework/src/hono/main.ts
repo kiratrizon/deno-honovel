@@ -3,8 +3,7 @@ import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 // import { secureHeaders } from "hono/secure-headers";
 import { serveStatic } from "hono/deno";
-import fs from "node:fs";
-import * as path from "node:path";
+import * as path from "https://deno.land/std@0.224.0/path/mod.ts";
 
 import { Hono, MiddlewareHandler, Next } from "hono";
 import Boot from "../Maneuver/Boot.ts";
@@ -136,7 +135,7 @@ class Server {
   > = {};
   public static async init() {
     await Boot.init();
-    this.app = this.generateNewApp({}, true);
+    this.app = await this.generateNewApp({}, true);
     this.app.use(logger());
 
     const allProviders = config("app").providers || [];
@@ -193,10 +192,10 @@ class Server {
     this.endInit();
   }
 
-  private static generateNewApp(
+  private static async generateNewApp(
     conf?: Record<string, unknown>,
     withDefaults: boolean = false
-  ): HonoType {
+  ): Promise<HonoType> {
     let app: HonoType;
     if (isset(conf) && !empty(conf)) {
       app = new this.Hono(conf);
@@ -209,7 +208,7 @@ class Server {
       app.get(`/${url}`, async () => {
         const checkFile = publicPath(url);
 
-        if (pathExist(checkFile)) {
+        if (await pathExist(checkFile)) {
           const fileContent = await Deno.readFile(checkFile);
           const contentType = url.endsWith(".ico")
             ? "image/x-icon"
@@ -286,9 +285,13 @@ class Server {
 
   private static async loadAndValidateRoutes() {
     const routePath = basePath("routes");
-    const routeFiles = fs
-      .readdirSync(routePath)
-      .filter((file) => file.endsWith(".ts"));
+    const routeFiles: string[] = [];
+
+    for await (const entry of Deno.readDir(routePath)) {
+      if (entry.isFile && entry.name.endsWith(".ts")) {
+        routeFiles.push(entry.name);
+      }
+    }
     const webIndex = routeFiles.indexOf("web.ts");
     let webmts = false;
     if (webIndex !== -1) {
@@ -316,7 +319,7 @@ class Server {
       const filePath = basePath(`routes/${file}`);
       if (isset(Route)) {
         Server.domainPattern[key] = {};
-        const byEndpointsRouter = this.generateNewApp();
+        const byEndpointsRouter = await this.generateNewApp();
         const routePrefix = this.applyMainMiddleware(
           filePath,
           byEndpointsRouter
@@ -352,7 +355,7 @@ class Server {
 
               const myConfig = routeUsed.config;
               const arrangerDispatch = URLArranger.urlCombiner(myConfig.uri);
-              const newApp = this.generateNewApp();
+              const newApp = await this.generateNewApp();
 
               const splittedUri = URLArranger.generateOptionalParamRoutes(
                 arrangerDispatch.string,
@@ -409,7 +412,7 @@ class Server {
             for (const groupKey of groupKeys) {
               let hasDomain = false;
               let domainName = "";
-              const myNewGroup = this.generateNewApp();
+              const myNewGroup = await this.generateNewApp();
 
               const myGroup = groups[groupKey];
               // @ts-ignore //
@@ -447,10 +450,8 @@ class Server {
                 myNewGroup.use("*", domainGroup(domainName, domainArranger));
                 domainParam.push(...domainArranger.sequenceParams);
                 hasDomain = true;
-                Server.domainPattern[key][domainName] = this.generateNewApp(
-                  {},
-                  true
-                );
+                Server.domainPattern[key][domainName] =
+                  await this.generateNewApp({}, true);
                 groupMiddleware.push(regexToHono(where, domainParam));
               }
               let newName = "";
@@ -539,7 +540,7 @@ class Server {
                   );
                 }
               });
-              const newAppGroup = this.generateNewApp();
+              const newAppGroup = await this.generateNewApp();
               const generatedopts = URLArranger.generateOptionalParamRoutes(
                 arrangerGroup.string,
                 "group",

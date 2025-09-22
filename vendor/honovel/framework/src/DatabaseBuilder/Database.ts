@@ -871,7 +871,9 @@ export class DatabaseHelper {
         return result.length > 0;
       }
       case "sqlite": {
-        return pathExist(this.dbConfig.connections[this.connection].database);
+        return await pathExist(
+          this.dbConfig.connections[this.connection].database
+        );
       }
       case "sqlsrv": {
         // const sql = `SELECT name FROM sys.databases WHERE name = @dbName`;

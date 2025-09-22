@@ -1,5 +1,5 @@
 import type { MiddlewareHandler } from "hono";
-import path from "node:path";
+import * as path from "https://deno.land/std@0.224.0/path/mod.ts";
 import ChildKernel from "./ChildKernel.ts";
 import HonoClosure from "../Http/HonoClosure.ts";
 import { IMyConfig } from "./MethodRoute.ts";
@@ -202,12 +202,9 @@ export class URLArranger {
       return type == "dispatch" && !r.endsWith("/") ? [r, `${r}/`] : [r];
     });
 
-    // console.log(finalMapping, where);
     const constrainedMapping = finalMapping.map((route) => {
       return applyConstraintsWithOptional(route, where);
     });
-
-    // console.log(constrainedMapping);
 
     return constrainedMapping;
   }
@@ -509,7 +506,6 @@ function generateMiddlewareOrDispatch(
             resp = await myError(c, e.code as ContentfulStatusCode, data);
           }
         } else if (e instanceof SQLError) {
-          // console.log(e);
           if (request.expectsJson()) {
             resp = c.json(
               {
@@ -549,7 +545,7 @@ function generateMiddlewareOrDispatch(
               );
             }
           } else {
-            console.log(populatedError);
+            consoledeno.error(populatedError);
             resp = c.html("Internal server error", 500);
           }
         } else {
@@ -578,7 +574,7 @@ function generateMiddlewareOrDispatch(
         if (!isset(env("DENO_DEPLOYMENT_ID"))) {
           return c.html(debuggingPurpose, 500);
         }
-        log(
+        consoledeno.debug(
           debuggingPurpose,
           "error",
           `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(

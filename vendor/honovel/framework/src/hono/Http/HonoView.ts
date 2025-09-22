@@ -25,7 +25,7 @@ class HonoView {
     };
 
     const templatePath = viewPath(`${viewName.split(".").join("/")}.edge`);
-    if (!pathExist(templatePath)) {
+    if (!(await pathExist(templatePath))) {
       throw new Error(`View not found: ${viewName}`);
     }
     const rendered = await HonoView.#viewEngine.render(

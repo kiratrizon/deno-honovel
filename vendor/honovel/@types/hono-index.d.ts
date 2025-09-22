@@ -13,7 +13,7 @@ import { HonoTypeImport } from "./declaration/imain.d.ts";
 
 import HttpHono from "HttpHono";
 import IRedirectResponse from "./declaration/IHonoRedirect.d.ts";
-import HonoResponseV2, { HTMLResponse } from "HonoHttp/HonoResponseV2.ts";
+import HonoResponseV2, { HTMLResponse } from "HonoHttp/HonoResponse.ts";
 
 export {};
 declare global {

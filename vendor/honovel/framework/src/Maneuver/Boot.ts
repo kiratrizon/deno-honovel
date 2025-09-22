@@ -27,7 +27,7 @@ class Boot {
 
   static async finalInit() {
     try {
-      SessionModifier.init();
+      await SessionModifier.init();
       await SessionInitializer.init();
       CookieKeysCache.init();
       HonoView.init();

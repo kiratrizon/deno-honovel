@@ -8,7 +8,7 @@ import { Confirm } from "@cliffy/prompt";
 const myCommand = new Command();
 
 import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
-import path from "node:path";
+import * as path from "https://deno.land/std@0.224.0/path/mod.ts";
 import { envs } from "../../../../../environment.ts";
 import { PreventRequestDuringMaintenance } from "Illuminate/Foundation/Http/Middleware/index.ts";
 import { Encrypter } from "Illuminate/Encryption/index.ts";
@@ -18,12 +18,12 @@ import Boot from "./Boot.ts";
 
 await Boot.init();
 class MyArtisan {
-  constructor() { }
+  constructor() {}
   private async createConfig(options: { force?: boolean }, name: string) {
     const stubPath = honovelPath("stubs/ConfigDefault.stub");
     const stubContent = getFileContents(stubPath);
     if (!options.force) {
-      if (pathExist(basePath(`config/${name}.ts`))) {
+      if (await pathExist(basePath(`config/${name}.ts`))) {
         console.error(
           `❌ Config file ${basePath(`config/${name}.ts`)} already exist.`
         );
@@ -51,7 +51,7 @@ class MyArtisan {
       output += `  ${name},\n`;
     }
     output += `};\n`;
-    if (!pathExist(basePath("config/build"))) {
+    if (!(await pathExist(basePath("config/build")))) {
       makeDir(basePath("config/build"));
     }
     writeFile(basePath("config/build/myConfig.ts"), output);
