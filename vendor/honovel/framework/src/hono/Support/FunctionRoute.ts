@@ -6,7 +6,6 @@ import { IMyConfig } from "./MethodRoute.ts";
 import HonoDispatch from "../Http/HonoDispatch.ts";
 import HttpHono from "HttpHono";
 import { AbortError, DDError } from "../../Maneuver/HonovelErrors.ts";
-import util from "node:util";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 import { myError } from "../Http/builder.ts";
 import { MiddlewareLikeClass } from "Illuminate/Foundation/Http/index.ts";
@@ -650,13 +649,16 @@ function forDD(data: unknown) {
     newData = data;
   }
   const html = `
-					<style>
-						body { background: #f8fafc; color: #1a202c; font-family: sans-serif; padding: 2rem; }
-						pre { background: #1a202c; color: #f7fafc; padding: 1.5rem; border-radius: 0.5rem; font-size: 14px; overflow-x: auto; }
-						code { white-space: pre-wrap; word-break: break-word; }
-					</style>
-					<pre><code>${util.inspect(newData, { colors: false, depth: null })}</code></pre>
-				`;
+  <style>
+    body { background: #f8fafc; color: #1a202c; font-family: sans-serif; padding: 2rem; }
+    pre { background: #1a202c; color: #f7fafc; padding: 1.5rem; border-radius: 0.5rem; font-size: 14px; overflow-x: auto; }
+    code { white-space: pre-wrap; word-break: break-word; }
+  </style>
+  <pre><code>${Deno.inspect(newData, {
+    colors: false,
+    depth: Infinity,
+  })}</code></pre>
+`;
 
   const json = newData;
 

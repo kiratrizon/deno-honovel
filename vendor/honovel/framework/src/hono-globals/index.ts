@@ -1,5 +1,5 @@
 import * as path from "https://deno.land/std@0.224.0/path/mod.ts";
-import * as url from "node:url";
+import { toFileUrl } from "https://deno.land/std@0.224.0/path/mod.ts";
 import { load } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
 try {
   const envObj = (await import("../../../../../environment.ts")).default;
@@ -276,7 +276,7 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
       if (file.isFile && file.name.endsWith(".ts")) {
         const configName = file.name.replace(".ts", "");
         const fullPath = path.join(configPath, file.name);
-        const fullUrl = url.pathToFileURL(fullPath).href;
+        const fullUrl = toFileUrl(fullPath).href;
         try {
           const module = await import(fullUrl);
           configData[configName] = module.default;
