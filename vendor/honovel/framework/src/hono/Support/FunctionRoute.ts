@@ -1,15 +1,13 @@
 import type { MiddlewareHandler } from "hono";
-import path from "node:path";
+import * as path from "node:path";
 import ChildKernel from "./ChildKernel.ts";
 import HonoClosure from "../Http/HonoClosure.ts";
 import { IMyConfig } from "./MethodRoute.ts";
 import HonoDispatch from "../Http/HonoDispatch.ts";
 import HttpHono from "HttpHono";
 import { AbortError, DDError } from "../../Maneuver/HonovelErrors.ts";
-import util from "node:util";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 import { myError } from "../Http/builder.ts";
-import { buildRequest } from "../Http/builder.ts";
 import { MiddlewareLikeClass } from "Illuminate/Foundation/Http/index.ts";
 import { SQLError } from "Illuminate/Database/Query/index.ts";
 import { Model } from "Illuminate/Database/Eloquent/index.ts";
@@ -203,12 +201,9 @@ export class URLArranger {
       return type == "dispatch" && !r.endsWith("/") ? [r, `${r}/`] : [r];
     });
 
-    // console.log(finalMapping, where);
     const constrainedMapping = finalMapping.map((route) => {
       return applyConstraintsWithOptional(route, where);
     });
-
-    // console.log(constrainedMapping);
 
     return constrainedMapping;
   }
@@ -510,7 +505,6 @@ function generateMiddlewareOrDispatch(
             resp = await myError(c, e.code as ContentfulStatusCode, data);
           }
         } else if (e instanceof SQLError) {
-          // console.log(e);
           if (request.expectsJson()) {
             resp = c.json(
               {
@@ -550,7 +544,7 @@ function generateMiddlewareOrDispatch(
               );
             }
           } else {
-            console.log(populatedError);
+            consoledeno.error(populatedError);
             resp = c.html("Internal server error", 500);
           }
         } else {
@@ -579,7 +573,7 @@ function generateMiddlewareOrDispatch(
         if (!isset(env("DENO_DEPLOYMENT_ID"))) {
           return c.html(debuggingPurpose, 500);
         }
-        log(
+        consoledeno.debug(
           debuggingPurpose,
           "error",
           `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(
@@ -655,13 +649,16 @@ function forDD(data: unknown) {
     newData = data;
   }
   const html = `
-					<style>
-						body { background: #f8fafc; color: #1a202c; font-family: sans-serif; padding: 2rem; }
-						pre { background: #1a202c; color: #f7fafc; padding: 1.5rem; border-radius: 0.5rem; font-size: 14px; overflow-x: auto; }
-						code { white-space: pre-wrap; word-break: break-word; }
-					</style>
-					<pre><code>${util.inspect(newData, { colors: false, depth: null })}</code></pre>
-				`;
+  <style>
+    body { background: #f8fafc; color: #1a202c; font-family: sans-serif; padding: 2rem; }
+    pre { background: #1a202c; color: #f7fafc; padding: 1.5rem; border-radius: 0.5rem; font-size: 14px; overflow-x: auto; }
+    code { white-space: pre-wrap; word-break: break-word; }
+  </style>
+  <pre><code>${Deno.inspect(newData, {
+    colors: false,
+    depth: Infinity,
+  })}</code></pre>
+`;
 
   const json = newData;
 

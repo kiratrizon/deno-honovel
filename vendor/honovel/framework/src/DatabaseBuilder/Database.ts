@@ -6,7 +6,7 @@ import MySQL from "./MySQL.ts";
 // postgresql
 import { Pool as PgPool } from "@db/pgsql";
 import PgSQL from "./PostgreSQL.ts";
-import { Carbon } from "honovel:helpers";
+import { Carbon } from "helpers";
 import {
   MySQLConnectionConfigRaw,
   SupportedDrivers,
@@ -737,10 +737,10 @@ export const dbCloser = () => {
           pool
             .end()
             .then(() => {
-              console.log(`Closed ${driver} pool successfully.`);
+              consoledeno.success(`Closed ${driver} pool successfully.`);
             })
             .catch((err: Error) => {
-              console.error(`Error closing ${driver} pool:`, err);
+              consoledeno.error(`Error closing ${driver} pool:`, err);
             });
         }
         break;
@@ -871,7 +871,9 @@ export class DatabaseHelper {
         return result.length > 0;
       }
       case "sqlite": {
-        return pathExist(this.dbConfig.connections[this.connection].database);
+        return await pathExist(
+          this.dbConfig.connections[this.connection].database
+        );
       }
       case "sqlsrv": {
         // const sql = `SELECT name FROM sys.databases WHERE name = @dbName`;

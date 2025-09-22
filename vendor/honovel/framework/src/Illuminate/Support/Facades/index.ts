@@ -1,8 +1,4 @@
-import {
-  genSaltSync,
-  hashSync,
-  compareSync,
-} from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import { genSaltSync, hashSync, compareSync } from "bcrypt";
 import { Blueprint, TableSchema } from "../../Database/Schema/index.ts";
 import BaseController from "Illuminate/Routing/BaseController";
 import pluralize from "pluralize";
@@ -32,7 +28,7 @@ import ResourceRoute, {
 } from "../../../hono/Support/ResourceRoute.ts";
 import { Database, QueryResultDerived } from "Database";
 import { Builder, SQLRaw, sqlstring } from "../../Database/Query/index.ts";
-import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
+import { FormFile } from "multiParser2";
 import { AuthConfig, SupportedDrivers } from "configs/@types/index.d.ts";
 import {
   AbstractStore,
@@ -1160,9 +1156,8 @@ export class Gate {
   }
 }
 
-import { hmac } from "jsr:@noble/hashes@1.8.0/hmac";
-import { Buffer } from "buffer";
-import { sha256 } from "jsr:@noble/hashes@1.8.0/sha2";
+import { hmac } from "hmac";
+import { sha256 } from "sha2";
 
 export class URL {
   private static signed(
@@ -1195,11 +1190,17 @@ export class URL {
     const key = new TextEncoder().encode(secret);
     const msg = new TextEncoder().encode(unsignedUrl);
     const signatureBytes = hmac(sha256, key, msg);
-    const signature = Buffer.from(signatureBytes).toString("hex");
+    const signature = this.toHex(signatureBytes);
 
     url.searchParams.set("signature", signature);
 
     return url.toString();
+  }
+
+  private static toHex(bytes: Uint8Array): string {
+    return Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
   }
 
   public static signedRoute(
@@ -1241,7 +1242,7 @@ export class URL {
     // try verifying against all keys
     for (const key of keys) {
       const keyBytes = new TextEncoder().encode(key);
-      const expected = Buffer.from(hmac(sha256, keyBytes, msg)).toString("hex");
+      const expected = this.toHex(hmac(sha256, keyBytes, msg));
       if (signature === expected) {
         return true; // ✅ valid with this key
       }

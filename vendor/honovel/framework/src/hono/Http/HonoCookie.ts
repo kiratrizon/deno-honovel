@@ -1,8 +1,7 @@
 import { CookieOptions } from "hono/utils/cookie";
 import { getCookie, setCookie } from "hono/cookie";
-import { Buffer } from "buffer";
-import { hmac } from "jsr:@noble/hashes@1.8.0/hmac";
-import { sha256 } from "jsr:@noble/hashes@1.8.0/sha2";
+import { hmac } from "hmac";
+import { sha256 } from "sha2";
 
 // Utility to convert a Uint8Array to a base64url string
 function toBase64Url(bytes: Uint8Array): string {
@@ -47,8 +46,8 @@ export const setMyCookie = (
 };
 
 export class CookieKeysCache {
-  public static keys: Buffer[] = [];
-  public static mainKey: Buffer;
+  public static keys: Uint8Array[] = [];
+  public static mainKey: Uint8Array;
   public static init() {
     const appConfig = config("app");
     const allKeys = [appConfig.key, ...appConfig.previous_keys]
@@ -130,10 +129,13 @@ export function getMyCookie(
   return null;
 }
 
-function resolveAppKey(rawKey: string): Buffer {
+function resolveAppKey(rawKey: string): Uint8Array {
   if (rawKey.startsWith("base64:")) {
-    return Buffer.from(rawKey.slice(7), "base64");
+    const base64Str = rawKey.slice(7);
+    // Decode base64 to bytes
+    return Uint8Array.from(atob(base64Str), (c) => c.charCodeAt(0));
   }
 
-  return Buffer.from(rawKey, "utf-8");
+  // Encode UTF-8 string to bytes
+  return new TextEncoder().encode(rawKey);
 }

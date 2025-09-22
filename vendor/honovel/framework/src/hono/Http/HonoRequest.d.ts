@@ -5,7 +5,7 @@ import {
 } from "../../../../@types/declaration/IHonoRequest.d.ts";
 import { ISession } from "../../../../@types/declaration/ISession.d.ts";
 import HonoHeader from "./HonoHeader.ts";
-import { FormFile } from "https://deno.land/x/multiparser@0.114.0/lib/multiParserV2.ts";
+import { FormFile } from "multiParser2";
 import { CookieOptions } from "hono/utils/cookie";
 import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";

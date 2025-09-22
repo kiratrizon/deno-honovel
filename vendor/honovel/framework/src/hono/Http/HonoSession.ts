@@ -66,7 +66,7 @@ export class SessionModifier {
     this.#c = c;
   }
 
-  public static init() {
+  public static async init() {
     SessionModifier.sesConfig = config("session");
     if (!SessionModifier.sesConfig) {
       throw new Error("Session configuration is not set.");
@@ -102,7 +102,7 @@ export class SessionModifier {
       case "file": {
         const pathDefault: string =
           SessionModifier.sesConfig.files || storagePath("framework/sessions");
-        if (!pathExist(pathDefault)) {
+        if (!(await pathExist(pathDefault))) {
           makeDir(pathDefault);
         }
         configuration.path = pathDefault;

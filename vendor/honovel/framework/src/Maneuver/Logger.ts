@@ -1,4 +1,4 @@
-import * as path from "node:path";
+import * as path from "https://deno.land/std@0.224.0/path/mod.ts";
 
 class Logger {
   public static log(
@@ -19,54 +19,6 @@ class Logger {
       console.log(logMessage);
       return;
     }
-
-    const logToChannel = (channel: string) => {
-      const conf = channels[channel];
-      if (!conf) return;
-
-      switch (conf.driver) {
-        case "single": {
-          if (!empty(env("DENO_DEPLOYMENT_ID", ""))) {
-            console.log(logMessage);
-          } else {
-            const filePath = tmpPath(conf.path);
-            const dir = path.dirname(filePath);
-            if (!pathExist(dir)) makeDir(dir);
-            if (!pathExist(filePath)) writeFile(filePath, "");
-            appendFile(filePath, logMessage);
-          }
-          break;
-        }
-
-        case "daily": {
-          if (!empty(env("DENO_DEPLOYMENT_ID", ""))) {
-            console.log(logMessage);
-            return;
-          }
-          const dateStr = date("Y-m-d");
-          const filePath = tmpPath(path.join(`${conf.path}`, `${dateStr}.log`));
-          const dir = path.dirname(filePath);
-          if (!pathExist(dir)) makeDir(dir);
-          if (!pathExist(filePath)) writeFile(filePath, "");
-          appendFile(filePath, logMessage);
-          break;
-        }
-
-        case "console": {
-          console.log(logMessage);
-          break;
-        }
-
-        case "stack": {
-          for (const ch of conf.channels || []) {
-            logToChannel(ch);
-          }
-          break;
-        }
-      }
-    };
-
-    logToChannel(defaultChannel);
   }
 }
 

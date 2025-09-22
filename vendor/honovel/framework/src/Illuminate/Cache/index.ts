@@ -8,7 +8,7 @@
 // mongodb
 // null
 
-import { Carbon } from "honovel:helpers";
+import { Carbon } from "helpers";
 import {
   CacheDriver,
   MongoConnectionConfig,
@@ -191,7 +191,7 @@ class FileStore extends AbstractStore {
     await this.init();
     // For example, read from a JSON file or similar
     const filePath = `${this.path}/${newKey}.cache.json`;
-    if (!pathExist(filePath)) {
+    if (!(await pathExist(filePath))) {
       return null; // Key does not exist
     }
 
@@ -229,7 +229,7 @@ class FileStore extends AbstractStore {
     const newKey = this.validateKey(key);
     await this.init();
     const filePath = `${this.path}/${newKey}.cache.json`;
-    if (pathExist(filePath)) {
+    if (await pathExist(filePath)) {
       Deno.removeSync(filePath);
     }
   }
@@ -248,7 +248,7 @@ class FileStore extends AbstractStore {
   #initialized = false;
   private async init() {
     if (this.#initialized) return;
-    if (!pathExist(this.path)) {
+    if (!(await pathExist(this.path))) {
       makeDir(this.path);
     }
     this.#initialized = true;
@@ -829,7 +829,7 @@ class DynamoDBStore extends AbstractStore {
 }
 
 import MongoDB from "../../DatabaseBuilder/MongoDB.ts";
-import { Collection, Document } from "@db/mongo";
+import { Collection, Document } from "mongodb";
 
 class MongoDBStore extends AbstractStore {
   private db: MongoDB;

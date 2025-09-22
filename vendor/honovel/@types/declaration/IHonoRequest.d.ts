@@ -1,5 +1,5 @@
+import { HttpHeaders } from "HonoHttp/HonoHeader.ts";
 import IHonoHeader from "./IHonoHeader.d.ts";
-import { IncomingHttpHeaders } from "node:http";
 import { ISession } from "./ISession.d.ts";
 import { CookieOptions } from "hono/utils/cookie";
 import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
@@ -16,7 +16,7 @@ export type RequestMethod =
   | "TRACE";
 export interface RequestData {
   method?: RequestMethod;
-  headers: IncomingHttpHeaders;
+  headers: HttpHeaders;
   body?: Record<string, unknown>;
   query?: Record<string, unknown>;
   rawQuery?: string; // raw query string after '?'
