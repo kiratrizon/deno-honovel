@@ -1,7 +1,7 @@
 import HonoClosure from "./HonoClosure.ts";
 import HonoView from "./HonoView.ts";
 import HonoRedirect from "HonoHttp/HonoRedirect.ts";
-import { ContentfulStatusCode } from "hono/utils/http-status";
+import { ContentfulStatusCode } from "http-status";
 import HttpHono from "HttpHono";
 import { HonoResponse } from "HonoHttp/HonoResponse.ts";
 

@@ -6,7 +6,7 @@ import IHonoRequest from "../@types/declaration/IHonoRequest.d.ts";
 import IHonoResponse from "../@types/declaration/IHonoResponse.d.ts";
 import IHonoView from "../@types/declaration/IHonoView.d.ts";
 import { IConfigure } from "../@types/declaration/MyImports.d.ts";
-import { ContentfulStatusCode } from "hono/utils/http-status";
+import { ContentfulStatusCode } from "http-status";
 import { SessionModifier } from "HonoHttp/HonoSession.ts";
 import { Context } from "hono";
 import { HonoTypeImport } from "./declaration/imain.d.ts";
