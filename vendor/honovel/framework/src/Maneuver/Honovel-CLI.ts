@@ -8,7 +8,7 @@ import { Confirm } from "@cliffy/prompt";
 const myCommand = new Command();
 
 import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
-import * as path from "https://deno.land/std@0.224.0/path/mod.ts";
+import * as path from "testPath/mod.ts";
 import { envs } from "../../../../../environment.ts";
 import { PreventRequestDuringMaintenance } from "Illuminate/Foundation/Http/Middleware/index.ts";
 import { Encrypter } from "Illuminate/Encryption/index.ts";

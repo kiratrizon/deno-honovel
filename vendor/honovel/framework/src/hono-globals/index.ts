@@ -1,6 +1,6 @@
-import * as path from "https://deno.land/std@0.224.0/path/mod.ts";
-import { toFileUrl } from "https://deno.land/std@0.224.0/path/mod.ts";
-import { load } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
+import * as path from "path";
+import { toFileUrl } from "testPath/mod.ts";
+import { load } from "dotenv";
 try {
   const envObj = (await import("../../../../../environment.ts")).default;
   const data = await load(envObj);

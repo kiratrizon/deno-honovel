@@ -1,5 +1,5 @@
 import type { MiddlewareHandler } from "hono";
-import * as path from "https://deno.land/std@0.224.0/path/mod.ts";
+import * as path from "path";
 import ChildKernel from "./ChildKernel.ts";
 import HonoClosure from "../Http/HonoClosure.ts";
 import { IMyConfig } from "./MethodRoute.ts";

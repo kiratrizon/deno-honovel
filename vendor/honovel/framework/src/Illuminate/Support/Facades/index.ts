@@ -1,8 +1,4 @@
-import {
-  genSaltSync,
-  hashSync,
-  compareSync,
-} from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import { genSaltSync, hashSync, compareSync } from "bcrypt";
 import { Blueprint, TableSchema } from "../../Database/Schema/index.ts";
 import BaseController from "Illuminate/Routing/BaseController";
 import pluralize from "pluralize";
@@ -32,7 +28,7 @@ import ResourceRoute, {
 } from "../../../hono/Support/ResourceRoute.ts";
 import { Database, QueryResultDerived } from "Database";
 import { Builder, SQLRaw, sqlstring } from "../../Database/Query/index.ts";
-import { FormFile } from "https://deno.land/x/multiparser@0.114.0/mod.ts";
+import { FormFile } from "multiParser2";
 import { AuthConfig, SupportedDrivers } from "configs/@types/index.d.ts";
 import {
   AbstractStore,

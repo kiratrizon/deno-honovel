@@ -1,10 +1,7 @@
 import { Redis as IORedis } from "ioredis";
 import { Redis as UpstashRedis } from "@upstash/redis";
 import { createClient, RedisClientType } from "redis";
-import {
-  connect,
-  Redis as DenoRedis,
-} from "https://deno.land/x/redis@v0.29.4/mod.ts";
+import { connect, Redis as DenoRedis } from "deno-redis";
 import { RedisConfigure } from "configs/@types/index.d.ts";
 
 async function connectToRedis(

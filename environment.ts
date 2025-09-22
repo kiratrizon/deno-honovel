@@ -1,4 +1,4 @@
-import { LoadOptions } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
+import { LoadOptions } from "dotenv";
 import { SupportedDrivers } from "configs/@types/index.d.ts";
 
 export default {
@@ -34,6 +34,4 @@ export interface ImportEnvConfig {
 }
 
 // define your interface "ImportSession" here
-export type ImportSession = {
-
-};
+export type ImportSession = {};
