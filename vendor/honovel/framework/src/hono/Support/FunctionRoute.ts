@@ -1,4 +1,4 @@
-import type { MiddlewareHandler } from "hono";
+import { MiddlewareHandler } from "hono";
 import * as path from "node:path";
 import ChildKernel from "./ChildKernel.ts";
 import HonoClosure from "../Http/HonoClosure.ts";
@@ -6,7 +6,7 @@ import { IMyConfig } from "./MethodRoute.ts";
 import HonoDispatch from "../Http/HonoDispatch.ts";
 import HttpHono from "HttpHono";
 import { AbortError, DDError } from "../../Maneuver/HonovelErrors.ts";
-import { ContentfulStatusCode } from "hono/utils/http-status";
+import { ContentfulStatusCode } from "http-status";
 import { myError } from "../Http/builder.ts";
 import { MiddlewareLikeClass } from "Illuminate/Foundation/Http/index.ts";
 import { SQLError } from "Illuminate/Database/Query/index.ts";

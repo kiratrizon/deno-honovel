@@ -4,7 +4,7 @@ import type {
   SERVER,
 } from "../../../../@types/declaration/IHonoRequest.d.ts";
 import HonoView from "./HonoView.ts";
-import { ContentfulStatusCode } from "hono/utils/http-status";
+import { ContentfulStatusCode } from "http-status";
 import {
   multiParser,
   FormFile,
