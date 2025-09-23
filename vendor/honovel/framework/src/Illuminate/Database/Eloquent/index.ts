@@ -410,16 +410,23 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
   }
 
   // separated with dot
-  public static with(modelActions: string) {
-    const separateActions = modelActions.split("."); // ["posts", "comments"]
-    const actionFields = separateActions.map((action) => {
-      const [a, fields = "*"] = action.split(":");
-      return { action: a, fields };
+  public static with(...modelActions: string[]) {
+    const arrActionsAndFields: Array<{
+      actions: string[];
+      fields: string[][];
+    }> = [];
+    modelActions.forEach((modelAction) => {
+      const separateActions = modelAction.split("."); // ["posts", "comments"]
+      const actionFields = separateActions.map((action) => {
+        const [a, fields = "*"] = action.split(":");
+        return { action: a, fields };
+      });
+      const actions = actionFields.map((item) => item.action);
+      const fields = actionFields.map((item) => item.fields.split(","));
+      arrActionsAndFields.push({ actions, fields });
     });
-    const actions = actionFields.map((item) => item.action);
-    const fields = actionFields.map((item) => item.fields.split(","));
 
-    return new WithBuilder(this, actions, fields);
+    return new WithBuilder(this, arrActionsAndFields);
   }
 
   public static where(column: string, value: unknown): Builder {
@@ -631,8 +638,7 @@ export class Builder<
 class WithBuilder {
   constructor(
     private model: typeof Model<ModelAttributes>,
-    private actions: string[],
-    private fields: string[][]
+    private actionsAndFields: { actions: string[]; fields: string[][] }[]
   ) {}
 
   async get() {
@@ -644,7 +650,9 @@ class WithBuilder {
       model: this.model,
     };
 
-    await this.iterateWith(currentLevel, [...this.actions], [...this.fields]);
+    for (const { actions, fields } of this.actionsAndFields) {
+      await this.iterateWith(currentLevel, [...actions], [...fields]);
+    }
 
     return allThisData;
   }
@@ -656,7 +664,9 @@ class WithBuilder {
       data: [[allThisData]],
       model: this.model,
     };
-    await this.iterateWith(currentLevel, [...this.actions], [...this.fields]);
+    for (const { actions, fields } of this.actionsAndFields) {
+      await this.iterateWith(currentLevel, [...actions], [...fields]);
+    }
     return allThisData;
   }
 
