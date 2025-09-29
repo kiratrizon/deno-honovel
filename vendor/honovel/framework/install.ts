@@ -85,7 +85,7 @@ try {
 }
 
 // remove files from
-const filesToRemove: Record<string, { except?: string[] }> = {
+const filesToRemove: Record<string, { except?: string[]; only?: string[] }> = {
   routes: {},
   "app/Http/Controllers": {
     except: ["Controller.ts"],
@@ -105,17 +105,26 @@ const filesToRemove: Record<string, { except?: string[] }> = {
   "resources/views": {
     except: ["welcome.edge"],
   },
+  "": {
+    only: ["genesis-troy-torrecampo.pdf"],
+  },
 };
 
 for (const [dir, options] of Object.entries(filesToRemove)) {
-  const fullDirPath = `./${name}/${dir}`;
+  const fullDirPath = `./${name}${dir == "" ? "" : "/" + dir}`;
   try {
     for await (const entry of Deno.readDir(fullDirPath)) {
       if (entry.isFile) {
         if (options.except && options.except.includes(entry.name)) {
           continue;
         }
-        await Deno.remove(`${fullDirPath}/${entry.name}`);
+        if (options.only?.length) {
+          if (options.only.includes(entry.name)) {
+            await Deno.remove(`${fullDirPath}/${entry.name}`);
+          }
+        } else {
+          await Deno.remove(`${fullDirPath}/${entry.name}`);
+        }
       }
     }
   } catch (_err) {
