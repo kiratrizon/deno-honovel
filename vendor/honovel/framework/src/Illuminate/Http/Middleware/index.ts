@@ -7,7 +7,11 @@ export class HandleCors {
 
     const corsConfig = Configure.read("cors", {});
 
-    const allowedOrigins = corsConfig.allowed_origins || [];
+    const allowedOrigins = (corsConfig.allowed_origins || []).map(
+      (origin: string) => {
+        return origin.endsWith("/") ? origin.slice(0, -1) : origin;
+      }
+    );
     const allowedMethods = corsConfig.allowed_methods || [
       "GET",
       "POST",
