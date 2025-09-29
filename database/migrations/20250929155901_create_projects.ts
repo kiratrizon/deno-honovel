@@ -5,12 +5,13 @@ import { Blueprint } from "Illuminate/Database/Schema/index.ts";
 export default new (class extends Migration {
   public async up() {
     await Schema.create(
-      "posts",
+      "projects",
       (table: Blueprint) => {
         table.id();
-        table.string("title").notNullable();
-        table.string("content").notNullable();
-        table.integer("users_id").foreign("users").notNullable(); // Foreign key to User model
+        table.string("project_name").notNullable();
+        table.text("description").notNullable();
+        table.string("github_url").notNullable();
+        table.string("live_demo_url").notNullable();
         table.timestamps();
       },
       this.connection
@@ -18,6 +19,6 @@ export default new (class extends Migration {
   }
 
   public async down() {
-    await Schema.dropIfExists("posts", this.connection);
+    await Schema.dropIfExists("projects", this.connection);
   }
 })();

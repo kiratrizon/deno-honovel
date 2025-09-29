@@ -211,6 +211,9 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
           this.setAttribute(key as keyof T, value as T[keyof T]);
         } else {
           // ignore the attribute if not fillable
+          throw new Error(
+            `Attribute "${key}" is not fillable on model ${this.constructor.name}.`
+          );
         }
       }
     } else {

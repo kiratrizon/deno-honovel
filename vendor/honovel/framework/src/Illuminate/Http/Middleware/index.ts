@@ -25,6 +25,9 @@ export class HandleCors {
     const isSameOrigin = !origin || origin === host;
     const matchesCorsPath = corsPaths.some((pattern: string) => {
       // Check if the request path matches any of the configured CORS paths
+      if (pattern.startsWith("/web")) {
+        pattern = pattern.replace("/web", "");
+      }
       return Str.is(pattern, request.path());
     });
 

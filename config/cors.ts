@@ -1,7 +1,7 @@
 import { CorsConfig } from "configs/@types/index.d.ts";
 
 const constant: CorsConfig = {
-  paths: ["api/*"],
+  paths: ["/api/*", "/web/*"],
   allowed_methods: ["GET", "POST", "PUT", "DELETE"],
   allowed_origins: env("ORIGINS", ["*"]),
   allowed_origins_patterns: [],
