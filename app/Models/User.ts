@@ -3,13 +3,13 @@ import {
   JWTSubject,
 } from "Illuminate/Contracts/Auth/index.ts";
 import { HasFactory } from "Illuminate/Database/Eloquent/Factories/index.ts";
-import Post from "./Post.ts";
 
 export type UserSchema = {
   id?: number;
   email: string;
   password: string;
   name: string;
+  api_token?: string;
 };
 
 class User extends Authenticatable<UserSchema> implements JWTSubject {
@@ -37,10 +37,6 @@ class User extends Authenticatable<UserSchema> implements JWTSubject {
 
   public getJWTIdentifier(): string | number {
     return this.getAuthIdentifier() || "";
-  }
-
-  public posts() {
-    return this.hasMany(Post);
   }
 }
 
