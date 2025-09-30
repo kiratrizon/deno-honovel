@@ -37,7 +37,7 @@ export class HandleCors {
 
     // If this path doesn't need CORS, skip it
     if (!matchesCorsPath) {
-      return next();
+      abort(403);
     }
 
     // Handle preflight request
