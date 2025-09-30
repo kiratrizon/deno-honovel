@@ -1,9 +1,7 @@
-import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";
-import IHonoRequest, {
+import {
   RequestMethod,
   SERVER,
 } from "../../../../@types/declaration/IHonoRequest.d.ts";
-import { ISession } from "../../../../@types/declaration/ISession.d.ts";
 import HonoHeader from "./HonoHeader.ts";
 import { isbot } from "isbot";
 import Macroable from "../../Maneuver/Macroable.ts";

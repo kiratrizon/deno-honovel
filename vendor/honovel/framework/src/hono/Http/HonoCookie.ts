@@ -139,3 +139,37 @@ function resolveAppKey(rawKey: string): Uint8Array {
   // Encode UTF-8 string to bytes
   return new TextEncoder().encode(rawKey);
 }
+
+export class Cookie {
+  constructor(private c: MyContext) {}
+
+  public queue(
+    key: string,
+    value: Exclude<unknown, undefined>,
+    options: CookieOptions = {}
+  ): unknown {
+    if (isset(key) && isset(value)) {
+      setMyCookie(this.c, key, value, options);
+      return;
+    }
+  }
+
+  public make(
+    key: string,
+    value: Exclude<unknown, undefined>,
+    options: CookieOptions = {}
+  ): { key: string; value: string; options: CookieOptions } {
+    return { key, value: String(value), options };
+  }
+
+  public get<T extends unknown>(key: string): T | null {
+    if (isset(key)) {
+      return getMyCookie(this.c, key) as T;
+    }
+    return null;
+  }
+
+  public all(): Record<string, string> {
+    return getMyCookie(this.c) as Record<string, string>;
+  }
+}
