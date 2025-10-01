@@ -231,6 +231,7 @@ function applyConstraintsWithOptional(
 interface IMiddlewareCompiler {
   debugString: string;
   middleware: [HttpMiddleware, string[]];
+  from?: "handle" | "fallback";
 }
 
 export function toMiddleware(
@@ -246,9 +247,12 @@ export function toMiddleware(
       if (!isset(firstKey) || empty(firstKey))
         throw new Error(`Invalid middleware name: ${arg}`);
       if (argParts.length === 0) {
+        // if it's in the group middleware
         if (keyExist(MiddlewareGroups, firstKey)) {
           arg = firstKey;
           const middlewareGroup = MiddlewareGroups[arg];
+
+          // map through each middleware in the group
           middlewareGroup.forEach((middleware) => {
             if (isString(middleware)) {
               const [middlewareName, ...middlewareParts] =
@@ -276,6 +280,26 @@ export function toMiddleware(
                         part.split(",").map((p) => p.trim())
                       ),
                     ],
+                    from: "handle",
+                  });
+                }
+                if (
+                  methodExist(middlewareInstance, "fallback") &&
+                  isFunction(middlewareInstance.fallback)
+                ) {
+                  middlewareCallback.push({
+                    debugString: `// class ${
+                      middlewareClass.name
+                    }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
+                    middleware: [
+                      middlewareInstance.fallback.bind(
+                        middlewareInstance
+                      ) as HttpMiddleware,
+                      middlewareParts.flatMap((part) =>
+                        part.split(",").map((p) => p.trim())
+                      ),
+                    ],
+                    from: "fallback",
                   });
                 }
               }
@@ -292,6 +316,24 @@ export function toMiddleware(
                     ) as HttpMiddleware,
                     [],
                   ],
+                  from: "handle",
+                });
+              }
+              if (
+                methodExist(middlewareInstance, "fallback") &&
+                isFunction(middlewareInstance.fallback)
+              ) {
+                middlewareCallback.push({
+                  debugString: `// class ${
+                    middleware.name
+                  }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
+                  middleware: [
+                    middlewareInstance.fallback.bind(
+                      middlewareInstance
+                    ) as HttpMiddleware,
+                    [],
+                  ],
+                  from: "fallback",
                 });
               }
             }
@@ -316,6 +358,26 @@ export function toMiddleware(
                   part.split(",").map((p) => p.trim())
                 ),
               ],
+              from: "handle",
+            });
+          }
+          if (
+            methodExist(middlewareInstance, "fallback") &&
+            isFunction(middlewareInstance.fallback)
+          ) {
+            middlewareCallback.push({
+              debugString: `// class ${
+                middlewareClass.name
+              }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
+              middleware: [
+                middlewareInstance.fallback.bind(
+                  middlewareInstance
+                ) as HttpMiddleware,
+                argParts.flatMap((part) =>
+                  part.split(",").map((p) => p.trim())
+                ),
+              ],
+              from: "fallback",
             });
           }
         }
@@ -337,6 +399,24 @@ export function toMiddleware(
               ) as HttpMiddleware,
               argParts.flatMap((part) => part.split(",").map((p) => p.trim())),
             ],
+            from: "handle",
+          });
+        }
+        if (
+          methodExist(middlewareInstance, "fallback") &&
+          isFunction(middlewareInstance.fallback)
+        ) {
+          middlewareCallback.push({
+            debugString: `// class ${
+              middlewareClass.name
+            }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
+            middleware: [
+              middlewareInstance.fallback.bind(
+                middlewareInstance
+              ) as HttpMiddleware,
+              argParts.flatMap((part) => part.split(",").map((p) => p.trim())),
+            ],
+            from: "fallback",
           });
         }
       }
@@ -358,6 +438,24 @@ export function toMiddleware(
               ) as HttpMiddleware,
               [],
             ],
+            from: "handle",
+          });
+        }
+        if (
+          methodExist(middlewareInstance, "fallback") &&
+          isFunction(middlewareInstance.fallback)
+        ) {
+          middlewareCallback.push({
+            debugString: `// class ${
+              middlewareClass.name
+            }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
+            middleware: [
+              middlewareInstance.fallback.bind(
+                middlewareInstance
+              ) as HttpMiddleware,
+              [],
+            ],
+            from: "fallback",
           });
         }
       } else {
@@ -370,16 +468,22 @@ export function toMiddleware(
     return middlewareCallback;
   });
 
-  return newArgs.map((args): MiddlewareHandler => {
-    const newObj: MiddlewareOrDispatch = {
-      debugString: args.debugString,
-      args: args.middleware[0],
-    };
-    return generateMiddlewareOrDispatch(
-      "middleware",
-      newObj,
-      args.middleware[1] || []
-    );
+  return newArgs.flatMap((args): MiddlewareHandler[] => {
+    if (args.from == "fallback") {
+      return [];
+    } else {
+      const newObj: MiddlewareOrDispatch = {
+        debugString: args.debugString,
+        args: args.middleware[0],
+      };
+      return [
+        generateMiddlewareOrDispatch(
+          "middleware",
+          newObj,
+          args.middleware[1] || []
+        ),
+      ];
+    }
   });
 }
 

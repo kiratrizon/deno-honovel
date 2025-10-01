@@ -42,4 +42,8 @@ export default class ThrottleRequests {
 
     return next();
   };
+
+  public fallback: HttpMiddleware = async ({}, next) => {
+    return next();
+  };
 }

@@ -23,4 +23,6 @@ export default class VerifyCsrfToken {
 
     return next();
   };
+
+  public fallback: HttpMiddleware = async ({ request }, next) => {};
 }
