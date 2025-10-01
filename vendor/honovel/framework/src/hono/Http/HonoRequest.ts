@@ -306,28 +306,9 @@ class HonoRequest extends Macroable {
     return null;
   }
 
-  public cookie(key: string): Exclude<unknown, undefined>;
-  public cookie(): Record<string, Exclude<unknown, undefined>>;
-  public cookie(
-    key: string,
-    value: Exclude<unknown, undefined>,
-    options?: CookieOptions
-  ): void;
-  public cookie(
-    key?: string,
-    value?: Exclude<unknown, undefined>,
-    options: CookieOptions = {}
-  ): unknown {
-    if (isset(key) && isset(value)) {
-      setMyCookie(this.#c, key, value, options);
-      return;
-    }
-    if (isset(key) && !isset(value)) {
-      return getMyCookie(this.#c, key);
-    }
-    if (!isset(key) && !isset(value)) {
-      return getMyCookie(this.#c);
-    }
+  public cookie(key: string): unknown {
+    const Cookie = this.#c.get("myHono").Cookie;
+    return Cookie.get(key);
   }
 
   public deleteCookie(key: string, options?: CookieOptions): void {
@@ -467,8 +448,8 @@ class HonoRequest extends Macroable {
   }
 
   public get $_COOKIE() {
-    // @ts-ignore //
-    return getMyCookie(this.#c);
+    const Cookie = this.#c.get("myHono").Cookie;
+    return Cookie.all();
   }
 
   public get $_SERVER(): SERVER {

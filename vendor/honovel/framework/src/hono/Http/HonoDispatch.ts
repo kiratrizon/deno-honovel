@@ -26,6 +26,7 @@ class HonoDispatch {
     }
   }
   public async build(request: HttpHono["request"], c: MyContext) {
+    const Cookie = c.get("myHono").Cookie;
     if (
       request.isMethod("HEAD") &&
       isObject(this.#returnedData) &&
@@ -61,7 +62,7 @@ class HonoDispatch {
         // @ts-ignore //
         const cookies = this.#returnedData.getCookies();
         for (const [name, [value, options]] of Object.entries(cookies)) {
-          request.cookie(name, value, options);
+          Cookie.queue(name, value, options);
         }
         // @ts-ignore //
         const res = this.#returnedData.toResponse();

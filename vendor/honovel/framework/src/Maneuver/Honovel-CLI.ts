@@ -10,7 +10,7 @@ const myCommand = new Command();
 import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import * as path from "node:path";
 import { envs } from "../../../../../environment.ts";
-import { PreventRequestDuringMaintenance } from "Illuminate/Foundation/Http/Middleware/index.ts";
+import PreventRequestDuringMaintenance from "Illuminate/Foundation/Http/Middleware/PreventRequestDuringMaintenance.ts";
 import { Encrypter } from "Illuminate/Encryption/index.ts";
 import { DatabaseHelper } from "Database";
 import Seeder from "Illuminate/Database/Seeder.ts";

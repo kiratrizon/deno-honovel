@@ -96,13 +96,7 @@ declare class HonoRequest {
   bearerToken(): string | null;
 
   /** Get or set cookies */
-  cookie(): Record<string, Exclude<unknown, undefined>>;
-  cookie(key: string): Exclude<unknown, undefined>;
-  cookie(
-    key: string,
-    value: Exclude<unknown, undefined>,
-    options?: CookieOptions
-  ): void;
+  cookie(key: string): Exclude<unknown, undefined> | null;
 
   /** Delete a cookie */
   deleteCookie(key: string, options?: CookieOptions): void;
