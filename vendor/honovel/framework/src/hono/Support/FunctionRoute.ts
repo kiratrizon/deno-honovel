@@ -683,7 +683,7 @@ function generateMiddlewareOrDispatch(
             resp = c.html("Internal server error", 500);
           }
         } else {
-          console.error("Unexpected error:", e);
+          consoledeno.error("Unexpected error:", e);
           resp = c.json({ message: "Internal server error" }, 500);
         }
       }
@@ -705,6 +705,166 @@ function generateMiddlewareOrDispatch(
           // @ts-ignore //
           type = "route";
         }
+        const debuggingPurpose = renderDebugErrorPage(
+          `${ucFirst(type)} Error`,
+          debugString,
+          `Returned undefined value from the ${type} function.`
+        );
+        if (!isset(env("DENO_DEPLOYMENT_ID"))) {
+          return c.html(debuggingPurpose, 500);
+        }
+        consoledeno.debug(
+          debuggingPurpose,
+          "error",
+          `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(
+            "HTTP_X_REQUEST_ID"
+          )}`
+        );
+        return c.json(
+          {
+            message: "Internal server error",
+          },
+          500
+        );
+      }
+    }
+  };
+}
+
+function generateFallback(
+  type: "middleware",
+  objArgs: MiddlewareOrDispatch,
+  sequenceParams: string[] = [],
+  count = 0
+): MiddlewareHandler {
+  const from = objArgs.from;
+  return async (c: MyContext, next) => {
+    const myHono = c.get("myHono");
+    const request = myHono.request;
+    let middlewareResp;
+    // @ts-ignore //
+    request.resetRoute({
+      ...c.get("subdomain"),
+      ...c.req.param(),
+    });
+
+    const { args, debugString } = objArgs;
+    if (!isFunction(args)) {
+      return await myError(c);
+    } else {
+      let resp: Response | undefined; // build response
+      let isNext = false;
+      try {
+        const honoClosure = c.get("honoClosure");
+        middlewareResp = await (args as HttpMiddleware)(
+          myHono,
+          // @ts-ignore //
+          honoClosure.next.bind(honoClosure),
+          ...sequenceParams
+        );
+        if (isNull(middlewareResp)) {
+          resp = c.json(null);
+        } else {
+          const dispatch = new HonoDispatch(middlewareResp, type);
+          if (type === "middleware" && !dispatch.isNext) {
+            const result = (await dispatch.build(request, c)) as Response;
+            resp = result;
+          } else if (type === "middleware" && dispatch.isNext) {
+            isNext = true;
+          }
+        }
+      } catch (e: unknown) {
+        if (e instanceof DDError) {
+          const data = forDD(e.data);
+          if (request.expectsJson()) {
+            if (!isset(data.json)) {
+              data.json = null;
+            }
+            if (
+              isArray(data.json) ||
+              isObject(data.json) ||
+              isString(data.json) ||
+              isFloat(data.json) ||
+              isInteger(data.json) ||
+              isBoolean(data.json) ||
+              isNull(data.json)
+            ) {
+              resp = c.json(data.json, 200);
+            }
+          } else {
+            resp = c.html(data.html, 200);
+          }
+        } else if (e instanceof AbortError) {
+          if (request.expectsJson()) {
+            resp = e.toJson();
+          } else {
+            const data = isString(e.msg)
+              ? e.msg
+              : `Error: ${e.code} - ${e.msg}`;
+            resp = await myError(c, e.code as ContentfulStatusCode, data);
+          }
+        } else if (e instanceof SQLError) {
+          if (request.expectsJson()) {
+            resp = c.json(
+              {
+                message: e.message,
+                error_type: e.name,
+              },
+              500
+            );
+          } else {
+            resp = c.html(renderErrorHtml(e), 500);
+          }
+        } else if (e instanceof Error) {
+          // populate e with additional information
+          const populatedError: Record<string, unknown> = {};
+          populatedError["error_type"] = e.name.trim();
+          populatedError["message"] = e.message.trim();
+          populatedError["stack"] = e.stack
+            ? e.stack.split("\n").map((line) => line.trim())
+            : [];
+          populatedError["cause"] = e.cause;
+          let errorHtml: string;
+          if (env("APP_DEBUG", true)) {
+            if (!request.expectsJson()) {
+              errorHtml =
+                extractControllerTrace(populatedError.stack as string[]) ||
+                renderErrorHtml(e);
+              resp = c.html(errorHtml, 500);
+            } else {
+              resp = c.json(
+                {
+                  message: populatedError.message,
+                  error_type: populatedError.error_type,
+                  stack: populatedError.stack,
+                  cause: populatedError.cause,
+                },
+                500
+              );
+            }
+          } else {
+            consoledeno.error(populatedError);
+            resp = c.html("Internal server error", 500);
+          }
+        } else {
+          consoledeno.error("Unexpected error:", e);
+          resp = c.json({ message: "Internal server error" }, 500);
+        }
+      }
+      if (!isUndefined(middlewareResp)) {
+        if (isNext) {
+          if (from === "handle" && c.get("response") === null) {
+            // increment fromHandle
+            c.set("fromHandle", c.get("fromHandle") + 1);
+            consoledeno.debug(c.get("fromHandle"));
+          }
+          return await next();
+        }
+      }
+      if (isset(resp)) {
+        await request.dispose();
+        return resp;
+      } else {
         const debuggingPurpose = renderDebugErrorPage(
           `${ucFirst(type)} Error`,
           debugString,

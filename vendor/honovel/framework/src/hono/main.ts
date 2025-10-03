@@ -25,7 +25,6 @@ const Route = Router as typeof INRoute;
 import ChildKernel from "./Support/ChildKernel.ts";
 import GroupRoute from "./Support/GroupRoute.ts";
 import { myError } from "HonoHttp/builder.ts";
-import { group } from "node:console";
 
 const headFunction: MiddlewareHandler = async (c: MyContext, next) => {
   const { request } = c.get("myHono");
