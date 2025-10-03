@@ -30,6 +30,7 @@ export type Variables = {
   auth_user: Authenticatable | null;
   fromHandle: number;
   response: Response | null;
+  stopMiddleware: boolean;
 };
 
 export type HonoTypeImport = {

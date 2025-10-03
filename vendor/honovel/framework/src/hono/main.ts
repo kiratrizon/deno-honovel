@@ -13,9 +13,12 @@ import { INRoute } from "../../../@types/declaration/IRoute.d.ts";
 import {
   buildRequestInit,
   regexToHono,
+  TFallbackMiddleware,
   toDispatch,
   toMiddleware,
   URLArranger,
+  toFallback,
+  returnResponse,
 } from "./Support/FunctionRoute.ts";
 import { IMyConfig } from "./Support/MethodRoute.ts";
 import { honoSession } from "HonoHttp/HonoSession.ts";
@@ -75,7 +78,7 @@ const myStaticDefaults: MiddlewareHandler[] = [
 
 const [globalMiddleware, globalMiddlewareFallback]: [
   MiddlewareHandler[],
-  MiddlewareHandler[]
+  TFallbackMiddleware[]
 ] = [...toMiddleware(new ChildKernel().Middleware)];
 
 // domain on beta test
@@ -238,7 +241,10 @@ class Server {
     return app;
   }
 
-  private static applyMainMiddleware(filePath: string, app: HonoType): string {
+  private static applyMainMiddleware(
+    filePath: string,
+    app: HonoType
+  ): [string, TFallbackMiddleware[]] {
     const mainMiddleware = [];
     // @ts-ignore //
     const groupRoutes = GroupRoute.groupRouteMain as Record<
@@ -253,7 +259,7 @@ class Server {
 
     const [routeGroupMiddleware, routeGroupMiddlewareFallback]: [
       MiddlewareHandler[],
-      MiddlewareHandler[]
+      TFallbackMiddleware[]
     ] = [...toMiddleware(mainMiddleware)];
     // @ts-ignore //
     app.use(
@@ -265,7 +271,7 @@ class Server {
       ...routeGroupMiddleware
     );
     // return the prefix if exists
-    return groupRoutes[filePath]?.prefix || "/";
+    return [groupRoutes[filePath]?.prefix || "/", routeGroupMiddlewareFallback];
   }
 
   private static async loadAndValidateRoutes() {
@@ -305,10 +311,8 @@ class Server {
       if (isset(Route)) {
         Server.domainPattern[key] = {};
         const byEndpointsRouter = await this.generateNewApp();
-        const routePrefix = this.applyMainMiddleware(
-          filePath,
-          byEndpointsRouter
-        );
+        const [routePrefix, routeGroupMiddlewareFallback] =
+          this.applyMainMiddleware(filePath, byEndpointsRouter);
         const instancedRoute = new Route();
         const allGroup = instancedRoute.getAllGroupsAndMethods();
 
@@ -373,13 +377,23 @@ class Server {
               );
               const [flagMiddlewareArr, flagMiddlewareFallback]: [
                 MiddlewareHandler[],
-                MiddlewareHandler[]
+                TFallbackMiddleware[]
               ] = toMiddleware([...flagMiddleware]);
+              const toFallbacks = [
+                ...globalMiddlewareFallback,
+                ...routeGroupMiddlewareFallback,
+                ...flagMiddlewareFallback,
+              ];
+              const fallBacksArr: MiddlewareHandler[] = [];
+              for (let i = 0; i < toFallbacks.length; i++) {
+                fallBacksArr.unshift(toFallback([i + 1, toFallbacks[i]]));
+              }
+
               const allBuilds = [
                 ...flagMiddlewareArr,
                 returnedDispatch as MiddlewareHandler,
-                ...flagMiddlewareFallback,
-                ...globalMiddlewareFallback,
+                ...fallBacksArr,
+                returnResponse,
               ];
               if (methodarr.length === 1 && arrayFirst(methodarr) === "head") {
                 allBuilds.splice(1, 0, headFunction);
@@ -459,7 +473,7 @@ class Server {
               const arrangerGroup = URLArranger.urlCombiner(newName, true);
               const [myGroupMiddleware, myGroupMiddlewareFallback]: [
                 MiddlewareHandler[],
-                MiddlewareHandler[]
+                TFallbackMiddleware[]
               ] = toMiddleware(middleware);
               groupEntries.forEach(([routeId, methodarr]) => {
                 const routeUsed = methods[routeId];
@@ -517,15 +531,24 @@ class Server {
                 const flagMiddleware = flag.middleware || [];
                 const [flagMiddlewareArr, flagMiddlewareFallback]: [
                   MiddlewareHandler[],
-                  MiddlewareHandler[]
+                  TFallbackMiddleware[]
                 ] = toMiddleware([...flagMiddleware]);
+                const toFallbacks = [
+                  ...globalMiddlewareFallback,
+                  ...routeGroupMiddlewareFallback,
+                  ...myGroupMiddlewareFallback,
+                  ...flagMiddlewareFallback,
+                ];
+                const fallBacksArr: MiddlewareHandler[] = [];
+                for (let i = 0; i < toFallbacks.length; i++) {
+                  fallBacksArr.unshift(toFallback([i + 1, toFallbacks[i]]));
+                }
                 newGroupMiddleware.push(...flagMiddlewareArr);
                 const allBuilds = [
                   ...newGroupMiddleware,
                   returnedDispatch as MiddlewareHandler,
-                  ...flagMiddlewareFallback,
-                  ...myGroupMiddlewareFallback,
-                  ...globalMiddlewareFallback,
+                  ...fallBacksArr,
+                  returnResponse,
                 ];
 
                 if (
@@ -534,9 +557,11 @@ class Server {
                 ) {
                   allBuilds.splice(1, 0, headFunction);
                   splittedUri.forEach((str) => {
+                    // @ts-ignore //
                     myNewGroup.get(str, ...allBuilds);
                   });
                 } else {
+                  // @ts-ignore //
                   myNewGroup.on(
                     methodarr.map((m) => m.toUpperCase()),
                     splittedUri,

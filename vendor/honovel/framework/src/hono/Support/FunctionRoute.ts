@@ -42,7 +42,11 @@ export function regexToHono(
     await next();
   };
 }
-
+export type TFallbackMiddleware = [
+  "middleware",
+  MiddlewareOrDispatch,
+  string[]
+];
 export class URLArranger {
   public static urlCombiner(input: string[] | string, strict = true) {
     if (isString(input)) {
@@ -236,7 +240,7 @@ interface IMiddlewareCompiler {
 
 export function toMiddleware(
   args: (string | HttpMiddleware | MiddlewareLikeClass)[]
-): [MiddlewareHandler[], MiddlewareHandler[]] {
+): [MiddlewareHandler[], TFallbackMiddleware[]] {
   const instanceKernel = new ChildKernel();
   const MiddlewareGroups = instanceKernel.MiddlewareGroups;
   const RouteMiddleware = instanceKernel.RouteMiddleware;
@@ -493,7 +497,10 @@ export function toMiddleware(
     return middlewareCallback;
   });
 
-  const returnMiddleware: [MiddlewareHandler[], MiddlewareHandler[]] = [[], []];
+  const returnMiddleware: [MiddlewareHandler[], TFallbackMiddleware[]] = [
+    [],
+    [],
+  ];
 
   newArgs.forEach((args) => {
     const newObj: MiddlewareOrDispatch = {
@@ -501,13 +508,15 @@ export function toMiddleware(
       args: args.middleware[0],
       from: args.from,
     };
-    const generatedMiddleware = generateMiddlewareOrDispatch(
+
+    const param: TFallbackMiddleware = [
       "middleware",
       newObj,
-      args.middleware[1] || []
-    );
+      args.middleware[1] || [],
+    ];
+    const generatedMiddleware = generateMiddlewareOrDispatch(...param);
     if (args.from == "fallback") {
-      returnMiddleware[1].unshift(generatedMiddleware);
+      returnMiddleware[1].push(param);
     } else {
       returnMiddleware[0].push(generatedMiddleware);
     }
@@ -535,6 +544,10 @@ function generateMiddlewareOrDispatch(
 ): MiddlewareHandler {
   const from = objArgs.from;
   return async (c: MyContext, next) => {
+    if (c.get("stopMiddleware") === true) {
+      console.log("hello");
+      return await next();
+    }
     const myHono = c.get("myHono");
     const request = myHono.request;
     let middlewareResp;
@@ -692,14 +705,14 @@ function generateMiddlewareOrDispatch(
           if (from === "handle" && c.get("response") === null) {
             // increment fromHandle
             c.set("fromHandle", c.get("fromHandle") + 1);
-            consoledeno.debug(c.get("fromHandle"));
           }
           return await next();
         }
       }
       if (isset(resp)) {
-        await request.dispose();
-        return resp;
+        c.set("response", resp);
+        c.set("stopMiddleware", true);
+        return await next();
       } else {
         if (["dispatch"].includes(type)) {
           // @ts-ignore //
@@ -731,14 +744,25 @@ function generateMiddlewareOrDispatch(
   };
 }
 
+export function toFallback([count, fallbackParams]: [
+  number,
+  TFallbackMiddleware
+]) {
+  return generateFallback(...fallbackParams, count);
+}
+
 function generateFallback(
   type: "middleware",
   objArgs: MiddlewareOrDispatch,
   sequenceParams: string[] = [],
   count = 0
 ): MiddlewareHandler {
-  const from = objArgs.from;
   return async (c: MyContext, next) => {
+    const fromHandle = c.get("fromHandle");
+    if (count !== fromHandle) {
+      return await next();
+    }
+    c.set("fromHandle", fromHandle - 1);
     const myHono = c.get("myHono");
     const request = myHono.request;
     let middlewareResp;
@@ -747,7 +771,6 @@ function generateFallback(
       ...c.get("subdomain"),
       ...c.req.param(),
     });
-
     const { args, debugString } = objArgs;
     if (!isFunction(args)) {
       return await myError(c);
@@ -853,11 +876,6 @@ function generateFallback(
       }
       if (!isUndefined(middlewareResp)) {
         if (isNext) {
-          if (from === "handle" && c.get("response") === null) {
-            // increment fromHandle
-            c.set("fromHandle", c.get("fromHandle") + 1);
-            consoledeno.debug(c.get("fromHandle"));
-          }
           return await next();
         }
       }
@@ -890,6 +908,14 @@ function generateFallback(
     }
   };
 }
+
+export const returnResponse = async (c: MyContext) => {
+  const response = c.get("response");
+  // dispose session
+  const myHono = c.get("myHono");
+  await myHono.request.dispose();
+  return response;
+};
 
 export function renderErrorHtml(e: Error): string {
   return `
@@ -939,6 +965,7 @@ export const buildRequestInit = (): MiddlewareHandler => {
     c.set("honoClosure", new HonoClosure(c));
     c.set("fromHandle", 0);
     c.set("response", null);
+    c.set("stopMiddleware", false);
     await next();
   };
 };
