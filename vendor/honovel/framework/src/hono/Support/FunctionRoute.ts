@@ -236,7 +236,7 @@ interface IMiddlewareCompiler {
 
 export function toMiddleware(
   args: (string | HttpMiddleware | MiddlewareLikeClass)[]
-): MiddlewareHandler[] {
+): [MiddlewareHandler[], MiddlewareHandler[]] {
   const instanceKernel = new ChildKernel();
   const MiddlewareGroups = instanceKernel.MiddlewareGroups;
   const RouteMiddleware = instanceKernel.RouteMiddleware;
@@ -280,12 +280,17 @@ export function toMiddleware(
                         part.split(",").map((p) => p.trim())
                       ),
                     ],
-                    from: "handle",
+                    from:
+                      methodExist(middlewareInstance, "fallback") &&
+                      isFunction(middlewareInstance.fallback)
+                        ? "handle"
+                        : undefined,
                   });
                 }
                 if (
                   methodExist(middlewareInstance, "fallback") &&
-                  isFunction(middlewareInstance.fallback)
+                  isFunction(middlewareInstance.fallback) &&
+                  methodExist(middlewareInstance, "handle")
                 ) {
                   middlewareCallback.push({
                     debugString: `// class ${
@@ -316,12 +321,17 @@ export function toMiddleware(
                     ) as HttpMiddleware,
                     [],
                   ],
-                  from: "handle",
+                  from:
+                    methodExist(middlewareInstance, "fallback") &&
+                    isFunction(middlewareInstance.fallback)
+                      ? "handle"
+                      : undefined,
                 });
               }
               if (
                 methodExist(middlewareInstance, "fallback") &&
-                isFunction(middlewareInstance.fallback)
+                isFunction(middlewareInstance.fallback) &&
+                methodExist(middlewareInstance, "handle")
               ) {
                 middlewareCallback.push({
                   debugString: `// class ${
@@ -358,12 +368,17 @@ export function toMiddleware(
                   part.split(",").map((p) => p.trim())
                 ),
               ],
-              from: "handle",
+              from:
+                methodExist(middlewareInstance, "fallback") &&
+                isFunction(middlewareInstance.fallback)
+                  ? "handle"
+                  : undefined,
             });
           }
           if (
             methodExist(middlewareInstance, "fallback") &&
-            isFunction(middlewareInstance.fallback)
+            isFunction(middlewareInstance.fallback) &&
+            methodExist(middlewareInstance, "handle")
           ) {
             middlewareCallback.push({
               debugString: `// class ${
@@ -399,12 +414,17 @@ export function toMiddleware(
               ) as HttpMiddleware,
               argParts.flatMap((part) => part.split(",").map((p) => p.trim())),
             ],
-            from: "handle",
+            from:
+              methodExist(middlewareInstance, "fallback") &&
+              isFunction(middlewareInstance.fallback)
+                ? "handle"
+                : undefined,
           });
         }
         if (
           methodExist(middlewareInstance, "fallback") &&
-          isFunction(middlewareInstance.fallback)
+          isFunction(middlewareInstance.fallback) &&
+          methodExist(middlewareInstance, "handle")
         ) {
           middlewareCallback.push({
             debugString: `// class ${
@@ -438,12 +458,17 @@ export function toMiddleware(
               ) as HttpMiddleware,
               [],
             ],
-            from: "handle",
+            from:
+              methodExist(middlewareInstance, "fallback") &&
+              isFunction(middlewareInstance.fallback)
+                ? "handle"
+                : undefined,
           });
         }
         if (
           methodExist(middlewareInstance, "fallback") &&
-          isFunction(middlewareInstance.fallback)
+          isFunction(middlewareInstance.fallback) &&
+          methodExist(middlewareInstance, "handle")
         ) {
           middlewareCallback.push({
             debugString: `// class ${
@@ -468,41 +493,47 @@ export function toMiddleware(
     return middlewareCallback;
   });
 
-  return newArgs.flatMap((args): MiddlewareHandler[] => {
+  const returnMiddleware: [MiddlewareHandler[], MiddlewareHandler[]] = [[], []];
+
+  newArgs.forEach((args) => {
+    const newObj: MiddlewareOrDispatch = {
+      debugString: args.debugString,
+      args: args.middleware[0],
+      from: args.from,
+    };
+    const generatedMiddleware = generateMiddlewareOrDispatch(
+      "middleware",
+      newObj,
+      args.middleware[1] || []
+    );
     if (args.from == "fallback") {
-      return [];
+      returnMiddleware[1].unshift(generatedMiddleware);
     } else {
-      const newObj: MiddlewareOrDispatch = {
-        debugString: args.debugString,
-        args: args.middleware[0],
-      };
-      return [
-        generateMiddlewareOrDispatch(
-          "middleware",
-          newObj,
-          args.middleware[1] || []
-        ),
-      ];
+      returnMiddleware[0].push(generatedMiddleware);
     }
   });
+  return returnMiddleware;
 }
 
 export function toDispatch(
   objArgs: MiddlewareOrDispatch,
   sequenceParams: string[]
 ): MiddlewareHandler {
+  objArgs.from = "dispatch";
   return generateMiddlewareOrDispatch("dispatch", objArgs, sequenceParams);
 }
 
 interface MiddlewareOrDispatch {
   debugString: string;
   args: HttpMiddleware | IMyConfig["callback"];
+  from?: "handle" | "fallback" | "dispatch";
 }
 function generateMiddlewareOrDispatch(
   type: "middleware" | "dispatch",
   objArgs: MiddlewareOrDispatch,
   sequenceParams: string[] = []
 ): MiddlewareHandler {
+  const from = objArgs.from;
   return async (c: MyContext, next) => {
     const myHono = c.get("myHono");
     const request = myHono.request;
@@ -658,6 +689,11 @@ function generateMiddlewareOrDispatch(
       }
       if (!isUndefined(middlewareResp)) {
         if (isNext) {
+          if (from === "handle" && c.get("response") === null) {
+            // increment fromHandle
+            c.set("fromHandle", c.get("fromHandle") + 1);
+            consoledeno.debug(c.get("fromHandle"));
+          }
           return await next();
         }
       }
@@ -741,6 +777,8 @@ export const buildRequestInit = (): MiddlewareHandler => {
   return async (c: MyContext, next) => {
     c.set("myHono", new HttpHono(c));
     c.set("honoClosure", new HonoClosure(c));
+    c.set("fromHandle", 0);
+    c.set("response", null);
     await next();
   };
 };

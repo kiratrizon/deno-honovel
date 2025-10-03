@@ -34,4 +34,8 @@ export default class TrustProxies {
     if (proxies.includes("*")) return true;
     return proxies.includes(ip);
   }
+
+  public fallback: HttpMiddleware = async ({}, next) => {
+    return next();
+  };
 }

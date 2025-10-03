@@ -230,7 +230,7 @@ export class Database {
           newParams
         );
       } catch (error) {
-        console.error(`Query failed: ${newQuery}`, `Params:`, newParams);
+        consoledeno.error(`Query failed: ${newQuery}`, `Params:`, newParams);
         throw error;
       }
     }
@@ -749,7 +749,7 @@ export const dbCloser = () => {
         // No pooling to close
         break;
       default:
-        console.warn(`Unknown database driver: ${driver}`);
+        consoledeno.warn(`Unknown database driver: ${driver}`);
         break;
     }
   }

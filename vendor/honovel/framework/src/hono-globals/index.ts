@@ -285,7 +285,7 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
           }
           allModules.push(configName);
         } catch (_e) {
-          console.log(
+          consoledeno.warn(
             `Config file "config/${file.name}" does not export a default value.`
           );
         }
@@ -321,7 +321,7 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
         //   throw new Error();
         // }
       } catch (_e: any) {
-        console.log(_e);
+        consoledeno.warn(_e);
       }
     }
   }

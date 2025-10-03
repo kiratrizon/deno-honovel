@@ -442,6 +442,20 @@ class HonoRequest extends Macroable {
     this.#c.get("session").flash(key as any, value);
   }
 
+  #variables: Record<string, unknown> = {};
+
+  public set(key: string | Record<string, unknown>, value?: unknown): void {
+    if (isString(key) && isset(value)) {
+      this.#variables[key] = value;
+    } else if (isObject(key)) {
+      Object.assign(this.#variables, key);
+    }
+  }
+
+  public get(key: string): unknown {
+    return this.#variables[key] ?? null;
+  }
+
   public get $_SESSION() {
     // @ts-ignore //
     return this.#c.get("session").values;

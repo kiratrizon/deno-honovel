@@ -28,6 +28,8 @@ export type Variables = {
   logged_out: boolean;
   honoClosure: HonoClosure;
   auth_user: Authenticatable | null;
+  fromHandle: number;
+  response: Response | null;
 };
 
 export type HonoTypeImport = {

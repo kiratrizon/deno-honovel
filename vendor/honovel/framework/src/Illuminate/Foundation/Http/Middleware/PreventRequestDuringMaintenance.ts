@@ -8,7 +8,7 @@ export default class PreventRequestDuringMaintenance {
       store = this.getMaintenanceStore();
     } catch (_error) {
       if (!env("APP_DEBUG", false)) {
-        console.log("Maintenance mode store is not configured.");
+        consoledeno.error("Maintenance mode store is not configured.");
       }
       return next();
     }

@@ -20,7 +20,7 @@ class Boot {
       await Database.init();
       Auth.setAuth();
     } catch (e) {
-      console.error(e);
+      consoledeno.error(e);
       Deno.exit(1);
     }
   }
@@ -32,7 +32,7 @@ class Boot {
       CookieKeysCache.init();
       HonoView.init();
     } catch (e) {
-      console.error(e);
+      consoledeno.error(e);
       Deno.exit(1);
     }
   }

@@ -25,6 +25,7 @@ const Route = Router as typeof INRoute;
 import ChildKernel from "./Support/ChildKernel.ts";
 import GroupRoute from "./Support/GroupRoute.ts";
 import { myError } from "HonoHttp/builder.ts";
+import { group } from "node:console";
 
 const headFunction: MiddlewareHandler = async (c: MyContext, next) => {
   const { request } = c.get("myHono");
@@ -73,7 +74,10 @@ const myStaticDefaults: MiddlewareHandler[] = [
   }),
 ];
 
-const globalMiddleware = [...toMiddleware(new ChildKernel().Middleware)];
+const [globalMiddleware, globalMiddlewareFallback]: [
+  MiddlewareHandler[],
+  MiddlewareHandler[]
+] = [...toMiddleware(new ChildKernel().Middleware)];
 
 // domain on beta test
 const _forDomain: MiddlewareHandler = async (c, next: Next) => {
@@ -248,7 +252,11 @@ class Server {
       }
     }
 
-    const routeGroupMiddleware = [...toMiddleware(mainMiddleware)];
+    const [routeGroupMiddleware, routeGroupMiddlewareFallback]: [
+      MiddlewareHandler[],
+      MiddlewareHandler[]
+    ] = [...toMiddleware(mainMiddleware)];
+    // @ts-ignore //
     app.use(
       "*",
       honoSession(),
@@ -292,7 +300,7 @@ class Server {
           // route = Route as typeof INRoute;
         }
       } catch (err) {
-        console.warn(`Route file "${file}" could not be loaded.`, err);
+        consoledeno.warn(`Route file "${file}" could not be loaded.`, err);
       }
       const filePath = basePath(`routes/${file}`);
       if (isset(Route)) {
@@ -364,16 +372,24 @@ class Server {
                 },
                 arrangerDispatch.sequenceParams
               );
+              const [flagMiddlewareArr, flagMiddlewareFallback]: [
+                MiddlewareHandler[],
+                MiddlewareHandler[]
+              ] = toMiddleware([...flagMiddleware]);
               const allBuilds = [
-                ...toMiddleware([...flagMiddleware]),
+                ...flagMiddlewareArr,
                 returnedDispatch as MiddlewareHandler,
+                ...flagMiddlewareFallback,
+                ...globalMiddlewareFallback,
               ];
               if (methodarr.length === 1 && arrayFirst(methodarr) === "head") {
                 allBuilds.splice(1, 0, headFunction);
                 splittedUri.forEach((str) => {
+                  // @ts-ignore //
                   newApp.get(str, ...allBuilds);
                 });
               } else {
+                // @ts-ignore //
                 newApp.on(
                   methodarr.map((m) => m.toUpperCase()),
                   splittedUri,
@@ -442,6 +458,10 @@ class Server {
 
               const groupEntries = Object.entries(myGroup.myRoutes);
               const arrangerGroup = URLArranger.urlCombiner(newName, true);
+              const [myGroupMiddleware, myGroupMiddlewareFallback]: [
+                MiddlewareHandler[],
+                MiddlewareHandler[]
+              ] = toMiddleware(middleware);
               groupEntries.forEach(([routeId, methodarr]) => {
                 const routeUsed = methods[routeId];
                 const myConfig = routeUsed.config;
@@ -459,7 +479,7 @@ class Server {
                   },
                   myParam
                 );
-                // console.log(myParam);
+                // consoledeno.debug(myParam);
                 const arrangerDispatch = URLArranger.urlCombiner(myConfig.uri);
                 const newMethodUri = arrangerDispatch.string;
 
@@ -496,10 +516,17 @@ class Server {
                   }
                 }
                 const flagMiddleware = flag.middleware || [];
-                newGroupMiddleware.push(...toMiddleware(flagMiddleware));
+                const [flagMiddlewareArr, flagMiddlewareFallback]: [
+                  MiddlewareHandler[],
+                  MiddlewareHandler[]
+                ] = toMiddleware([...flagMiddleware]);
+                newGroupMiddleware.push(...flagMiddlewareArr);
                 const allBuilds = [
                   ...newGroupMiddleware,
                   returnedDispatch as MiddlewareHandler,
+                  ...flagMiddlewareFallback,
+                  ...myGroupMiddlewareFallback,
+                  ...globalMiddlewareFallback,
                 ];
 
                 if (
@@ -524,10 +551,9 @@ class Server {
                 "group",
                 where
               );
-
-              const myGroupMiddleware = [...toMiddleware(middleware)];
               generatedopts.forEach((grp) => {
                 // apply the middlewares here
+                // @ts-ignore //
                 newAppGroup.use("*", ...myGroupMiddleware);
                 newAppGroup.route(grp, myNewGroup);
               });

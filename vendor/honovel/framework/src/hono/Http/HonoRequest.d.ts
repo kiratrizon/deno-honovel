@@ -197,6 +197,21 @@ declare class HonoRequest {
 
   /** Bind route parameters to request */
   public bindRoute(params: Record<string, typeof Model<ModelAttributes>>): void;
+
+  /**
+   * Set a variable along the request lifecycle
+   * Overloaded to accept either a key-value pair or an object of key-value pairs
+   * @param key
+   * @param value
+   */
+  public set(key: string, value: unknown): void;
+  public set(data: Record<string, unknown>): void;
+
+  /**
+   *  Get a variable set along the request lifecycle
+   * @param key
+   */
+  public get(key: string): unknown;
 }
 
 export default HonoRequest;
