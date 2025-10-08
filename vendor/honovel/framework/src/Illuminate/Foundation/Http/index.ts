@@ -1,5 +1,5 @@
 export interface MiddlewareLikeInstance {
-  handle: HttpMiddleware;
+  handle?: HttpMiddleware;
   fallback?: HttpMiddleware;
 }
 

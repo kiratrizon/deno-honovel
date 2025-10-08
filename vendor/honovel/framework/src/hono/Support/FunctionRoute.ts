@@ -42,6 +42,10 @@ export function regexToHono(
     await next();
   };
 }
+
+const defaultHandle: HttpMiddleware = async function ({ request }, next) {
+  return next();
+};
 export type TFallbackMiddleware = [
   "middleware",
   MiddlewareOrDispatch,
@@ -271,7 +275,10 @@ export function toMiddleware(
                   new (middlewareClass as new () => InstanceType<
                     typeof middlewareClass
                   >)();
-                if (methodExist(middlewareInstance, "handle")) {
+                if (
+                  methodExist(middlewareInstance, "handle") &&
+                  isFunction(middlewareInstance.handle)
+                ) {
                   middlewareCallback.push({
                     debugString: `// class ${
                       middlewareClass.name
@@ -293,9 +300,15 @@ export function toMiddleware(
                 }
                 if (
                   methodExist(middlewareInstance, "fallback") &&
-                  isFunction(middlewareInstance.fallback) &&
-                  methodExist(middlewareInstance, "handle")
+                  isFunction(middlewareInstance.fallback)
                 ) {
+                  if (!methodExist(middlewareInstance, "handle")) {
+                    middlewareCallback.push({
+                      debugString: "",
+                      middleware: [defaultHandle, []],
+                      from: "handle",
+                    });
+                  }
                   middlewareCallback.push({
                     debugString: `// class ${
                       middlewareClass.name
@@ -314,7 +327,10 @@ export function toMiddleware(
               }
             } else {
               const middlewareInstance = new middleware();
-              if (methodExist(middlewareInstance, "handle")) {
+              if (
+                methodExist(middlewareInstance, "handle") &&
+                isFunction(middlewareInstance.handle)
+              ) {
                 middlewareCallback.push({
                   debugString: `// class ${
                     middleware.name
@@ -334,9 +350,15 @@ export function toMiddleware(
               }
               if (
                 methodExist(middlewareInstance, "fallback") &&
-                isFunction(middlewareInstance.fallback) &&
-                methodExist(middlewareInstance, "handle")
+                isFunction(middlewareInstance.fallback)
               ) {
+                if (!methodExist(middlewareInstance, "handle")) {
+                  middlewareCallback.push({
+                    debugString: "",
+                    middleware: [defaultHandle, []],
+                    from: "handle",
+                  });
+                }
                 middlewareCallback.push({
                   debugString: `// class ${
                     middleware.name
@@ -359,7 +381,10 @@ export function toMiddleware(
           const middlewareInstance = new (middlewareClass as new (
             ...args: any[]
           ) => any)();
-          if (methodExist(middlewareInstance, "handle")) {
+          if (
+            methodExist(middlewareInstance, "handle") &&
+            isFunction(middlewareInstance.handle)
+          ) {
             middlewareCallback.push({
               debugString: `// class ${
                 middlewareClass.name
@@ -381,9 +406,15 @@ export function toMiddleware(
           }
           if (
             methodExist(middlewareInstance, "fallback") &&
-            isFunction(middlewareInstance.fallback) &&
-            methodExist(middlewareInstance, "handle")
+            isFunction(middlewareInstance.fallback)
           ) {
+            if (!methodExist(middlewareInstance, "handle")) {
+              middlewareCallback.push({
+                debugString: "",
+                middleware: [defaultHandle, []],
+                from: "handle",
+              });
+            }
             middlewareCallback.push({
               debugString: `// class ${
                 middlewareClass.name
@@ -407,7 +438,10 @@ export function toMiddleware(
         const middlewareInstance = new (middlewareClass as new (
           ...args: any[]
         ) => any)();
-        if (methodExist(middlewareInstance, "handle")) {
+        if (
+          methodExist(middlewareInstance, "handle") &&
+          isFunction(middlewareInstance.handle)
+        ) {
           middlewareCallback.push({
             debugString: `// class ${
               middlewareClass.name
@@ -427,9 +461,15 @@ export function toMiddleware(
         }
         if (
           methodExist(middlewareInstance, "fallback") &&
-          isFunction(middlewareInstance.fallback) &&
-          methodExist(middlewareInstance, "handle")
+          isFunction(middlewareInstance.fallback)
         ) {
+          if (!methodExist(middlewareInstance, "handle")) {
+            middlewareCallback.push({
+              debugString: "",
+              middleware: [defaultHandle, []],
+              from: "handle",
+            });
+          }
           middlewareCallback.push({
             debugString: `// class ${
               middlewareClass.name
@@ -451,7 +491,10 @@ export function toMiddleware(
         const middlewareInstance = new (middlewareClass as new (
           ...args: any[]
         ) => any)();
-        if (methodExist(middlewareInstance, "handle")) {
+        if (
+          methodExist(middlewareInstance, "handle") &&
+          isFunction(middlewareInstance.handle)
+        ) {
           middlewareCallback.push({
             debugString: `// class ${
               middlewareClass.name
@@ -471,9 +514,15 @@ export function toMiddleware(
         }
         if (
           methodExist(middlewareInstance, "fallback") &&
-          isFunction(middlewareInstance.fallback) &&
-          methodExist(middlewareInstance, "handle")
+          isFunction(middlewareInstance.fallback)
         ) {
+          if (!methodExist(middlewareInstance, "handle")) {
+            middlewareCallback.push({
+              debugString: "",
+              middleware: [defaultHandle, []],
+              from: "handle",
+            });
+          }
           middlewareCallback.push({
             debugString: `// class ${
               middlewareClass.name
