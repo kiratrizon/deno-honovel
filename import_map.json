@@ -18,6 +18,7 @@
         "hono/deno": "npm:hono/deno",
         "hono/logger": "npm:hono/logger",
         "hono/utils/cookie": "npm:hono/utils/cookie",
+        "hono/request": "npm:hono/request",
         "hono/cookie": "npm:hono/cookie",
         "@std/assert": "jsr:@std/assert@1",
         "Constants": "./vendor/honovel/framework/src/Maneuver/Constants.ts",

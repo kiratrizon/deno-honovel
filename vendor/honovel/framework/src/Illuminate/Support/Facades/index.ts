@@ -270,7 +270,7 @@ class DBConnection {
       await db.runQuery(query, params);
       return true;
     } catch (error) {
-      console.error("Database statement error:", error);
+      consoledeno.error("Database statement error:", error);
       throw error;
     }
   }
@@ -292,7 +292,7 @@ class DBConnection {
       const result = await db.runQuery<"select">(query, params);
       return result;
     } catch (error) {
-      console.error("Database select error:", error);
+      consoledeno.error("Database select error:", error);
       throw error;
     }
   }

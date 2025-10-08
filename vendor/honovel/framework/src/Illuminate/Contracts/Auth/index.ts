@@ -403,6 +403,7 @@ export class SessionGuard extends BaseGuard {
       rawAttributes as AuthenticatableAttrSession
     );
     this.c.set(key, user);
+    const Cookie = this.c.get("myHono").Cookie;
     if (remember) {
       // If "remember me" is checked, set the remember token
       const generatedToken = `${
@@ -412,7 +413,7 @@ export class SessionGuard extends BaseGuard {
       await user.setRememberToken(rememberToken);
       await user.save();
       const sessguardKey = `auth_${this.guardName}_user`;
-      request.cookie(sessguardKey, rememberToken, {
+      Cookie.queue(sessguardKey, rememberToken, {
         maxAge: 30 * 24 * 60 * 60, // 30 days
       });
       this.rememberUser = true;
@@ -423,9 +424,10 @@ export class SessionGuard extends BaseGuard {
   logout(): void {
     const { request } = this.c.get("myHono");
     const sessguardKey = `auth_${this.guardName}_user`;
+    const Cookie = this.c.get("myHono").Cookie;
     // @ts-ignore //
     request.session.forget(sessguardKey);
-    request.cookie(sessguardKey, "", {
+    Cookie.queue(sessguardKey, "", {
       maxAge: -1, // Delete the cookie
     });
     // @ts-ignore //

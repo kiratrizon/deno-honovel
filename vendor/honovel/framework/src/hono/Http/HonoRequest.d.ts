@@ -96,13 +96,7 @@ declare class HonoRequest {
   bearerToken(): string | null;
 
   /** Get or set cookies */
-  cookie(): Record<string, Exclude<unknown, undefined>>;
-  cookie(key: string): Exclude<unknown, undefined>;
-  cookie(
-    key: string,
-    value: Exclude<unknown, undefined>,
-    options?: CookieOptions
-  ): void;
+  cookie(key: string): Exclude<unknown, undefined> | null;
 
   /** Delete a cookie */
   deleteCookie(key: string, options?: CookieOptions): void;
@@ -203,6 +197,21 @@ declare class HonoRequest {
 
   /** Bind route parameters to request */
   public bindRoute(params: Record<string, typeof Model<ModelAttributes>>): void;
+
+  /**
+   * Set a variable along the request lifecycle
+   * Overloaded to accept either a key-value pair or an object of key-value pairs
+   * @param key
+   * @param value
+   */
+  public set(key: string, value: unknown): void;
+  public set(data: Record<string, unknown>): void;
+
+  /**
+   *  Get a variable set along the request lifecycle
+   * @param key
+   */
+  public get(key: string): unknown;
 }
 
 export default HonoRequest;

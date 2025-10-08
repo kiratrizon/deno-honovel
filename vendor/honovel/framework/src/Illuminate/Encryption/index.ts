@@ -18,7 +18,7 @@ export class Encrypter {
 
     if (appKeyMatch) {
       if (!force) {
-        console.log(
+        consoledeno.info(
           `APP_KEY already exists in ${envPath}. Use force to overwrite.`
         );
         return;
@@ -53,9 +53,9 @@ export class Encrypter {
 
     // Save changes
     Deno.writeTextFileSync(envFile, envContent);
-    console.log(`App key generated and saved to ${envPath}`);
+    consoledeno.success(`App key generated and saved to ${envPath}`);
     if (force && appKeyMatch) {
-      console.log(`Old key stored in PREVIOUS_KEYS inside ${envPath}`);
+      consoledeno.info(`Old key stored in PREVIOUS_KEYS inside ${envPath}`);
     }
   }
 }

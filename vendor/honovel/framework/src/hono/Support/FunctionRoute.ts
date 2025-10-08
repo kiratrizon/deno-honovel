@@ -43,6 +43,14 @@ export function regexToHono(
   };
 }
 
+const defaultHandle: HttpMiddleware = async function ({ request }, next) {
+  return next();
+};
+export type TFallbackMiddleware = [
+  "middleware",
+  MiddlewareOrDispatch,
+  string[]
+];
 export class URLArranger {
   public static urlCombiner(input: string[] | string, strict = true) {
     if (isString(input)) {
@@ -231,11 +239,12 @@ function applyConstraintsWithOptional(
 interface IMiddlewareCompiler {
   debugString: string;
   middleware: [HttpMiddleware, string[]];
+  from?: "handle" | "fallback";
 }
 
 export function toMiddleware(
   args: (string | HttpMiddleware | MiddlewareLikeClass)[]
-): MiddlewareHandler[] {
+): [MiddlewareHandler[], TFallbackMiddleware[]] {
   const instanceKernel = new ChildKernel();
   const MiddlewareGroups = instanceKernel.MiddlewareGroups;
   const RouteMiddleware = instanceKernel.RouteMiddleware;
@@ -246,9 +255,12 @@ export function toMiddleware(
       if (!isset(firstKey) || empty(firstKey))
         throw new Error(`Invalid middleware name: ${arg}`);
       if (argParts.length === 0) {
+        // if it's in the group middleware
         if (keyExist(MiddlewareGroups, firstKey)) {
           arg = firstKey;
           const middlewareGroup = MiddlewareGroups[arg];
+
+          // map through each middleware in the group
           middlewareGroup.forEach((middleware) => {
             if (isString(middleware)) {
               const [middlewareName, ...middlewareParts] =
@@ -263,7 +275,10 @@ export function toMiddleware(
                   new (middlewareClass as new () => InstanceType<
                     typeof middlewareClass
                   >)();
-                if (methodExist(middlewareInstance, "handle")) {
+                if (
+                  methodExist(middlewareInstance, "handle") &&
+                  isFunction(middlewareInstance.handle)
+                ) {
                   middlewareCallback.push({
                     debugString: `// class ${
                       middlewareClass.name
@@ -276,12 +291,46 @@ export function toMiddleware(
                         part.split(",").map((p) => p.trim())
                       ),
                     ],
+                    from:
+                      methodExist(middlewareInstance, "fallback") &&
+                      isFunction(middlewareInstance.fallback)
+                        ? "handle"
+                        : undefined,
+                  });
+                }
+                if (
+                  methodExist(middlewareInstance, "fallback") &&
+                  isFunction(middlewareInstance.fallback)
+                ) {
+                  if (!methodExist(middlewareInstance, "handle")) {
+                    middlewareCallback.push({
+                      debugString: "",
+                      middleware: [defaultHandle, []],
+                      from: "handle",
+                    });
+                  }
+                  middlewareCallback.push({
+                    debugString: `// class ${
+                      middlewareClass.name
+                    }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
+                    middleware: [
+                      middlewareInstance.fallback.bind(
+                        middlewareInstance
+                      ) as HttpMiddleware,
+                      middlewareParts.flatMap((part) =>
+                        part.split(",").map((p) => p.trim())
+                      ),
+                    ],
+                    from: "fallback",
                   });
                 }
               }
             } else {
               const middlewareInstance = new middleware();
-              if (methodExist(middlewareInstance, "handle")) {
+              if (
+                methodExist(middlewareInstance, "handle") &&
+                isFunction(middlewareInstance.handle)
+              ) {
                 middlewareCallback.push({
                   debugString: `// class ${
                     middleware.name
@@ -292,6 +341,35 @@ export function toMiddleware(
                     ) as HttpMiddleware,
                     [],
                   ],
+                  from:
+                    methodExist(middlewareInstance, "fallback") &&
+                    isFunction(middlewareInstance.fallback)
+                      ? "handle"
+                      : undefined,
+                });
+              }
+              if (
+                methodExist(middlewareInstance, "fallback") &&
+                isFunction(middlewareInstance.fallback)
+              ) {
+                if (!methodExist(middlewareInstance, "handle")) {
+                  middlewareCallback.push({
+                    debugString: "",
+                    middleware: [defaultHandle, []],
+                    from: "handle",
+                  });
+                }
+                middlewareCallback.push({
+                  debugString: `// class ${
+                    middleware.name
+                  }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
+                  middleware: [
+                    middlewareInstance.fallback.bind(
+                      middlewareInstance
+                    ) as HttpMiddleware,
+                    [],
+                  ],
+                  from: "fallback",
                 });
               }
             }
@@ -303,7 +381,10 @@ export function toMiddleware(
           const middlewareInstance = new (middlewareClass as new (
             ...args: any[]
           ) => any)();
-          if (methodExist(middlewareInstance, "handle")) {
+          if (
+            methodExist(middlewareInstance, "handle") &&
+            isFunction(middlewareInstance.handle)
+          ) {
             middlewareCallback.push({
               debugString: `// class ${
                 middlewareClass.name
@@ -316,6 +397,37 @@ export function toMiddleware(
                   part.split(",").map((p) => p.trim())
                 ),
               ],
+              from:
+                methodExist(middlewareInstance, "fallback") &&
+                isFunction(middlewareInstance.fallback)
+                  ? "handle"
+                  : undefined,
+            });
+          }
+          if (
+            methodExist(middlewareInstance, "fallback") &&
+            isFunction(middlewareInstance.fallback)
+          ) {
+            if (!methodExist(middlewareInstance, "handle")) {
+              middlewareCallback.push({
+                debugString: "",
+                middleware: [defaultHandle, []],
+                from: "handle",
+              });
+            }
+            middlewareCallback.push({
+              debugString: `// class ${
+                middlewareClass.name
+              }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
+              middleware: [
+                middlewareInstance.fallback.bind(
+                  middlewareInstance
+                ) as HttpMiddleware,
+                argParts.flatMap((part) =>
+                  part.split(",").map((p) => p.trim())
+                ),
+              ],
+              from: "fallback",
             });
           }
         }
@@ -326,7 +438,10 @@ export function toMiddleware(
         const middlewareInstance = new (middlewareClass as new (
           ...args: any[]
         ) => any)();
-        if (methodExist(middlewareInstance, "handle")) {
+        if (
+          methodExist(middlewareInstance, "handle") &&
+          isFunction(middlewareInstance.handle)
+        ) {
           middlewareCallback.push({
             debugString: `// class ${
               middlewareClass.name
@@ -337,6 +452,35 @@ export function toMiddleware(
               ) as HttpMiddleware,
               argParts.flatMap((part) => part.split(",").map((p) => p.trim())),
             ],
+            from:
+              methodExist(middlewareInstance, "fallback") &&
+              isFunction(middlewareInstance.fallback)
+                ? "handle"
+                : undefined,
+          });
+        }
+        if (
+          methodExist(middlewareInstance, "fallback") &&
+          isFunction(middlewareInstance.fallback)
+        ) {
+          if (!methodExist(middlewareInstance, "handle")) {
+            middlewareCallback.push({
+              debugString: "",
+              middleware: [defaultHandle, []],
+              from: "handle",
+            });
+          }
+          middlewareCallback.push({
+            debugString: `// class ${
+              middlewareClass.name
+            }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
+            middleware: [
+              middlewareInstance.fallback.bind(
+                middlewareInstance
+              ) as HttpMiddleware,
+              argParts.flatMap((part) => part.split(",").map((p) => p.trim())),
+            ],
+            from: "fallback",
           });
         }
       }
@@ -347,7 +491,10 @@ export function toMiddleware(
         const middlewareInstance = new (middlewareClass as new (
           ...args: any[]
         ) => any)();
-        if (methodExist(middlewareInstance, "handle")) {
+        if (
+          methodExist(middlewareInstance, "handle") &&
+          isFunction(middlewareInstance.handle)
+        ) {
           middlewareCallback.push({
             debugString: `// class ${
               middlewareClass.name
@@ -358,6 +505,35 @@ export function toMiddleware(
               ) as HttpMiddleware,
               [],
             ],
+            from:
+              methodExist(middlewareInstance, "fallback") &&
+              isFunction(middlewareInstance.fallback)
+                ? "handle"
+                : undefined,
+          });
+        }
+        if (
+          methodExist(middlewareInstance, "fallback") &&
+          isFunction(middlewareInstance.fallback)
+        ) {
+          if (!methodExist(middlewareInstance, "handle")) {
+            middlewareCallback.push({
+              debugString: "",
+              middleware: [defaultHandle, []],
+              from: "handle",
+            });
+          }
+          middlewareCallback.push({
+            debugString: `// class ${
+              middlewareClass.name
+            }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
+            middleware: [
+              middlewareInstance.fallback.bind(
+                middlewareInstance
+              ) as HttpMiddleware,
+              [],
+            ],
+            from: "fallback",
           });
         }
       } else {
@@ -370,36 +546,57 @@ export function toMiddleware(
     return middlewareCallback;
   });
 
-  return newArgs.map((args): MiddlewareHandler => {
+  const returnMiddleware: [MiddlewareHandler[], TFallbackMiddleware[]] = [
+    [],
+    [],
+  ];
+
+  newArgs.forEach((args) => {
     const newObj: MiddlewareOrDispatch = {
       debugString: args.debugString,
       args: args.middleware[0],
+      from: args.from,
     };
-    return generateMiddlewareOrDispatch(
+
+    const param: TFallbackMiddleware = [
       "middleware",
       newObj,
-      args.middleware[1] || []
-    );
+      args.middleware[1] || [],
+    ];
+    const generatedMiddleware = generateMiddlewareOrDispatch(...param);
+    if (args.from == "fallback") {
+      returnMiddleware[1].push(param);
+    } else {
+      returnMiddleware[0].push(generatedMiddleware);
+    }
   });
+  return returnMiddleware;
 }
 
 export function toDispatch(
   objArgs: MiddlewareOrDispatch,
   sequenceParams: string[]
 ): MiddlewareHandler {
+  objArgs.from = "dispatch";
   return generateMiddlewareOrDispatch("dispatch", objArgs, sequenceParams);
 }
 
 interface MiddlewareOrDispatch {
   debugString: string;
   args: HttpMiddleware | IMyConfig["callback"];
+  from?: "handle" | "fallback" | "dispatch";
 }
 function generateMiddlewareOrDispatch(
   type: "middleware" | "dispatch",
   objArgs: MiddlewareOrDispatch,
   sequenceParams: string[] = []
 ): MiddlewareHandler {
+  const from = objArgs.from;
   return async (c: MyContext, next) => {
+    if (c.get("stopMiddleware") === true) {
+      console.log("hello");
+      return await next();
+    }
     const myHono = c.get("myHono");
     const request = myHono.request;
     let middlewareResp;
@@ -548,18 +745,23 @@ function generateMiddlewareOrDispatch(
             resp = c.html("Internal server error", 500);
           }
         } else {
-          console.error("Unexpected error:", e);
+          consoledeno.error("Unexpected error:", e);
           resp = c.json({ message: "Internal server error" }, 500);
         }
       }
       if (!isUndefined(middlewareResp)) {
         if (isNext) {
+          if (from === "handle" && c.get("response") === null) {
+            // increment fromHandle
+            c.set("fromHandle", c.get("fromHandle") + 1);
+          }
           return await next();
         }
       }
       if (isset(resp)) {
-        await request.dispose();
-        return resp;
+        c.set("response", resp);
+        c.set("stopMiddleware", true);
+        return await next();
       } else {
         if (["dispatch"].includes(type)) {
           // @ts-ignore //
@@ -590,6 +792,179 @@ function generateMiddlewareOrDispatch(
     }
   };
 }
+
+export function toFallback([count, fallbackParams]: [
+  number,
+  TFallbackMiddleware
+]) {
+  return generateFallback(...fallbackParams, count);
+}
+
+function generateFallback(
+  type: "middleware",
+  objArgs: MiddlewareOrDispatch,
+  sequenceParams: string[] = [],
+  count = 0
+): MiddlewareHandler {
+  return async (c: MyContext, next) => {
+    const fromHandle = c.get("fromHandle");
+    if (count !== fromHandle) {
+      return await next();
+    }
+    c.set("fromHandle", fromHandle - 1);
+    const myHono = c.get("myHono");
+    const request = myHono.request;
+    let middlewareResp;
+    // @ts-ignore //
+    request.resetRoute({
+      ...c.get("subdomain"),
+      ...c.req.param(),
+    });
+    const { args, debugString } = objArgs;
+    if (!isFunction(args)) {
+      return await myError(c);
+    } else {
+      let resp: Response | undefined; // build response
+      let isNext = false;
+      try {
+        const honoClosure = c.get("honoClosure");
+        middlewareResp = await (args as HttpMiddleware)(
+          myHono,
+          // @ts-ignore //
+          honoClosure.next.bind(honoClosure),
+          ...sequenceParams
+        );
+        if (isNull(middlewareResp)) {
+          resp = c.json(null);
+        } else {
+          const dispatch = new HonoDispatch(middlewareResp, type);
+          if (type === "middleware" && !dispatch.isNext) {
+            const result = (await dispatch.build(request, c)) as Response;
+            resp = result;
+          } else if (type === "middleware" && dispatch.isNext) {
+            isNext = true;
+          }
+        }
+      } catch (e: unknown) {
+        if (e instanceof DDError) {
+          const data = forDD(e.data);
+          if (request.expectsJson()) {
+            if (!isset(data.json)) {
+              data.json = null;
+            }
+            if (
+              isArray(data.json) ||
+              isObject(data.json) ||
+              isString(data.json) ||
+              isFloat(data.json) ||
+              isInteger(data.json) ||
+              isBoolean(data.json) ||
+              isNull(data.json)
+            ) {
+              resp = c.json(data.json, 200);
+            }
+          } else {
+            resp = c.html(data.html, 200);
+          }
+        } else if (e instanceof AbortError) {
+          if (request.expectsJson()) {
+            resp = e.toJson();
+          } else {
+            const data = isString(e.msg)
+              ? e.msg
+              : `Error: ${e.code} - ${e.msg}`;
+            resp = await myError(c, e.code as ContentfulStatusCode, data);
+          }
+        } else if (e instanceof SQLError) {
+          if (request.expectsJson()) {
+            resp = c.json(
+              {
+                message: e.message,
+                error_type: e.name,
+              },
+              500
+            );
+          } else {
+            resp = c.html(renderErrorHtml(e), 500);
+          }
+        } else if (e instanceof Error) {
+          // populate e with additional information
+          const populatedError: Record<string, unknown> = {};
+          populatedError["error_type"] = e.name.trim();
+          populatedError["message"] = e.message.trim();
+          populatedError["stack"] = e.stack
+            ? e.stack.split("\n").map((line) => line.trim())
+            : [];
+          populatedError["cause"] = e.cause;
+          let errorHtml: string;
+          if (env("APP_DEBUG", true)) {
+            if (!request.expectsJson()) {
+              errorHtml =
+                extractControllerTrace(populatedError.stack as string[]) ||
+                renderErrorHtml(e);
+              resp = c.html(errorHtml, 500);
+            } else {
+              resp = c.json(
+                {
+                  message: populatedError.message,
+                  error_type: populatedError.error_type,
+                  stack: populatedError.stack,
+                  cause: populatedError.cause,
+                },
+                500
+              );
+            }
+          } else {
+            consoledeno.error(populatedError);
+            resp = c.html("Internal server error", 500);
+          }
+        } else {
+          consoledeno.error("Unexpected error:", e);
+          resp = c.json({ message: "Internal server error" }, 500);
+        }
+      }
+      if (!isUndefined(middlewareResp)) {
+        if (isNext) {
+          return await next();
+        }
+      }
+      if (isset(resp)) {
+        await request.dispose();
+        return resp;
+      } else {
+        const debuggingPurpose = renderDebugErrorPage(
+          `${ucFirst(type)} Error`,
+          debugString,
+          `Returned undefined value from the ${type} function.`
+        );
+        if (!isset(env("DENO_DEPLOYMENT_ID"))) {
+          return c.html(debuggingPurpose, 500);
+        }
+        consoledeno.debug(
+          debuggingPurpose,
+          "error",
+          `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(
+            "HTTP_X_REQUEST_ID"
+          )}`
+        );
+        return c.json(
+          {
+            message: "Internal server error",
+          },
+          500
+        );
+      }
+    }
+  };
+}
+
+export const returnResponse = async (c: MyContext) => {
+  const response = c.get("response");
+  // dispose session
+  const myHono = c.get("myHono");
+  await myHono.request.dispose();
+  return response;
+};
 
 export function renderErrorHtml(e: Error): string {
   return `
@@ -637,6 +1012,9 @@ export const buildRequestInit = (): MiddlewareHandler => {
   return async (c: MyContext, next) => {
     c.set("myHono", new HttpHono(c));
     c.set("honoClosure", new HonoClosure(c));
+    c.set("fromHandle", 0);
+    c.set("response", null);
+    c.set("stopMiddleware", false);
     await next();
   };
 };

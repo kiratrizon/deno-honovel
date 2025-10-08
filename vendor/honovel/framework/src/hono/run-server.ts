@@ -76,7 +76,7 @@ for (const path of warmups) {
 serveObj.port = port;
 
 if (env("OTEL_DENO") === "true") {
-  console.log("OpenTelemetry is enabled");
+  consoledeno.info("OpenTelemetry is enabled");
 }
 
 Deno.serve(serveObj, app.fetch);

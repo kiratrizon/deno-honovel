@@ -1,9 +1,7 @@
-import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";
-import IHonoRequest, {
+import {
   RequestMethod,
   SERVER,
 } from "../../../../@types/declaration/IHonoRequest.d.ts";
-import { ISession } from "../../../../@types/declaration/ISession.d.ts";
 import HonoHeader from "./HonoHeader.ts";
 import { isbot } from "isbot";
 import Macroable from "../../Maneuver/Macroable.ts";
@@ -308,28 +306,9 @@ class HonoRequest extends Macroable {
     return null;
   }
 
-  public cookie(key: string): Exclude<unknown, undefined>;
-  public cookie(): Record<string, Exclude<unknown, undefined>>;
-  public cookie(
-    key: string,
-    value: Exclude<unknown, undefined>,
-    options?: CookieOptions
-  ): void;
-  public cookie(
-    key?: string,
-    value?: Exclude<unknown, undefined>,
-    options: CookieOptions = {}
-  ): unknown {
-    if (isset(key) && isset(value)) {
-      setMyCookie(this.#c, key, value, options);
-      return;
-    }
-    if (isset(key) && !isset(value)) {
-      return getMyCookie(this.#c, key);
-    }
-    if (!isset(key) && !isset(value)) {
-      return getMyCookie(this.#c);
-    }
+  public cookie(key: string): unknown {
+    const Cookie = this.#c.get("myHono").Cookie;
+    return Cookie.get(key);
   }
 
   public deleteCookie(key: string, options?: CookieOptions): void {
@@ -463,14 +442,28 @@ class HonoRequest extends Macroable {
     this.#c.get("session").flash(key as any, value);
   }
 
+  #variables: Record<string, unknown> = {};
+
+  public set(key: string | Record<string, unknown>, value?: unknown): void {
+    if (isString(key) && isset(value)) {
+      this.#variables[key] = value;
+    } else if (isObject(key)) {
+      Object.assign(this.#variables, key);
+    }
+  }
+
+  public get(key: string): unknown {
+    return this.#variables[key] ?? null;
+  }
+
   public get $_SESSION() {
     // @ts-ignore //
     return this.#c.get("session").values;
   }
 
   public get $_COOKIE() {
-    // @ts-ignore //
-    return getMyCookie(this.#c);
+    const Cookie = this.#c.get("myHono").Cookie;
+    return Cookie.all();
   }
 
   public get $_SERVER(): SERVER {

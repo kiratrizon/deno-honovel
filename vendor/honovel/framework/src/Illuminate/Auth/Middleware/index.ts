@@ -27,17 +27,17 @@ export class AuthenticateWithBasicAuth {
 
     const defaultGuard = Configure.read("auth")?.default?.guard;
     if (!defaultGuard) {
-      console.error("Default guard not configured in auth settings.");
+      consoledeno.error("Default guard not configured in auth settings.");
       abort(500, "Internal Server Error");
     }
     const provider = Configure.read("auth")?.guards?.[defaultGuard]?.provider;
     if (!provider) {
-      console.error(`Provider not configured for guard: ${defaultGuard}`);
+      consoledeno.error(`Provider not configured for guard: ${defaultGuard}`);
       abort(500, "Internal Server Error");
     }
     const userModel = Configure.read("auth")?.providers?.[provider]?.model;
     if (!userModel) {
-      console.error(`Model not configured for provider: ${provider}`);
+      consoledeno.error(`Model not configured for provider: ${provider}`);
       abort(500, "Internal Server Error");
     }
 

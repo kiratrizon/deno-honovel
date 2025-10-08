@@ -1,17 +1,14 @@
-import { StartSession } from "Illuminate/Session/Middleware/index.ts";
-import {
-  ConvertEmptyStringsToNull,
-  PayloadParser,
-  PreventRequestDuringMaintenance,
-  ValidatePostSize,
-} from "Illuminate/Foundation/Http/Middleware/index.ts";
+import StartSession from "Illuminate/Session/Middleware/StartSession.ts";
+import ConvertEmptyStringsToNull from "Illuminate/Foundation/Http/Middleware/ConvertEmptyStringsToNull.ts";
+import PayloadParser from "Illuminate/Foundation/Http/Middleware/PayloadParser.ts";
+import ValidatePostSize from "Illuminate/Foundation/Http/Middleware/ValidatePostSize.ts";
+import PreventRequestDuringMaintenance from "Illuminate/Foundation/Http/Middleware/PreventRequestDuringMaintenance.ts";
 import { HttpKernel } from "Illuminate/Foundation/Http/index.ts";
-import {
-  EnsureAcceptsJson,
-  SubstituteBindings,
-  ThrottleRequests,
-  ValidateSignature,
-} from "Illuminate/Routing/Middleware/index.ts";
+import EnsureAcceptsJson from "Illuminate/Routing/Middleware/EnsureAcceptsJson.ts";
+import SubstituteBindings from "Illuminate/Routing/Middleware/SubstituteBindings.ts";
+import ValidateSignature from "Illuminate/Routing/Middleware/ValidateSignature.ts";
+import ThrottleRequests from "Illuminate/Routing/Middleware/ThrottleRequests.ts";
+
 import VerifyCsrfToken from "App/Http/Middlewares/VerifyCsrfToken.ts";
 import Authenticate from "./Middlewares/Authenticate.ts";
 import {
@@ -27,6 +24,7 @@ import {
   RequirePassword,
 } from "Illuminate/Auth/Middleware/index.ts";
 import RedirectIfAuthenticated from "./Middlewares/RedirectIfAuthenticated.ts";
+import EncryptCookies from "./Middlewares/EncryptCookies.ts";
 
 class Kernel extends HttpKernel {
   protected override middleware = [
@@ -41,24 +39,16 @@ class Kernel extends HttpKernel {
   ];
 
   protected override middlewareGroups = {
-    /**
-     'web' => [
-        \App\Http\Middleware\EncryptCookies::class,
-        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
-        \Illuminate\Session\Middleware\StartSession::class,
-        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-        \App\Http\Middleware\VerifyCsrfToken::class,
-        \Illuminate\Routing\Middleware\SubstituteBindings::class,
-      ],
-    */
+    // to be implemented \Illuminate\View\Middleware\ShareErrorsFromSession::class,
     web: [
+      EncryptCookies, // Encrypts cookies for web requests
       StartSession, // Starts the session for web requests
       VerifyCsrfToken, // Verifies CSRF tokens for web requests
       SubstituteBindings,
     ],
     api: [
       "throttle:10,1",
-      "ensure_accepts_json", // Ensures the request accepts JSON
+      "ensure_accepts_json", // Ensures the request accepts JSON, comment out if not needed
       SubstituteBindings,
     ],
   };

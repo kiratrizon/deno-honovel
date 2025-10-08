@@ -161,11 +161,12 @@ export class SessionModifier {
       SessionModifier.sesConfig.cookie ||
       Str.snake(env("APP_NAME", "honovel") + "_session");
 
-    this.#sessionId = getMyCookie(this.#c, key);
+    const Cookie = this.#c.get("myHono").Cookie;
+    this.#sessionId = Cookie.get<string>(key);
     if (!isset(this.#sessionId)) {
       this.#sessionId = sessionIdRecursive();
     }
-    setMyCookie(this.#c, key, this.#sessionId, {
+    Cookie.queue(key, this.#sessionId, {
       maxAge: SessionModifier.sesConfig.expireOnClose
         ? undefined
         : SessionModifier.sesConfig.lifetime * 60, // convert minutes to seconds

@@ -1,4 +1,4 @@
-export class StartSession {
+export default class StartSession {
   public handle: HttpMiddleware = async ({ request }, next) => {
     await request.sessionStart();
     if (!request.session.has("_token")) {

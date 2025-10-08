@@ -1,9 +1,10 @@
 export interface MiddlewareLikeInstance {
-  handle: HttpMiddleware;
+  handle?: HttpMiddleware;
+  fallback?: HttpMiddleware;
 }
 
 export interface MiddlewareLikeClass {
-  new(): MiddlewareLikeInstance;
+  new (): MiddlewareLikeInstance;
 }
 
 export type MiddlewareLike = string | MiddlewareLikeClass;

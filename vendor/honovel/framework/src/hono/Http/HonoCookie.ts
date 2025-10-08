@@ -63,49 +63,14 @@ export class CookieKeysCache {
   }
 }
 
-// Overloads
-export function getMyCookie(c: MyContext): Record<string, string>;
-export function getMyCookie(
-  c: MyContext,
-  key: string
-): Exclude<any, undefined> | null;
-
 // Implementation
 export function getMyCookie(
-  c: MyContext,
-  key?: string
-): string | null | Record<string, string> {
-  if (!isset(key)) {
-    const cookies = getCookie(c);
-    const allCookies: Record<string, string> = {};
-    for (const [cookieKey, cookieValue] of Object.entries(cookies)) {
-      CookieKeysCache.keys.forEach((myKey) => {
-        const parts = cookieValue.split(".");
-        if (parts.length !== 2) return; // invalid format → skip
-
-        const [base64Value, signature] = parts;
-
-        const expectedSignature = createExpectedSignature(base64Value, myKey);
-
-        if (signature === expectedSignature) {
-          const decodedValue = base64decode(base64Value);
-          try {
-            const json = jsonDecode(decodedValue);
-            allCookies[cookieKey] = json;
-            // Here: you can return immediately (if key is provided) or collect result (if not)
-          } catch {
-            // Invalid JSON → skip
-          }
-        }
-      });
-    }
-    return allCookies;
+  cookieValue: any,
+  fromException: boolean = false
+): string | null {
+  if (fromException) {
+    return cookieValue;
   }
-  if (!isString(key) || empty(key)) {
-    throw new Error("Invalid key for getting cookie.");
-  }
-
-  const cookieValue = getCookie(c, key);
   if (isset(cookieValue) && !empty(cookieValue)) {
     for (const myKey of CookieKeysCache.keys) {
       const parts = cookieValue.split(".");
@@ -129,6 +94,40 @@ export function getMyCookie(
   return null;
 }
 
+export function getAllCookies(
+  c: MyContext,
+  exceptions: string[]
+): Record<string, string> {
+  const cookies = getCookie(c);
+  const cookieDoneConverted: Record<string, string> = {};
+  for (const [cookieKey, cookieValue] of Object.entries(cookies)) {
+    if (exceptions.includes(cookieKey)) {
+      cookieDoneConverted[cookieKey] = cookieValue;
+      continue;
+    }
+    CookieKeysCache.keys.forEach((myKey) => {
+      const parts = cookieValue.split(".");
+      if (parts.length !== 2) return; // invalid format → skip
+
+      const [base64Value, signature] = parts;
+
+      const expectedSignature = createExpectedSignature(base64Value, myKey);
+
+      if (signature === expectedSignature) {
+        const decodedValue = base64decode(base64Value);
+        try {
+          const json = jsonDecode(decodedValue);
+          cookieDoneConverted[cookieKey] = json;
+          // Here: you can return immediately (if key is provided) or collect result (if not)
+        } catch {
+          // Invalid JSON → skip
+        }
+      }
+    });
+  }
+  return cookieDoneConverted;
+}
+
 function resolveAppKey(rawKey: string): Uint8Array {
   if (rawKey.startsWith("base64:")) {
     const base64Str = rawKey.slice(7);
@@ -138,4 +137,80 @@ function resolveAppKey(rawKey: string): Uint8Array {
 
   // Encode UTF-8 string to bytes
   return new TextEncoder().encode(rawKey);
+}
+
+export class Cookie {
+  #exceptions: string[] = [];
+
+  #addedToQueue: Record<
+    string,
+    [Exclude<unknown, undefined>, CookieOptions, boolean]
+  > = {};
+  constructor(private c: MyContext) {}
+
+  public queue(
+    key: string,
+    value: Exclude<unknown, undefined>,
+    options: CookieOptions = {}
+  ): unknown {
+    if (isset(key) && isset(value)) {
+      if (this.#exceptions.includes(key)) {
+        setCookie(this.c, key, value as string, options);
+      } else {
+        setMyCookie(this.c, key, value, options);
+      }
+
+      this.#addedToQueue[key] = [
+        value,
+        options,
+        this.#exceptions.includes(key),
+      ];
+      return;
+    }
+  }
+
+  public make<T extends Exclude<unknown, undefined>>(
+    key: string,
+    value: T,
+    options: CookieOptions = {}
+  ): { key: string; value: T; options: CookieOptions } {
+    return { key, value, options };
+  }
+
+  public get<T extends any | null>(key: string): T {
+    if (isset(key)) {
+      const cookieValue = getCookie(this.c, key);
+      return getMyCookie(cookieValue, this.#exceptions.includes(key)) as T;
+    }
+    return null as T;
+  }
+
+  public all(): Record<string, string> {
+    return getAllCookies(this.c, this.#exceptions);
+  }
+
+  public forget(key: string): {
+    key: string;
+    value: Exclude<unknown, undefined>;
+    options: CookieOptions;
+  } {
+    return this.make(key, "", {
+      maxAge: 0,
+      expires: new Date(0),
+    });
+  }
+
+  public setExceptions(keys: string[]): void {
+    if (!isArray(keys)) {
+      throw new Error("Keys must be an array of strings.");
+    }
+    this.#exceptions = keys;
+  }
+
+  public getQueued(): Record<
+    string,
+    [Exclude<unknown, undefined>, CookieOptions, boolean]
+  > {
+    return this.#addedToQueue;
+  }
 }
