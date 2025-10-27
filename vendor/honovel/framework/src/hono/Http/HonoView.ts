@@ -5,53 +5,54 @@ import {
 } from "../../../../@types/declaration/IHonoView.d.ts";
 
 class HonoView {
-  static #viewEngine: ViewEngine;
   #data: Record<string, unknown> = {};
-  static #engine = "edge";
   #viewFile = "";
-  constructor({ viewName = "", data, mergeData }: ViewParams = {}) {
+  #parent = "";
+  #viewEngine: ViewEngine = {} as ViewEngine;
+  private edge = new Edge({
+    cache: false,
+  });
+  static #default = "default.";
+  constructor({ viewName = "", data, parent = "" }: ViewParams = {}) {
     this.#data = {
-      ...mergeData,
       ...data,
-      ...this.#data,
     };
     this.#viewFile = viewName;
+    this.#parent = parent;
+    this.init();
   }
 
-  async element(viewName: string, data = {}) {
+  async element(data = {}) {
     this.#data = {
-      ...data,
       ...this.#data,
+      ...data,
     };
+    const rendered = await this.renderElement(this.#viewFile, this.#data);
+    if (!empty(this.#parent)) {
+      const file = HonoView.#default + this.#parent;
+      const slot = rendered;
+      this.#data.slot = slot;
+      return await this.renderElement(file, this.#data);
+    }
+    return rendered;
+  }
+  private init() {
+    this.edge.mount(viewPath());
+  }
 
+  protected addGlobal(param: Record<string, unknown> = {}) {
+    Object.entries(param).forEach(([key, value]) => {
+      this.edge.global(key, value);
+    });
+  }
+
+  private async renderElement(viewName: string, data = {}) {
     const templatePath = viewPath(`${viewName.split(".").join("/")}.edge`);
     if (!(await pathExist(templatePath))) {
       throw new Error(`View not found: ${viewName}`);
     }
-    const rendered = await HonoView.#viewEngine.render(
-      viewName.split(".").join("/"),
-      this.#data
-    );
+    const rendered = await this.edge.render(viewName, data);
     return rendered;
-  }
-  static init() {
-    const edge = new Edge({
-      cache: false,
-    });
-
-    edge.mount(viewPath());
-    HonoView.#viewEngine = {
-      render: async (template: string, data: Record<string, unknown>) => {
-        return await edge.render(template, data);
-      },
-    };
-  }
-
-  getView() {
-    return {
-      viewFile: this.#viewFile,
-      data: this.#data,
-    };
   }
 }
 

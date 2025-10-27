@@ -10,7 +10,7 @@ export type ViewEngine = {
 export interface ViewParams {
   viewName?: string;
   data?: Record<string, unknown>;
-  mergeData?: Record<string, unknown>;
+  parent?: string;
 }
 
 declare class HonoView {

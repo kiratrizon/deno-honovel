@@ -1,6 +1,6 @@
 export default class EncryptCookies {
   // List of cookie names that should not be encrypted
-  private readonly except: string[] = ["hello"];
+  private readonly except: string[] = [];
 
   public handle: HttpMiddleware = async ({ Cookie }, next) => {
     // Implement logic here

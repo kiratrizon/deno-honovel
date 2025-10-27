@@ -39,18 +39,37 @@ class HonoDispatch {
     }
     if (isObject(this.#returnedData)) {
       if (this.#returnedData instanceof HonoView) {
-        const dataView = this.#returnedData.getView();
-        const rendered = await this.#returnedData.element(
-          dataView.viewFile,
-          dataView.data
-        );
+        const edgeGlobals = {
+          csrf: () =>
+            `<input type="hidden" name="_token" value="${request.session.get(
+              "_token"
+            )}">`,
+          session: function (key: string) {
+            // @ts-ignore //
+            return request.session.get(key);
+          },
+          env: env,
+          request: function () {
+            return request;
+          },
+          config: function (key: string, defaultValue: unknown = null) {
+            return c.get("myHono").Configure.read(key, defaultValue);
+          },
+          auth: function () {
+            return c.get("myHono").Auth;
+          },
+        };
+        // @ts-ignore //
+        this.#returnedData.addGlobal(edgeGlobals);
+
+        const rendered = await this.#returnedData.element();
         this.#statusCode = 200;
         return c.html(rendered, 200);
       } else if (this.#returnedData instanceof HonoRedirect) {
         switch (this.#returnedData.type) {
           case "back":
             // @ts-ignore //
-            return c.redirect(request.session.get("_newUrl") || "/", 302);
+            return c.redirect(request.session.get("_previous.url") || "/", 302);
           case "redirect":
           case "to":
           case "route":

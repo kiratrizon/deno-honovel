@@ -15,12 +15,8 @@ globalFn("response", function (html = null, status = 200) {
 
 globalFn(
   "view",
-  (
-    viewName: string,
-    data: Record<string, unknown> = {},
-    mergeData: Record<string, unknown> = {}
-  ) => {
-    return new HonoView({ viewName, data, mergeData });
+  (viewName: string, data: Record<string, unknown> = {}, parent = "") => {
+    return new HonoView({ viewName, data, parent });
   }
 );
 
