@@ -4,6 +4,7 @@ import HonoRedirect from "HonoHttp/HonoRedirect.ts";
 import { ContentfulStatusCode } from "http-status";
 import HttpHono from "HttpHono";
 import { HonoResponse } from "HonoHttp/HonoResponse.ts";
+import { TagContract } from "edge.js/types";
 
 class HonoDispatch {
   #type: "dispatch" | "middleware";
@@ -40,10 +41,6 @@ class HonoDispatch {
     if (isObject(this.#returnedData)) {
       if (this.#returnedData instanceof HonoView) {
         const edgeGlobals = {
-          csrf: () =>
-            `<input type="hidden" name="_token" value="${request.session.get(
-              "_token"
-            )}">`,
           session: function (key: string) {
             // @ts-ignore //
             return request.session.get(key);
@@ -58,9 +55,55 @@ class HonoDispatch {
           auth: function () {
             return c.get("myHono").Auth;
           },
+          method: (types: string | string[]) => {
+            const arr = Array.isArray(types) ? types : [types];
+            return arr
+              .map(
+                (type) =>
+                  `<input type="hidden" name="_method" value="${type.toUpperCase()}">`
+              )
+              .join("");
+          },
         };
         // @ts-ignore //
         this.#returnedData.addGlobal(edgeGlobals);
+        const tags: Array<TagContract> = [
+          {
+            tagName: "csrf", // becomes @csrf
+            block: false,
+            seekable: true,
+            compile: (parser, buffer, token) => {
+              buffer.outputRaw(
+                `<input type="hidden" name="_token" value="${
+                  request.session.get("_token") || ""
+                }">`
+              );
+            },
+          },
+          {
+            tagName: "method",
+            block: false,
+            seekable: true,
+            compile: (parser, buffer, token) => {
+              // token.properties.jsArg contains the evaluated arguments
+              let out = "";
+              const types = token.properties.jsArg || "''";
+              const arr = Array.isArray(types) ? types : [types];
+              out += arr
+                .map(
+                  (t) =>
+                    '<input type="hidden" name="_method" value="' +
+                    t.toUpperCase() +
+                    '">'
+                )
+                .join("");
+
+              buffer.outputRaw(out);
+            },
+          },
+        ];
+        // @ts-ignore //
+        this.#returnedData.addTags(tags);
 
         const rendered = await this.#returnedData.element();
         this.#statusCode = 200;

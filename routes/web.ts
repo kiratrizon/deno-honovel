@@ -3,7 +3,7 @@ import { Route } from "Illuminate/Support/Facades/index.ts";
 // create-project command
 
 Route.get("/", async () => {
-  return "Welcome to Honovel Framework!";
+  return view("welcome", { hello: "world" });
 });
 
 Route.get("/create-project", async ({ request }) => {

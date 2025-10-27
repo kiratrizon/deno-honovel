@@ -6,10 +6,9 @@
     <title>Document</title>
 </head>
 <body>
-    @if (hello === 'world')
-        <h1>Hello, World!</h1>
-    @else
-        <h1>Hello, {{ hello }}!</h1>
-    @endif
+    <form action="">
+        @csrf()
+        @method('PUT')
+    </form>
 </body>
 </html>

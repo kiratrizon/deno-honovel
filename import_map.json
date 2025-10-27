@@ -13,6 +13,7 @@
         "@vef/deno-memcached": "jsr:@vef/deno-memcached@^0.1.1",
         "axios": "npm:axios@^1.9.0",
         "edge.js": "npm:edge.js@^6.2.1",
+        "edge.js/types": "npm:edge.js/types",
         "hono-sessions": "jsr:@jcs224/hono-sessions@^0.7.2",
         "hono": "npm:hono",
         "hono/deno": "npm:hono/deno",

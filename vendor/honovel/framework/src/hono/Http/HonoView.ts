@@ -3,6 +3,7 @@ import {
   ViewEngine,
   ViewParams,
 } from "../../../../@types/declaration/IHonoView.d.ts";
+import { TagContract } from "edge.js/types";
 
 class HonoView {
   #data: Record<string, unknown> = {};
@@ -14,9 +15,11 @@ class HonoView {
   });
   static #default = "default.";
   constructor({ viewName = "", data, parent = "" }: ViewParams = {}) {
-    this.#data = {
-      ...data,
-    };
+    if (data && typeof data === "object") {
+      for (const [key, value] of Object.entries(data)) {
+        this.#data[`$${key}`] = value;
+      }
+    }
     this.#viewFile = viewName;
     this.#parent = parent;
     this.init();
@@ -43,6 +46,12 @@ class HonoView {
   protected addGlobal(param: Record<string, unknown> = {}) {
     Object.entries(param).forEach(([key, value]) => {
       this.edge.global(key, value);
+    });
+  }
+
+  protected addTags(tags: Array<TagContract> = []) {
+    tags.forEach((tag) => {
+      this.edge.registerTag(tag);
     });
   }
 
