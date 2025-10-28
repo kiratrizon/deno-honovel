@@ -158,7 +158,7 @@ declare class HonoRequest {
   readonly session: ISession;
 
   /** Flash data to session */
-  flash(key: string, value: unknown): void;
+  public flash(): void;
 
   /** Access session values */
   readonly $_SESSION: Record<string, unknown>;

@@ -13,11 +13,9 @@ export type SessionDataTypes = {
   [key: string]: any;
 } & {
   _token: string;
-  _previousUrl: string;
-  _newUrl: string;
   _flash: {
-    old: ErrorAndData;
-    new: ErrorAndData;
+    old: Array<string>;
+    new: Array<string>;
   };
 } & ImportSession;
 // for Context

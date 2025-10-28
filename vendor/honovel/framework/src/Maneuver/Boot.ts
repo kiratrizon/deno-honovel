@@ -3,7 +3,6 @@ import { Auth, Cache } from "Illuminate/Support/Facades/index.ts";
 import { Carbon } from "helpers";
 import { SessionInitializer, SessionModifier } from "HonoHttp/HonoSession.ts";
 import { CookieKeysCache } from "HonoHttp/HonoCookie.ts";
-import HonoView from "HonoHttp/HonoView.ts";
 
 class Boot {
   /**
@@ -30,7 +29,6 @@ class Boot {
       await SessionModifier.init();
       await SessionInitializer.init();
       CookieKeysCache.init();
-      HonoView.init();
     } catch (e) {
       consoledeno.error(e);
       Deno.exit(1);

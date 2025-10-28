@@ -21,7 +21,7 @@ type NonFunction<T> = T extends (...args: any[]) => any
   : T;
 
 export function honoSession(): MiddlewareHandler {
-  return async (c: MyContext, next) => {
+  return async (c: MyContext, next: () => Promise<void>) => {
     const value: Record<string, NonFunction<any>> = {};
     c.set("session", new Session(value));
     await next();
@@ -162,7 +162,7 @@ export class SessionModifier {
       Str.snake(env("APP_NAME", "honovel") + "_session");
 
     const Cookie = this.#c.get("myHono").Cookie;
-    this.#sessionId = Cookie.get<string>(key);
+    this.#sessionId = Cookie.get(key);
     if (!isset(this.#sessionId)) {
       this.#sessionId = sessionIdRecursive();
     }

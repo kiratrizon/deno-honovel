@@ -1,4 +1,7 @@
-import { ErrorAndData, SessionDataTypes } from "../../../../@types/declaration/imain.d.ts";
+import {
+  ErrorAndData,
+  SessionDataTypes,
+} from "../../../../@types/declaration/imain.d.ts";
 import { NonFunction } from "../../../../@types/declaration/ISession.d.ts";
 
 /**
@@ -13,16 +16,11 @@ export class Session<D extends SessionDataTypes> {
   constructor(values = {}) {
     this.values = values as SessionDataTypes;
     if (!keyExist(this.values, "_flash")) {
-      this.values._flash = {
-        old: {
-          error: {},
-          data: {},
-        },
-        new: {
-          error: {},
-          data: {},
-        },
-      } as { old: ErrorAndData; new: ErrorAndData };
+      const defaultFlash = {
+        old: [],
+        new: [],
+      };
+      this.values._flash = defaultFlash;
     }
   }
 
@@ -31,13 +29,24 @@ export class Session<D extends SessionDataTypes> {
    * @param key - The session key
    * @param value - The value to store
    */
-  public put<T extends SessionDataTypes[keyof SessionDataTypes]>(key: keyof D, value: T) {
+  public put<T>(key: string, value: T) {
     if (isFunction(value)) {
-      throw new Error(
-        `Session values cannot be functions. Key: ${key as string}.`
-      );
+      throw new Error(`Session values cannot be functions. Key: ${key}.`);
     }
-    this.values[key as string] = value;
+
+    const parts = key.split(".");
+    let target: Record<string, any> = this.values;
+
+    while (parts.length > 1) {
+      const part = parts.shift()!;
+      if (typeof target[part] !== "object" || target[part] === null) {
+        target[part] = {};
+      }
+      target = target[part];
+    }
+
+    target[parts[0]] = value;
+
     return value;
   }
 
@@ -47,18 +56,38 @@ export class Session<D extends SessionDataTypes> {
    * @param defaultValue - A fallback if the key doesn't exist
    */
   public get<V = D[keyof D] | NonFunction<unknown>>(
-    key: keyof D,
+    key: string,
     defaultValue: V = null as V
   ): NonFunction<unknown> | null {
-    return this.values[key as keyof SessionDataTypes] ?? defaultValue;
+    const parts = key.split(".");
+    let value: any = this.values;
+
+    for (const part of parts) {
+      if (typeof value !== "object" || value === null || !(part in value)) {
+        return defaultValue;
+      }
+      value = value[part];
+    }
+
+    return (value ?? defaultValue) as NonFunction<unknown>;
   }
 
   /**
    * Check if a session key exists.
    * @param key - The key to check
    */
-  public has(key: keyof D): boolean {
-    return keyExist(this.values, key);
+  public has(key: string): boolean {
+    const parts = key.split(".");
+    let value: any = this.values;
+
+    for (const part of parts) {
+      if (typeof value !== "object" || value === null || !(part in value)) {
+        return false;
+      }
+      value = value[part];
+    }
+
+    return true;
   }
 
   /**
@@ -66,7 +95,18 @@ export class Session<D extends SessionDataTypes> {
    * @param key - The key to remove
    */
   public forget(key: string) {
-    delete this.values[key];
+    const parts = key.split(".");
+    let target: any = this.values;
+
+    while (parts.length > 1) {
+      const part = parts.shift()!;
+      if (typeof target[part] !== "object" || target[part] === null) {
+        return; // Key path doesn't exist
+      }
+      target = target[part];
+    }
+
+    delete target[parts[0]];
   }
 
   /**
@@ -105,12 +145,19 @@ export class Session<D extends SessionDataTypes> {
    * Remove all session data.
    */
   public flush() {
-    this.values = only(this.values, [
-      "_token", // Keep CSRF token
-      "_previousUrl", // Keep previous URL
-      "_newUrl", // Keep new URL
-      "_flash", // Keep flash data
-    ]) as SessionDataTypes;
+    // Reset everything except internal ID
+    this.values = {} as SessionDataTypes;
+
+    const defaultFlash = {
+      old: [],
+      new: [],
+      remove: [],
+    };
+    // Reinitialize flash bag
+    this.values._flash = defaultFlash;
+
+    // Regenerate CSRF token
+    this.regenerateToken();
   }
 
   /**
@@ -156,17 +203,12 @@ export class Session<D extends SessionDataTypes> {
   public flash(key: keyof D, value: NonFunction<unknown>) {
     if (!keyExist(this.values, "_flash")) {
       this.put("_flash", {
-        old: {
-          errors: {},
-          data: {},
-        } as Record<string, unknown>,
-        new: {
-          errors: {},
-          data: {},
-        } as Record<string, unknown>,
+        old: [],
+        new: [],
       });
     }
+    (this.values._flash.new as unknown as string[]).push(key as string);
 
-    this.values._flash.new.data[key as string] = value;
+    this.put(key as string, value);
   }
 }
