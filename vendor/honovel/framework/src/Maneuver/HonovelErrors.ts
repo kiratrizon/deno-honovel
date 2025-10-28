@@ -156,6 +156,7 @@ export class AbortError extends Error {
     if (empty(this.mess)) {
       this.mess = this.httpStatusMessages[this.statusCode];
     }
+    this.name = "AbortError";
   }
 
   public toJson(): Response {

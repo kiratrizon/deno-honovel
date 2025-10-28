@@ -1,14 +1,24 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
-<body>
-    <form action="">
-        @csrf()
-        @method('PUT')
-    </form>
-</body>
-</html>
+@layouts.admin.app()
+  @slot('title')
+    Home Page
+  @end
+
+  @slot('header')
+    <h1>Welcome, user</h1>
+  @end
+
+  @slot('content')
+    <p>This is the main content of the home page.</p>
+    <div>
+        <h2>Form</h2>
+        <form action="">
+            @csrf()
+            @method('POST')
+        </form>
+    </div>
+  @end
+
+  @slot('footer')
+    <p>© 2025 My Website</p>
+  @end
+@endlayouts.admin.app

@@ -12,6 +12,13 @@ import { MiddlewareLikeClass } from "Illuminate/Foundation/Http/index.ts";
 import { SQLError } from "Illuminate/Database/Query/index.ts";
 import { Model } from "Illuminate/Database/Eloquent/index.ts";
 import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
+import HonoRequest from "HonoHttp/HonoRequest.d.ts";
+import { ValidationException } from "Illuminate/Validation/ValidationException.ts";
+import { TagContract } from "edge.js/types";
+import HonoView from "HonoHttp/HonoView.ts";
+import HonoRedirect from "HonoHttp/HonoRedirect.ts";
+import { HonoResponse } from "HonoHttp/HonoResponse.ts";
+import MessageBag, { ErrorsShape } from "HonoHttp/MessageBag.ts";
 
 export const regexObj = {
   number: /^\d+$/,
@@ -24,7 +31,7 @@ export function regexToHono(
   where: Record<string, RegExp[]>,
   params: string[] = []
 ): MiddlewareHandler {
-  return async (c: MyContext, next) => {
+  return async (c: MyContext, next: () => Promise<void>) => {
     const { request } = c.get("myHono");
     for (const key of Object.keys(where)) {
       if (!params.includes(key)) continue;
@@ -592,9 +599,8 @@ function generateMiddlewareOrDispatch(
   sequenceParams: string[] = []
 ): MiddlewareHandler {
   const from = objArgs.from;
-  return async (c: MyContext, next) => {
+  return async (c: MyContext, next: () => Promise<void>) => {
     if (c.get("stopMiddleware") === true) {
-      console.log("hello");
       return await next();
     }
     const myHono = c.get("myHono");
@@ -665,89 +671,14 @@ function generateMiddlewareOrDispatch(
             (type === "middleware" && !dispatch.isNext) ||
             type === "dispatch"
           ) {
-            const result = (await dispatch.build(request, c)) as Response;
+            const result = (await dispatch.build(c)) as Response;
             resp = result;
           } else if (type === "middleware" && dispatch.isNext) {
             isNext = true;
           }
         }
       } catch (e: unknown) {
-        if (e instanceof DDError) {
-          const data = forDD(e.data);
-          if (request.expectsJson()) {
-            if (!isset(data.json)) {
-              data.json = null;
-            }
-            if (
-              isArray(data.json) ||
-              isObject(data.json) ||
-              isString(data.json) ||
-              isFloat(data.json) ||
-              isInteger(data.json) ||
-              isBoolean(data.json) ||
-              isNull(data.json)
-            ) {
-              resp = c.json(data.json, 200);
-            }
-          } else {
-            resp = c.html(data.html, 200);
-          }
-        } else if (e instanceof AbortError) {
-          if (request.expectsJson()) {
-            resp = e.toJson();
-          } else {
-            const data = isString(e.msg)
-              ? e.msg
-              : `Error: ${e.code} - ${e.msg}`;
-            resp = await myError(c, e.code as ContentfulStatusCode, data);
-          }
-        } else if (e instanceof SQLError) {
-          if (request.expectsJson()) {
-            resp = c.json(
-              {
-                message: e.message,
-                error_type: e.name,
-              },
-              500
-            );
-          } else {
-            resp = c.html(renderErrorHtml(e), 500);
-          }
-        } else if (e instanceof Error) {
-          // populate e with additional information
-          const populatedError: Record<string, unknown> = {};
-          populatedError["error_type"] = e.name.trim();
-          populatedError["message"] = e.message.trim();
-          populatedError["stack"] = e.stack
-            ? e.stack.split("\n").map((line) => line.trim())
-            : [];
-          populatedError["cause"] = e.cause;
-          let errorHtml: string;
-          if (env("APP_DEBUG", true)) {
-            if (!request.expectsJson()) {
-              errorHtml =
-                extractControllerTrace(populatedError.stack as string[]) ||
-                renderErrorHtml(e);
-              resp = c.html(errorHtml, 500);
-            } else {
-              resp = c.json(
-                {
-                  message: populatedError.message,
-                  error_type: populatedError.error_type,
-                  stack: populatedError.stack,
-                  cause: populatedError.cause,
-                },
-                500
-              );
-            }
-          } else {
-            consoledeno.error(populatedError);
-            resp = c.html("Internal server error", 500);
-          }
-        } else {
-          consoledeno.error("Unexpected error:", e);
-          resp = c.json({ message: "Internal server error" }, 500);
-        }
+        resp = await handleErrors(e, c, request);
       }
       if (!isUndefined(middlewareResp)) {
         if (isNext) {
@@ -806,7 +737,7 @@ function generateFallback(
   sequenceParams: string[] = [],
   count = 0
 ): MiddlewareHandler {
-  return async (c: MyContext, next) => {
+  return async (c: MyContext, next: () => Promise<void>) => {
     const fromHandle = c.get("fromHandle");
     if (count !== fromHandle) {
       return await next();
@@ -839,89 +770,14 @@ function generateFallback(
         } else {
           const dispatch = new HonoDispatch(middlewareResp, type);
           if (type === "middleware" && !dispatch.isNext) {
-            const result = (await dispatch.build(request, c)) as Response;
+            const result = (await dispatch.build(c)) as Response;
             resp = result;
           } else if (type === "middleware" && dispatch.isNext) {
             isNext = true;
           }
         }
       } catch (e: unknown) {
-        if (e instanceof DDError) {
-          const data = forDD(e.data);
-          if (request.expectsJson()) {
-            if (!isset(data.json)) {
-              data.json = null;
-            }
-            if (
-              isArray(data.json) ||
-              isObject(data.json) ||
-              isString(data.json) ||
-              isFloat(data.json) ||
-              isInteger(data.json) ||
-              isBoolean(data.json) ||
-              isNull(data.json)
-            ) {
-              resp = c.json(data.json, 200);
-            }
-          } else {
-            resp = c.html(data.html, 200);
-          }
-        } else if (e instanceof AbortError) {
-          if (request.expectsJson()) {
-            resp = e.toJson();
-          } else {
-            const data = isString(e.msg)
-              ? e.msg
-              : `Error: ${e.code} - ${e.msg}`;
-            resp = await myError(c, e.code as ContentfulStatusCode, data);
-          }
-        } else if (e instanceof SQLError) {
-          if (request.expectsJson()) {
-            resp = c.json(
-              {
-                message: e.message,
-                error_type: e.name,
-              },
-              500
-            );
-          } else {
-            resp = c.html(renderErrorHtml(e), 500);
-          }
-        } else if (e instanceof Error) {
-          // populate e with additional information
-          const populatedError: Record<string, unknown> = {};
-          populatedError["error_type"] = e.name.trim();
-          populatedError["message"] = e.message.trim();
-          populatedError["stack"] = e.stack
-            ? e.stack.split("\n").map((line) => line.trim())
-            : [];
-          populatedError["cause"] = e.cause;
-          let errorHtml: string;
-          if (env("APP_DEBUG", true)) {
-            if (!request.expectsJson()) {
-              errorHtml =
-                extractControllerTrace(populatedError.stack as string[]) ||
-                renderErrorHtml(e);
-              resp = c.html(errorHtml, 500);
-            } else {
-              resp = c.json(
-                {
-                  message: populatedError.message,
-                  error_type: populatedError.error_type,
-                  stack: populatedError.stack,
-                  cause: populatedError.cause,
-                },
-                500
-              );
-            }
-          } else {
-            consoledeno.error(populatedError);
-            resp = c.html("Internal server error", 500);
-          }
-        } else {
-          consoledeno.error("Unexpected error:", e);
-          resp = c.json({ message: "Internal server error" }, 500);
-        }
+        resp = await handleErrors(e, c, request);
       }
       if (!isUndefined(middlewareResp)) {
         if (isNext) {
@@ -1009,7 +865,7 @@ ${e.stack.replace(/</g, "&lt;")}
   `;
 }
 export const buildRequestInit = (): MiddlewareHandler => {
-  return async (c: MyContext, next) => {
+  return async (c: MyContext, next: () => Promise<void>) => {
     c.set("myHono", new HttpHono(c));
     c.set("honoClosure", new HonoClosure(c));
     c.set("fromHandle", 0);
@@ -1219,4 +1075,232 @@ function tracingLocation(
     </body>
     </html>
   `;
+}
+
+async function handleErrors(
+  e: unknown,
+  c: MyContext,
+  request: HonoRequest
+): Promise<Response> {
+  let resp: Response | undefined;
+  if (e instanceof DDError) {
+    const data = forDD(e.data);
+    if (request.expectsJson()) {
+      if (!isset(data.json)) {
+        data.json = null;
+      }
+      if (
+        isArray(data.json) ||
+        isObject(data.json) ||
+        isString(data.json) ||
+        isFloat(data.json) ||
+        isInteger(data.json) ||
+        isBoolean(data.json) ||
+        isNull(data.json)
+      ) {
+        resp = c.json(data.json, 200);
+      }
+    } else {
+      resp = c.html(data.html, 200);
+    }
+  } else if (e instanceof AbortError) {
+    if (request.expectsJson()) {
+      resp = e.toJson();
+    } else {
+      const data = isString(e.msg) ? e.msg : `Error: ${e.code} - ${e.msg}`;
+      resp = await myError(c, e.code as ContentfulStatusCode, data);
+    }
+  } else if (e instanceof SQLError) {
+    if (request.expectsJson()) {
+      resp = c.json(
+        {
+          message: e.message,
+          error_type: e.name,
+        },
+        500
+      );
+    } else {
+      resp = c.html(renderErrorHtml(e), 500);
+    }
+  } else if (e instanceof ValidationException) {
+    const action = e.response;
+    resp = await handleAction(action, c);
+  } else if (e instanceof Error) {
+    // populate e with additional information
+    const populatedError: Record<string, unknown> = {};
+    populatedError["error_type"] = e.name.trim();
+    populatedError["message"] = e.message.trim();
+    populatedError["stack"] = e.stack
+      ? e.stack.split("\n").map((line) => line.trim())
+      : [];
+    populatedError["cause"] = e.cause;
+    let errorHtml: string;
+    if (env("APP_DEBUG", true)) {
+      if (!request.expectsJson()) {
+        errorHtml =
+          extractControllerTrace(populatedError.stack as string[]) ||
+          renderErrorHtml(e);
+        resp = c.html(errorHtml, 500);
+      } else {
+        resp = c.json(
+          {
+            message: populatedError.message,
+            error_type: populatedError.error_type,
+            stack: populatedError.stack,
+            cause: populatedError.cause,
+          },
+          500
+        );
+      }
+    } else {
+      consoledeno.error(populatedError);
+      resp = c.html("Internal server error", 500);
+    }
+  } else {
+    consoledeno.error("Unexpected error:", e);
+    resp = c.json({ message: "Internal server error" }, 500);
+  }
+
+  return resp as Response;
+}
+
+export async function handleAction(
+  data: unknown,
+  c: MyContext
+): Promise<Response> {
+  const request = c.get("myHono").request;
+  const Cookie = c.get("myHono").Cookie;
+  let statusCode: ContentfulStatusCode = 200;
+  if (data instanceof Response) {
+    return convertToResponse(c, data);
+  }
+  if (isObject(data)) {
+    if (data instanceof HonoView) {
+      const errors = request.session.get("errors");
+      const edgeGlobals = {
+        session: function (key: string) {
+          // @ts-ignore //
+          return request.session.get(key);
+        },
+        env: env,
+        request: function () {
+          return request;
+        },
+        config: function (key: string, defaultValue: unknown = null) {
+          return c.get("myHono").Configure.read(key, defaultValue);
+        },
+        auth: function () {
+          return c.get("myHono").Auth;
+        },
+        method: (types: string | string[]) => {
+          const arr = Array.isArray(types) ? types : [types];
+          return arr
+            .map(
+              (type) =>
+                `<input type="hidden" name="_method" value="${type.toUpperCase()}">`
+            )
+            .join("");
+        },
+        old: function (key: string, defaultValue: unknown = null) {
+          const oldInput = (request.session.get("_old_input") || {}) as Record<
+            string,
+            unknown
+          >;
+          return oldInput[key] ?? defaultValue;
+        },
+        csrf: () => {
+          return `<input type="hidden" name="_token" value="${
+            request.session.get("_token") || ""
+          }">`;
+        },
+        csrfMeta: () =>
+          `<meta name="csrf-token" content="${
+            request.session.get("_token") || ""
+          }">`,
+        errors: new MessageBag((errors || {}) as ErrorsShape),
+      };
+      // @ts-ignore /
+      data.addGlobal(edgeGlobals);
+      const tags: Array<TagContract> = [
+        {
+          tagName: "csrf", // becomes @csrf
+          block: false,
+          seekable: true,
+          compile: (parser, buffer, token) => {
+            buffer.outputRaw(
+              `<input type="hidden" name="_token" value="${
+                request.session.get("_token") || ""
+              }">`
+            );
+          },
+        },
+        {
+          tagName: "method",
+          block: false,
+          seekable: true,
+          compile: (parser, buffer, token) => {
+            // token.properties.jsArg contains the evaluated arguments
+            let out = "";
+            const types = token.properties.jsArg || "''";
+            const arr = Array.isArray(types) ? types : [types];
+            out += arr
+              .map(
+                (t) =>
+                  '<input type="hidden" name="_method" value="' +
+                  t.toUpperCase() +
+                  '">'
+              )
+              .join("");
+
+            buffer.outputRaw(out);
+          },
+        },
+      ];
+      // @ts-ignore //
+      data.addTags(tags);
+
+      const rendered = await data.element();
+      statusCode = 200;
+      return c.html(rendered, 200);
+    } else if (data instanceof HonoRedirect) {
+      switch (data.type) {
+        case "back":
+          // @ts-ignore //
+          return c.redirect(request.session.get("_previous.url") || "/", 302);
+        case "redirect":
+        case "to":
+        case "route":
+          return c.redirect(data.getTargetUrl(), 302);
+        default:
+          throw new Error("Invalid use of redirect()");
+      }
+    } else if (data instanceof HonoResponse) {
+      // @ts-ignore //
+      const cookies = data.getCookies();
+      for (const [name, [value, options]] of Object.entries(cookies)) {
+        Cookie.queue(name, value, options);
+      }
+      // @ts-ignore //
+      const res = data.toResponse();
+
+      return convertToResponse(c, res);
+    } else {
+      return c.text(JSON.stringify(data, null, 2), statusCode);
+    }
+  } else {
+    if (isString(data)) {
+      return c.text(data, statusCode);
+    } else {
+      return c.text(JSON.stringify(data, null, 2), statusCode);
+    }
+  }
+}
+
+export function convertToResponse(c: MyContext, res: Response): Response {
+  const newRes = c.newResponse(
+    res.body,
+    res.status as ContentfulStatusCode,
+    Object.fromEntries(res.headers)
+  );
+  return newRes;
 }

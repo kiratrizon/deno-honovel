@@ -15,6 +15,7 @@ import { SessionModifier } from "HonoHttp/HonoSession.ts";
 import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 import { Model } from "Illuminate/Database/Eloquent/index.ts";
 import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
+import { ValidationException } from "Illuminate/Validation/ValidationException.ts";
 
 class HonoRequest extends Macroable {
   public static HEADER_X_FORWARDED_ALL = [
@@ -190,7 +191,9 @@ class HonoRequest extends Macroable {
   }
 
   // GET Data
-  public query(key?: string) {
+  public query(): Record<string, unknown>;
+  public query(key: string): unknown | null;
+  public query(key?: string): unknown | null | Record<string, unknown> {
     if (isset(key)) {
       return this.#c.req.query(key) ?? null;
     }
@@ -438,8 +441,8 @@ class HonoRequest extends Macroable {
     return this.#c.get("session");
   }
 
-  public flash(key: string, value: unknown): void {
-    this.#c.get("session").flash(key as any, value);
+  public flash(): void {
+    this.session.flash("_old_input", this.input());
   }
 
   #variables: Record<string, unknown> = {};
@@ -509,14 +512,30 @@ class HonoRequest extends Macroable {
   public async validate<T extends Record<string, string>>(
     validations: T
   ): Promise<Record<keyof T | string, string>> {
-    const data = this.all();
+    const data = this.method == "GET" ? this.query() : this.input();
     const validation = await Validator.make(data, validations);
 
     if (validation.fails()) {
-      abort(422, {
-        message: "Validation failed",
-        errors: validation.getErrors(),
-      });
+      const errors = validation.getErrors();
+      // flash data first
+      if (!this.expectsJson() && this.method !== "GET") {
+        this.flash();
+      }
+
+      const valExc = new ValidationException(errors);
+      let action;
+      if (this.ajax() || this.expectsJson()) {
+        action = response().json({
+          message: "The given data was invalid.",
+          errors: errors,
+          input: data,
+        });
+      } else {
+        this.session.flash("errors", errors);
+        action = redirect().back();
+      }
+      valExc.setDefaultResponse(action);
+      throw valExc;
     }
 
     return this.only(Object.keys(validations)) as Record<

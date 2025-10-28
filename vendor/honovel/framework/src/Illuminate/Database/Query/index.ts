@@ -2,7 +2,12 @@ import { Database } from "Database";
 import { SupportedDrivers } from "configs/@types/index.d.ts";
 import { DB } from "../../Support/Facades/index.ts";
 
-export class SQLError extends Error {}
+export class SQLError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SQLError";
+  }
+}
 
 export class SQLRaw extends String {
   public override toString(): string {

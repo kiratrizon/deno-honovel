@@ -1,16 +1,11 @@
 import HonoClosure from "./HonoClosure.ts";
-import HonoView from "./HonoView.ts";
-import HonoRedirect from "HonoHttp/HonoRedirect.ts";
-import { ContentfulStatusCode } from "http-status";
-import HttpHono from "HttpHono";
 import { HonoResponse } from "HonoHttp/HonoResponse.ts";
-import { TagContract } from "edge.js/types";
+import { handleAction } from "../Support/FunctionRoute.ts";
 
 class HonoDispatch {
   #type: "dispatch" | "middleware";
   #forNext: boolean = false;
 
-  #statusCode: ContentfulStatusCode;
   #returnedData: unknown;
   constructor(
     returnedData: Exclude<unknown, null | undefined>,
@@ -18,7 +13,6 @@ class HonoDispatch {
   ) {
     this.#type = type;
     this.#returnedData = returnedData;
-    this.#statusCode = 200;
     if (
       this.#returnedData instanceof HonoClosure &&
       this.#type === "middleware"
@@ -26,8 +20,8 @@ class HonoDispatch {
       this.#forNext = true;
     }
   }
-  public async build(request: HttpHono["request"], c: MyContext) {
-    const Cookie = c.get("myHono").Cookie;
+  public async build(c: MyContext) {
+    const request = c.get("myHono").request;
     if (
       request.isMethod("HEAD") &&
       isObject(this.#returnedData) &&
@@ -35,126 +29,7 @@ class HonoDispatch {
     ) {
       throw new Error("HEAD method cannot return a response.");
     }
-    if (this.#returnedData instanceof Response) {
-      return this.convertToResponse(c, this.#returnedData);
-    }
-    if (isObject(this.#returnedData)) {
-      if (this.#returnedData instanceof HonoView) {
-        const edgeGlobals = {
-          session: function (key: string) {
-            // @ts-ignore //
-            return request.session.get(key);
-          },
-          env: env,
-          request: function () {
-            return request;
-          },
-          config: function (key: string, defaultValue: unknown = null) {
-            return c.get("myHono").Configure.read(key, defaultValue);
-          },
-          auth: function () {
-            return c.get("myHono").Auth;
-          },
-          method: (types: string | string[]) => {
-            const arr = Array.isArray(types) ? types : [types];
-            return arr
-              .map(
-                (type) =>
-                  `<input type="hidden" name="_method" value="${type.toUpperCase()}">`
-              )
-              .join("");
-          },
-        };
-        // @ts-ignore //
-        this.#returnedData.addGlobal(edgeGlobals);
-        const tags: Array<TagContract> = [
-          {
-            tagName: "csrf", // becomes @csrf
-            block: false,
-            seekable: true,
-            compile: (parser, buffer, token) => {
-              buffer.outputRaw(
-                `<input type="hidden" name="_token" value="${
-                  request.session.get("_token") || ""
-                }">`
-              );
-            },
-          },
-          {
-            tagName: "method",
-            block: false,
-            seekable: true,
-            compile: (parser, buffer, token) => {
-              // token.properties.jsArg contains the evaluated arguments
-              let out = "";
-              const types = token.properties.jsArg || "''";
-              const arr = Array.isArray(types) ? types : [types];
-              out += arr
-                .map(
-                  (t) =>
-                    '<input type="hidden" name="_method" value="' +
-                    t.toUpperCase() +
-                    '">'
-                )
-                .join("");
-
-              buffer.outputRaw(out);
-            },
-          },
-        ];
-        // @ts-ignore //
-        this.#returnedData.addTags(tags);
-
-        const rendered = await this.#returnedData.element();
-        this.#statusCode = 200;
-        return c.html(rendered, 200);
-      } else if (this.#returnedData instanceof HonoRedirect) {
-        switch (this.#returnedData.type) {
-          case "back":
-            // @ts-ignore //
-            return c.redirect(request.session.get("_previous.url") || "/", 302);
-          case "redirect":
-          case "to":
-          case "route":
-            return c.redirect(this.#returnedData.getTargetUrl(), 302);
-          default:
-            throw new Error("Invalid use of redirect()");
-        }
-      } else if (this.#returnedData instanceof HonoResponse) {
-        // @ts-ignore //
-        const cookies = this.#returnedData.getCookies();
-        for (const [name, [value, options]] of Object.entries(cookies)) {
-          Cookie.queue(name, value, options);
-        }
-        // @ts-ignore //
-        const res = this.#returnedData.toResponse();
-
-        return this.convertToResponse(c, res);
-      } else {
-        return c.text(
-          JSON.stringify(this.#returnedData, null, 2),
-          this.#statusCode
-        );
-      }
-    } else {
-      if (isString(this.#returnedData)) {
-        return c.text(this.#returnedData, this.#statusCode);
-      } else {
-        return c.text(
-          JSON.stringify(this.#returnedData, null, 2),
-          this.#statusCode
-        );
-      }
-    }
-  }
-
-  private convertToResponse(c: MyContext, res: Response): Response {
-    const newRes = c.newResponse(
-      res.body,
-      res.status as ContentfulStatusCode,
-      Object.fromEntries(res.headers)
-    );
-    return newRes;
+    return await handleAction(this.#returnedData, c);
   }
 
   public get isNext(): boolean {

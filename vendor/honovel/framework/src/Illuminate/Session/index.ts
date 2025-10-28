@@ -16,16 +16,11 @@ export class Session<D extends SessionDataTypes> {
   constructor(values = {}) {
     this.values = values as SessionDataTypes;
     if (!keyExist(this.values, "_flash")) {
-      this.values._flash = {
-        old: {
-          error: {},
-          data: {},
-        },
-        new: {
-          error: {},
-          data: {},
-        },
-      } as { old: ErrorAndData; new: ErrorAndData };
+      const defaultFlash = {
+        old: [],
+        new: [],
+      };
+      this.values._flash = defaultFlash;
     }
   }
 
@@ -153,11 +148,13 @@ export class Session<D extends SessionDataTypes> {
     // Reset everything except internal ID
     this.values = {} as SessionDataTypes;
 
+    const defaultFlash = {
+      old: [],
+      new: [],
+      remove: [],
+    };
     // Reinitialize flash bag
-    this.values._flash = {
-      old: { error: {}, data: {} },
-      new: { error: {}, data: {} },
-    } as { old: ErrorAndData; new: ErrorAndData };
+    this.values._flash = defaultFlash;
 
     // Regenerate CSRF token
     this.regenerateToken();
@@ -206,17 +203,12 @@ export class Session<D extends SessionDataTypes> {
   public flash(key: keyof D, value: NonFunction<unknown>) {
     if (!keyExist(this.values, "_flash")) {
       this.put("_flash", {
-        old: {
-          errors: {},
-          data: {},
-        } as Record<string, unknown>,
-        new: {
-          errors: {},
-          data: {},
-        } as Record<string, unknown>,
+        old: [],
+        new: [],
       });
     }
+    (this.values._flash.new as unknown as string[]).push(key as string);
 
-    this.values._flash.new.data[key as string] = value;
+    this.put(key as string, value);
   }
 }

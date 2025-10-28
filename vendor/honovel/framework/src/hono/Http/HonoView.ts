@@ -1,43 +1,40 @@
-import { Edge } from "edge.js";
-import {
-  ViewEngine,
-  ViewParams,
-} from "../../../../@types/declaration/IHonoView.d.ts";
+import { Edge, edgeGlobals } from "edge.js";
+import { ViewParams } from "../../../../@types/declaration/IHonoView.d.ts";
 import { TagContract } from "edge.js/types";
+import prettier from "prettier";
+// Import Edge.js for Deno
+// import { Edge as TestEdge } from "https://deno.land/x/edge/src/edge.ts";
+// import { edgePlugin } from "https://deno.land/x/edge@3.2.1/plugins/mod.ts";
 
 class HonoView {
   #data: Record<string, unknown> = {};
   #viewFile = "";
-  #parent = "";
-  #viewEngine: ViewEngine = {} as ViewEngine;
   private edge = new Edge({
     cache: false,
   });
-  static #default = "default.";
-  constructor({ viewName = "", data, parent = "" }: ViewParams = {}) {
+  constructor({ viewName = "", data, mergeData }: ViewParams = {}) {
     if (data && typeof data === "object") {
       for (const [key, value] of Object.entries(data)) {
         this.#data[`$${key}`] = value;
       }
     }
+    if (mergeData && typeof mergeData === "object") {
+      for (const [key, value] of Object.entries(mergeData)) {
+        this.#data[key] = value;
+      }
+    }
     this.#viewFile = viewName;
-    this.#parent = parent;
     this.init();
   }
 
-  async element(data = {}) {
-    this.#data = {
-      ...this.#data,
-      ...data,
-    };
-    const rendered = await this.renderElement(this.#viewFile, this.#data);
-    if (!empty(this.#parent)) {
-      const file = HonoView.#default + this.#parent;
-      const slot = rendered;
-      this.#data.slot = slot;
-      return await this.renderElement(file, this.#data);
+  async element() {
+    const tempRendered = await this.renderElement(this.#viewFile, this.#data);
+
+    if (env("DENO_DEPLOYMENT_ID")) {
+      return tempRendered;
+    } else {
+      return await this.pretty(tempRendered);
     }
-    return rendered;
   }
   private init() {
     this.edge.mount(viewPath());
@@ -55,13 +52,24 @@ class HonoView {
     });
   }
 
-  private async renderElement(viewName: string, data = {}) {
-    const templatePath = viewPath(`${viewName.split(".").join("/")}.edge`);
-    if (!(await pathExist(templatePath))) {
-      throw new Error(`View not found: ${viewName}`);
-    }
-    const rendered = await this.edge.render(viewName, data);
+  private async renderElement(
+    viewName: string,
+    data: Record<string, unknown> = {}
+  ) {
+    const arrangeTemplate = viewName.split(".").join("/");
+
+    // Default path (child view)
+    const rendered = await this.edge.render(arrangeTemplate, data);
     return rendered;
+  }
+
+  private async pretty(html: string) {
+    try {
+      return await prettier.format(html, { parser: "html" });
+    } catch {
+      // fallback if something breaks (invalid HTML)
+      return html;
+    }
   }
 }
 

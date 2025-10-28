@@ -29,7 +29,10 @@ import ChildKernel from "./Support/ChildKernel.ts";
 import GroupRoute from "./Support/GroupRoute.ts";
 import { myError } from "HonoHttp/builder.ts";
 
-const headFunction: MiddlewareHandler = async (c: MyContext, next) => {
+const headFunction: MiddlewareHandler = async (
+  c: MyContext,
+  next: () => Promise<void>
+) => {
   const { request } = c.get("myHono");
   if (!request.isMethod("HEAD")) {
     return await myError(c);
@@ -44,7 +47,7 @@ function domainGroup(
     sequenceParams: string[];
   }
 ): MiddlewareHandler {
-  return async (c: MyContext, next) => {
+  return async (c: MyContext, next: () => Promise<void>) => {
     const workingParams = [...sequenceParams];
     const host = c.req.raw.url.split("://")[1].split("/")[0];
     const domainParts = host.split(".");
@@ -82,7 +85,10 @@ const [globalMiddleware, globalMiddlewareFallback]: [
 ] = [...toMiddleware(new ChildKernel().Middleware)];
 
 // domain on beta test
-const _forDomain: MiddlewareHandler = async (c, next: Next) => {
+const _forDomain: MiddlewareHandler = async (
+  c: MyContext,
+  next: () => Promise<void>
+) => {
   const requestUrl = new URL(c.req.url);
   const appUrl = env("APP_URL", "").toLowerCase();
   const [protocol, domain] = requestUrl.toString().toLowerCase().split("://");
@@ -156,10 +162,10 @@ class Server {
     }
     await Boot.finalInit();
     if (isset(env("PHPMYADMIN_HOST"))) {
-      this.app.get("/myadmin", async (c) => {
+      this.app.get("/myadmin", async (c: MyContext) => {
         return c.redirect("/myadmin/", 301);
       });
-      this.app.all("/myadmin/*", async (c) => {
+      this.app.all("/myadmin/*", async (c: MyContext) => {
         const targetUrl = `${env("PHPMYADMIN_HOST")}${c.req.path.replace(
           "/myadmin",
           ""
@@ -233,7 +239,7 @@ class Server {
 
     if (withDefaults) {
       app.use(...myStaticDefaults);
-      app.use("*", async (c, next) => {
+      app.use("*", async (c: MyContext, next: () => Promise<void>) => {
         c.set("subdomain", {});
         await next();
       });
@@ -596,7 +602,7 @@ class Server {
               }
             }
           }
-          this.app.get(`${routePrefix}/__warmup`, async (c) => {
+          this.app.get(`${routePrefix}/__warmup`, async (c: MyContext) => {
             return c.text("");
           });
           this.app.route(routePrefix, byEndpointsRouter);
@@ -606,7 +612,7 @@ class Server {
   }
 
   private static endInit() {
-    this.app.use("*", async function (c) {
+    this.app.use("*", async function (c: MyContext) {
       return await myError(c);
     });
 
@@ -616,7 +622,7 @@ class Server {
       const allDomainKeys = Object.keys(allApp); // ["example.com", "api.example.com"]
       allDomainKeys.forEach((domainKey) => {
         const app = allApp[domainKey];
-        app.use("*", async function (c) {
+        app.use("*", async function (c: MyContext) {
           return await myError(c);
         });
       });
