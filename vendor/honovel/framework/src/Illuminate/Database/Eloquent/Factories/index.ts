@@ -1,3 +1,4 @@
+import { toFileUrl } from "jsr:@std/path@0.224.0";
 import { FakerFactory } from "../../../../../../../Faker/index.ts";
 import { DB } from "../../../Support/Facades/index.ts";
 import { Model } from "../index.ts";
@@ -32,7 +33,7 @@ export abstract class Factory {
 
   /** Generate attributes */
   public make(
-    overrides: Record<string, unknown> = {}
+    overrides: Record<string, unknown> = {},
   ): Record<string, unknown>[] {
     const results: Record<string, unknown>[] = [];
     for (let i = 0; i < this._count; i++) {
@@ -43,14 +44,14 @@ export abstract class Factory {
 
   /** Generate a single attribute set */
   public makeOne(
-    overrides: Record<string, unknown> = {}
+    overrides: Record<string, unknown> = {},
   ): Record<string, unknown> {
     return { ...this.definition(), ...overrides };
   }
 
   /** Create and save model instances */
   public async create(
-    overrides: Record<string, unknown> = {}
+    overrides: Record<string, unknown> = {},
   ): Promise<
     Model<Record<string, unknown>> | Model<Record<string, unknown>>[]
   > {
@@ -70,7 +71,7 @@ export abstract class Factory {
 
   /** Create a single model */
   public async createOne(
-    overrides: Record<string, unknown> = {}
+    overrides: Record<string, unknown> = {},
   ): Promise<Model<Record<string, unknown>>> {
     const currentCount = this._count;
     this._count = 1;
@@ -84,7 +85,7 @@ export abstract class Factory {
   /** Create multiple models */
   public async createMany(
     count: number,
-    overrides: Record<string, unknown> = {}
+    overrides: Record<string, unknown> = {},
   ): Promise<Model<Record<string, unknown>>[]> {
     const currentCount = this._count;
     this._count = count;
@@ -96,13 +97,14 @@ export abstract class Factory {
 
 export class HasFactory {
   public static async getFactoryByModel<
-    T extends typeof Model<any> = typeof Model<any>
+    T extends typeof Model<any> = typeof Model<any>,
   >(model: T): Promise<Factory> {
-    const factoryPath = databasePath(`factories/${model.name}Factory.ts`);
+    const factoryPath =
+      toFileUrl(databasePath(`factories/${model.name}Factory.ts`)).href;
     const factoryModule = await import(factoryPath);
     if (!isset(factoryModule.default)) {
       throw new Error(
-        `Factory for model ${model.name} not found at ${factoryPath}`
+        `Factory for model ${model.name} not found at ${factoryPath}`,
       );
     }
     // @ts-ignore - We assume the factory is compatible with the model //
