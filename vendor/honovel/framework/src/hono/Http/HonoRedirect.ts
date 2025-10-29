@@ -24,9 +24,7 @@ class HonoRedirect implements IRedirectResponse {
 
   public route(name: string, params?: Record<string, unknown>): this {
     this.#type = "route";
-    if (!isObject(params)) {
-      throw new Error("Params must be an object");
-    }
+
     this.#myRedirectData[this.#type] = route(name, params);
     return this;
   }
