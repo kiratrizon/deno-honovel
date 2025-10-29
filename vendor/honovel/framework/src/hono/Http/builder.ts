@@ -24,7 +24,10 @@ export async function myError(
 
     return c.html(finalContent, code);
   }
-  const html404 = new HonoView();
-  const render = await html404.element("error/404", {});
+  const html404 = new HonoView({
+    viewName: "error/404",
+    data: {},
+  });
+  const render = await html404.element();
   return c.html(render, 404);
 }
