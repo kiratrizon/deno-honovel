@@ -146,7 +146,7 @@ export abstract class BaseGuard {
 
   abstract login(
     user: Authenticatable | JWTSubject,
-    remember: boolean
+    remember?: boolean
   ): Promise<unknown>;
 
   /**
@@ -397,6 +397,7 @@ export class SessionGuard extends BaseGuard {
     const rawAttributes = user.getRawAttributes();
     const { request } = this.c.get("myHono");
     const key = "auth_user";
+    const sessguardKey = `auth_${this.guardName}_user`;
     request.session.put(
       // @ts-ignore //
       sessguardKey,
@@ -412,7 +413,7 @@ export class SessionGuard extends BaseGuard {
       const rememberToken = Hash.make(generatedToken);
       await user.setRememberToken(rememberToken);
       await user.save();
-      const sessguardKey = `auth_${this.guardName}_user`;
+
       Cookie.queue(sessguardKey, rememberToken, {
         maxAge: 30 * 24 * 60 * 60, // 30 days
       });
