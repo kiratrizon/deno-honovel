@@ -207,7 +207,9 @@ export class Session<D extends SessionDataTypes> {
         new: [],
       });
     }
-    (this.values._flash.new as unknown as string[]).push(key as string);
+    if (!this.values._flash.new.includes(key as string)) {
+      this.values._flash.new.push(key as string);
+    }
 
     this.put(key as string, value);
   }
