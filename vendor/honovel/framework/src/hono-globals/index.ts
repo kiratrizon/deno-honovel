@@ -442,14 +442,14 @@ globalFn("readFile", (filePath: string = ""): Uint8Array => {
 
 import pluralize from "pluralize";
 globalFn("generateTableName", function (entity: string = "") {
-  const splitWords = entity.split(/(?=[A-Z])/);
-  const lastWord = splitWords.pop()!.toLowerCase();
+  // Split PascalCase / camelCase into words
+  const splitWords = entity.split(/(?=[A-Z])/).map((w) => w.toLowerCase());
 
-  const pluralizedLastWord = (() => {
-    return pluralize.plural(lastWord);
-  })();
+  // Pluralize the last word
+  const lastWord = pluralize.plural(splitWords.pop()!);
 
-  return [...splitWords, pluralizedLastWord].join("").toLowerCase();
+  // Rejoin with underscores
+  return [...splitWords, lastWord].join("_");
 });
 
 import { Buffer } from "@std/io";

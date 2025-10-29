@@ -446,6 +446,7 @@ class Server {
                 name = "",
               } = myGroup.flagConfig;
 
+              console.log(myGroup.flagConfig);
               const domainParam: string[] = [];
               const groupMiddleware: MiddlewareHandler[] = [];
 
@@ -525,10 +526,11 @@ class Server {
                       `Route name "${flagName}" already exists. Overriding it is not allowed.`
                     );
                   } else {
+                    const finalUrl = `${routePrefix == "/" ? "" : routePrefix}${
+                      arrangerGroup.string
+                    }${myConfig.uri}`;
                     this.routes[finalName] = {
-                      url: `${routePrefix == "/" ? "" : routePrefix}${
-                        myConfig.uri
-                      }`,
+                      url: finalUrl,
                       requiredParams: arrangerDispatch.requiredParams,
                       optionalParams: arrangerDispatch.optionalParams,
                     };

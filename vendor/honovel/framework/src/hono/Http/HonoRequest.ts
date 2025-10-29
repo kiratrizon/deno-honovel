@@ -442,7 +442,9 @@ class HonoRequest extends Macroable {
   }
 
   public flash(): void {
-    this.session.flash("_old_input", this.input());
+    if (!empty(this.input())) {
+      this.session.flash("_old_input", this.input());
+    }
   }
 
   #variables: Record<string, unknown> = {};
@@ -517,11 +519,6 @@ class HonoRequest extends Macroable {
 
     if (validation.fails()) {
       const errors = validation.getErrors();
-      // flash data first
-      if (!this.expectsJson() && this.method !== "GET") {
-        this.flash();
-      }
-
       const valExc = new ValidationException(errors);
       let action;
       if (this.ajax() || this.expectsJson()) {

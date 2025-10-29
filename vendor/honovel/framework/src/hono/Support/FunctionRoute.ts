@@ -19,6 +19,7 @@ import HonoView from "HonoHttp/HonoView.ts";
 import HonoRedirect from "HonoHttp/HonoRedirect.ts";
 import { HonoResponse } from "HonoHttp/HonoResponse.ts";
 import MessageBag, { ErrorsShape } from "HonoHttp/MessageBag.ts";
+import { SessionDataTypes } from "../../../../@types/declaration/imain.d.ts";
 
 export const regexObj = {
   number: /^\d+$/,
@@ -1177,10 +1178,10 @@ export async function handleAction(
   if (isObject(data)) {
     if (data instanceof HonoView) {
       const errors = request.session.get("errors");
+      // console.log("errors", errors);
       const edgeGlobals = {
-        session: function (key: string) {
-          // @ts-ignore //
-          return request.session.get(key);
+        session: function () {
+          return request.session;
         },
         env: env,
         request: function () {
@@ -1263,6 +1264,17 @@ export async function handleAction(
       statusCode = 200;
       return c.html(rendered, 200);
     } else if (data instanceof HonoRedirect) {
+      const sessionFlashData = request.session.get(
+        "_flash"
+      ) as SessionDataTypes["_flash"];
+      const old = sessionFlashData.old;
+      const newData = sessionFlashData.new;
+      // merge
+      const merged = [...old, ...newData];
+      request.session.put("_flash", {
+        old: [],
+        new: [...merged],
+      });
       switch (data.type) {
         case "back":
           // @ts-ignore //
