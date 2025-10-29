@@ -446,7 +446,6 @@ class Server {
                 name = "",
               } = myGroup.flagConfig;
 
-              console.log(myGroup.flagConfig);
               const domainParam: string[] = [];
               const groupMiddleware: MiddlewareHandler[] = [];
 
