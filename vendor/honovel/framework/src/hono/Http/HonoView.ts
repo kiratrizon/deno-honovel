@@ -42,6 +42,9 @@ class HonoView {
 
   protected addGlobal(param: Record<string, unknown> = {}) {
     Object.entries(param).forEach(([key, value]) => {
+      if (key === "$slots") {
+        throw new Error("slot key is already reserved")
+      }
       this.edge.global(key, value);
     });
   }
@@ -58,8 +61,11 @@ class HonoView {
   ) {
     const arrangeTemplate = viewName.split(".").join("/");
 
+    if (isObject(data)) {
+      this.addGlobal(data);
+    }
     // Default path (child view)
-    const rendered = await this.edge.render(arrangeTemplate, data);
+    const rendered = await this.edge.render(arrangeTemplate);
     return rendered;
   }
 
