@@ -127,12 +127,12 @@ export interface SERVER {
 }
 import { ISession } from "../../../../@types/declaration/ISession.d.ts";
 import HonoHeader from "./HonoHeader.ts";
-import { FormFile } from "multiParser2";
 import { CookieOptions } from "hono/utils/cookie";
 import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";
 import { Model } from "Illuminate/Database/Eloquent/index.ts";
 import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
+import HonoFile from "./HonoFile.ts";
 
 declare class HonoRequest {
   /** Common X-Forwarded headers used for proxies */
@@ -224,10 +224,10 @@ declare class HonoRequest {
   deleteCookie(key: string, options?: CookieOptions): void;
 
   /** Get all uploaded files */
-  allFiles(): Record<string, FormFile[]>;
+  allFiles(): Record<string, HonoFile[]>;
 
   /** Get a file or array of files by key */
-  file(key: string): FormFile[] | null;
+  file(key: string): HonoFile[] | null;
 
   /** Check if a file exists by key */
   hasFile(key: string): boolean;
@@ -292,7 +292,7 @@ declare class HonoRequest {
   readonly $_SERVER: SERVER;
 
   /** Access uploaded files */
-  readonly $_FILES: Record<string, FormFile[]>;
+  readonly $_FILES: Record<string, HonoFile[]>;
 
   /** Access request data */
   readonly $_REQUEST: Record<string, unknown>;
