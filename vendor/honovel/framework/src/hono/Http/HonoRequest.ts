@@ -1,7 +1,7 @@
 import {
   RequestMethod,
   SERVER,
-} from "../../../../@types/declaration/IHonoRequest.d.ts";
+} from "./HonoRequest.d.ts";
 import HonoHeader from "./HonoHeader.ts";
 import { isbot } from "isbot";
 import Macroable from "../../Maneuver/Macroable.ts";
@@ -16,6 +16,7 @@ import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 import { Model } from "Illuminate/Database/Eloquent/index.ts";
 import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
 import { ValidationException } from "Illuminate/Validation/ValidationException.ts";
+import HonoFile from "./HonoFile.ts";
 
 class HonoRequest extends Macroable {
   public static HEADER_X_FORWARDED_ALL = [
@@ -26,7 +27,7 @@ class HonoRequest extends Macroable {
   ];
 
   #c: MyContext;
-  #files: Record<string, FormFile[]> = {};
+  #files: Record<string, HonoFile[]> = {};
   #myAll: Record<string, unknown> = {};
   #myHeader: HonoHeader;
   #routeParams: Record<string, string | null> = {};
@@ -48,7 +49,7 @@ class HonoRequest extends Macroable {
       return;
     }
     const c = this.#c;
-    const files: Record<string, FormFile[]> = {};
+    const files: Record<string, HonoFile[]> = {};
     let body: Record<string, unknown> = {};
     const contentType = (c.req.header("content-type") || "").toLowerCase();
     if (contentType.includes("multipart/form-data")) {
@@ -62,7 +63,10 @@ class HonoRequest extends Macroable {
         if (parsed.files) {
           for (const [key, file] of Object.entries(parsed.files)) {
             // multiparser supports both single and multiple files
-            files[key] = Array.isArray(file) ? file : [file];
+            const fileToObj = Array.isArray(file) ? file.map((e) => {
+              return new HonoFile(e);
+            }) : [new HonoFile(file)]
+            files[key] = fileToObj;
           }
         }
       }
@@ -320,11 +324,11 @@ class HonoRequest extends Macroable {
     deleteCookie(this.#c, key, opts);
   }
 
-  public allFiles(): Record<string, FormFile[]> {
+  public allFiles(): Record<string, HonoFile[]> {
     return this.#files;
   }
 
-  public file(key: string): FormFile[] | null {
+  public file(key: string): HonoFile[] | null {
     if (keyExist(this.#files, key) && isset(this.#files[key])) {
       return this.#files[key];
     }
@@ -475,7 +479,7 @@ class HonoRequest extends Macroable {
     return this.#server;
   }
 
-  public get $_FILES(): Record<string, FormFile[]> {
+  public get $_FILES(): Record<string, HonoFile[]> {
     return this.#files;
   }
 
