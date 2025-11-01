@@ -328,12 +328,20 @@ class HonoRequest extends Macroable {
     return this.#files;
   }
 
-  public file(key: string): HonoFile[] | null {
+  public file(key: string): HonoFile | null {
+    if (keyExist(this.#files, key) && isset(this.#files[key])) {
+      return this.#files[key][0] ?? null;
+    }
+    return null;
+  }
+
+  public files(key: string): HonoFile[] | null {
     if (keyExist(this.#files, key) && isset(this.#files[key])) {
       return this.#files[key];
     }
     return null;
   }
+
 
   public hasFile(key: string): boolean {
     return (

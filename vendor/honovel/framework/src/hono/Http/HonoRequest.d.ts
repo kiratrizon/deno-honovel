@@ -226,8 +226,11 @@ declare class HonoRequest {
   /** Get all uploaded files */
   allFiles(): Record<string, HonoFile[]>;
 
-  /** Get a file or array of files by key */
-  file(key: string): HonoFile[] | null;
+  /** Get a file of files by key */
+  file(key: string): HonoFile | null;
+
+  /** Get an array of files by key */
+  files(key: string): HonoFile | null;
 
   /** Check if a file exists by key */
   hasFile(key: string): boolean;
