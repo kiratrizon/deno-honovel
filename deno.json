@@ -1,5 +1,6 @@
 {
   "imports": {
+      "@aws-sdk/client-s3": "npm:@aws-sdk/client-s3@^3.922.0",
       "@db/pgsql": "https://deno.land/x/postgres@v0.17.0/mod.ts",
       "@denosaurs/plug": "jsr:@denosaurs/plug@1.1.0",
       "@avroit/memcached": "jsr:@avroit/memcached@^0.0.4",
@@ -26,6 +27,7 @@
       "mssql": "npm:mssql@^11.0.1",
       "mysql2": "npm:mysql2@3.6.0",
       "mysql2/promise": "npm:mysql2/promise",
+      "nodemailer": "npm:nodemailer@^7.0.10",
       "pg": "npm:pg@^8.16.3",
       "pluralize": "npm:pluralize@^8.0.0",
       "redis": "npm:redis@^5.5.5",

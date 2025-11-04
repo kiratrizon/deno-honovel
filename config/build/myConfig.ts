@@ -5,6 +5,7 @@ import cors from "configs/cors.ts";
 import database from "configs/database.ts";
 import jwt from "configs/jwt.ts";
 import logging from "configs/logging.ts";
+import mailer from "configs/mailer.ts";
 import services from "configs/services.ts";
 import session from "configs/session.ts";
 
@@ -16,6 +17,7 @@ export default {
   database,
   jwt,
   logging,
+  mailer,
   services,
   session,
 };
