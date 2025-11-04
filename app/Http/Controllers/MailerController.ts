@@ -6,10 +6,10 @@ class MailerController extends Controller {
     public sendMail: HttpDispatch = async ({ request }) => {
 
         const { to, subject, text, html } = await request.validate({
-            to: "required|string|email",
-            subject: "required|string",
-            text: "string",
-            html: "string",
+            to: "required|email",
+            subject: "required",
+            text: "required",
+            html: "required",
         })
 
         const mailerService = new MailService();
