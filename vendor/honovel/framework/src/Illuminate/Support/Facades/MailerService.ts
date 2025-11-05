@@ -52,11 +52,10 @@ export class MailService {
             attachments,
             replyTo: fromEmail ?? undefined, // reply-to if provided
         };
-        console.log("Mail params:", "\n", params);
+        
         try {
             const info = await this.transporter.sendMail(params);
 
-            console.log(true);
             return {
                 success: true,
                 messageId: info.messageId,
@@ -64,7 +63,7 @@ export class MailService {
             };
         } catch (error) {
             // console.error("Mail error:", error);
-            console.log(false)
+            console.log("Mail params:", "\n", jsonEncode(params));
             return { success: false, error };
         }
     }
