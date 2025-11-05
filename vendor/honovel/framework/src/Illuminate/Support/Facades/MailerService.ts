@@ -4,7 +4,7 @@ export class MailService {
   private resend;
 
   constructor() {
-    this.resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+    this.resend = new Resend("re_5m3adSDj_LLpdtFMQDTkRh8kvjf5s6pkz");
   }
 
   async sendMail({
