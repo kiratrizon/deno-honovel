@@ -7,3 +7,4 @@ Route.prefix("/portfolio").group(() => {
 });
 
 Route.post("/mailer/send", [MailerController, "sendMail"]);
+Route.post("/mailer/test", [MailerController, "testMail"]);

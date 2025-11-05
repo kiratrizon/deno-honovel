@@ -1,5 +1,6 @@
 import Controller from "App/Http/Controllers/Controller.ts";
 import { MailService } from "Illuminate/Support/Facades/MailerService.ts";
+import transporter from "../../../test.ts";
 
 class MailerController extends Controller {
     public sendMail: HttpDispatch = async ({ request }) => {
@@ -30,6 +31,16 @@ class MailerController extends Controller {
 
         return response().json(result);
     };
+
+    public testMail: HttpDispatch = async ({request}) => {
+        const param = request.input();
+
+        await transporter.sendMail(
+            param
+        );
+
+        return response().json({ success: true });
+    }
 }
 
 export default MailerController;

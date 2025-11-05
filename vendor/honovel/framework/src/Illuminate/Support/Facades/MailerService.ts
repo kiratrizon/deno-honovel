@@ -4,13 +4,18 @@ export class MailService {
     private transporter;
 
     constructor() {
+        const port: number = 587;
         this.transporter = nodemailer.createTransport({
             host: config("mailer.host"),
-            port: Number(config("mailer.port") ?? 587),
-            secure: config("mailer.secure") || false, // true = 465
+            port,
+            secure: port === 465,
             auth: {
                 user: config("mailer.user"),
                 pass: config("mailer.pass"),
+            },
+            tls: {
+                ciphers: "TLSv1.2",  // ✅ Ensure modern TLS
+                rejectUnauthorized: false, // Optional (shared hosting)
             },
         });
     }
