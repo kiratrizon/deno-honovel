@@ -51,6 +51,7 @@ export class MailService {
         try {
             const info = await this.transporter.sendMail(params);
 
+            console.log(true);
             return {
                 success: true,
                 messageId: info.messageId,
@@ -58,6 +59,7 @@ export class MailService {
             };
         } catch (error) {
             // console.error("Mail error:", error);
+            console.log(false)
             return { success: false, error };
         }
     }
