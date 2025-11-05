@@ -47,7 +47,7 @@ export class MailService {
             attachments,
             replyTo: fromEmail ?? undefined, // reply-to if provided
         };
-        console.log("Mail params:", params);
+        console.log("Mail params:", "\n", params);
         try {
             const info = await this.transporter.sendMail(params);
 
