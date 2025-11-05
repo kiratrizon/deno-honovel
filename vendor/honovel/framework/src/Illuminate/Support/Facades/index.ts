@@ -367,7 +367,9 @@ export class Validator {
     "confirmed",
     "regex",
     "file",
+    "array", // ✅ new
   ];
+
   #regex = {
     digit: "\\d+",
     alpha: "[a-zA-Z]+",
@@ -518,6 +520,10 @@ export class Validator {
         if (!pattern) e.push(`Regex ${val} is not defined.`);
         else if (!(v as string)?.match(new RegExp(pattern)))
           e.push(`Invalid format for ${key}.`);
+        break;
+      }
+      case "array":{
+        if (!Array.isArray(v)) e.push("This field must be an array.");
         break;
       }
       case "file":

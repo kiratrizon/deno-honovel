@@ -1,4 +1,3 @@
-// MailService.ts
 import nodemailer from "nodemailer";
 
 export class MailService {
@@ -22,28 +21,38 @@ export class MailService {
         text,
         html,
         attachments = [],
+        fromName,
+        fromEmail,
     }: {
         to: string;
         subject: string;
         text?: string;
         html?: string;
         attachments?: Array<any>;
+        fromName?: string;
+        fromEmail?: string;
     }) {
         try {
+            // ✅ dynamic from like PHP
+            const fromHeader =
+                fromName && fromEmail
+                    ? `"${fromName}" <${fromEmail}>`
+                    : `"No Reply" <${config("mailer.from")}>`;
+
             const info = await this.transporter.sendMail({
-                from: `"No Reply" <${config("mailer.from")}>`,
+                from: fromHeader,
                 to,
                 subject,
                 text,
                 html,
                 attachments,
+                replyTo: fromEmail ?? undefined, // reply-to if provided
             });
 
             return {
                 success: true,
                 messageId: info.messageId,
-                preview:
-                    nodemailer.getTestMessageUrl?.(info) || null, // Ethereal support
+                preview: nodemailer.getTestMessageUrl?.(info) || null, // Ethereal support
             };
         } catch (error) {
             console.error("Mail error:", error);
