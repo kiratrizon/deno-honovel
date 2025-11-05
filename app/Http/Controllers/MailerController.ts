@@ -13,7 +13,7 @@ class MailerController extends Controller {
             fromEmail = "noreply@example.com",
         } = request.input();
 
-
+        console.log({ to, subject, text, html, attachments, fromName, fromEmail });
         // force TypeScript to treat attachments as an array
         const attachmentsArray: any[] = Array.isArray(attachments) ? attachments : [];
 
