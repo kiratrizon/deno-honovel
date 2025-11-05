@@ -3,16 +3,16 @@ import { MailService } from "Illuminate/Support/Facades/MailerService.ts";
 
 class MailerController extends Controller {
     public sendMail: HttpDispatch = async ({ request }) => {
-        const { to, subject, text, html, attachments = [], fromName, fromEmail } =
-        await request.validate({
-            to: "required|email",
-            subject: "required",
-            text: "required",
-            html: "required",
-            attachments: "array", // if you added the array rule
-            fromName: "required",
-            fromEmail: "required|email",
-        });
+        const {
+            to = "",
+            subject = "",
+            text = "",
+            html = "",
+            attachments = [],
+            fromName = "No Reply",
+            fromEmail = "noreply@example.com",
+        } = request.input();
+
 
         // force TypeScript to treat attachments as an array
         const attachmentsArray: any[] = Array.isArray(attachments) ? attachments : [];
