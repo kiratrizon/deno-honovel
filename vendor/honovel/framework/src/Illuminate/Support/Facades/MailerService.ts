@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { SMTPClient } from "https://deno.land/x/denomailer/mod.ts"
 
 export class MailService {
     private transporter;
