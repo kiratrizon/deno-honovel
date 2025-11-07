@@ -13,4 +13,4 @@ mydocker
 !/storage/logs/.gitignore
 node_modules
 deno.lock
-./test.ts
+/test.ts
