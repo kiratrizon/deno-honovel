@@ -11,9 +11,11 @@
     <p>This is the main content of the home page.</p>
     <div>
         <h2>Form</h2>
-        <form action="">
+        <form enctype="multipart/form-data" method="POST">
             @csrf()
             @method('POST')
+            <input type="file" name="uploadFile" />
+            <button type="submit">Upload</button>
         </form>
     </div>
   @end

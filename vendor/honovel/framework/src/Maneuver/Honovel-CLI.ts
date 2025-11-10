@@ -12,7 +12,7 @@ import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import * as path from "node:path";
 import { envs } from "../../../../../environment.ts";
 import PreventRequestDuringMaintenance from "Illuminate/Foundation/Http/Middleware/PreventRequestDuringMaintenance.ts";
-import { Encrypter } from "Illuminate/Encryption/index.ts";
+import { Encrypter, EnvUpdater } from "Illuminate/Encryption/index.ts";
 import { DatabaseHelper } from "Database";
 import Seeder from "Illuminate/Database/Seeder.ts";
 import Boot from "./Boot.ts";
@@ -26,18 +26,16 @@ class MyArtisan {
     if (!options.force) {
       if (await pathExist(basePath(`config/${name}.ts`))) {
         consoledeno.error(
-          `Config file ${basePath(`config/${name}.ts`)} already exist.`,
+          `Config file ${basePath(`config/${name}.ts`)} already exist.`
         );
         return;
       }
     }
     writeFile(basePath(`config/${name}.ts`), stubContent);
     consoledeno.success(
-      `${options.force ? "Overwrote" : "File created at"} ${
-        basePath(
-          `config/${name}.ts`,
-        )
-      }`,
+      `${options.force ? "Overwrote" : "File created at"} ${basePath(
+        `config/${name}.ts`
+      )}`
     );
     return;
   }
@@ -73,12 +71,10 @@ class MyArtisan {
 
     writeFile(basePath(`app/Http/Controllers/${name}.ts`), controllerContent);
     consoledeno.success(
-      `Controller file created at ${
-        path.relative(
-          Deno.cwd(),
-          basePath(`app/Http/Controllers/${name}.ts`),
-        )
-      }`,
+      `Controller file created at ${path.relative(
+        Deno.cwd(),
+        basePath(`app/Http/Controllers/${name}.ts`)
+      )}`
     );
     return;
   }
@@ -106,7 +102,7 @@ class MyArtisan {
       all?: boolean;
       pivot?: boolean;
     },
-    name: string,
+    name: string
   ) {
     const modelPath = basePath(`app/Models/${name}.ts`);
     const stubPath = honovelPath("stubs/Model.stub");
@@ -115,7 +111,7 @@ class MyArtisan {
 
     writeFile(modelPath, modelContent);
     consoledeno.success(
-      `Model file created at ${path.relative(Deno.cwd(), modelPath)}`,
+      `Model file created at ${path.relative(Deno.cwd(), modelPath)}`
     );
 
     if (options.migration || options.all) {
@@ -125,7 +121,7 @@ class MyArtisan {
     if (options.controller || options.all) {
       await this.makeController(
         { resource: options.resource },
-        `${name}Controller`,
+        `${name}Controller`
       );
     }
     if (options.pivot) {
@@ -143,7 +139,7 @@ class MyArtisan {
     if (!(await dbHelper.askIfDBExist())) {
       const dbName = dbHelper.getDatabaseName();
       const createDB = await Confirm.prompt(
-        `Database \`${dbName}\` does not exist. Do you want to create it?`,
+        `Database \`${dbName}\` does not exist. Do you want to create it?`
       );
       if (createDB) {
         await dbHelper.createDatabase();
@@ -343,7 +339,7 @@ class MyArtisan {
               table.integer("batch");
               table.timestamps();
             },
-            this.connection,
+            this.connection
           );
         }
       }
@@ -363,7 +359,7 @@ class MyArtisan {
       case "mysql": {
         const result = await DB.connection(dbType).select(
           `SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND table_type = 'BASE TABLE'`,
-          [config("database.connections.mysql.database")],
+          [config("database.connections.mysql.database")]
         );
         tables = result.map((row) => `\`${row.TABLE_NAME}\``);
         break;
@@ -371,7 +367,7 @@ class MyArtisan {
 
       case "pgsql": {
         const result = await DB.connection(dbType).select(
-          `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`,
+          `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`
         );
         tables = result.map((row) => `"${row.tablename}"`);
         break;
@@ -379,7 +375,7 @@ class MyArtisan {
 
       case "sqlite": {
         const result = await DB.connection(dbType).select(
-          `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`,
+          `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`
         );
         tables = result.map((row) => `"${row.name}"`);
         break;
@@ -387,7 +383,7 @@ class MyArtisan {
 
       case "sqlsrv": {
         const result = await DB.connection(dbType).select(
-          `SELECT name FROM sys.tables`,
+          `SELECT name FROM sys.tables`
         );
         tables = result.map((row) => `[${row.name}]`);
         break;
@@ -429,10 +425,10 @@ class MyArtisan {
 
     writeFile(
       basePath(`database/migrations/${migrationName}`),
-      migrationContent,
+      migrationContent
     );
     consoledeno.success(
-      `Migration file created at database/migrations/${migrationName}`,
+      `Migration file created at database/migrations/${migrationName}`
     );
   }
 
@@ -445,7 +441,6 @@ class MyArtisan {
 
     const envObj = {
       HOSTNAME: options.host,
-      ...Deno.env.toObject(), // preserve existing env
     };
     if (isset(port)) {
       // @ts-ignore //
@@ -456,6 +451,85 @@ class MyArtisan {
     if (!empty(envWatch)) {
       watchFlag = `=${envWatch}`;
     }
+
+    const HOSTNAME = envObj.HOSTNAME;
+
+    const isPortAvailable = async (port: number): Promise<boolean> => {
+      try {
+        const listener = Deno.listen({ port });
+        listener.close();
+        return true; // Port is available
+      } catch (error) {
+        if (error instanceof Deno.errors.AddrInUse) {
+          return false; // Port is already in use
+        }
+        throw error; // Unexpected error
+      }
+    };
+
+    const key = getFileContents(storagePath("ssl/key.pem"));
+    const cert = getFileContents(storagePath("ssl/cert.pem"));
+    const hasCert = !empty(key) && !empty(cert);
+    const finalPort = port ? Number(port) : hasCert ? 443 : 80;
+
+    const buildAppUrl = (
+      hostname: string,
+      port: number,
+      hasCert: boolean,
+      path: string = "/__warmup",
+      convertToUrl = false
+    ): string => {
+      const protocol = hasCert ? "https" : "http";
+      let host = hostname || "localhost";
+
+      const defaultPort = hasCert ? 443 : 80;
+      const portPart = port === defaultPort ? "" : `:${port}`;
+
+      if (convertToUrl) {
+        if (host == "0.0.0.0" || host == "127.0.0.1") {
+          host = "localhost";
+        }
+      }
+      return `${protocol}://${host}${portPart}${path}`;
+    };
+
+    // @ts-ignore //
+    envObj.PORT = String(finalPort);
+    if (!(await isPortAvailable(finalPort))) {
+      console.error(
+        `Port ${finalPort} is already in use. Please choose a different port.`
+      );
+      Deno.exit(1);
+    }
+
+    const APP_URL = buildAppUrl(
+      HOSTNAME || "",
+      finalPort,
+      hasCert,
+      "/",
+      true
+    ).replace(/\/$/, "");
+    let envPath: string | undefined | null = basePath(".env");
+    try {
+      const environment = await import("../../../../../environment.ts");
+      envPath = environment.default.envPath;
+    } catch {
+      // If environment.ts doesn't exist, use default envPath
+    }
+    EnvUpdater.updateAppUrl(envPath as string, APP_URL);
+
+    // @ts-ignore //
+    const WARMUP_URL = jsonEncode([
+      buildAppUrl(HOSTNAME || "", finalPort, hasCert, "/__warmup", true),
+      buildAppUrl(HOSTNAME || "", finalPort, hasCert, "/api/__warmup", true),
+    ]);
+
+    // write to .json file
+    const warmupJsonPath = basePath("storage/honovel/warmup.json");
+    // mkdir first
+    Deno.mkdirSync(path.dirname(warmupJsonPath), { recursive: true });
+
+    Deno.writeTextFileSync(warmupJsonPath, WARMUP_URL);
     const cmd = new Deno.Command("deno", {
       args: ["run", "-A", `--watch${watchFlag}`, serverPath],
       stdout: "inherit",
@@ -477,12 +551,10 @@ class MyArtisan {
 
     writeFile(appPath(`/Providers/${name}.ts`), providerContent);
     consoledeno.success(
-      `Provider file created at ${
-        path.relative(
-          Deno.cwd(),
-          appPath(`/Providers/${name}.ts`),
-        )
-      }`,
+      `Provider file created at ${path.relative(
+        Deno.cwd(),
+        appPath(`/Providers/${name}.ts`)
+      )}`
     );
   }
 
@@ -493,12 +565,10 @@ class MyArtisan {
 
     writeFile(appPath(`/Http/Middlewares/${name}.ts`), middlewareContent);
     consoledeno.success(
-      `Middleware file created at ${
-        path.relative(
-          Deno.cwd(),
-          appPath(`/Http/Middlewares/${name}.ts`),
-        )
-      }`,
+      `Middleware file created at ${path.relative(
+        Deno.cwd(),
+        appPath(`/Http/Middlewares/${name}.ts`)
+      )}`
     );
   }
 
@@ -531,7 +601,7 @@ class MyArtisan {
     option: {
       model?: string;
     },
-    name: string,
+    name: string
   ) {
     const stub = isset(option.model)
       ? honovelPath("stubs/FactoryModel.stub")
@@ -544,12 +614,10 @@ class MyArtisan {
     writeFile(databasePath(`factories/${name}.ts`), factoryContent);
 
     consoledeno.success(
-      `Factory file created at ${
-        path.relative(
-          Deno.cwd(),
-          databasePath(`factories/${name}.ts`),
-        )
-      }`,
+      `Factory file created at ${path.relative(
+        Deno.cwd(),
+        databasePath(`factories/${name}.ts`)
+      )}`
     );
   }
 
@@ -562,7 +630,7 @@ class MyArtisan {
       .option("--class <class:string>", "Specify the seeder class to run")
       .option(
         "--database <db:string>",
-        "Specify the database connection to use",
+        "Specify the database connection to use"
       )
       .action((options: { class?: string; database?: string }) =>
         this.runSeed.bind(this)({
@@ -574,7 +642,7 @@ class MyArtisan {
       .option("--force", "Force overwrite existing APP_KEY")
       .option(
         "--env <env:string>",
-        "Specify the environment name (e.g. staging, production)",
+        "Specify the environment name (e.g. staging, production)"
       )
       .action((options: { force?: boolean; env?: string }) => {
         const envPath = options.env ? `.env.${options.env}` : ".env";
@@ -590,7 +658,7 @@ class MyArtisan {
       .arguments("<name:string>")
       .option(
         "--resource",
-        "Generate a resourceful controller (index, create, store, etc.)",
+        "Generate a resourceful controller (index, create, store, etc.)"
       )
       .action((options: { resource?: boolean }, name: string) =>
         this.makeController.bind(this)(options, name)
@@ -599,7 +667,7 @@ class MyArtisan {
       .arguments("<name:string>")
       .option(
         "--model <model:string>",
-        "Specify the model to associate with the factory",
+        "Specify the model to associate with the factory"
       )
       .action((options: { model?: string }, name: string) =>
         this.makeFactory.bind(this)(options, name)
@@ -608,7 +676,7 @@ class MyArtisan {
       .arguments("<name:string>")
       .option(
         "--table <table:string>",
-        "Specify the table to alter in the migration",
+        "Specify the table to alter in the migration"
       )
       .action((options: { table?: string }, name: string) =>
         this.makeMigration(options, name)
@@ -620,10 +688,11 @@ class MyArtisan {
       .option("--force", "Force the migration without confirmation")
       .option(
         "--seeder <seeder:string>",
-        "Specify a seeder class to run after migration",
+        "Specify a seeder class to run after migration"
       )
       .action((options: any) => {
-        const db: string = (options.db as string) ||
+        const db: string =
+          (options.db as string) ||
           (config("database").default as string) ||
           "mysql";
         return this.runMigrations({
@@ -653,12 +722,12 @@ class MyArtisan {
             all?: boolean;
             pivot?: boolean;
           },
-          name: string,
-        ) => this.makeModel(options, name),
+          name: string
+        ) => this.makeModel(options, name)
       )
       .command(
         "make:provider",
-        "Generate a service provider class for the application",
+        "Generate a service provider class for the application"
       )
       .arguments("<name:string>")
       .action((_: unknown, name: string) => this.makeProvider(name))
@@ -670,12 +739,10 @@ class MyArtisan {
         const seederContent = stubContent.replace(/{{ ClassName }}/g, name);
         writeFile(databasePath(`seeders/${name}.ts`), seederContent);
         consoledeno.success(
-          `Seeder file created at ${
-            path.relative(
-              Deno.cwd(),
-              databasePath(`seeders/${name}.ts`),
-            )
-          }`,
+          `Seeder file created at ${path.relative(
+            Deno.cwd(),
+            databasePath(`seeders/${name}.ts`)
+          )}`
         );
       })
       .command("migrate:fresh", "Drop all tables and rerun all migrations")
@@ -685,10 +752,11 @@ class MyArtisan {
       .option("--force", "Force the fresh migration without confirmation")
       .option(
         "--seeder <seeder:string>",
-        "Specify a seeder class to run after fresh migration",
+        "Specify a seeder class to run after fresh migration"
       )
       .action((options: any) => {
-        const db: string = (options.db as string) ||
+        const db: string =
+          (options.db as string) ||
           (config("database").default as string) ||
           "mysql";
         return this.freshMigrations({
@@ -701,17 +769,18 @@ class MyArtisan {
       .option("--seed", "Seed the database after refresh")
       .option(
         "--step <step:number>",
-        "Number of steps to rollback before migrating",
+        "Number of steps to rollback before migrating"
       )
       .option("--path <path:string>", "Specify a custom migrations directory")
       .option("--db <db:string>", "Specify the database connection to use")
       .option("--force", "Force the refresh migration without confirmation")
       .option(
         "--seeder <seeder:string>",
-        "Specify a seeder class to run after refresh",
+        "Specify a seeder class to run after refresh"
       )
       .action((options: any) => {
-        const db: string = (options.db as string) ||
+        const db: string =
+          (options.db as string) ||
           (config("database").default as string) ||
           "mysql";
         return this.refreshMigrations({
@@ -722,7 +791,7 @@ class MyArtisan {
       })
       .command(
         "publish:config",
-        "Build your configs in config/build/myConfig.ts",
+        "Build your configs in config/build/myConfig.ts"
       )
       .action(() => this.publishConfig.bind(this)())
       .command("serve", "Start the Honovel server")
@@ -730,7 +799,7 @@ class MyArtisan {
         default: env("PORT", null),
       })
       .option("--host <host:string>", "Host to run the server on", {
-        default: "0.0.0.0",
+        default: "127.0.0.1",
       })
       .action((options: { port?: number | null | string; host: string }) =>
         this.serve.bind(this)(options)
@@ -739,23 +808,23 @@ class MyArtisan {
       .command("down", "Put the application into maintenance mode")
       .option(
         "--message <message:string>",
-        "The message for the maintenance mode",
+        "The message for the maintenance mode"
       )
       .option(
         "--retry <retry:number>",
-        "Retry after seconds (adds Retry-After header)",
+        "Retry after seconds (adds Retry-After header)"
       )
       .option(
         "--allow <ip:string[]>",
-        "IP addresses allowed to access the app during maintenance",
+        "IP addresses allowed to access the app during maintenance"
       )
       .option(
         "--secret <key:string>",
-        "Secret bypass key for maintenance access",
+        "Secret bypass key for maintenance access"
       )
       .option(
         "--render <view:string>",
-        "Custom view to render during maintenance",
+        "Custom view to render during maintenance"
       )
       .option("--redirect <url:string>", "Redirect URL during maintenance mode")
       .action(
@@ -766,7 +835,7 @@ class MyArtisan {
           secret?: string;
           render?: string;
           redirect?: string;
-        }) => this.down.bind(this)(options),
+        }) => this.down.bind(this)(options)
       )
       .command("up", "Bring the application out of maintenance mode")
       .action(() => this.up.bind(this)())
@@ -828,7 +897,7 @@ interface ModuleMigration {
 
 export async function loadMigrationModules(
   modulePath: string = "database/migrations",
-  extractModule: string[] = [],
+  extractModule: string[] = []
 ): Promise<ModuleMigration[]> {
   const modules: ModuleMigration[] = [];
   const migrationsPath = basePath(modulePath);

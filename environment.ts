@@ -1,8 +1,10 @@
 import { LoadOptions } from "dotenv";
 import { SupportedDrivers } from "configs/@types/index.d.ts";
 
+import * as path from "node:path";
+
 export default {
-  envPath: "./.env",
+  envPath: path.join(Deno.cwd(), ".env").replace(/\\/g, "/"),
   examplePath: null,
 } as LoadOptions; // don't delete
 

@@ -524,12 +524,41 @@ export interface JWTConfig {
   audience: string[]; // token audience
   providers: JWTProviders;
 }
+interface DiskConfig {
+  root: string;
+  visibility?: "public" | "private";
+}
 
+export interface LocalDiskConfig extends DiskConfig {
+  url?: string;
+  driver: "local";
+}
+
+export interface PublicDiskConfig extends DiskConfig {
+  driver: "public";
+  url: string;
+  visibility: "public";
+}
+
+export interface S3DiskConfig {
+  driver: "s3";
+  key: string;
+  secret: string;
+  region: string;
+  bucket: string;
+  url?: string;
+}
+
+export interface FileSystemConfig {
+  default: string;
+  disks: Record<string, LocalDiskConfig | PublicDiskConfig | S3DiskConfig>;
+}
 export interface ConfigItems {
   app: AppConfig;
   auth: AuthConfig;
   cache: CacheConfig;
   database: DatabaseConfig;
+  filesystems: FileSystemConfig;
   jwt: JWTConfig;
   logging: LogConfig;
   cors: CorsConfig;

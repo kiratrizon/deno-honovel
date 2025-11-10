@@ -14,3 +14,4 @@ mydocker
 node_modules
 deno.lock
 /test.ts
+/storage/honovel/warmup.json

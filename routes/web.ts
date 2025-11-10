@@ -2,7 +2,13 @@ import { Route } from "Illuminate/Support/Facades/index.ts";
 
 // create-project command
 
-Route.get("/", async () => {
+Route.match(["get", "post"], "/", async ({ request }) => {
+  if (request.method === "POST") {
+    const file = request.file("uploadFile");
+    if (file) {
+      await file.store("public", `uploads/${file.filename}`);
+    }
+  }
   return view("welcome", { hello: "world" });
 });
 

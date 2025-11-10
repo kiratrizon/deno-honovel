@@ -28,6 +28,7 @@ const Route = Router as typeof INRoute;
 import ChildKernel from "./Support/ChildKernel.ts";
 import GroupRoute from "./Support/GroupRoute.ts";
 import { myError } from "HonoHttp/builder.ts";
+import { PublicDiskConfig } from "configs/@types/index.d.ts";
 
 const headFunction: MiddlewareHandler = async (
   c: MyContext,
@@ -147,7 +148,41 @@ class Server {
   public static async init() {
     await Boot.init();
     this.app = await this.generateNewApp({}, true);
-    this.app.use(logger());
+    const conditionalLogger = async (c: any, next: () => Promise<void>) => {
+      const url = c.req.url;
+      // skip if path ends with __warmup
+      if (!url.endsWith("__warmup")) {
+        await logger()(c, next); // call logger middleware
+      } else {
+        await next(); // skip logger
+      }
+    };
+
+    this.app.use(conditionalLogger);
+
+    const disks = config("filesystems").disks || {};
+
+    for (const [diskName, diskConfig] of Object.entries(disks)) {
+      const disk = diskConfig as PublicDiskConfig;
+
+      if (
+        ["local", "public"].includes(disk.driver) &&
+        disk.visibility === "public" &&
+        disk.root &&
+        disk.url
+      ) {
+        let basePath = disk.url;
+        if (disk.url.startsWith("http")) {
+          basePath = new URL(disk.url).pathname;
+        }
+        this.app.use(
+          basePath,
+          serveStatic({
+            root: path.relative(Deno.cwd(), disk.root),
+          })
+        );
+      }
+    }
 
     const allProviders = config("app").providers || [];
 
@@ -603,9 +638,12 @@ class Server {
               }
             }
           }
-          this.app.get(`${routePrefix}/__warmup`, async (c: MyContext) => {
-            return c.text("");
-          });
+          this.app.get(
+            `${routePrefix}${routePrefix == "/" ? "" : "/"}__warmup`,
+            async (c: MyContext) => {
+              return c.text("");
+            }
+          );
           this.app.route(routePrefix, byEndpointsRouter);
         }
       }
