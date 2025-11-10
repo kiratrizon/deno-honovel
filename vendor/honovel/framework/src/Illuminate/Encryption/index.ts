@@ -70,7 +70,8 @@ export class EnvUpdater {
     envPath: string = ".env",
     appUrl: string | null = null
   ) {
-    const envFile = envPath == ".env" ? basePath(envPath) : envPath;
+    const envFile =
+      envPath.split("/").length === 1 ? basePath(envPath) : envPath;
     let envContent = "";
     try {
       envContent = Deno.readTextFileSync(envFile);
