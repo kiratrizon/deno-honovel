@@ -29,6 +29,42 @@ import ChildKernel from "./Support/ChildKernel.ts";
 import GroupRoute from "./Support/GroupRoute.ts";
 import { myError } from "HonoHttp/builder.ts";
 import { PublicDiskConfig } from "configs/@types/index.d.ts";
+import { extname } from "node:path";
+import { contentType } from "https://deno.land/std@0.224.0/media_types/mod.ts";
+
+function serveDiskStatic(urlPrefix: string, diskRoot: string) {
+  // Normalize URL prefix (remove trailing slash)
+  urlPrefix = "/" + urlPrefix.replace(/^\/+|\/+$/g, "");
+
+  return async (c: any, next: () => Promise<void>) => {
+    const reqPath = c.req.path; // full path requested
+    if (!reqPath.startsWith(urlPrefix)) {
+      return next();
+    }
+
+    // Map URL path to filesystem path
+    const relativePath = reqPath.slice(urlPrefix.length).replace(/^\/+/, "");
+    const filePath = path.join(diskRoot, relativePath);
+
+    try {
+      const fileStat = await Deno.stat(filePath);
+      if (fileStat.isDirectory) {
+        return c.text("Forbidden", 403);
+      }
+
+      const data = await Deno.readFile(filePath);
+      const mimeType =
+        contentType(extname(filePath)) || "application/octet-stream";
+      c.header("Content-Type", mimeType);
+      return c.body(data);
+    } catch (err) {
+      if (err instanceof Deno.errors.NotFound) {
+        return next(); // Let other routes handle 404
+      }
+      return c.text("Internal Server Error", 500);
+    }
+  };
+}
 
 const headFunction: MiddlewareHandler = async (
   c: MyContext,
@@ -175,12 +211,7 @@ class Server {
         if (disk.url.startsWith("http")) {
           basePath = new URL(disk.url).pathname;
         }
-        this.app.use(
-          basePath,
-          serveStatic({
-            root: path.relative(Deno.cwd(), disk.root),
-          })
-        );
+        this.app.use(serveDiskStatic(basePath, disk.root));
       }
     }
 
