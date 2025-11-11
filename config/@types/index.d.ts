@@ -133,7 +133,7 @@ export interface AuthConfig {
   providers: AuthProviders;
 }
 
-import { SslOptions } from "npm:mysql2@^2.3.3";
+import { SslOptions } from "mysql2";
 import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 import { ServiceProvider } from "Illuminate/Support/index.ts";
 
@@ -526,11 +526,10 @@ export interface JWTConfig {
 }
 interface DiskConfig {
   root: string;
-  visibility?: "public" | "private";
+  visibility?: "public";
 }
 
 export interface LocalDiskConfig extends DiskConfig {
-  url?: string;
   driver: "local";
 }
 

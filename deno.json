@@ -1,6 +1,6 @@
 {
   "imports": {
-      "@aws-sdk/client-s3": "npm:@aws-sdk/client-s3@^3.922.0",
+      "@aws-sdk/client-s3": "npm:@aws-sdk/client-s3@^3.928.0",
       "@db/pgsql": "https://deno.land/x/postgres@v0.17.0/mod.ts",
       "@denosaurs/plug": "jsr:@denosaurs/plug@1.1.0",
       "@avroit/memcached": "jsr:@avroit/memcached@^0.0.4",

@@ -1,4 +1,8 @@
-import { PublicDiskConfig } from "configs/@types/index.d.ts";
+import {
+  LocalDiskConfig,
+  PublicDiskConfig,
+  S3DiskConfig,
+} from "configs/@types/index.d.ts";
 
 export interface IStorage {
   /**
@@ -12,8 +16,7 @@ export interface IStorage {
    * Get the contents of a file
    * @param path - path inside the storage disk
    */
-  get(path: string, raw: true): Promise<Uint8Array>;
-  get(path: string, raw?: false): Promise<string>;
+  get(path: string): Promise<Uint8Array>;
 
   /**
    * Delete a file
@@ -57,14 +60,16 @@ class Storage {
     switch (diskConfig.driver) {
       case "public":
         return new PublicStorage(diskConfig as PublicDiskConfig);
+      case "local":
+        return new LocalStorage(diskConfig as LocalDiskConfig);
+      case "s3":
+        return new S3Storage(diskConfig as S3DiskConfig);
       default:
-        throw new Error(
-          `Storage driver ${diskConfig.driver} is not supported.`
-        );
+        throw new Error(`Storage driver for ${disk} is not supported.`);
     }
   }
 }
-
+export default Storage;
 class PublicStorage implements IStorage {
   constructor(private setup: PublicDiskConfig) {
     if (!setup) {
@@ -114,21 +119,162 @@ class PublicStorage implements IStorage {
     }
   }
 
-  async get(path: string, raw: true): Promise<Uint8Array>;
-  async get(path: string, raw?: false): Promise<string>;
-  async get(path: string, raw?: boolean): Promise<string | Uint8Array> {
+  async get(path: string): Promise<Uint8Array> {
     const fullPath = this.getFullPath(path);
-    if (raw === true) {
-      return await Deno.readFile(fullPath);
-    } else {
-      const decoder = new TextDecoder("utf-8");
-      const data = await Deno.readFile(fullPath);
-      return decoder.decode(data);
-    }
+    return await Deno.readFile(fullPath);
   }
 
   getUrl(path: string): string {
-    return `${env("APP_URL")}${this.setup.url}/${path}`;
+    return `${this.setup.url}/${path}`;
   }
 }
-export default Storage;
+
+class LocalStorage implements IStorage {
+  constructor(private setup: LocalDiskConfig) {
+    if (!setup) {
+      throw new Error("Local disk configuration is invalid");
+    }
+    if (setup.driver.toLowerCase() !== "local") {
+      throw new Error("LocalStorage only supports 'local' driver");
+    }
+    if (!setup.root) {
+      throw new Error("Local disk configuration must have a root path");
+    }
+  }
+
+  private getFullPath(path: string): string {
+    return `${this.setup.root}/${path}`;
+  }
+
+  async put(path: string, contents: Uint8Array): Promise<void> {
+    const fullPath = this.getFullPath(path);
+    const dir = fullPath.substring(0, fullPath.lastIndexOf("/"));
+    await Deno.mkdir(dir, { recursive: true });
+    await Deno.writeFile(fullPath, contents);
+  }
+
+  async delete(path: string): Promise<void> {
+    const fullPath = this.getFullPath(path);
+    await Deno.remove(fullPath);
+  }
+
+  async exists(path: string): Promise<boolean> {
+    const fullPath = this.getFullPath(path);
+    try {
+      await Deno.stat(fullPath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async get(path: string): Promise<Uint8Array> {
+    const fullPath = this.getFullPath(path);
+    return await Deno.readFile(fullPath);
+  }
+
+  /**
+   * Local storage paths are NOT public — return local filesystem full path
+   */
+  getUrl(path: string): string {
+    return this.getFullPath(path);
+  }
+}
+
+// s3
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand,
+} from "@aws-sdk/client-s3";
+
+class S3Storage implements IStorage {
+  #S3Client: S3Client;
+
+  constructor(private setup: S3DiskConfig) {
+    if (!setup) throw new Error("S3 disk configuration is invalid");
+    if (setup.driver.toLowerCase() !== "s3")
+      throw new Error("S3Storage only supports 's3' driver");
+    if (!setup.bucket || !setup.key || !setup.secret || !setup.region) {
+      throw new Error(
+        "S3 disk configuration must have bucket, key, secret and region"
+      );
+    }
+
+    this.#S3Client = new S3Client({
+      region: setup.region,
+      credentials: {
+        accessKeyId: setup.key,
+        secretAccessKey: setup.secret,
+      },
+    });
+  }
+
+  getUrl(path: string): string {
+    if (this.setup.url) return `${this.setup.url}/${path}`;
+    return `https://${this.setup.bucket}.s3.${this.setup.region}.amazonaws.com/${path}`;
+  }
+
+  async put(path: string, contents: Uint8Array): Promise<void> {
+    await this.#S3Client.send(
+      new PutObjectCommand({
+        Bucket: this.setup.bucket,
+        Key: path,
+        Body: contents,
+      })
+    );
+  }
+
+  async get(path: string): Promise<Uint8Array> {
+    const result = await this.#S3Client.send(
+      new GetObjectCommand({
+        Bucket: this.setup.bucket,
+        Key: path,
+      })
+    );
+
+    const reader = (result.Body as any)[Symbol.asyncIterator]();
+    const chunks: Uint8Array[] = [];
+
+    for await (const chunk of reader) {
+      chunks.push(new Uint8Array(chunk));
+    }
+
+    // Combine all chunks into one Uint8Array
+    const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
+    const buffer = new Uint8Array(totalLength);
+    let offset = 0;
+
+    for (const chunk of chunks) {
+      buffer.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    return buffer;
+  }
+
+  async delete(path: string): Promise<void> {
+    await this.#S3Client.send(
+      new DeleteObjectCommand({
+        Bucket: this.setup.bucket,
+        Key: path,
+      })
+    );
+  }
+
+  async exists(path: string): Promise<boolean> {
+    try {
+      await this.#S3Client.send(
+        new HeadObjectCommand({
+          Bucket: this.setup.bucket,
+          Key: path,
+        })
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
