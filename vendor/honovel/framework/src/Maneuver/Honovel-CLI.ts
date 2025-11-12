@@ -476,8 +476,7 @@ class MyArtisan {
       hostname: string,
       port: number,
       hasCert: boolean,
-      path: string = "/__warmup",
-      convertToUrl = false
+      path: string = "/__warmup"
     ): string => {
       const protocol = hasCert ? "https" : "http";
       let host = hostname || "localhost";
@@ -485,11 +484,6 @@ class MyArtisan {
       const defaultPort = hasCert ? 443 : 80;
       const portPart = port === defaultPort ? "" : `:${port}`;
 
-      if (convertToUrl) {
-        if (host == "0.0.0.0" || host == "127.0.0.1") {
-          host = "localhost";
-        }
-      }
       return `${protocol}://${host}${portPart}${path}`;
     };
 
@@ -506,8 +500,7 @@ class MyArtisan {
       HOSTNAME || "",
       finalPort,
       hasCert,
-      "/",
-      true
+      "/"
     ).replace(/\/$/, "");
     let envPath: string | undefined | null = basePath(".env");
     try {
@@ -520,8 +513,8 @@ class MyArtisan {
 
     // @ts-ignore //
     const WARMUP_URL = jsonEncode([
-      buildAppUrl(HOSTNAME || "", finalPort, hasCert, "/__warmup", true),
-      buildAppUrl(HOSTNAME || "", finalPort, hasCert, "/api/__warmup", true),
+      buildAppUrl(HOSTNAME || "", finalPort, hasCert, "/__warmup"),
+      buildAppUrl(HOSTNAME || "", finalPort, hasCert, "/api/__warmup"),
     ]);
 
     // write to .json file

@@ -49,4 +49,13 @@ export declare class ISession {
    * Regenerate the CSRF token.
    */
   regenerateToken(): void;
+
+  /**
+   * Put a flash message into the session.
+   * Flash messages are typically used for one-time notifications.
+   *
+   * @param key - The key under which the flash message will be stored.
+   * @param value - The flash message value.
+   */
+  flash(key: string, value: NonFunction<unknown>): void;
 }

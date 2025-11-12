@@ -47,6 +47,7 @@ try {
 
   for (const warmup of warmups) {
     const test = await fetch(warmup);
+    // consoledeno.info(`Warmup URL: ${warmup} - Status: ${test.status}`);
   }
 } catch {
   //

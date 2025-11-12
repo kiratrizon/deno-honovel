@@ -209,34 +209,66 @@ export class SessionModifier {
   }
 
   private async deleteSession(sid: string) {
+    const isEncrypt = SessionModifier.sesConfig.encrypt || false;
     const type = SessionModifier.sesConfig.driver || "file";
-    const key =
+    const key = `${
       type === "file"
         ? sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")
-        : sid;
+        : sid
+    }${isEncrypt ? "" : "_plain"}`;
     await SessionModifier.store.forget(key);
   }
 
   private async saveSession() {
+    const isEncrypt = SessionModifier.sesConfig.encrypt || false;
     const sid = this.#sessionId;
     let data = this.#value;
     if (!isset(SessionModifier.sesConfig.lifetime)) {
       throw new Error("Session lifetime is not set in configuration");
     }
     const type = SessionModifier.sesConfig.driver || "file";
-    const isEncrypt = SessionModifier.sesConfig.encrypt || false;
     if (isEncrypt) {
       data = { encrypt: await this.encrypt(data) };
     }
-    const key =
+    const key = `${
       type === "file"
         ? sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")
-        : sid;
+        : sid
+    }${isEncrypt ? "" : "_plain"}`;
     await SessionModifier.store.put(
       key,
       data,
       SessionModifier.sesConfig.lifetime * 60
     );
+  }
+
+  private async loadSession(sid: string) {
+    const isEncrypt = SessionModifier.sesConfig.encrypt || false;
+    const key = `${
+      SessionModifier.sesConfig.driver === "file"
+        ? sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")
+        : sid
+    }${isEncrypt ? "" : "_plain"}`;
+
+    const data = await SessionModifier.store.get(key);
+    if (!isset(data)) {
+      return {};
+    }
+    if (isEncrypt) {
+      const encryptedData = (data as SessionEncrypt)?.encrypt;
+      let decryptedData: Record<string, unknown> | null;
+      if (!encryptedData) {
+        decryptedData = {};
+      } else {
+        decryptedData = await this.decrypt(encryptedData);
+      }
+      if (decryptedData === null) {
+        throw new Error("Failed to decrypt session data");
+      }
+      return decryptedData;
+    } else {
+      return data;
+    }
   }
 
   async encrypt(data: Record<string, unknown>): Promise<string> {
@@ -254,7 +286,7 @@ export class SessionModifier {
 
     const key = await crypto.subtle.importKey(
       "raw",
-      keyMaterial,
+      keyMaterial.buffer as ArrayBuffer,
       { name: mode },
       false,
       ["encrypt"]
@@ -293,7 +325,7 @@ export class SessionModifier {
       try {
         const key = await crypto.subtle.importKey(
           "raw",
-          keyMaterial,
+          keyMaterial.buffer as ArrayBuffer,
           { name: mode },
           false,
           ["decrypt"]
@@ -312,27 +344,6 @@ export class SessionModifier {
     }
 
     return null;
-  }
-
-  private async loadSession(sid: string) {
-    const key =
-      SessionModifier.sesConfig.driver === "file"
-        ? sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")
-        : sid;
-    const isEncrypt = SessionModifier.sesConfig.encrypt || false;
-    const data = await SessionModifier.store.get(key);
-    if (!isset(data)) {
-      return {};
-    }
-    if (isEncrypt) {
-      const decryptedData = await this.decrypt(data as string);
-      if (decryptedData === null) {
-        throw new Error("Failed to decrypt session data");
-      }
-      return decryptedData;
-    } else {
-      return data;
-    }
   }
 }
 

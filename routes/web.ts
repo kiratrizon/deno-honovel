@@ -6,7 +6,13 @@ Route.match(["get", "post"], "/", async ({ request }) => {
   if (request.method === "POST") {
     const file = request.file("uploadFile");
     if (file) {
-      await file.store("public", `uploads/${file.filename}`);
+      if (file.valid()) {
+        const savedPath = await file.store(
+          "public",
+          `uploads/${file.filename}`
+        );
+        request.session.flash("success", `File uploaded to ${savedPath}`);
+      }
     }
   }
   return view("welcome", { hello: "world" });

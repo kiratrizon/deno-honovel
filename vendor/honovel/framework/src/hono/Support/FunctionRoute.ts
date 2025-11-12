@@ -288,8 +288,9 @@ export function toMiddleware(
                   isFunction(middlewareInstance.handle)
                 ) {
                   middlewareCallback.push({
-                    debugString: `// class ${middlewareClass.name
-                      }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+                    debugString: `// class ${
+                      middlewareClass.name
+                    }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
                     middleware: [
                       middlewareInstance.handle.bind(
                         middlewareInstance
@@ -300,7 +301,7 @@ export function toMiddleware(
                     ],
                     from:
                       methodExist(middlewareInstance, "fallback") &&
-                        isFunction(middlewareInstance.fallback)
+                      isFunction(middlewareInstance.fallback)
                         ? "handle"
                         : undefined,
                   });
@@ -317,8 +318,9 @@ export function toMiddleware(
                     });
                   }
                   middlewareCallback.push({
-                    debugString: `// class ${middlewareClass.name
-                      }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
+                    debugString: `// class ${
+                      middlewareClass.name
+                    }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
                     middleware: [
                       middlewareInstance.fallback.bind(
                         middlewareInstance
@@ -338,8 +340,9 @@ export function toMiddleware(
                 isFunction(middlewareInstance.handle)
               ) {
                 middlewareCallback.push({
-                  debugString: `// class ${middleware.name
-                    }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+                  debugString: `// class ${
+                    middleware.name
+                  }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
                   middleware: [
                     middlewareInstance.handle.bind(
                       middlewareInstance
@@ -348,7 +351,7 @@ export function toMiddleware(
                   ],
                   from:
                     methodExist(middlewareInstance, "fallback") &&
-                      isFunction(middlewareInstance.fallback)
+                    isFunction(middlewareInstance.fallback)
                       ? "handle"
                       : undefined,
                 });
@@ -365,8 +368,9 @@ export function toMiddleware(
                   });
                 }
                 middlewareCallback.push({
-                  debugString: `// class ${middleware.name
-                    }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
+                  debugString: `// class ${
+                    middleware.name
+                  }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
                   middleware: [
                     middlewareInstance.fallback.bind(
                       middlewareInstance
@@ -390,8 +394,9 @@ export function toMiddleware(
             isFunction(middlewareInstance.handle)
           ) {
             middlewareCallback.push({
-              debugString: `// class ${middlewareClass.name
-                }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+              debugString: `// class ${
+                middlewareClass.name
+              }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
               middleware: [
                 middlewareInstance.handle.bind(
                   middlewareInstance
@@ -402,7 +407,7 @@ export function toMiddleware(
               ],
               from:
                 methodExist(middlewareInstance, "fallback") &&
-                  isFunction(middlewareInstance.fallback)
+                isFunction(middlewareInstance.fallback)
                   ? "handle"
                   : undefined,
             });
@@ -419,8 +424,9 @@ export function toMiddleware(
               });
             }
             middlewareCallback.push({
-              debugString: `// class ${middlewareClass.name
-                }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
+              debugString: `// class ${
+                middlewareClass.name
+              }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
               middleware: [
                 middlewareInstance.fallback.bind(
                   middlewareInstance
@@ -445,8 +451,9 @@ export function toMiddleware(
           isFunction(middlewareInstance.handle)
         ) {
           middlewareCallback.push({
-            debugString: `// class ${middlewareClass.name
-              }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+            debugString: `// class ${
+              middlewareClass.name
+            }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
             middleware: [
               middlewareInstance.handle.bind(
                 middlewareInstance
@@ -455,7 +462,7 @@ export function toMiddleware(
             ],
             from:
               methodExist(middlewareInstance, "fallback") &&
-                isFunction(middlewareInstance.fallback)
+              isFunction(middlewareInstance.fallback)
                 ? "handle"
                 : undefined,
           });
@@ -472,8 +479,9 @@ export function toMiddleware(
             });
           }
           middlewareCallback.push({
-            debugString: `// class ${middlewareClass.name
-              }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
+            debugString: `// class ${
+              middlewareClass.name
+            }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
             middleware: [
               middlewareInstance.fallback.bind(
                 middlewareInstance
@@ -496,8 +504,9 @@ export function toMiddleware(
           isFunction(middlewareInstance.handle)
         ) {
           middlewareCallback.push({
-            debugString: `// class ${middlewareClass.name
-              }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
+            debugString: `// class ${
+              middlewareClass.name
+            }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
             middleware: [
               middlewareInstance.handle.bind(
                 middlewareInstance
@@ -506,7 +515,7 @@ export function toMiddleware(
             ],
             from:
               methodExist(middlewareInstance, "fallback") &&
-                isFunction(middlewareInstance.fallback)
+              isFunction(middlewareInstance.fallback)
                 ? "handle"
                 : undefined,
           });
@@ -523,8 +532,9 @@ export function toMiddleware(
             });
           }
           middlewareCallback.push({
-            debugString: `// class ${middlewareClass.name
-              }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
+            debugString: `// class ${
+              middlewareClass.name
+            }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
             middleware: [
               middlewareInstance.fallback.bind(
                 middlewareInstance
@@ -840,14 +850,15 @@ export function renderErrorHtml(e: Error): string {
           ${e.message}
         </p>
 
-        ${e.stack
-      ? `
+        ${
+          e.stack
+            ? `
             <h2 class="text-xl font-semibold text-gray-800 mb-2">🧱 Stack Trace</h2>
             <pre class="text-xs leading-relaxed font-mono bg-gray-900 text-green-400 p-4 rounded-lg border border-gray-700 overflow-x-auto whitespace-pre-wrap hover:scale-[1.01] transition-transform duration-200 ease-out shadow-inner">
 ${e.stack.replace(/</g, "&lt;")}
             </pre>`
-      : ""
-    }
+            : ""
+        }
       </div>
     </div>
   </body>
@@ -926,8 +937,8 @@ function renderDebugErrorPage(
 
       <div class="bg-gray-900 text-green-300 text-sm font-mono p-4 rounded-lg overflow-auto max-h-[400px] border border-gray-700">
         <pre class="whitespace-pre-wrap"><code>${formatDebugString(
-    escapeHtml(debugString)
-  )}</code></pre>
+          escapeHtml(debugString)
+        )}</code></pre>
       </div>
 
       <p class="text-xs text-gray-400 mt-6">
@@ -955,7 +966,9 @@ export function formatDebugString(code: string): string {
 }
 
 // for tracing
-async function extractControllerTrace(stack: string[]): Promise<string | false> {
+async function extractControllerTrace(
+  stack: string[]
+): Promise<string | false> {
   const patterns = [
     /file:\/\/(.+\/app\/Http\/Controllers\/[^:]+):(\d+):(\d+)/,
     /file:\/\/(.+\/app\/Http\/Middlewares\/[^:]+):(\d+):(\d+)/,
@@ -984,7 +997,7 @@ async function extractControllerTrace(stack: string[]): Promise<string | false> 
     if (stackLine.file) break; // ✅ Break outer loop once found
   }
 
-  if (!empty(stackLine) && await pathExist(stackLine.file as string)) {
+  if (!empty(stackLine) && (await pathExist(stackLine.file as string))) {
     const content = getFileContents(stackLine.file as string);
     return tracingLocation(
       content,
@@ -1004,9 +1017,7 @@ function tracingLocation(
   column: number,
   errorDescription: string
 ): string {
-  const fileLocation = path
-    .relative(basePath(), file)
-    .replace(/\\/g, "/");
+  const fileLocation = path.relative(basePath(), file).replace(/\\/g, "/");
   const lines = content.split("\n");
 
   const allLines = lines.map((contentLine, index) => {
@@ -1014,23 +1025,27 @@ function tracingLocation(
     const isErrorLine = lineNumber === line;
 
     return `
-      <div id="${isErrorLine ? "error-line" : ""
-      }" class="group flex items-start ${isErrorLine ? "bg-rose-100" : "hover:bg-gray-100"
-      } rounded px-4 py-1">
+      <div id="${
+        isErrorLine ? "error-line" : ""
+      }" class="group flex items-start ${
+      isErrorLine ? "bg-rose-100" : "hover:bg-gray-100"
+    } rounded px-4 py-1">
         <div class="w-14 text-right pr-4 text-white-400 select-none">${lineNumber}</div>
-        <pre class="flex-1 text-sm overflow-auto whitespace-pre-wrap ${isErrorLine
-        ? "text-rose-600"
-        : "group-hover:text-emerald-600 text-white-800"
-      }">${escapeHtml(contentLine)}</pre>
+        <pre class="flex-1 text-sm overflow-auto whitespace-pre-wrap ${
+          isErrorLine
+            ? "text-rose-600"
+            : "group-hover:text-emerald-600 text-white-800"
+        }">${escapeHtml(contentLine)}</pre>
       </div>
-      ${isErrorLine
-        ? `<div class="flex items-start">
+      ${
+        isErrorLine
+          ? `<div class="flex items-start">
               <div class="w-14"></div>
               <pre class="text-sm text-rose-500 pl-4 leading-tight">${" ".repeat(
-          column - 1
-        )}^</pre>
+                column - 1
+              )}^</pre>
             </div>`
-        : ""
+          : ""
       }
     `;
   });
@@ -1058,8 +1073,8 @@ function tracingLocation(
         <div class="bg-white shadow-lg border border-gray-200 rounded-lg overflow-hidden">
           <div class="px-6 py-4 border-b border-gray-100 bg-rose-50">
             <h1 class="text-xl font-semibold text-rose-600">${escapeHtml(
-    errorDescription
-  )}</h1>
+              errorDescription
+            )}</h1>
           </div>
 
           <div class="max-h-[500px] overflow-y-auto bg-gray-900 text-gray-100">
@@ -1141,7 +1156,7 @@ async function handleErrors(
     if (env("APP_DEBUG", true)) {
       if (!request.expectsJson()) {
         errorHtml =
-          await extractControllerTrace(populatedError.stack as string[]) ||
+          (await extractControllerTrace(populatedError.stack as string[])) ||
           renderErrorHtml(e);
         resp = c.html(errorHtml, 500);
       } else {
@@ -1212,11 +1227,13 @@ export async function handleAction(
           return oldInput[key] ?? defaultValue;
         },
         csrf: () => {
-          return `<input type="hidden" name="_token" value="${request.session.get("_token") || ""
-            }">`;
+          return `<input type="hidden" name="_token" value="${
+            request.session.get("_token") || ""
+          }">`;
         },
         csrfMeta: () =>
-          `<meta name="csrf-token" content="${request.session.get("_token") || ""
+          `<meta name="csrf-token" content="${
+            request.session.get("_token") || ""
           }">`,
         errors: new MessageBag((errors || {}) as ErrorsShape),
         consoledeno: consoledeno,
@@ -1230,7 +1247,8 @@ export async function handleAction(
           seekable: true,
           compile: (parser, buffer, token) => {
             buffer.outputRaw(
-              `<input type="hidden" name="_token" value="${request.session.get("_token") || ""
+              `<input type="hidden" name="_token" value="${
+                request.session.get("_token") || ""
               }">`
             );
           },
@@ -1262,6 +1280,18 @@ export async function handleAction(
 
       const rendered = await data.element();
       statusCode = 200;
+      // move all new to old
+      const sessionFlashData = request.session.get(
+        "_flash"
+      ) as SessionDataTypes["_flash"];
+      const old = sessionFlashData.old;
+      const newData = sessionFlashData.new;
+      // merge
+      const merged = [...old, ...newData];
+      request.session.put("_flash", {
+        old: [...merged],
+        new: [],
+      });
       return c.html(rendered, 200);
     } else if (data instanceof HonoRedirect) {
       const sessionFlashData = request.session.get(

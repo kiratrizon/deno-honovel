@@ -10,7 +10,7 @@ export interface IStorage {
    * @param path - path inside the storage disk
    * @param contents - file content (string or Uint8Array)
    */
-  put(path: string, contents: Uint8Array): Promise<void> | void;
+  put(path: string, contents: Uint8Array): Promise<string>;
 
   /**
    * Get the contents of a file
@@ -22,13 +22,13 @@ export interface IStorage {
    * Delete a file
    * @param path - path inside the storage disk
    */
-  delete(path: string): Promise<void> | void;
+  delete(path: string): Promise<void>;
 
   /**
    * Check if a file exists
    * @param path - path inside the storage disk
    */
-  exists(path: string): Promise<boolean> | boolean;
+  exists(path: string): Promise<boolean>;
 
   /**
    * Get the URL of a file
@@ -40,6 +40,11 @@ export interface IStorage {
 class Storage {
   static #storage: Record<string, IStorage> = {};
 
+  /**
+   * Get the storage instance for the specified disk.
+   * @param disk The disk to use
+   * @returns The storage instance for the specified disk
+   */
   static disk(disk: string): IStorage {
     if (this.#storage[disk]) {
       return this.#storage[disk];
@@ -49,9 +54,15 @@ class Storage {
     return storageInstance;
   }
 
-  private static generateStorage(disk: string): IStorage {
+  private static generateStorage(disk?: string): IStorage {
     const filesystems = config("filesystems") || {};
     const disks = filesystems.disks || {};
+    if (!disk) {
+      disk = filesystems.default;
+    }
+    if (!disk) {
+      throw new Error("No default filesystem disk is configured.");
+    }
     if (!disks[disk]) {
       throw new Error(`Disk ${disk} is not configured.`);
     }
@@ -68,8 +79,60 @@ class Storage {
         throw new Error(`Storage driver for ${disk} is not supported.`);
     }
   }
+
+  /**
+   * Save a file to storage
+   * @param path - path inside the storage disk
+   * @param contents - file content (string or Uint8Array)
+   * @returns - the URL of the stored file
+   */
+  public static async put(path: string, contents: Uint8Array): Promise<string> {
+    const storage = this.generateStorage();
+    return await storage.put(path, contents);
+  }
+
+  /**
+   * Get the contents of a file
+   * @param path - path inside the storage disk
+   */
+  public static async get(path: string): Promise<Uint8Array> {
+    const storage = this.generateStorage();
+    return await storage.get(path);
+  }
+
+  /**
+   * Delete a file
+   * @param path - path inside the storage disk
+   * @returns
+   */
+  public static async delete(path: string): Promise<void> {
+    const storage = this.generateStorage();
+    return await storage.delete(path);
+  }
+
+  /**
+   * Check if a file exists
+   * @param path - path inside the storage disk
+   * @returns
+   */
+  public static async exists(path: string): Promise<boolean> {
+    const storage = this.generateStorage();
+    return await storage.exists(path);
+  }
+
+  /**
+   * Get the URL of a file
+   * @param path - path inside the storage disk
+   * @returns - the URL of the file
+   */
+  public static getUrl(path: string): string {
+    const storage = this.generateStorage();
+    return storage.getUrl(path);
+  }
 }
+
 export default Storage;
+
 class PublicStorage implements IStorage {
   constructor(private setup: PublicDiskConfig) {
     if (!setup) {
@@ -95,13 +158,14 @@ class PublicStorage implements IStorage {
     return `${this.setup.root}/${path}`;
   }
 
-  async put(path: string, contents: Uint8Array): Promise<void> {
+  async put(path: string, contents: Uint8Array): Promise<string> {
     const fullPath = this.getFullPath(path);
     const dir = fullPath.substring(0, fullPath.lastIndexOf("/"));
 
     await Deno.mkdir(dir, { recursive: true });
 
     await Deno.writeFile(fullPath, contents);
+    return this.getUrl(path);
   }
 
   async delete(path: string): Promise<void> {
@@ -146,11 +210,12 @@ class LocalStorage implements IStorage {
     return `${this.setup.root}/${path}`;
   }
 
-  async put(path: string, contents: Uint8Array): Promise<void> {
+  async put(path: string, contents: Uint8Array): Promise<string> {
     const fullPath = this.getFullPath(path);
     const dir = fullPath.substring(0, fullPath.lastIndexOf("/"));
     await Deno.mkdir(dir, { recursive: true });
     await Deno.writeFile(fullPath, contents);
+    return this.getUrl(path);
   }
 
   async delete(path: string): Promise<void> {
@@ -217,7 +282,7 @@ class S3Storage implements IStorage {
     return `https://${this.setup.bucket}.s3.${this.setup.region}.amazonaws.com/${path}`;
   }
 
-  async put(path: string, contents: Uint8Array): Promise<void> {
+  async put(path: string, contents: Uint8Array): Promise<string> {
     await this.#S3Client.send(
       new PutObjectCommand({
         Bucket: this.setup.bucket,
@@ -225,6 +290,7 @@ class S3Storage implements IStorage {
         Body: contents,
       })
     );
+    return this.getUrl(path);
   }
 
   async get(path: string): Promise<Uint8Array> {

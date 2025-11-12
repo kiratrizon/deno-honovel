@@ -50,7 +50,8 @@
       "deno-redis":"https://deno.land/x/redis@v0.29.4/mod.ts",
       "bcrypt":"https://deno.land/x/bcrypt@v0.4.1/mod.ts",
       "http-status":"npm:hono/utils/http-status",
-      "prettier":"npm:prettier@^3.0.0"
+      "prettier":"npm:prettier@^3.0.0",
+      "imagescript":"https://deno.land/x/imagescript@1.2.15/mod.ts"
   },
   "tasks": {
     "smelt": "deno run -A vendor/bin/novel",

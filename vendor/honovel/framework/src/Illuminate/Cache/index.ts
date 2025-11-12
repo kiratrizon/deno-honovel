@@ -375,7 +375,6 @@ class DatabaseStore extends AbstractStore {
   private readonly table: string;
   private readonly connection: string;
   constructor({
-    prefix,
     table,
     connection,
   }: {
@@ -384,7 +383,7 @@ class DatabaseStore extends AbstractStore {
     connection: string;
   }) {
     super();
-    this.prefix = prefix || config("cache").prefix || "";
+    this.prefix = config("cache").prefix || "";
     if (!isset(table) || !isString(table)) {
       throw new Error("DatabaseStore requires a valid table name.");
     }

@@ -25,8 +25,28 @@ export default class HonoFile {
    * @param disk The disk to use, defaults to 'local'.
    * @param path The path where the file should be saved.
    */
-  async store(disk: string, path: string): Promise<void> {
+  async store(disk: string, path: string): Promise<string | null> {
     const storage = Storage.disk(disk);
-    await storage.put(path, this.#content);
+    try {
+      return await storage.put(path, this.#content);
+    } catch (error: any) {
+      consoledeno.error(
+        "Error storing file:",
+        error.message ? error.message : error
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Check if the file is valid based on its content type
+   * @returns Whether the file is valid based on its content type
+   */
+  valid(): boolean {
+    return !!this.contentType;
+  }
+
+  _getContent(): FormFile["content"] {
+    return this.#content;
   }
 }

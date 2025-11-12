@@ -15,7 +15,7 @@ class HonoRedirect implements IRedirectResponse {
   #errorData: Record<string, unknown> = {};
   #statusCode: number = 302;
   constructor(private url = null, statusCode = 302) {
-    if (!isset(this.url) && isString(this.url)) {
+    if (isset(this.url) && isString(this.url)) {
       this.#myRedirectData.redirect = this.url;
       this.#type = "redirect";
     }
