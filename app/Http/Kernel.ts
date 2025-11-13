@@ -46,11 +46,7 @@ class Kernel extends HttpKernel {
       VerifyCsrfToken, // Verifies CSRF tokens for web requests
       SubstituteBindings,
     ],
-    api: [
-      "throttle:10,1",
-      "ensure_accepts_json", // Ensures the request accepts JSON, comment out if not needed
-      SubstituteBindings,
-    ],
+    api: ["throttle:10,1", SubstituteBindings],
   };
 
   protected override routeMiddleware = {

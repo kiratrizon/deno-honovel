@@ -1,21 +1,10 @@
 import { Route } from "Illuminate/Support/Facades/index.ts";
+import Content from "App/Models/Content.ts";
 
 // create-project command
 
-Route.match(["get", "post"], "/", async ({ request }) => {
-  if (request.method === "POST") {
-    const file = request.file("uploadFile");
-    if (file) {
-      if (file.valid()) {
-        const savedPath = await file.store(
-          "public",
-          `uploads/${file.filename}`
-        );
-        request.session.flash("success", `File uploaded to ${savedPath}`);
-      }
-    }
-  }
-  return view("welcome", { hello: "world" });
+Route.get("/", async ({ request }) => {
+  return view("welcome");
 });
 
 Route.get("/create-project", async ({ request }) => {
@@ -27,9 +16,9 @@ Route.get("/create-project", async ({ request }) => {
     });
 });
 
-// For my portfolio routes
-Route.prefix("/portfolio").group(() => {
-  Route.get("/my-resume", async () => {
-    return response().download(basePath("genesis-troy-torrecampo.pdf"));
-  });
+Route.get("/contents/{content}", async ({ request }, content: Content) => {
+  if (!content) {
+    return view("welcome");
+  }
+  return "Hello";
 });

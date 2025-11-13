@@ -1,7 +1,6 @@
 #!/usr/bin/env -S deno run -A
 
 const args = Deno.args;
-
 const [name, version = "latest"] = args[0]?.split("@") || [];
 
 if (!name) {
@@ -12,86 +11,68 @@ if (!name) {
   Deno.exit(1);
 }
 
-const repo = "https://github.com/kiratrizon/deno-honovel.git";
-
-// Map 'latest' to 'master'
+const repo = "kiratrizon/deno-honovel";
 const branch = version === "latest" ? "master" : version;
+const zipUrl = `https://github.com/${repo}/archive/refs/heads/${branch}.zip`;
 
-// Step 1: Clone repo
-console.log(`📥 Cloning branch '${branch}'...`);
-const cloneArgs = ["clone", "--branch", branch, repo, name];
+console.log(`📦 Downloading ${repo}@${branch}...`);
 
-const clone = new Deno.Command("git", {
-  args: cloneArgs,
+const zipResponse = await fetch(zipUrl);
+if (!zipResponse.ok) {
+  console.error("❌ Failed to download ZIP:", zipResponse.statusText);
+  Deno.exit(1);
+}
+
+const zipArray = new Uint8Array(await zipResponse.arrayBuffer());
+await Deno.writeFile(`${name}.zip`, zipArray);
+
+console.log("📂 Extracting ZIP...");
+
+// Extract ZIP → temp folder
+const extractDir = `${name}_tmp`;
+await Deno.mkdir(extractDir, { recursive: true });
+
+// Use system tar (works for .zip on all modern OS)
+const unzip = new Deno.Command("tar", {
+  args: ["-xf", `${name}.zip`, "-C", extractDir],
   stdout: "inherit",
   stderr: "inherit",
 });
-const child = clone.spawn();
-const status = await child.status;
-if (status.code !== 0) {
-  console.error("❌ Git clone failed with code", status.code);
-  Deno.exit(status.code);
+const unzipResult = await unzip.output();
+if (unzipResult.code !== 0) {
+  console.error("❌ Failed to extract ZIP file. Maybe tar is not installed?");
+  Deno.exit(1);
 }
 
-// Step 2: Remove .git
-await Deno.remove(`./${name}/.git`, { recursive: true });
-
-// Step 3: Copy .env.example → .env
-const envExamplePath = `./${name}/.env.example`;
-const envPath = `./${name}/.env`;
-
-try {
-  await Deno.stat(envExamplePath);
-  await Deno.copyFile(envExamplePath, envPath);
-  console.log("✅ .env file created from .env.example");
-} catch (err: any) {
-  console.warn("⚠️ Skipping .env copy: " + err.message);
-}
-
-// Step 4: Migrate project using `honovel`
-console.log("🚀 Running migration...");
-const honovelPath = `./${name}/novel`;
-
-try {
-  await Deno.chmod(honovelPath, 0o755);
-} catch {
-  // It's okay if it fails (e.g. already executable)
-}
-
-try {
-  const migrate = new Deno.Command(honovelPath, {
-    args: ["migrate"],
-    cwd: name,
-    stdout: "inherit",
-    stderr: "inherit",
-  });
-  await migrate.output();
-  console.log("✅ Migration completed");
-} catch (_err) {
-  console.warn("⚠️ Migration failed. Trying as a TypeScript file...");
-
-  try {
-    const fallback = new Deno.Command("deno", {
-      args: ["run", "-A", "honovel", "migrate"],
-      cwd: name,
-      stdout: "inherit",
-      stderr: "inherit",
-    });
-    await fallback.output();
-    console.log("✅ Migration completed (via deno run)");
-  } catch (innerErr: any) {
-    console.error("❌ Migration failed completely:", innerErr.message);
+// Find the subfolder (GitHub adds e.g. deno-honovel-master)
+let extractedSubdir = "";
+for await (const entry of Deno.readDir(extractDir)) {
+  if (entry.isDirectory) {
+    extractedSubdir = entry.name;
+    break;
   }
 }
 
-// remove files from
+if (!extractedSubdir) {
+  console.error("❌ Could not find extracted folder.");
+  Deno.exit(1);
+}
+
+// Move contents to final project folder
+await Deno.rename(`${extractDir}/${extractedSubdir}`, name);
+await Deno.remove(extractDir, { recursive: true });
+await Deno.remove(`${name}.zip`);
+
+console.log("✅ Extraction complete");
+
+// =====================
+// 🔧 Post-setup cleanup
+// =====================
+
 const filesToRemove: Record<string, { except?: string[]; only?: string[] }> = {
   routes: {},
   "app/Http/Controllers": {
     except: ["Controller.ts"],
-  },
-  "app/Models": {
-    except: ["User.ts"],
   },
   "database/migrations": {
     except: ["20250626180144_create_users.ts"],
@@ -115,9 +96,7 @@ for (const [dir, options] of Object.entries(filesToRemove)) {
   try {
     for await (const entry of Deno.readDir(fullDirPath)) {
       if (entry.isFile) {
-        if (options.except && options.except.includes(entry.name)) {
-          continue;
-        }
+        if (options.except && options.except.includes(entry.name)) continue;
         if (options.only?.length) {
           if (options.only.includes(entry.name)) {
             await Deno.remove(`${fullDirPath}/${entry.name}`);
@@ -127,13 +106,33 @@ for (const [dir, options] of Object.entries(filesToRemove)) {
         }
       }
     }
-  } catch (_err) {
-    //
+  } catch {
+    // skip missing dirs
   }
 }
 
-const createWebApiText = `import { Route } from "Illuminate/Support/Facades/index.ts";`;
+console.log("🧹 Cleanup done");
 
+// =====================
+// 📄 Create .env
+// =====================
+
+const envExamplePath = `./${name}/.env.example`;
+const envPath = `./${name}/.env`;
+
+try {
+  await Deno.stat(envExamplePath);
+  await Deno.copyFile(envExamplePath, envPath);
+  console.log("✅ .env file created from .env.example");
+} catch (err: any) {
+  console.warn("⚠️ Skipping .env copy: " + err.message);
+}
+
+// =====================
+// 🧩 Add Route Facade
+// =====================
+
+const createWebApiText = `import { Route } from "Illuminate/Support/Facades/index.ts";`;
 const routes = ["web.ts", "api.ts"];
 
 for (const routeFile of routes) {
@@ -144,10 +143,47 @@ for (const routeFile of routes) {
       content = createWebApiText + "\n\n" + content;
       await Deno.writeTextFile(routeFilePath, content);
     }
-  } catch (_err) {
+  } catch {
     //
   }
 }
 
+// =====================
+// 🧱 Run Migration
+// =====================
+
+console.log("🚀 Running migration...");
+const honovelPath = `./${name}/novel`;
+try {
+  await Deno.chmod(honovelPath, 0o755);
+  const migrate = new Deno.Command(honovelPath, {
+    args: ["migrate"],
+    cwd: name,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  await migrate.output();
+  console.log("✅ Migration completed");
+} catch (_err) {
+  console.warn("⚠️ Migration failed. Trying as TypeScript...");
+  try {
+    const fallback = new Deno.Command("deno", {
+      args: ["run", "-A", "honovel", "migrate"],
+      cwd: name,
+      stdout: "inherit",
+      stderr: "inherit",
+    });
+    await fallback.output();
+    console.log("✅ Migration completed (via deno run)");
+  } catch (innerErr: any) {
+    console.error(
+      "❌ Migration failed completely:",
+      innerErr.message ? innerErr.message : innerErr
+    );
+  }
+}
+
 console.log(`\n🎉 Project created in: ${name}`);
-console.log(`\n➡️  Next steps:\n  cd ${name}\n  deno task smelt serve`);
+console.log(
+  `\n➡️  Next steps:\n  cd ${name}\n  deno install\n  deno task smelt serve`
+);

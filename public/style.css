@@ -1,5 +1,5 @@
-h1 {
-    color: #333;
-    font-size: 2em;
-    text-align: center;
-}
+  .active {
+    background-color: rgb(238 242 255); /* Tailwind bg-indigo-50 */
+    color: rgb(79 70 229); /* Tailwind text-indigo-600 */
+    font-weight: 500; /* Tailwind font-medium */
+  }

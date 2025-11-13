@@ -1,6 +1,7 @@
 import User from "App/Models/User.ts";
 import { ModelAttributes } from "../../../../../@types/declaration/Base/IBaseModel.d.ts";
 import { Model } from "../../Database/Eloquent/index.ts";
+import Content from "App/Models/Content.ts";
 
 export default class SubstituteBindings {
   /**
@@ -15,6 +16,7 @@ export default class SubstituteBindings {
   > = {
     // route parameter name => Model class
     user: User,
+    content: Content,
   };
 
   public handle: HttpMiddleware = async ({ request }, next) => {

@@ -536,7 +536,7 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
       const record = await this.find<M>(id);
       if (!record) {
         throw new Error(
-          `${this.name} with primary key "${id}" not found in the database.`
+          `${this.name} where ${this._primaryKey}='${id}' not found.`
         );
       }
       return record;
