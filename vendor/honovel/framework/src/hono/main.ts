@@ -196,22 +196,24 @@ class Server {
 
     this.app.use(conditionalLogger);
 
-    const disks = config("filesystems").disks || {};
+    if (!env("DENO_DEPLOYMENT_ID", null)) {
+      const disks = config("filesystems").disks || {};
 
-    for (const [diskName, diskConfig] of Object.entries(disks)) {
-      const disk = diskConfig as PublicDiskConfig;
+      for (const [, diskConfig] of Object.entries(disks)) {
+        const disk = diskConfig as PublicDiskConfig;
 
-      if (
-        ["local", "public"].includes(disk.driver) &&
-        disk.visibility === "public" &&
-        disk.root &&
-        disk.url
-      ) {
-        let basePath = disk.url;
-        if (disk.url.startsWith("http")) {
-          basePath = new URL(disk.url).pathname;
+        if (
+          ["local", "public"].includes(disk.driver) &&
+          disk.visibility === "public" &&
+          disk.root &&
+          disk.url
+        ) {
+          let basePath = disk.url;
+          if (disk.url.startsWith("http")) {
+            basePath = new URL(disk.url).pathname;
+          }
+          this.app.use(serveDiskStatic(basePath, disk.root));
         }
-        this.app.use(serveDiskStatic(basePath, disk.root));
       }
     }
 
