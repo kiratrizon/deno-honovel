@@ -3,6 +3,7 @@ import auth from "configs/auth.ts";
 import cache from "configs/cache.ts";
 import cors from "configs/cors.ts";
 import database from "configs/database.ts";
+import filesystems from "configs/filesystems.ts";
 import jwt from "configs/jwt.ts";
 import logging from "configs/logging.ts";
 import mailer from "configs/mailer.ts";
@@ -15,6 +16,7 @@ export default {
   cache,
   cors,
   database,
+  filesystems,
   jwt,
   logging,
   mailer,

@@ -1,126 +1,122 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ $title ?? 'Introduction' }} | {{ env('APP_NAME', 'Honovel Deno') }} Docs</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- logo -->
+    <link rel="icon" type="image/png" href="/system-assets/logo/h.png" />
+    <title>{{ $title ?? 'Introduction' }} | {{ env('APP_NAME', 'Honovel Deno') }} Docs</title>
 
-  <!-- Tailwind Play CDN -->
-  <script src="/system-assets/js/tailwind.js"></script>
-  <script src="/assets/js/lib/jquery.js"></script>
-
-  <style>
-    /* Sidebar active link */
-    .active {
-      background-color: rgb(238 242 255); /* bg-indigo-50 */
-      color: rgb(79 70 229); /* text-indigo-600 */
-      font-weight: 500;
-    }
-    /* Code block styling */
-    pre {
-      background: #f8fafc;
-      border-radius: 0.5rem;
-      padding: 1rem;
-      overflow-x: auto;
-      font-size: 0.875rem;
-    }
-    code {
-      background: #f1f5f9;
-      padding: 0.15rem 0.35rem;
-      border-radius: 0.25rem;
-      font-family: ui-monospace, monospace;
-    }
-  </style>
+    <!-- Tailwind Play CDN -->
+    <script src="/system-assets/js/tailwind.js"></script>
+    <script src="/assets/js/lib/jquery.js"></script>
+    <link rel="stylesheet" href="/style.css">
 </head>
 
 <body class="bg-gray-50 text-gray-800">
-  <!-- Header -->
-  <header class="fixed top-0 left-0 right-0 h-14 bg-white border-b z-30 flex items-center justify-between px-4 md:px-8">
-    <div class="flex items-center gap-3">
-      <button id="asideToggle" aria-expanded="false" class="md:hidden p-2 rounded-md hover:bg-gray-100">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>
-      <div class="text-lg font-semibold text-indigo-700">Honovel Deno</div>
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 h-14 bg-white border-b z-30 flex items-center justify-between px-4 md:px-8">
+        <div class="flex items-center gap-3">
+            <!-- Mobile menu toggle -->
+            <button id="asideToggle" aria-expanded="false" class="md:hidden p-2 rounded-md hover:bg-gray-100">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            </button>
+
+            <!-- Logo + Title -->
+            <div class="flex items-center text-lg font-semibold text-indigo-700">
+            <img src="/system-assets/logo/h.png" alt="Honovel" class="h-8 w-8">
+            <span class="ml-2">Honovel Deno</span>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
+            <a href="/" class="hover:text-indigo-600 transition">Home</a>
+            <a href="/docs" class="hover:text-indigo-600 transition active-nav">Documentation</a>
+            <a href="/about" class="hover:text-indigo-600 transition">About</a>
+        </nav>
+
+        <!-- Right-side text or version -->
+        <div class="text-xs text-gray-500 hidden md:block">v1.0 Documentation</div>
+    </header>
+
+
+    <!-- Layout -->
+    <div class="flex mt-14">
+        <!-- Sidebar -->
+        <aside id="siteAside" class="w-64 bg-white border-r hidden md:block">
+        <div class="p-4 border-b text-xs uppercase tracking-wide text-gray-500">Getting Started</div>
+        <nav class="p-4 space-y-1 text-sm">
+            <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50 active">Introduction</a>
+            <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Installation</a>
+            <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Configuration</a>
+            <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Routing</a>
+            <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Controllers</a>
+            <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Views</a>
+            <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Database</a>
+            <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">CLI Commands</a>
+        </nav>
+
+        <div class="p-4 border-t text-xs uppercase tracking-wide text-gray-500">Advanced</div>
+        <nav class="p-4 space-y-1 text-sm">
+            <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Middleware</a>
+            <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Session</a>
+            <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Deployment</a>
+        </nav>
+        </aside>
+
+        <!-- Main content -->
+        <main class="flex-1 p-6 overflow-auto h-[calc(100vh-3.5rem)]">
+        <article class="prose max-w-none">
+            <h1 class="text-3xl font-semibold mb-4 text-indigo-700">Introduction</h1>
+            <p class="mb-4 text-gray-600">
+            Welcome to the official documentation of <strong>Honovel Deno</strong> — a lightweight framework inspired by Laravel, 
+            built with <code>Deno</code> and Hono. This guide will help you understand its structure and usage.
+            </p>
+
+            <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Quick Start</h2>
+            <p>To create a new Honovel project, run the following command:</p>
+
+            <pre><code>deno run -A https://deno.land/x/honovel/install.ts myapp</code></pre>
+
+            <p>After installation, start the development server:</p>
+
+            <pre><code>deno task dev</code></pre>
+
+            <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Folder Structure</h2>
+            <pre><code>
+    myapp/
+    ├─ app/
+    │   ├─ Controller/
+    │   └─ View/
+    ├─ config/
+    ├─ routes/
+    ├─ public/
+    └─ main.ts
+            </code></pre>
+
+            <p class="mt-4">This clean separation makes it easy to manage controllers, views, and configuration — just like Laravel, but in Deno.</p>
+        </article>
+        </main>
     </div>
-    <div class="text-sm text-gray-500 hidden md:block">v1.0 Documentation</div>
-  </header>
 
-  <!-- Layout -->
-  <div class="flex mt-14">
-    <!-- Sidebar -->
-    <aside id="siteAside" class="w-64 bg-white border-r hidden md:block">
-      <div class="p-4 border-b text-xs uppercase tracking-wide text-gray-500">Getting Started</div>
-      <nav class="p-4 space-y-1 text-sm">
-        <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50 active">Introduction</a>
-        <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Installation</a>
-        <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Configuration</a>
-        <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Routing</a>
-        <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Controllers</a>
-        <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Views</a>
-        <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Database</a>
-        <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">CLI Commands</a>
-      </nav>
+    <script>
+        // Mobile aside toggle
+        const asideToggle = $("#asideToggle");
+        const siteAside = $("#siteAside");
+        let isOpen = false;
 
-      <div class="p-4 border-t text-xs uppercase tracking-wide text-gray-500">Advanced</div>
-      <nav class="p-4 space-y-1 text-sm">
-        <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Middleware</a>
-        <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Session</a>
-        <a href="#" class="block px-3 py-2 rounded hover:bg-gray-50">Deployment</a>
-      </nav>
-    </aside>
-
-    <!-- Main content -->
-    <main class="flex-1 p-6 overflow-auto h-[calc(100vh-3.5rem)]">
-      <article class="prose max-w-none">
-        <h1 class="text-3xl font-semibold mb-4 text-indigo-700">Introduction</h1>
-        <p class="mb-4 text-gray-600">
-          Welcome to the official documentation of <strong>Honovel Deno</strong> — a lightweight framework inspired by Laravel, 
-          built with <code>Deno</code> and modern JavaScript. This guide will help you understand its structure and usage.
-        </p>
-
-        <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Quick Start</h2>
-        <p>To create a new Honovel project, run the following command:</p>
-
-        <pre><code>deno run -A https://deno.land/x/honovel/install.ts myapp</code></pre>
-
-        <p>After installation, start the development server:</p>
-
-        <pre><code>deno task dev</code></pre>
-
-        <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Folder Structure</h2>
-        <pre><code>
-myapp/
- ├─ app/
- │   ├─ Controller/
- │   └─ View/
- ├─ config/
- ├─ routes/
- ├─ public/
- └─ main.ts
-        </code></pre>
-
-        <p class="mt-4">This clean separation makes it easy to manage controllers, views, and configuration — just like Laravel, but in Deno.</p>
-      </article>
-    </main>
-  </div>
-
-  <script>
-    // Mobile aside toggle
-    const asideToggle = $("#asideToggle");
-    const siteAside = $("#siteAside");
-    let isOpen = false;
-
-    asideToggle.on("click", () => {
-      if (isOpen) {
-        siteAside.addClass("hidden");
-      } else {
-        siteAside.removeClass("hidden");
-      }
-      isOpen = !isOpen;
-    });
-  </script>
-  {{{ $slots.scripts ? await $slots.scripts() : '' }}}
+        asideToggle.on("click", () => {
+        if (isOpen) {
+            siteAside.addClass("hidden");
+        } else {
+            siteAside.removeClass("hidden");
+        }
+        isOpen = !isOpen;
+        });
+    </script>
+    {{{ $slots.scripts ? await $slots.scripts() : '' }}}
 </body>
 </html>

@@ -88,5 +88,9 @@ export default class DatabaseSeeder extends Seeder {
         sort: 10,
       },
     ];
+
+    for (const content of contents) {
+      await Project.create(content);
+    }
   }
 }
