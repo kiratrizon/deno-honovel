@@ -4,7 +4,12 @@ import Content from "App/Models/Content.ts";
 // create-project command
 
 Route.get("/", async ({ request }) => {
-  return view("welcome");
+  const content = await Content.first();
+  let id = 1;
+  if (content) {
+    id = content.id!;
+  }
+  return view("welcome", { contentId: id });
 });
 
 Route.get("/create-project", async ({ request }) => {
@@ -16,7 +21,7 @@ Route.get("/create-project", async ({ request }) => {
     });
 });
 
-Route.get("/contents/{content}", async ({ request }, content: Content) => {
+Route.get("/docs/{content}", async ({ request }, content: Content) => {
   if (!content) {
     return view("welcome");
   }

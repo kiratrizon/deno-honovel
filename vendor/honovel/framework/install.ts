@@ -148,41 +148,6 @@ for (const routeFile of routes) {
   }
 }
 
-// =====================
-// 🧱 Run Migration
-// =====================
-
-console.log("🚀 Running migration...");
-const honovelPath = `./${name}/novel`;
-try {
-  await Deno.chmod(honovelPath, 0o755);
-  const migrate = new Deno.Command(honovelPath, {
-    args: ["migrate"],
-    cwd: name,
-    stdout: "inherit",
-    stderr: "inherit",
-  });
-  await migrate.output();
-  console.log("✅ Migration completed");
-} catch (_err) {
-  console.warn("⚠️ Migration failed. Trying as TypeScript...");
-  try {
-    const fallback = new Deno.Command("deno", {
-      args: ["run", "-A", "honovel", "migrate"],
-      cwd: name,
-      stdout: "inherit",
-      stderr: "inherit",
-    });
-    await fallback.output();
-    console.log("✅ Migration completed (via deno run)");
-  } catch (innerErr: any) {
-    console.error(
-      "❌ Migration failed completely:",
-      innerErr.message ? innerErr.message : innerErr
-    );
-  }
-}
-
 console.log(`\n🎉 Project created in: ${name}`);
 console.log(
   `\n➡️  Next steps:\n  cd ${name}\n  deno install\n  deno task smelt serve`
