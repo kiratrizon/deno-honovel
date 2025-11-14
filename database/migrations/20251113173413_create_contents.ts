@@ -8,7 +8,7 @@ export default new (class extends Migration {
       "contents",
       (table: Blueprint) => {
         table.id();
-        table.string("url").notNullable();
+        table.string("view").notNullable();
         table.string("title").notNullable();
         table.string("description").notNullable();
         table.integer("sort").notNullable();

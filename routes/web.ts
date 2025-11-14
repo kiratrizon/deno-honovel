@@ -1,12 +1,7 @@
 import { Route } from "Illuminate/Support/Facades/index.ts";
 import Content from "App/Models/Content.ts";
 import HomeController from "App/Http/Controllers/HomeController.ts";
-
-const myTabs = [
-  { name: "Home", href: "/", current: false },
-  { name: "Documentation", href: "/docs", current: false },
-  { name: "About", href: "/about", current: false },
-];
+import ContentController from "App/Http/Controllers/ContentController.ts";
 
 Route.get("/", [HomeController, "index"]);
 
@@ -19,16 +14,4 @@ Route.get("/create-project", async ({ request }) => {
     });
 });
 
-Route.get("/docs/{content}", async ({ request }, content: Content) => {
-  if (!content) {
-    return redirect("/");
-  }
-  const newMyTabs = [...myTabs].map((tab) => {
-    if (tab.href === "/docs") {
-      return { ...tab, current: true };
-    }
-    return tab;
-  });
-  // @ts-ignore //
-  return view("contents", { myTabs: newMyTabs, contentId: content.id });
-});
+Route.get("/docs/{content}", [ContentController, "show"]);

@@ -256,7 +256,8 @@ class MyArtisan {
 
     const extractModule: string[] = [];
     if (options.step && options.step > 0) {
-      const batchRows = await DB.table("migrations")
+      const batchRows = await DB.connection(options.db)
+        .table("migrations")
         .select("batch")
         .groupBy("batch")
         .orderBy("batch", "desc")
@@ -264,7 +265,8 @@ class MyArtisan {
         .get();
       const batches = batchRows.map((row) => row.batch);
       if (batches.length) {
-        const batchMigrations = await DB.table("migrations")
+        const batchMigrations = await DB.connection(options.db)
+          .table("migrations")
           .whereIn("batch", batches)
           .select("name")
           .orderBy("id", "desc")
@@ -326,7 +328,7 @@ class MyArtisan {
     }
   }
 
-  private async createMigrationTable(dbType: string) {
+  private async createMigrationTable(connection: string) {
     const tableName = "migrations";
     const migrationClass = new (class extends Migration {
       async up() {
@@ -348,13 +350,13 @@ class MyArtisan {
         await Schema.dropIfExists(tableName, this.connection);
       }
     })();
-    migrationClass.setConnection(dbType);
+    migrationClass.setConnection(connection);
     await migrationClass.up();
   }
 
-  private async dropAllTables(dbType: string): Promise<void> {
+  private async dropAllTables(connection: string): Promise<void> {
     let tables: string[] = [];
-
+    const dbType = DB.connection(connection).getDriverName();
     switch (dbType) {
       case "mysql": {
         const result = await DB.connection(dbType).select(
@@ -366,7 +368,7 @@ class MyArtisan {
       }
 
       case "pgsql": {
-        const result = await DB.connection(dbType).select(
+        const result = await DB.connection(connection).select(
           `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`
         );
         tables = result.map((row) => `"${row.tablename}"`);
@@ -374,7 +376,7 @@ class MyArtisan {
       }
 
       case "sqlite": {
-        const result = await DB.connection(dbType).select(
+        const result = await DB.connection(connection).select(
           `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`
         );
         tables = result.map((row) => `"${row.name}"`);
@@ -382,7 +384,7 @@ class MyArtisan {
       }
 
       case "sqlsrv": {
-        const result = await DB.connection(dbType).select(
+        const result = await DB.connection(connection).select(
           `SELECT name FROM sys.tables`
         );
         tables = result.map((row) => `[${row.name}]`);
@@ -400,11 +402,11 @@ class MyArtisan {
 
     if (dbType === "sqlite") {
       for (const table of tables) {
-        await DB.statement(`DROP TABLE ${table};`);
+        await DB.connection(connection).statement(`DROP TABLE ${table};`);
       }
     } else {
       const dropSQL = `DROP TABLE ${tables.join(", ")};`;
-      await DB.statement(dropSQL);
+      await DB.connection(connection).statement(dropSQL);
     }
   }
 

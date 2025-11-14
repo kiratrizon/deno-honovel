@@ -26,7 +26,7 @@ export default class DatabaseSeeder extends Seeder {
         title: "Introduction",
         description:
           "Welcome to Honovel Deno, a lightweight framework inspired by Laravel, built with Deno and Hono.",
-        url: "/introduction",
+        view: "introduction",
         sort: 1,
         category: 1,
       },
@@ -34,7 +34,7 @@ export default class DatabaseSeeder extends Seeder {
         title: "Routing",
         description:
           "Understand how routing works — define routes, controllers, and middleware.",
-        url: "/routing",
+        view: "routing",
         sort: 3,
         category: 1,
       },
@@ -42,14 +42,14 @@ export default class DatabaseSeeder extends Seeder {
         title: "Controllers",
         description:
           "Learn how to organize logic into controllers similar to Laravel.",
-        url: "/controllers",
+        view: "controllers",
         sort: 4,
         category: 1,
       },
       {
         title: "Views",
         description: "Render templates with support for Blade-like syntax.",
-        url: "/views",
+        view: "views",
         sort: 5,
         category: 1,
       },
@@ -57,14 +57,14 @@ export default class DatabaseSeeder extends Seeder {
         title: "Models",
         description:
           "Manage your data layer with database connections and ORM-like helpers.",
-        url: "/models",
+        view: "models",
         sort: 6,
         category: 1,
       },
       {
         title: "Commands",
         description: "Extend the CLI with custom artisan-like commands.",
-        url: "/commands",
+        view: "commands",
         sort: 8,
         category: 1,
       },
@@ -72,7 +72,7 @@ export default class DatabaseSeeder extends Seeder {
         title: "Deployment",
         description:
           "Best practices for deploying your Honovel Deno application.",
-        url: "/deployment",
+        view: "deployment",
         sort: 9,
         category: 2,
       },

@@ -3,7 +3,7 @@ import { HasFactory } from "Illuminate/Database/Eloquent/Factories/index.ts";
 
 export type ContentSchema = {
   id?: number;
-  url: string;
+  view: string;
   title: string;
   description: string;
   sort: number;
@@ -12,7 +12,7 @@ export type ContentSchema = {
 
 class Content extends Model<ContentSchema> {
   protected static override _fillable = [
-    "url",
+    "view",
     "title",
     "description",
     "sort",

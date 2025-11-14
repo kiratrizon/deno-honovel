@@ -41,6 +41,15 @@ const constant: DatabaseConfig = {
         database: env("MONGO_AUTH_DB", "admin"),
       },
     },
+    mysql2: {
+      driver: "mysql",
+      host: env("LOCAL_DB_HOST", "127.0.0.1"),
+      port: env("LOCAL_DB_PORT", 3307),
+      user: env("LOCAL_DB_USERNAME", "kira"),
+      password: env("LOCAL_DB_PASSWORD", "asterda23"),
+      database: env("LOCAL_DB_DATABASE", "honovel"),
+      charset: "utf8mb4",
+    },
   },
 
   redis: {

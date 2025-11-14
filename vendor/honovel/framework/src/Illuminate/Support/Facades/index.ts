@@ -29,7 +29,11 @@ import ResourceRoute, {
 import { Database, QueryResultDerived } from "Database";
 import { Builder, SQLRaw, sqlstring } from "../../Database/Query/index.ts";
 import { FormFile } from "multiParser2";
-import { AuthConfig, SupportedDrivers } from "configs/@types/index.d.ts";
+import {
+  AuthConfig,
+  DatabaseConfig,
+  SupportedDrivers,
+} from "configs/@types/index.d.ts";
 import {
   AbstractStore,
   CacheManager,
@@ -190,9 +194,11 @@ export class DB {
 
   private static dbUsed: string;
 
+  private static dbConfig: DatabaseConfig;
   public static init() {
     const db = config("database");
     this.dbUsed = db.default;
+    this.dbConfig = db;
   }
 
   public static table(table: sqlstring) {
@@ -242,11 +248,18 @@ export class DB {
   public static async reconnect(): Promise<void> {
     await Database.init(true);
   }
+
+  public static getDriverName(): SupportedDrivers {
+    const driver = this.dbConfig.connections[this.dbUsed].driver;
+    return driver as SupportedDrivers;
+  }
 }
 
 class DBConnection {
+  private readonly dbConfig: DatabaseConfig;
   constructor(private readonly connection: string) {
-    const dbUsed = config("database").connections[this.connection]
+    this.dbConfig = config("database");
+    const dbUsed = this.dbConfig.connections[this.connection]
       .driver as SupportedDrivers;
     if (!["mysql", "sqlite", "pgsql", "sqlsrv"].includes(dbUsed)) {
       throw new Error(`Unsupported database type: ${dbUsed}`);
@@ -346,6 +359,11 @@ class DBConnection {
 
   public async reconnect(): Promise<void> {
     await Database.init(true);
+  }
+
+  public getDriverName(): SupportedDrivers {
+    const driver = this.dbConfig.connections[this.connection].driver;
+    return driver as SupportedDrivers;
   }
 }
 
@@ -522,7 +540,7 @@ export class Validator {
           e.push(`Invalid format for ${key}.`);
         break;
       }
-      case "array":{
+      case "array": {
         if (!Array.isArray(v)) e.push("This field must be an array.");
         break;
       }
@@ -641,7 +659,7 @@ class MyRoute {
 
   public static delete<
     T extends BaseController,
-    K extends KeysWithICallback<T>
+    K extends KeysWithICallback<T>,
   >(uri: string, arg: ICallback | [new () => T, K]) {
     return this.registerRoute(["delete"], uri, arg);
   }
@@ -655,7 +673,7 @@ class MyRoute {
 
   public static options<
     T extends BaseController,
-    K extends KeysWithICallback<T>
+    K extends KeysWithICallback<T>,
   >(uri: string, arg: ICallback | [new () => T, K]) {
     return this.registerRoute(["options"], uri, arg);
   }
@@ -702,7 +720,7 @@ class MyRoute {
 
   public static resource<
     T extends BaseController,
-    K extends KeysWithICallback<T>
+    K extends KeysWithICallback<T>,
   >(uri: string, controller: new () => T) {
     if (!regexObj.alpha.test(uri))
       throw new Error(`${uri} should be an alpha character.`);
@@ -790,7 +808,7 @@ class MyRoute {
   // Make `get` generic on controller T and method K
   private static registerRoute<
     T extends BaseController,
-    K extends KeysWithICallback<T>
+    K extends KeysWithICallback<T>,
   >(
     method: (keyof IHeaderChildRoutes)[],
     uri: string,
@@ -857,13 +875,14 @@ export const Route: typeof IRoute = MyRoute;
 type GuardName = keyof AuthConfig["guards"];
 type GuardDriver<G extends GuardName> = AuthConfig["guards"][G]["driver"];
 
-type GuardInstance<G extends GuardName> = GuardDriver<G> extends "jwt"
-  ? JwtGuard
-  : GuardDriver<G> extends "session"
-  ? SessionGuard
-  : GuardDriver<G> extends "token"
-  ? TokenGuard
-  : never;
+type GuardInstance<G extends GuardName> =
+  GuardDriver<G> extends "jwt"
+    ? JwtGuard
+    : GuardDriver<G> extends "session"
+      ? SessionGuard
+      : GuardDriver<G> extends "token"
+        ? TokenGuard
+        : never;
 
 export class Auth {
   private static defaultGuard: string;
