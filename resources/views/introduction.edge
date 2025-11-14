@@ -1,0 +1,40 @@
+@layouts.home()
+
+@slot('article')
+        <article class="prose max-w-none">
+            <h1 class="text-3xl font-semibold mb-4 text-indigo-700">Introduction</h1>
+            <p class="mb-4 text-gray-600">
+            Welcome to the official documentation of <strong>Honovel Deno</strong> — a lightweight framework inspired by Laravel, 
+            built with <code>Deno</code> and Hono. This guide will help you understand its structure and usage.
+            </p>
+
+            <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Quick Start</h2>
+            <p>To create a new Honovel project, run the following command:</p>
+
+            <pre><code>deno run -A https://honovel.deno.dev/create-project &lt;name&gt;@&lt;version&gt;</code></pre>
+            <p>Example Usage:</p>
+            <pre><code>deno run -A https://honovel.deno.dev/create-project myapp@latest</code></pre>
+
+            <p>After creating app, install dependencies and start development:</p>
+
+            <pre><code>cd myapp</code></pre>
+            <pre><code>deno install</code></pre>
+            <pre><code>deno task smelt serve</code></pre>
+
+            <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Folder Structure</h2>
+            <pre><code>
+myapp/
+├─ app/
+│   ├─ Controller/
+│   └─ View/
+├─ config/
+├─ routes/
+├─ public/
+└─ main.ts
+            </code></pre>
+
+            <p class="mt-4">This clean separation makes it easy to manage controllers, views, and configuration — just like Laravel, but in Deno.</p>
+        </article>
+@end
+
+@endlayouts.home

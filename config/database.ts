@@ -49,6 +49,9 @@ const constant: DatabaseConfig = {
       password: env("LOCAL_DB_PASSWORD", "asterda23"),
       database: env("LOCAL_DB_DATABASE", "honovel"),
       charset: "utf8mb4",
+      options: {
+        maxConnection: 10,
+      },
     },
   },
 

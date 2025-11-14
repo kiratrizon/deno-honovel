@@ -32,6 +32,7 @@ class ContentController extends Controller {
       // @ts-ignore //
       contentId: content.id,
       contents,
+      currentContent: content,
     });
   };
 

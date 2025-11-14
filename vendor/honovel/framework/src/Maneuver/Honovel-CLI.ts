@@ -623,6 +623,15 @@ class MyArtisan {
     );
   }
 
+  private async makeView(name: string) {
+    // no stub for view, just create empty file
+    const view = viewPath(`${name}.edge`);
+    writeFile(view, "");
+    consoledeno.success(
+      `View file created at ${path.relative(Deno.cwd(), view)}`
+    );
+  }
+
   public async command(args: string[]): Promise<void> {
     await myCommand
       .name("deno task")
@@ -733,6 +742,11 @@ class MyArtisan {
       )
       .arguments("<name:string>")
       .action((_: unknown, name: string) => this.makeProvider(name))
+
+      .command("make:view", "Generate a view file")
+      .arguments("<name:string>")
+      .action((_: unknown, name: string) => this.makeView(name))
+
       .command("make:seeder", "Generate a seeder class")
       .arguments("<name:string>")
       .action((_: unknown, name: string) => {
