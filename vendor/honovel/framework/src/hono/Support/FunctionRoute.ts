@@ -57,7 +57,7 @@ const defaultHandle: HttpMiddleware = async function ({ request }, next) {
 export type TFallbackMiddleware = [
   "middleware",
   MiddlewareOrDispatch,
-  string[]
+  string[],
 ];
 export class URLArranger {
   public static urlCombiner(input: string[] | string, strict = true) {
@@ -727,7 +727,7 @@ function generateMiddlewareOrDispatch(
 
 export function toFallback([count, fallbackParams]: [
   number,
-  TFallbackMiddleware
+  TFallbackMiddleware,
 ]) {
   return generateFallback(...fallbackParams, count);
 }
@@ -1028,8 +1028,8 @@ function tracingLocation(
       <div id="${
         isErrorLine ? "error-line" : ""
       }" class="group flex items-start ${
-      isErrorLine ? "bg-rose-100" : "hover:bg-gray-100"
-    } rounded px-4 py-1">
+        isErrorLine ? "bg-rose-100" : "hover:bg-gray-100"
+      } rounded px-4 py-1">
         <div class="w-14 text-right pr-4 text-white-400 select-none">${lineNumber}</div>
         <pre class="flex-1 text-sm overflow-auto whitespace-pre-wrap ${
           isErrorLine
@@ -1272,6 +1272,78 @@ export async function handleAction(
               .join("");
 
             buffer.outputRaw(out);
+          },
+        },
+        {
+          tagName: "vite",
+          block: false,
+          seekable: true,
+
+          compile(parser, buffer, token) {
+            const raw = token.properties.jsArg; // this is a string
+            let args: string[] = [];
+
+            try {
+              // Remove single quotes if necessary and parse
+              const cleaned = raw.replace(/'/g, '"'); // ' -> "
+              const parsed = JSON.parse(cleaned);
+
+              if (Array.isArray(parsed)) {
+                args = parsed.map(String);
+              } else if (typeof parsed === "string") {
+                args = [parsed];
+              }
+            } catch {
+              args = [];
+            }
+            if (args.length && isArray(args)) {
+              if (
+                config("app").env === "local" &&
+                // @ts-ignore //
+                typeof viteServer !== "undefined" &&
+                // @ts-ignore //
+                viteServer
+              ) {
+                args.forEach((file) => {
+                  if (
+                    file.toLowerCase().endsWith(".js") ||
+                    file.toLowerCase().endsWith(".ts")
+                  ) {
+                    buffer.outputRaw(
+                      `<script type="module" src="http://localhost:5173/${file}"></script>`
+                    );
+                  } else if (file.toLowerCase().endsWith(".css")) {
+                    buffer.outputRaw(
+                      `<link rel="stylesheet" href="http://localhost:5173/${file}">`
+                    );
+                  }
+                });
+              } else {
+                // find the manifest.json under use deno readfile
+                const viteJson = Deno.readTextFileSync(
+                  publicPath("build/.vite/manifest.json")
+                );
+                try {
+                  const manifest = JSON.parse(viteJson);
+                  args.forEach((file) => {
+                    const entry = manifest[file];
+                    if (entry && entry.file) {
+                      if (entry.file.endsWith(".js")) {
+                        buffer.outputRaw(
+                          `<script type="module" src="/build/${entry.file}"></script>`
+                        );
+                      } else if (entry.file.endsWith(".css")) {
+                        buffer.outputRaw(
+                          `<link rel="stylesheet" href="/build/${entry.file}">`
+                        );
+                      }
+                    }
+                  });
+                } catch {
+                  // handle error
+                }
+              }
+            }
           },
         },
       ];

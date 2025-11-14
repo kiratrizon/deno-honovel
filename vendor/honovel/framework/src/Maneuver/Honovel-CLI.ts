@@ -524,7 +524,14 @@ class MyArtisan {
 
     Deno.writeTextFileSync(warmupJsonPath, WARMUP_URL);
     const cmd = new Deno.Command("deno", {
-      args: ["run", "-A", `--watch${watchFlag}`, serverPath],
+      args: [
+        "run",
+        "--config",
+        "./deno.json",
+        "-A",
+        `--watch${watchFlag}`,
+        serverPath,
+      ],
       stdout: "inherit",
       stderr: "inherit",
       env: envObj,

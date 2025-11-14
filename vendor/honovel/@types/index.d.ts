@@ -3,13 +3,6 @@ import { ConfigItems } from "configs/@types/index.d.ts";
 import { Carbon } from "helpers";
 
 export {};
-export interface IFetchDataOption {
-  method?: string;
-  headers?: Record<string, string>;
-  params?: Record<string, unknown>;
-  timeout?: number;
-  responseType?: ResponseType;
-}
 
 type IGetType =
   | "string"
@@ -365,22 +358,6 @@ declare global {
    * @param {string} destination - The destination path where the file should be transferred.
    */
   function transferFile(filePath: string, destination: string): boolean;
-
-  /**
-   * Performs an HTTP request to the specified URL with customizable options.
-   * Returns a tuple: [error, response], where either one may be `null`.
-   *
-   * Usage:
-   *   const [error, data] = fetchData('https://api.example.com', { method: 'GET' });
-   *
-   * @param url - The endpoint to request.
-   * @param options - Optional configuration for the request (method, headers, body, etc.).
-   * @returns A tuple containing the Promise<[error, data]>.
-   */
-  function fetchData(
-    url: string,
-    options?: IFetchDataOption
-  ): Promise<[boolean, unknown]>;
 
   /**
    * Checks whether a given variable is a function.

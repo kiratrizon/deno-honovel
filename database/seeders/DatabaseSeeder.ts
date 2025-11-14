@@ -1,7 +1,7 @@
 import Seeder from "Illuminate/Database/Seeder.ts";
 import User from "App/Models/User.ts";
 import Project from "App/Models/Project.ts";
-import { ContentSchema } from "App/Models/Content.ts";
+import Content, { ContentSchema } from "App/Models/Content.ts";
 
 export default class DatabaseSeeder extends Seeder {
   public async run() {
@@ -90,7 +90,7 @@ export default class DatabaseSeeder extends Seeder {
     ];
 
     for (const content of contents) {
-      await Project.create(content);
+      await Content.create(content);
     }
   }
 }

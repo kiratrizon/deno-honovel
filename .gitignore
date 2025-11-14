@@ -1,5 +1,5 @@
-.env
-.vscode
+/.env
+/.vscode
 mydocker
 
 /storage/*.key
@@ -12,6 +12,8 @@ mydocker
 /storage/logs/*
 !/storage/logs/.gitignore
 node_modules
-deno.lock
+/deno.lock
 /test.ts
 /storage/honovel/warmup.json
+/package-lock.json
+/.vite

@@ -497,6 +497,16 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).whereNotBetween(column, values);
   }
 
+  public static orderBy(
+    column: string,
+    direction: "asc" | "desc" = "asc"
+  ): Builder {
+    return new Builder({
+      model: this,
+      fields: ["*"],
+    }).orderBy(column, direction);
+  }
+
   public static async all<
     T extends Model<ModelAttributes> = Model<ModelAttributes>
   >(): Promise<T[]> {

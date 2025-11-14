@@ -66,6 +66,29 @@ function serveDiskStatic(urlPrefix: string, diskRoot: string) {
   };
 }
 
+// check localhost:5173 for tailwind dev server
+
+// Check if a Vite server is actually responding
+const isViteRunning = async (port: number): Promise<boolean> => {
+  try {
+    const resp = await fetch(`http://127.0.0.1:${port}`, { method: "GET" });
+    return resp.status < 500; // true if server responds
+  } catch (_e) {
+    return false; // connection refused or server not up
+  }
+};
+
+if (config("app").env === "local") {
+  const viteServer = await isViteRunning(5173);
+  define("viteServer", viteServer, false);
+
+  if (viteServer) {
+    console.info("✅ Vite server is running");
+  } else {
+    // console.info("⚡ Vite server is not running");
+  }
+}
+
 const headFunction: MiddlewareHandler = async (
   c: MyContext,
   next: () => Promise<void>
@@ -118,7 +141,7 @@ const myStaticDefaults: MiddlewareHandler[] = [
 
 const [globalMiddleware, globalMiddlewareFallback]: [
   MiddlewareHandler[],
-  TFallbackMiddleware[]
+  TFallbackMiddleware[],
 ] = [...toMiddleware(new ChildKernel().Middleware)];
 
 // domain on beta test
@@ -333,7 +356,7 @@ class Server {
 
     const [routeGroupMiddleware, routeGroupMiddlewareFallback]: [
       MiddlewareHandler[],
-      TFallbackMiddleware[]
+      TFallbackMiddleware[],
     ] = [...toMiddleware(mainMiddleware)];
     // @ts-ignore //
     app.use(
@@ -451,7 +474,7 @@ class Server {
               );
               const [flagMiddlewareArr, flagMiddlewareFallback]: [
                 MiddlewareHandler[],
-                TFallbackMiddleware[]
+                TFallbackMiddleware[],
               ] = toMiddleware([...flagMiddleware]);
               const toFallbacks = [
                 ...globalMiddlewareFallback,
@@ -547,7 +570,7 @@ class Server {
               const arrangerGroup = URLArranger.urlCombiner(newName, true);
               const [myGroupMiddleware, myGroupMiddlewareFallback]: [
                 MiddlewareHandler[],
-                TFallbackMiddleware[]
+                TFallbackMiddleware[],
               ] = toMiddleware(middleware);
               groupEntries.forEach(([routeId, methodarr]) => {
                 const routeUsed = methods[routeId];
@@ -606,7 +629,7 @@ class Server {
                 const flagMiddleware = flag.middleware || [];
                 const [flagMiddlewareArr, flagMiddlewareFallback]: [
                   MiddlewareHandler[],
-                  TFallbackMiddleware[]
+                  TFallbackMiddleware[],
                 ] = toMiddleware([...flagMiddleware]);
                 const toFallbacks = [
                   ...globalMiddlewareFallback,

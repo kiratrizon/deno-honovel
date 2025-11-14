@@ -677,40 +677,8 @@ globalFn(
   }
 );
 
-import axios, { AxiosRequestConfig, AxiosError } from "axios";
-import { IFetchDataOption } from "../../../@types/index.d.ts";
 import { Carbon } from "helpers";
 import { DB } from "Illuminate/Support/Facades/index.ts";
-
-globalFn(
-  "fetchData",
-  async function (
-    url: string,
-    {
-      method = "GET",
-      headers,
-      params,
-      timeout = 5000,
-      responseType = "json",
-    }: IFetchDataOption = {}
-  ): Promise<[boolean, unknown]> {
-    const config: AxiosRequestConfig = {
-      method,
-      headers,
-      params,
-      timeout,
-      responseType,
-    };
-
-    try {
-      const response = await axios(url, config);
-      return [false, response.data];
-    } catch (error) {
-      const err = error as AxiosError;
-      return [true, err.response?.data ?? err.message];
-    }
-  }
-);
 
 globalFn("arrayFirst", function (array: unknown[]) {
   return isArray(array) && array.length > 0 ? array[0] : null;
