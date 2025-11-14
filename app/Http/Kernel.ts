@@ -39,7 +39,7 @@ class Kernel extends HttpKernel {
   ];
 
   protected override middlewareGroups = {
-    // to be implemented \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+    // to be implemented laravel's \Illuminate\View\Middleware\ShareErrorsFromSession::class,
     web: [
       EncryptCookies, // Encrypts cookies for web requests
       StartSession, // Starts the session for web requests

@@ -1,5 +1,6 @@
 import { Route } from "Illuminate/Support/Facades/index.ts";
 import Content from "App/Models/Content.ts";
+import HomeController from "App/Http/Controllers/HomeController.ts";
 
 const myTabs = [
   { name: "Home", href: "/", current: false },
@@ -7,21 +8,7 @@ const myTabs = [
   { name: "About", href: "/about", current: false },
 ];
 
-Route.get("/", async ({ request }) => {
-  const newMyTabs = [...myTabs].map((tab) => {
-    if (tab.href === "/") {
-      return { ...tab, current: true };
-    }
-    return tab;
-  });
-
-  const content = await Content.orderBy("sort").first();
-  let id = 1;
-  if (content) {
-    id = content.id!;
-  }
-  return view("welcome", { myTabs: newMyTabs, contentId: id });
-});
+Route.get("/", [HomeController, "index"]);
 
 Route.get("/create-project", async ({ request }) => {
   // for "deno run -A https://honovel.deno.dev/create-project my-app@latest" setup
@@ -42,5 +29,6 @@ Route.get("/docs/{content}", async ({ request }, content: Content) => {
     }
     return tab;
   });
+  // @ts-ignore //
   return view("contents", { myTabs: newMyTabs, contentId: content.id });
 });
