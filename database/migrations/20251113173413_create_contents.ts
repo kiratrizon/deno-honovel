@@ -12,6 +12,7 @@ export default new (class extends Migration {
         table.string("title").notNullable();
         table.string("description").notNullable();
         table.integer("sort").notNullable();
+        table.integer("category").notNullable();
         table.timestamps();
       },
       this.connection

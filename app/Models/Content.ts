@@ -7,10 +7,17 @@ export type ContentSchema = {
   title: string;
   description: string;
   sort: number;
+  category: number;
 };
 
 class Content extends Model<ContentSchema> {
-  protected static override _fillable = ["url", "title", "description", "sort"];
+  protected static override _fillable = [
+    "url",
+    "title",
+    "description",
+    "sort",
+    "category",
+  ];
 
   protected static override use = {
     HasFactory,

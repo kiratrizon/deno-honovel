@@ -19,6 +19,8 @@ export default class DatabaseSeeder extends Seeder {
       await Project.create(project);
     }
 
+    // category 1 is Getting Started
+    // category 2 is for Advanced Topics
     const contents: ContentSchema[] = [
       {
         title: "Introduction",
@@ -26,13 +28,7 @@ export default class DatabaseSeeder extends Seeder {
           "Welcome to Honovel Deno, a lightweight framework inspired by Laravel, built with Deno and Hono.",
         url: "/introduction",
         sort: 1,
-      },
-      {
-        title: "Getting Started",
-        description:
-          "Learn how to install, configure, and run your first Honovel Deno app.",
-        url: "/getting-started",
-        sort: 2,
+        category: 1,
       },
       {
         title: "Routing",
@@ -40,6 +36,7 @@ export default class DatabaseSeeder extends Seeder {
           "Understand how routing works — define routes, controllers, and middleware.",
         url: "/routing",
         sort: 3,
+        category: 1,
       },
       {
         title: "Controllers",
@@ -47,12 +44,14 @@ export default class DatabaseSeeder extends Seeder {
           "Learn how to organize logic into controllers similar to Laravel.",
         url: "/controllers",
         sort: 4,
+        category: 1,
       },
       {
         title: "Views",
         description: "Render templates with support for Blade-like syntax.",
         url: "/views",
         sort: 5,
+        category: 1,
       },
       {
         title: "Models",
@@ -60,18 +59,14 @@ export default class DatabaseSeeder extends Seeder {
           "Manage your data layer with database connections and ORM-like helpers.",
         url: "/models",
         sort: 6,
-      },
-      {
-        title: "Configuration",
-        description: "Customize environment settings and app behavior.",
-        url: "/configuration",
-        sort: 7,
+        category: 1,
       },
       {
         title: "Commands",
         description: "Extend the CLI with custom artisan-like commands.",
         url: "/commands",
         sort: 8,
+        category: 1,
       },
       {
         title: "Deployment",
@@ -79,13 +74,7 @@ export default class DatabaseSeeder extends Seeder {
           "Best practices for deploying your Honovel Deno application.",
         url: "/deployment",
         sort: 9,
-      },
-      {
-        title: "API Reference",
-        description:
-          "Comprehensive documentation for Honovel’s API methods and utilities.",
-        url: "/api",
-        sort: 10,
+        category: 2,
       },
     ];
 
