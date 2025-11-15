@@ -1,15 +1,4 @@
-import tailwind from "@tailwindcss/vite";
-import type { InlineConfig } from "vite";
-
-const inlineConfig: InlineConfig = {
-  plugins: [
-    tailwind({
-      optimize: {
-        minify: true,
-      },
-    }),
-  ],
-
+const inlineConfig = {
   server: {
     port: 5173,
   },

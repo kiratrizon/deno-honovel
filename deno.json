@@ -55,7 +55,7 @@
     "tailwindcss": "npm:tailwindcss@^4.1.17",
     "uuid": "npm:uuid@^11.1.0",
     "prettier": "npm:prettier@^3.0.0",
-    "vite": "npm:vite@^7.2.2"
+    "vite": "npm:vite@^6.4.1"
   },
   "tasks": {
     "smelt": "deno run -A vendor/bin/novel",
