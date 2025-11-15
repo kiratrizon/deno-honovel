@@ -24,6 +24,7 @@
     "App/": "./app/",
     "HonoHttp/": "./vendor/honovel/framework/src/hono/Http/",
     "hmac": "jsr:@noble/hashes@1.8.0/hmac",
+    "jquery": "npm:jquery@^3.7.1",
     "sha2": "jsr:@noble/hashes@1.8.0/sha2",
     "dotenv": "https://deno.land/std@0.224.0/dotenv/mod.ts",
     "node:path": "jsr:@std/path@0.224.0",
@@ -76,7 +77,6 @@
       "./vendor/honovel/@types/Built-in-env.d.ts"
     ]
   },
-  "nodeModulesDir": "auto",
   "version": "1.1.4",
   "description": "Welcome to **Honovel Deno** — a Laravel-inspired web framework powered by [Hono](https://hono.dev) and [Deno](https://deno.com).",
   "repository": {
