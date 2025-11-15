@@ -20,7 +20,7 @@ import HonoRedirect from "HonoHttp/HonoRedirect.ts";
 import { HonoResponse } from "HonoHttp/HonoResponse.ts";
 import MessageBag, { ErrorsShape } from "HonoHttp/MessageBag.ts";
 import { SessionDataTypes } from "../../../../@types/declaration/imain.d.ts";
-import viteConfig from "../../../../../../vite.config.ts";
+import viteConfig from ".././../../../../vite/vite-manipulate.ts";
 
 export const regexObj = {
   number: /^\d+$/,

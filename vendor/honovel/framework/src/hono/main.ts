@@ -25,6 +25,10 @@ import { honoSession } from "HonoHttp/HonoSession.ts";
 import { Route as Router } from "Illuminate/Support/Facades/index.ts";
 const Route = Router as typeof INRoute;
 
+const warmUpdispatch: HttpDispatch = async () => {
+  return response("");
+};
+
 import ChildKernel from "./Support/ChildKernel.ts";
 import GroupRoute from "./Support/GroupRoute.ts";
 import { myError } from "HonoHttp/builder.ts";
@@ -510,6 +514,25 @@ class Server {
             }
           }
 
+          const warmUpFallbacks: TFallbackMiddleware[] = [
+            ...globalMiddlewareFallback,
+            ...routeGroupMiddlewareFallback,
+          ];
+          const warmUpFallbacksArr: MiddlewareHandler[] = [];
+          warmUpFallbacks.forEach((fb, index) => {
+            warmUpFallbacksArr.unshift(toFallback([index + 1, fb]));
+          });
+
+          const warmUpBuilds = [
+            toDispatch({ args: warmUpdispatch, debugString: "" }, []),
+            ...warmUpFallbacksArr,
+            returnResponse,
+          ];
+          const warmUpApp = await this.generateNewApp();
+          // @ts-ignore //
+          warmUpApp.get("/__warmup", ...warmUpBuilds);
+          byEndpointsRouter.route("/", warmUpApp);
+
           // for groups
           if (isset(groups) && !empty(groups) && isObject(groups)) {
             const groupKeys = Object.keys(groups);
@@ -694,12 +717,6 @@ class Server {
               }
             }
           }
-          this.app.get(
-            `${routePrefix}${routePrefix == "/" ? "" : "/"}__warmup`,
-            async (c: MyContext) => {
-              return c.text("");
-            }
-          );
           this.app.route(routePrefix, byEndpointsRouter);
         }
       }

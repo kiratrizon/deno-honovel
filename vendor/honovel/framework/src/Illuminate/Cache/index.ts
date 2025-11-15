@@ -18,7 +18,7 @@ import {
 import { RedisManager } from "../Redis/index.ts";
 import { DB, Schema } from "../Support/Facades/index.ts";
 import { Migration } from "../Database/Migrations/index.ts";
-
+import * as path from "node:path";
 import {
   Memcached as MemcachedClient,
   InMemoryCached,
@@ -178,19 +178,29 @@ class FileStore extends AbstractStore {
     }
   ) {
     super();
-    this.prefix = opts.prefix;
+    this.prefix = this.validateFilePath(opts.prefix);
     if (!isset(opts.path) || empty(opts.path) || !isString(opts.path)) {
       throw new Error("FileStore requires a valid path.");
     }
     this.path = opts.path;
   }
 
+  private validateFilePath(filePath: string): string {
+    if (Deno.build.os === "windows") {
+      return filePath.replace(/[:*?"<>|]/g, "_");
+    }
+    return filePath;
+  }
+
   async get(key: string): Promise<any> {
     // Implement logic to retrieve value from file cache
-    const newKey = this.validateKey(key);
+    const newKey = this.validateFilePath(this.validateKey(key));
     await this.init();
     // For example, read from a JSON file or similar
-    const filePath = `${this.path}/${newKey}.cache.json`;
+    const filePath = path.join(
+      path.normalize(this.path),
+      path.normalize(`${newKey}.cache.json`)
+    );
     if (!(await pathExist(filePath))) {
       return null; // Key does not exist
     }
@@ -210,7 +220,7 @@ class FileStore extends AbstractStore {
 
   async put(key: string, value: any, seconds: number): Promise<void> {
     // Implement logic to store value in file cache
-    const newKey = this.validateKey(key);
+    const newKey = this.validateFilePath(this.validateKey(key));
     await this.init();
     // Logic to write value to a file, possibly with expiration logic
     const expiresAt =
@@ -220,15 +230,21 @@ class FileStore extends AbstractStore {
       expiresAt: expiresAt,
     };
 
-    const filePath = `${this.path}/${newKey}.cache.json`;
+    const filePath = path.join(
+      path.normalize(this.path),
+      path.normalize(`${newKey}.cache.json`)
+    );
     writeFile(filePath, jsonEncode(cacheItem));
   }
 
   async forget(key: string): Promise<void> {
     // Implement logic to remove key from file cache
-    const newKey = this.validateKey(key);
+    const newKey = this.validateFilePath(this.validateKey(key));
     await this.init();
-    const filePath = `${this.path}/${newKey}.cache.json`;
+    const filePath = path.join(
+      path.normalize(this.path),
+      path.normalize(`${newKey}.cache.json`)
+    );
     if (await pathExist(filePath)) {
       Deno.removeSync(filePath);
     }
@@ -239,8 +255,14 @@ class FileStore extends AbstractStore {
     await this.init();
     const files = Deno.readDirSync(this.path);
     for (const file of files) {
-      if (file.isFile && file.name.endsWith(".cache.json")) {
-        Deno.removeSync(`${this.path}/${file.name}`);
+      if (
+        file.isFile &&
+        file.name.endsWith(".cache.json") &&
+        file.name.startsWith(this.prefix)
+      ) {
+        Deno.removeSync(
+          path.join(path.normalize(this.path), path.normalize(file.name))
+        );
       }
     }
   }
