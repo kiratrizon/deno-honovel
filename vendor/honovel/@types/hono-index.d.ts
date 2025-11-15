@@ -2,7 +2,7 @@
 
 import HonoClosure from "HonoHttp/HonoClosure.ts";
 import { HttpStatusCodeValue } from "../framework/src/Maneuver/HonovelErrors.ts";
-import IHonoRequest from "../@types/declaration/IHonoRequest.d.ts";
+import HonoRequest from "../framework/src/hono/Http/HonoRequest.d.ts";
 import IHonoResponse from "../@types/declaration/IHonoResponse.d.ts";
 import IHonoView from "../@types/declaration/IHonoView.d.ts";
 import { IConfigure } from "../@types/declaration/MyImports.d.ts";
@@ -61,7 +61,7 @@ declare global {
     /**
      * The HonoRequest object that encapsulates the HTTP request data.
      */
-    get request(): IHonoRequest;
+    get request(): HonoRequest;
     /**
      * Access the constant configuration data.
      * Read and write to the configuration store.

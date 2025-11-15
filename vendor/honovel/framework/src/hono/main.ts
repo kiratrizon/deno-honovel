@@ -25,6 +25,10 @@ import { honoSession } from "HonoHttp/HonoSession.ts";
 import { Route as Router } from "Illuminate/Support/Facades/index.ts";
 const Route = Router as typeof INRoute;
 
+const warmUpdispatch: HttpDispatch = async () => {
+  return response("");
+};
+
 import ChildKernel from "./Support/ChildKernel.ts";
 import GroupRoute from "./Support/GroupRoute.ts";
 import { myError } from "HonoHttp/builder.ts";
@@ -97,7 +101,7 @@ const headFunction: MiddlewareHandler = async (
   if (!request.isMethod("HEAD")) {
     return await myError(c);
   }
-  await next();
+  return await next();
 };
 function domainGroup(
   mainstring: string,
@@ -125,7 +129,7 @@ function domainGroup(
       });
     }
     c.set("subdomain", domainParams);
-    await next();
+    return await next();
   };
 }
 
@@ -188,7 +192,7 @@ const _forDomain: MiddlewareHandler = async (
     return await myError(c);
   }
 
-  await next();
+  return await next();
 };
 
 class Server {
@@ -213,7 +217,7 @@ class Server {
       if (!url.endsWith("__warmup")) {
         await logger()(c, next); // call logger middleware
       } else {
-        await next(); // skip logger
+        return await next(); // skip logger
       }
     };
 
@@ -332,7 +336,7 @@ class Server {
       app.use(...myStaticDefaults);
       app.use("*", async (c: MyContext, next: () => Promise<void>) => {
         c.set("subdomain", {});
-        await next();
+        return await next();
       });
     }
     return app;
@@ -509,6 +513,25 @@ class Server {
               byEndpointsRouter.route("/", newApp);
             }
           }
+
+          const warmUpFallbacks: TFallbackMiddleware[] = [
+            ...globalMiddlewareFallback,
+            ...routeGroupMiddlewareFallback,
+          ];
+          const warmUpFallbacksArr: MiddlewareHandler[] = [];
+          warmUpFallbacks.forEach((fb, index) => {
+            warmUpFallbacksArr.unshift(toFallback([index + 1, fb]));
+          });
+
+          const warmUpBuilds = [
+            toDispatch({ args: warmUpdispatch, debugString: "" }, []),
+            ...warmUpFallbacksArr,
+            returnResponse,
+          ];
+          const warmUpApp = await this.generateNewApp();
+          // @ts-ignore //
+          warmUpApp.get("/__warmup", ...warmUpBuilds);
+          byEndpointsRouter.route("/", warmUpApp);
 
           // for groups
           if (isset(groups) && !empty(groups) && isObject(groups)) {
@@ -694,12 +717,6 @@ class Server {
               }
             }
           }
-          this.app.get(
-            `${routePrefix}${routePrefix == "/" ? "" : "/"}__warmup`,
-            async (c: MyContext) => {
-              return c.text("");
-            }
-          );
           this.app.route(routePrefix, byEndpointsRouter);
         }
       }

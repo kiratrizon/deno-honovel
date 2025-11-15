@@ -25,6 +25,7 @@ import {
 } from "Illuminate/Auth/Middleware/index.ts";
 import RedirectIfAuthenticated from "./Middlewares/RedirectIfAuthenticated.ts";
 import EncryptCookies from "./Middlewares/EncryptCookies.ts";
+import BindContent from "./Middlewares/BindContent.ts";
 
 class Kernel extends HttpKernel {
   protected override middleware = [
@@ -60,6 +61,7 @@ class Kernel extends HttpKernel {
     signed: ValidateSignature,
     throttle: ThrottleRequests,
     verified: EnsureEmailIsVerified,
+    bind_content: BindContent,
   };
 }
 

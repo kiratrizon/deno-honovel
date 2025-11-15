@@ -4,10 +4,12 @@ import ContentController from "App/Http/Controllers/ContentController.ts";
 
 Route.get("/", [HomeController, "index"]);
 
-Route.get("/docs/{content}", [ContentController, "show"]);
+Route.get("/docs/{content}", [ContentController, "show"]).middleware(
+  "bind_content"
+);
 
+// for "deno run -A https://honovel.deno.dev/create-project my-app@latest" setup
 Route.get("/create-project", async ({ request }) => {
-  // for "deno run -A https://honovel.deno.dev/create-project my-app@latest" setup
   return response()
     .file(basePath("vendor/honovel/framework/install.ts"))
     .withHeaders({

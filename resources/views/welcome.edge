@@ -1,2 +1,158 @@
 @layouts.main()
+@slot('content')
+<main class="min-h-screen bg-gray-50 text-gray-900">
+  <!-- Hero -->
+  <section class="relative overflow-hidden">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center py-20">
+        <div class="space-y-6">
+          <h1 class="text-4xl sm:text-5xl font-extrabold leading-tight">
+            Honovel — Build modern web apps with Deno & Hono<span class="text-indigo-600">.</span>
+          </h1>
+          <p class="text-lg sm:text-xl text-gray-600 max-w-xl">
+            A lightweight framework inspired by the ergonomics of Laravel — but powered by Deno, TypeScript, and Hono.
+            Fast dev loops, simple conventions, and Tailwind-first UI.
+          </p>
+
+          <div class="flex flex-wrap gap-3 mt-4">
+            <a href="/docs" class="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 text-white font-medium shadow hover:bg-indigo-700 transition">
+              Get started
+            </a>
+            <a href="/examples" class="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-indigo-200 text-indigo-700 hover:bg-indigo-50 transition">
+              Examples & templates
+            </a>
+          </div>
+
+          <ul class="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm text-gray-500">
+            <li class="flex items-center gap-2">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 font-semibold">✓</span>
+              Zero-config TypeScript
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 font-semibold">✓</span>
+              Native Deno tooling
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 font-semibold">✓</span>
+              Tailwind-first UI
+            </li>
+          </ul>
+        </div>
+
+        <!-- Visual / Screenshot -->
+        <div class="relative">
+          <div class="rounded-2xl shadow-lg overflow-hidden bg-white border border-gray-200">
+            <!-- Placeholder for screenshot or hero image -->
+            <div class="w-full aspect-[16/10] overflow-hidden rounded-xl">
+                <img src="/system-assets/logo/honovel-code.png" alt="App preview" class="w-full h-full object-cover">
+            </div>
+            <div class="p-4 sm:p-6 border-t border-gray-100 text-xs text-gray-500">
+              <span class="font-medium text-gray-700">Honovel</span> • Lightweight starter • Tailwind ready
+            </div>
+          </div>
+
+          <!-- subtle badge -->
+          <div class="absolute -top-3 -left-3 bg-indigo-600 text-white text-xs py-1 px-3 rounded-full shadow-sm">v1.0-alpha</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+    <!-- Features -->
+    <section class="py-16 bg-white">
+        <div class="max-w-7xl mx-auto px-6 lg:px-8">
+            <div class="text-center mb-12">
+            <h2 class="text-3xl font-bold tracking-tight">Why Honovel?</h2>
+            <p class="text-gray-600 mt-3 max-w-2xl mx-auto">
+                Designed for developers who love Laravel's DX — now with the speed of Deno and the elegance of Hono.
+            </p>
+            </div>
+
+            <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            
+            <!-- Feature -->
+            <div class="p-6 bg-gray-50 rounded-2xl border border-gray-200 hover:shadow-md transition">
+                <div class="w-10 h-10 bg-indigo-100 text-indigo-600 flex items-center justify-center rounded-xl font-bold">
+                1
+                </div>
+                <h3 class="mt-4 text-lg font-semibold">Opinionated file structure</h3>
+                <p class="mt-2 text-sm text-gray-600">
+                Clear defaults so you can focus on features instead of configuration.
+                </p>
+            </div>
+
+            <!-- Feature -->
+            <div class="p-6 bg-gray-50 rounded-2xl border border-gray-200 hover:shadow-md transition">
+                <div class="w-10 h-10 bg-indigo-100 text-indigo-600 flex items-center justify-center rounded-xl font-bold">
+                ⚡
+                </div>
+                <h3 class="mt-4 text-lg font-semibold">Fast cold starts</h3>
+                <p class="mt-2 text-sm text-gray-600">
+                Small runtime overhead with native Deno tooling for a snappy dev loop.
+                </p>
+            </div>
+
+            <!-- Feature -->
+            <div class="p-6 bg-gray-50 rounded-2xl border border-gray-200 hover:shadow-md transition">
+                <div class="w-10 h-10 bg-indigo-100 text-indigo-600 flex items-center justify-center rounded-xl font-bold">
+                💅
+                </div>
+                <h3 class="mt-4 text-lg font-semibold">Tailwind-ready UI</h3>
+                <p class="mt-2 text-sm text-gray-600">
+                Starter components built for fast, beautiful interfaces.
+                </p>
+            </div>
+
+            <!-- Feature -->
+            <div class="p-6 bg-gray-50 rounded-2xl border border-gray-200 hover:shadow-md transition">
+                <div class="w-10 h-10 bg-indigo-100 text-indigo-600 flex items-center justify-center rounded-xl font-bold">
+                TS
+                </div>
+                <h3 class="mt-4 text-lg font-semibold">TypeScript everywhere</h3>
+                <p class="mt-2 text-sm text-gray-600">
+                Strong typings so you catch bugs before they reach production.
+                </p>
+            </div>
+
+            <!-- Feature -->
+            <div class="p-6 bg-gray-50 rounded-2xl border border-gray-200 hover:shadow-md transition">
+                <div class="w-10 h-10 bg-indigo-100 text-indigo-600 flex items-center justify-center rounded-xl font-bold">
+                🔌
+                </div>
+                <h3 class="mt-4 text-lg font-semibold">Extensible middleware</h3>
+                <p class="mt-2 text-sm text-gray-600">
+                Use Hono middleware, create your own pipeline, or plug in adapters.
+                </p>
+            </div>
+
+            <!-- Feature -->
+            <div class="p-6 bg-gray-50 rounded-2xl border border-gray-200 hover:shadow-md transition">
+                <div class="w-10 h-10 bg-indigo-100 text-indigo-600 flex items-center justify-center rounded-xl font-bold">
+                ☁️
+                </div>
+                <h3 class="mt-4 text-lg font-semibold">Cloud-friendly</h3>
+                <p class="mt-2 text-sm text-gray-600">
+                Deploy to Deno Deploy, Fly.io, or any server with minimal changes.
+                </p>
+            </div>
+
+            </div>
+        </div>
+    </section>
+
+
+  <!-- CTA / Footer small -->
+  <section class="py-12 bg-gradient-to-b from-white to-gray-50">
+    <div class="max-w-4xl mx-auto px-6 lg:px-8 text-center">
+      <h3 class="text-2xl font-semibold">Ready to build?</h3>
+      <p class="mt-2 text-gray-600">Clone the starter, run the dev server, and scaffold pages the way you like.</p>
+      <div class="mt-6 flex items-center justify-center gap-4">
+        <a href="/getting-started" class="inline-flex items-center px-5 py-3 rounded-full bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition">Getting started</a>
+        <a href="/github" class="inline-flex items-center px-5 py-3 rounded-full border border-indigo-200 text-indigo-700 hover:bg-indigo-50 transition">GitHub</a>
+      </div>
+      <p class="mt-6 text-xs text-gray-400">Made with ❤️ for fast TypeScript-first web apps.</p>
+    </div>
+  </section>
+</main>
+@end
 @endlayouts.main

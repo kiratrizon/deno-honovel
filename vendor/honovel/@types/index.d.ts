@@ -1,4 +1,3 @@
-import { ResponseType } from "axios";
 import { ConfigItems } from "configs/@types/index.d.ts";
 import { Carbon } from "helpers";
 

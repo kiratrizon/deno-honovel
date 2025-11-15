@@ -1,3 +1,175 @@
 @layouts.home()
 
+@slot('article')
+<article class="prose max-w-none">
+
+    <h1 class="text-3xl font-semibold mb-4 text-indigo-700">Routing in Honovel</h1>
+
+    <p class="mb-4 text-gray-600">
+        Honovel uses a simple yet powerful routing system inspired by Laravel. Routes are organized into 
+        <strong>web routes</strong> and <strong>API routes</strong>, keeping your app organized and maintainable.
+    </p>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Route Files</h2>
+    <p class="text-gray-600 mb-4">
+        By default, routes are stored in the <code>routes</code> folder:
+    </p>
+
+    <pre><code>routes/
+├─ web.ts    # Routes for pages, views, and HTML responses
+└─ api.ts    # Routes for JSON APIs and backend endpoints</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Defining a Web Route</h2>
+    <p class="text-gray-600 mb-2">
+        In <code>web.ts</code>, you can define routes using the <code>Route</code> facade:
+    </p>
+
+    <pre><code class="language-ts">import { Route } from "Illuminate/Support/Facades/index.ts";
+
+Route.view("/", "welcome"); // Directly returns the "welcome" view with GET method
+
+// Route example with params
+Route.get("/docs/{content}", async function({request}, content){
+    return content; // Returns the 'content' URL parameter
+});</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Using Controllers</h2>
+    <p class="text-gray-600 mb-2">
+        For cleaner code, move route logic into controllers. Example:
+    </p>
+
+    <pre><code class="language-ts">import HomeController from "App/Http/Controllers/HomeController.ts";
+import ContentController from "App/Http/Controllers/ContentController.ts";
+
+Route.get("/", [HomeController, "index"]);
+Route.get("/docs/{content}", [ContentController, "show"]);</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Available Route Methods</h2>
+    <p class="text-gray-600 mb-4">
+        Honovel’s <code>Route</code> facade supports several methods to define routes, handle multiple HTTP verbs, or group routes:
+    </p>
+
+    <ul class="list-disc list-inside text-gray-600 space-y-2">
+        <li><code class="bg-indigo-50 px-1 rounded">Route.get(path, handler)</code> — Define a GET route.  
+            <strong>Params:</strong>
+            <ul class="list-inside list-decimal ml-4">
+                <li><code>path</code>: URL path, e.g., <code>"/users"</code></li>
+                <li><code>handler</code>: Controller array <code>[UserController, "index"]</code> or an inline/async function</li>
+            </ul>
+        </li>
+        <li><code class="bg-indigo-50 px-1 rounded">Route.post(path, handler)</code> — Define a POST route. Same params as <code>get</code></li>
+        <li><code class="bg-indigo-50 px-1 rounded">Route.put(path, handler)</code> — Define a PUT route for updating resources</li>
+        <li><code class="bg-indigo-50 px-1 rounded">Route.delete(path, handler)</code> — Define a DELETE route</li>
+        <li><code class="bg-indigo-50 px-1 rounded">Route.head(path, handler)</code> — Define a HEAD route (like GET but without response body)</li>
+        <li><code>Route.any(path, handler)</code> — Responds to all HTTP methods</li>
+        <li><code class="bg-indigo-50 px-1 rounded">Route.match(methods, path, handler)</code> — Responds to multiple HTTP methods</li>
+        <li><code class="bg-indigo-50 px-1 rounded">Route.view(path, view)</code> — Directly returns a view without a controller</li>
+        <li><code class="bg-indigo-50 px-1 rounded">Route.group(options, callback)</code> — Group routes with shared prefixes or middleware</li>
+        <li><code class="bg-indigo-50 px-1 rounded">Route.resource(uri, controller)</code> — Creates RESTful resource routes automatically</li>
+    </ul>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Resource Routes Example</h2>
+    <p class="text-gray-600 mb-4">
+        Example: <code>Route.resource("post", PostController)</code> generates the following RESTful routes:
+    </p>
+
+    <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+    <table class="table-auto w-full text-left text-sm text-gray-700 border-collapse">
+        <thead class="bg-indigo-50 text-indigo-800 font-semibold">
+            <tr>
+                <th class="px-4 py-2 border">HTTP Method</th>
+                <th class="px-4 py-2 border">Path</th>
+                <th class="px-4 py-2 border">Controller Method</th>
+                <th class="px-4 py-2 border">Route Name</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white">
+            <tr class="hover:bg-indigo-50">
+                <td class="px-4 py-2 border font-mono text-indigo-600">GET</td>
+                <td class="px-4 py-2 border font-mono">/posts</td>
+                <td class="px-4 py-2 border font-mono text-indigo-700">PostController.index</td>
+                <td class="px-4 py-2 border font-mono text-indigo-500">posts.index</td>
+            </tr>
+            <tr class="hover:bg-indigo-50">
+                <td class="px-4 py-2 border font-mono text-indigo-600">GET</td>
+                <td class="px-4 py-2 border font-mono">/posts/create</td>
+                <td class="px-4 py-2 border font-mono text-indigo-700">PostController.create</td>
+                <td class="px-4 py-2 border font-mono text-indigo-500">posts.create</td>
+            </tr>
+            <tr class="hover:bg-indigo-50">
+                <td class="px-4 py-2 border font-mono text-indigo-600">POST</td>
+                <td class="px-4 py-2 border font-mono">/posts</td>
+                <td class="px-4 py-2 border font-mono text-indigo-700">PostController.store</td>
+                <td class="px-4 py-2 border font-mono text-indigo-500">posts.store</td>
+            </tr>
+            <tr class="hover:bg-indigo-50">
+                <td class="px-4 py-2 border font-mono text-indigo-600">GET</td>
+                <td class="px-4 py-2 border font-mono">/posts/{post}</td>
+                <td class="px-4 py-2 border font-mono text-indigo-700">PostController.show</td>
+                <td class="px-4 py-2 border font-mono text-indigo-500">posts.show</td>
+            </tr>
+            <tr class="hover:bg-indigo-50">
+                <td class="px-4 py-2 border font-mono text-indigo-600">GET</td>
+                <td class="px-4 py-2 border font-mono">/posts/{post}/edit</td>
+                <td class="px-4 py-2 border font-mono text-indigo-700">PostController.edit</td>
+                <td class="px-4 py-2 border font-mono text-indigo-500">posts.edit</td>
+            </tr>
+            <tr class="hover:bg-indigo-50">
+                <td class="px-4 py-2 border font-mono text-indigo-600">PUT/PATCH</td>
+                <td class="px-4 py-2 border font-mono">/posts/{post}</td>
+                <td class="px-4 py-2 border font-mono text-indigo-700">PostController.update</td>
+                <td class="px-4 py-2 border font-mono text-indigo-500">posts.update</td>
+            </tr>
+            <tr class="hover:bg-indigo-50">
+                <td class="px-4 py-2 border font-mono text-indigo-600">DELETE</td>
+                <td class="px-4 py-2 border font-mono">/posts/{post}</td>
+                <td class="px-4 py-2 border font-mono text-indigo-700">PostController.destroy</td>
+                <td class="px-4 py-2 border font-mono text-indigo-500">posts.destroy</td>
+            </tr>
+        </tbody>
+    </table>
+    </div>
+
+    <p class="mt-4 text-gray-600">
+        Notes:
+        <ul class="list-disc list-inside ml-4">
+            <li>Base path is plural (<code>posts</code>)</li>
+            <li>Route parameters are singular (<code>{post}</code>)</li>
+            <li>Route names follow <code>{plural}.{action}</code> convention</li>
+        </ul>
+    </p>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Route Parameters</h2>
+    <p class="mb-4 text-gray-600">
+        Honovel supports dynamic route parameters in your paths. You can define parameters as required or optional:
+    </p>
+
+    <ul class="list-disc list-inside text-gray-600 space-y-2">
+        <li><code>{routeKey}</code> — <strong>Required</strong> parameter.  
+            If the URL does not include this parameter, Honovel automatically executes <code>abort(404)</code>.
+        </li>
+        <li><code>{routeKey?}</code> — <strong>Optional</strong> parameter.  
+            If the URL does not include this parameter, the controller method will receive <code>undefined</code>.
+        </li>
+    </ul>
+
+    <p class="mb-4 text-gray-600">
+        Example route definitions:
+    </p>
+
+<pre><code class="language-ts">Route.get("/users/{id}", [UserController, "show"]);   // 'id' is required
+Route.get("/posts/{slug?}", [PostController, "show"]); // 'slug' is optional</code></pre>
+
+    <p class="mb-4 text-gray-600">
+        In your controller, the parameters are passed as method arguments in order:
+    </p>
+
+<pre><code class="language-ts">public async show({ request }, id: string) {
+    // 'id' contains the value from the URL
+}</code></pre>
+
+
+</article>
+@end
+
 @endlayouts.home

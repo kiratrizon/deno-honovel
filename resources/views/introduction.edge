@@ -1,40 +1,61 @@
 @layouts.home()
 
 @slot('article')
-        <article class="prose max-w-none">
-            <h1 class="text-3xl font-semibold mb-4 text-indigo-700">Introduction</h1>
-            <p class="mb-4 text-gray-600">
-            Welcome to the official documentation of <strong>Honovel Deno</strong> — a lightweight framework inspired by Laravel, 
-            built with <code>Deno</code> and Hono. This guide will help you understand its structure and usage.
-            </p>
+<article class="prose max-w-none">
 
-            <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Quick Start</h2>
-            <p>To create a new Honovel project, run the following command:</p>
+    <h1 class="text-3xl font-semibold mb-4 text-indigo-700">Welcome to Honovel</h1>
 
-            <pre><code>deno run -A https://honovel.deno.dev/create-project &lt;name&gt;@&lt;version&gt;</code></pre>
-            <p>Example Usage:</p>
-            <pre><code>deno run -A https://honovel.deno.dev/create-project myapp@latest</code></pre>
+    <p class="mb-4 text-gray-600">
+        Honovel is a lightweight, modern web framework built with <strong>Deno</strong>, <strong>TypeScript</strong>, and <strong>Hono</strong>.  
+        Inspired by the simplicity and elegance of Laravel, it gives you clear conventions, lightning-fast development loops, and a Tailwind-first UI.
+    </p>
 
-            <p>After creating app, install dependencies and start development:</p>
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Install Deno</h2>
+    <p class="mb-4 text-gray-600">
+        Before diving in, make sure <strong>Deno</strong> is installed on your machine.  
+        Follow the official guide here: <a href="https://docs.deno.com/runtime/getting_started/installation/" target="_blank" class="text-indigo-600 underline">Install Deno</a>.
+    </p>
 
-            <pre><code>cd myapp</code></pre>
-            <pre><code>deno install</code></pre>
-            <pre><code>deno task smelt serve</code></pre>
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Create Your First Honovel App</h2>
+    <p class="mb-2">Scaffold a new project by running:</p>
+    <pre><code>deno run -A https://honovel.deno.dev/create-project myapp@latest</code></pre>
 
-            <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Folder Structure</h2>
-            <pre><code>
+    <p class="mt-2">Then start the development server:</p>
+    <pre><code>cd myapp
+deno install
+deno task smelt serve</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Project Structure</h2>
+    <p class="mb-2 text-gray-600">
+        Honovel organizes your app in a familiar, Laravel-like structure:
+    </p>
+    <pre><code>
 myapp/
 ├─ app/
-│   ├─ Controller/
-│   └─ View/
+│   ├─ Http/
+│   │   ├─ Controllers/
+│   │   └─ Middlewares/
+│   └─ Models/
 ├─ config/
-├─ routes/
+├─ database/
 ├─ public/
-└─ main.ts
-            </code></pre>
+├─ resources/
+├─ routes/
+├─ storage/
+├─ vendor/
+└─ deno.json
+    </code></pre>
 
-            <p class="mt-4">This clean separation makes it easy to manage controllers, views, and configuration — just like Laravel, but in Deno.</p>
-        </article>
+    <p class="mt-4 text-gray-600">
+        This structure keeps your controllers, models, views, and configuration neatly separated — making your app easier to maintain and scale.
+    </p>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Next Steps</h2>
+    <p class="text-gray-600">
+        Explore the documentation to dive into <strong>routing</strong>, <strong>controllers</strong>, <strong>views</strong>, and more — all designed for a fast TypeScript-first workflow.
+    </p>
+
+</article>
 @end
 
 @endlayouts.home
