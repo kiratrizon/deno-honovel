@@ -26,6 +26,7 @@ const inlineConfig: InlineConfig = {
       ],
     },
   },
+  publicDir: "public/assets",
 };
 
 export default inlineConfig;

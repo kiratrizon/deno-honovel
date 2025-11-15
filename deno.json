@@ -77,7 +77,6 @@
       "./vendor/honovel/@types/Built-in-env.d.ts"
     ]
   },
-  "nodeModulesDir": "auto",
   "version": "1.1.4",
   "description": "Welcome to **Honovel Deno** — a Laravel-inspired web framework powered by [Hono](https://hono.dev) and [Deno](https://deno.com).",
   "repository": {

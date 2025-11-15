@@ -17,3 +17,4 @@ node_modules
 /storage/honovel/warmup.json
 /package-lock.json
 /.vite
+/deno.jsonc
