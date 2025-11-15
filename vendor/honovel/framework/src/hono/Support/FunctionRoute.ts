@@ -20,6 +20,7 @@ import HonoRedirect from "HonoHttp/HonoRedirect.ts";
 import { HonoResponse } from "HonoHttp/HonoResponse.ts";
 import MessageBag, { ErrorsShape } from "HonoHttp/MessageBag.ts";
 import { SessionDataTypes } from "../../../../@types/declaration/imain.d.ts";
+import viteConfig from "../../../../../../vite.config.ts";
 
 export const regexObj = {
   number: /^\d+$/,
@@ -1320,21 +1321,31 @@ export async function handleAction(
                 });
               } else {
                 // find the manifest.json under use deno readfile
+
+                const pathOfOutdir = viteConfig.build?.outDir || "public/build";
                 const viteJson = Deno.readTextFileSync(
-                  publicPath("build/.vite/manifest.json")
+                  basePath(`${pathOfOutdir}/.vite/manifest.json`)
                 );
                 try {
                   const manifest = JSON.parse(viteJson);
+                  // remove trailing slash
+                  const staticPath = pathOfOutdir.replace("public/", "");
                   args.forEach((file) => {
                     const entry = manifest[file];
                     if (entry && entry.file) {
-                      if (entry.file.endsWith(".js")) {
+                      if (file.endsWith(".js") || file.endsWith(".ts")) {
+                        const css = entry.css || [];
+                        css.forEach((cssFile: string) => {
+                          buffer.outputRaw(
+                            `<link rel="stylesheet" href="/${staticPath}/${cssFile}">`
+                          );
+                        });
                         buffer.outputRaw(
-                          `<script type="module" src="/build/${entry.file}"></script>`
+                          `<script type="module" src="/${staticPath}/${entry.file}"></script>`
                         );
                       } else if (entry.file.endsWith(".css")) {
                         buffer.outputRaw(
-                          `<link rel="stylesheet" href="/build/${entry.file}">`
+                          `<link rel="stylesheet" href="/${staticPath}/${entry.file}">`
                         );
                       }
                     }

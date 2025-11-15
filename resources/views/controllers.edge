@@ -1,3 +1,122 @@
 @layouts.home()
 
+@slot('article')
+<article class="prose max-w-none">
+
+    <h1 class="text-3xl font-semibold mb-4 text-indigo-700">Controllers in Honovel</h1>
+
+    <p class="mb-4 text-gray-600">
+        Controllers in Honovel handle your application’s request logic. They act as the bridge between routes and your models or views, keeping your code organized and maintainable.  
+        Inspired by Laravel, controllers encourage clean separation of concerns.
+    </p>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Creating a Controller</h2>
+    <p class="mb-4 text-gray-600">
+        You can create a controller manually or use a scaffold command:
+    </p>
+
+    <pre><code>deno task smelt make:controller UserController</code></pre>
+
+    <p class="mb-4 text-gray-600">
+        This generates a file in <code>app/Http/Controllers/UserController.ts</code> with a basic class structure.
+    </p>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Basic Controller Structure</h2>
+    <pre><code class="language-ts">import Controller from "App/Http/Controllers/Controller.ts";
+
+export default class UserController extends Controller {
+    public async index({ request }) {
+        // your logic here
+    }
+}</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Binding Route Parameters</h2>
+    <p class="mb-4 text-gray-600">
+        Honovel does not currently support automatic model binding.  
+        To bind route parameters to models, you need to define them in the <code>SubstituteBindings</code> middleware:
+    </p>
+
+    <pre><code class="language-ts">// vendor/honovel/framework/src/Illuminate/Routing/Middleware/SubstituteBindings.ts
+
+private readonly routerBindings: Record&lt;string, typeof Model&lt;ModelWithAttributes&gt;&gt; = {
+    user: User,   // Maps {user} route parameter to the User model
+    post: Post    // Maps {post} route parameter to the Post model
+};</code></pre>
+
+    <p class="mb-4 text-gray-600">
+        Then, in your controller method, you can type-hint the model when retrieving the parameter:
+    </p>
+
+    <pre><code class="language-ts">public async show({ request }, user: User) {
+    // 'user' is fetched according to the routerBindings mapping
+}</code></pre>
+
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Returning Responses</h2>
+    <p class="mb-4 text-gray-600">
+        In Honovel, you use the global <code>response()</code> function, which returns a <strong>HonoResponseV2</strong> instance.  
+        This allows you to return JSON, HTML, files, downloads, or streams.
+    </p>
+
+    <ul class="list-disc list-inside text-gray-600 space-y-2">
+        <li><strong>JSON:</strong> <code>return response().json({ success: true })</code></li>
+        <li><strong>HTML:</strong> <code>return response().html("&lt;h1&gt;Hello&lt;/h1&gt;")</code></li>
+        <li><strong>File:</strong> <code>return response().file("path/to/file")</code></li>
+        <li><strong>Download:</strong> <code>return response().download("path/to/file", "filename.ext")</code></li>
+        <li><strong>Stream:</strong> <code>return response().stream("path/to/file")</code></li>
+        <li><strong>Status and Headers:</strong> Chainable methods <code>status(code)</code>, <code>header(key, value)</code>, and <code>withHeaders({...})</code> can be used to customize responses.</li>
+    </ul>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Example: Full UserController</h2>
+    <pre><code class="language-ts">import Controller from "App/Http/Controllers/Controller.ts";
+import User from "App/Models/User.ts";
+
+export default class UserController extends Controller {
+    public async index({ request }) {
+        const users = await User.all();
+        return response().json(users);
+    }
+
+    public async show({ request }, id: string) {
+        const user = await User.find(id);
+        if (!user) {
+            return response().status(404).json({ error: "User not found" });
+        }
+        return response().json(user);
+    }
+
+    public async store({ request }) {
+        const data = await request.body().value;
+        const user = await User.create(data);
+        return response().status(201).json(user);
+    }
+
+    public async update({ request }, id: string) {
+        const user = await User.find(id);
+        const data = await request.body().value;
+        await user.update(data);
+        return response().json(user);
+    }
+
+    public async destroy({ request }, id: string) {
+        const user = await User.find(id);
+        await user.delete();
+        return response().json({ success: true });
+    }
+
+    public async downloadReport() {
+        return response().download("storage/reports/report.pdf", "report.pdf");
+    }
+}
+</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Next Steps</h2>
+    <p class="text-gray-600">
+        Pair your controllers with routes to build fully functional pages or APIs.  
+        Advanced topics like <strong>middleware chaining</strong> and <strong>model binding</strong> are covered in their dedicated documentation sections.
+    </p>
+
+</article>
+@end
+
 @endlayouts.home

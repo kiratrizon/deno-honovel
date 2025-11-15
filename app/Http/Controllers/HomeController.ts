@@ -23,7 +23,7 @@ class HomeController extends Controller {
       // @ts-ignore //
       id = content.id!;
     }
-    return view("welcome", { myTabs: newMyTabs, contentId: id });
+    return view("welcome", { myTabs: newMyTabs, contentId: id, title: "Home" });
   };
 }
 

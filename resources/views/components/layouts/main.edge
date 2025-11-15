@@ -7,10 +7,7 @@
     <link rel="icon" type="image/png" href="/system-assets/logo/h.png" />
     <title>{{ $title ?? 'Introduction' }} | {{ env('APP_NAME', 'Honovel Deno') }} Docs</title>
 
-    <!-- Tailwind Play CDN -->
-    <script src="/main/js/jquery.js"></script>
-    <link rel="stylesheet" href="/main/style.css">
-    @vite(['resources/css/app.css'])
+    @vite(['resources/ts/jquery.ts','resources/ts/style.ts'])
 </head>
 
 <body class="bg-gray-50 text-gray-800">

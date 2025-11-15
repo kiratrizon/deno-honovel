@@ -97,7 +97,7 @@ const headFunction: MiddlewareHandler = async (
   if (!request.isMethod("HEAD")) {
     return await myError(c);
   }
-  await next();
+  return await next();
 };
 function domainGroup(
   mainstring: string,
@@ -125,7 +125,7 @@ function domainGroup(
       });
     }
     c.set("subdomain", domainParams);
-    await next();
+    return await next();
   };
 }
 
@@ -188,7 +188,7 @@ const _forDomain: MiddlewareHandler = async (
     return await myError(c);
   }
 
-  await next();
+  return await next();
 };
 
 class Server {
@@ -213,7 +213,7 @@ class Server {
       if (!url.endsWith("__warmup")) {
         await logger()(c, next); // call logger middleware
       } else {
-        await next(); // skip logger
+        return await next(); // skip logger
       }
     };
 
@@ -332,7 +332,7 @@ class Server {
       app.use(...myStaticDefaults);
       app.use("*", async (c: MyContext, next: () => Promise<void>) => {
         c.set("subdomain", {});
-        await next();
+        return await next();
       });
     }
     return app;

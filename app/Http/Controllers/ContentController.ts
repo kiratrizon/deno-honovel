@@ -16,6 +16,9 @@ class ContentController extends Controller {
 
   // GET /resource/{id}
   public show: HttpDispatch = async ({ request }, content: Content) => {
+    if (!(content instanceof Content)) {
+      return redirect("/");
+    }
     if (!content) {
       return redirect("/");
     }
@@ -25,7 +28,7 @@ class ContentController extends Controller {
       }
       return tab;
     });
-    const contents = await Content.orderBy("sort").orderBy("category").get();
+    const contents = await Content.orderBy("sort").get();
     // @ts-ignore //
     return view(content.view, {
       myTabs: newMyTabs,
@@ -33,6 +36,8 @@ class ContentController extends Controller {
       contentId: content.id,
       contents,
       currentContent: content,
+      // @ts-ignore //
+      title: content.title,
     });
   };
 
