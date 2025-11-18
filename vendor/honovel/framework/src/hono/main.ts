@@ -718,17 +718,21 @@ class Server {
               }
             }
           }
+          // @ts-ignore //
           if (Route.fallbackFn) {
             byEndpointsRouter.use(
               // @ts-ignore //
               toNotfound(
                 {
+                  // @ts-ignore //
                   args: Route.fallbackFn,
+                  // @ts-ignore //
                   debugString: Route.fallbackFn.toString(),
                 },
                 []
               )
             );
+            // @ts-ignore //
             Route.fallbackFn = null; // reset after applying
           }
           this.app.route(routePrefix, byEndpointsRouter);
