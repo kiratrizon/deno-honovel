@@ -1,3 +1,40 @@
 @layouts.home()
+@slot('article')
+<h2 class="text-3xl font-semibold mt-12 mb-4 text-indigo-700">Deployment</h2>
 
+<p class="mb-4 text-gray-600">
+    Deploying a <strong>Honovel Deno</strong> application is simple.  
+    You only need to point Deno Deploy to your main entry file.
+</p>
+
+<h3 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Steps for Deployment</h3>
+
+<ol class="list-decimal list-inside text-gray-600 space-y-2 ml-4">
+    <li>Ensure your project contains <code>index.ts</code> as the main entry point.</li>
+    <li>Push your repository to a Git hosting service (GitHub, GitLab, etc.).</li>
+    <li>
+        Go to <a href="https://deno.com/deploy" target="_blank" class="text-indigo-600 underline">Deno Deploy</a>  
+        and create a new project.
+    </li>
+    <li>
+        During setup, set <code>index.ts</code> as the <strong>entrypoint</strong> of your deployment.
+    </li>
+    <li>
+        Configure environment variables in the dashboard, including <code>APP_ENV=production</code>.
+    </li>
+    <li>Your application is now live! Use the provided URL to access it.</li>
+</ol>
+
+<h3 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Tips</h3>
+
+<ul class="list-disc list-inside text-gray-600 space-y-2 ml-4">
+    <li>You don't need to manually run <code>index.ts</code>; Deno Deploy will execute it automatically as the entrypoint.</li>
+    <li>Ensure all dependencies are correctly imported via URLs or vendored.</li>
+    <li>Set any secrets or production environment variables in the dashboard for safety.</li>
+</ul>
+
+<p class="mt-4 text-gray-600">
+    By explicitly setting <code>index.ts</code> as the entrypoint and providing the correct environment variables, your Honovel Deno application can be deployed smoothly.
+</p>
+@end
 @endlayouts.home

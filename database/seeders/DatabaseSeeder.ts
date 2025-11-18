@@ -103,11 +103,11 @@ export default class DatabaseSeeder extends Seeder {
       const instance = await Content.create(content);
       const id = instance.getKey() as number;
 
-      if (contentDetails[id]) {
-        for (const detail of contentDetails[id]) {
-          await ContentDetail.create(detail);
-        }
-      }
+      // if (contentDetails[id]) {
+      //   for (const detail of contentDetails[id]) {
+      //     await ContentDetail.create(detail);
+      //   }
+      // }
     }
   }
 }
