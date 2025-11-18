@@ -16,3 +16,5 @@ Route.get("/create-project", async ({ request }) => {
       "Content-Type": "application/typescript", // Set the appropriate content type for TypeScript files
     });
 });
+
+Route.get("/about", [HomeController, "about"]);

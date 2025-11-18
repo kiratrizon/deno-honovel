@@ -25,6 +25,23 @@ class HomeController extends Controller {
     }
     return view("welcome", { myTabs: newMyTabs, contentId: id, title: "Home" });
   };
+
+  public about: HttpDispatch = async ({ request }) => {
+    const newMyTabs = [...myTabs].map((tab) => {
+      if (tab.href === "/about") {
+        return { ...tab, current: true };
+      }
+      return tab;
+    });
+
+    const content = await Content.orderBy("sort").first();
+    let id = 1;
+    if (content) {
+      // @ts-ignore //
+      id = content.id!;
+    }
+    return view("about", { myTabs: newMyTabs, contentId: id, title: "About" });
+  };
 }
 
 export default HomeController;

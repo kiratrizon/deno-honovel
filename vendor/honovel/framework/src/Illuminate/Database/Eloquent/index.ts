@@ -7,7 +7,7 @@ import { DB } from "../../Support/Facades/index.ts";
 
 export type ModelWithAttributes<
   T extends Record<string, unknown>,
-  C extends new (attr: T) => unknown
+  C extends new (attr: T) => unknown,
 > = (new (...args: ConstructorParameters<C>) => InstanceType<C> & T) & C;
 
 export function schemaKeys<T extends Record<string, unknown>>(
@@ -360,19 +360,14 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     ) => unknown;
   }
 
-  public static on(db?: string): Builder {
+  public static on(db?: string) {
     if (!isset(db)) {
       // @ts-ignore //
       const instanceModel = new this() as Model<ModelAttributes>;
       db = instanceModel.getConnection();
     }
-    return new Builder(
-      {
-        model: this,
-        fields: ["*"],
-      },
-      db
-    ) as Builder<ModelAttributes, typeof Model<ModelAttributes>>;
+
+    return new AfterOn(this, db);
   }
 
   public static async create<Attr extends Record<string, unknown>>(
@@ -385,7 +380,7 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
   }
 
   // Never use this in production code, it's for development CLI only.
-  public static async factory(connection: string): Promise<Factory> {
+  public static async factory(connection?: string): Promise<Factory> {
     if (!isset(this.use)) {
       throw new Error("This model does not support factories.");
     }
@@ -393,7 +388,7 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
       throw new Error("This model does not support factories.");
     }
     if (!isset(connection)) {
-      throw new Error("Connection must be specified for factory.");
+      connection = DB.getDefaultConnection();
     }
     if (!DB.hasConnection(connection)) {
       throw new Error(`Database connection "${connection}" does not exist.`);
@@ -410,6 +405,13 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     // @ts-ignore //
     factory.setConnection(connection);
     return factory as Factory;
+  }
+
+  public static query(): Builder {
+    return new Builder({
+      model: this,
+      fields: ["*"],
+    });
   }
 
   // separated with dot
@@ -429,7 +431,12 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
       arrActionsAndFields.push({ actions, fields });
     });
 
-    return new WithBuilder(this, arrActionsAndFields);
+    return new WithBuilder(
+      {
+        model: this,
+      },
+      arrActionsAndFields
+    );
   }
 
   public static where(column: string, value: unknown): Builder {
@@ -497,6 +504,60 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).whereNotBetween(column, values);
   }
 
+  public static join(table: string, column1: string, column2: string): Builder {
+    return new Builder({
+      model: this,
+      fields: ["*"],
+    }).join(table, column1, column2);
+  }
+
+  public static leftJoin(
+    table: string,
+    column1: string,
+    column2: string
+  ): Builder {
+    return new Builder({
+      model: this,
+      fields: ["*"],
+    }).leftJoin(table, column1, column2);
+  }
+
+  public static rightJoin(
+    table: string,
+    column1: string,
+    column2: string
+  ): Builder {
+    return new Builder({
+      model: this,
+      fields: ["*"],
+    }).rightJoin(table, column1, column2);
+  }
+
+  public static crossJoin(table: string): Builder {
+    return new Builder({
+      model: this,
+      fields: ["*"],
+    }).crossJoin(table);
+  }
+
+  public static fullJoin(
+    table: string,
+    column1: string,
+    column2: string
+  ): Builder {
+    return new Builder({
+      model: this,
+      fields: ["*"],
+    }).fullJoin(table, column1, column2);
+  }
+
+  public static groupBy(...columns: string[]): Builder {
+    return new Builder({
+      model: this,
+      fields: ["*"],
+    }).groupBy(...columns);
+  }
+
   public static orderBy(
     column: string,
     direction: "asc" | "desc" = "asc"
@@ -508,7 +569,7 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
   }
 
   public static async all<
-    T extends Model<ModelAttributes> = Model<ModelAttributes>
+    T extends Model<ModelAttributes> = Model<ModelAttributes>,
   >(): Promise<T[]> {
     return await new Builder({
       model: this,
@@ -526,10 +587,10 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
   }
 
   public static async find<
-    M extends Model<ModelAttributes> = Model<ModelAttributes>
+    M extends Model<ModelAttributes> = Model<ModelAttributes>,
   >(id: string | number): Promise<M | null> {
     // @ts-ignore //
-    const instanceModel = new this() as Model<ModelAttributes>;
+    const instanceModel = new this() as M;
     const primaryKey = instanceModel.getKeyName();
     return (await new Builder({
       model: this,
@@ -540,7 +601,7 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
   }
 
   public static async findOrFail<
-    M extends Model<ModelAttributes> = Model<ModelAttributes>
+    M extends Model<ModelAttributes> = Model<ModelAttributes>,
   >(id: string | number): Promise<M> {
     try {
       const record = await this.find<M>(id);
@@ -574,13 +635,21 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
         delete data[(this.constructor as typeof Model).createdAtColumn];
       }
       // @ts-ignore //
-      await DB.connection(this._connection).update(tableName, data, {
+      await DB.connection(this.getConnection()).update(tableName, data, {
         // @ts-ignore //
         [primaryKey]: this[primaryKey],
       });
     } else {
       // Create new record
-      await DB.connection(this._connection).insert(tableName, data);
+      const newRecord = await DB.connection(this.getConnection()).insert(
+        tableName,
+        data
+      );
+      // get the inserted id
+      this.setAttribute(
+        primaryKey,
+        newRecord.lastInsertRowId as T[typeof primaryKey]
+      );
     }
   }
 
@@ -615,7 +684,7 @@ import { Factory, HasFactory } from "./Factories/index.ts";
 
 export class Builder<
   B extends ModelAttributes = ModelAttributes,
-  T extends typeof Model<B> = typeof Model<B>
+  T extends typeof Model<B> = typeof Model<B>,
 > extends RawBuilder {
   protected model: T;
   constructor(
@@ -640,22 +709,66 @@ export class Builder<
 
   // @ts-ignore //
   public override async get<
-    B extends InstanceType<T> = InstanceType<T>
+    B extends InstanceType<T> = InstanceType<T>,
   >(): Promise<B[]> {
     const data = await super.get();
     // @ts-ignore //
     return data.map((item) => new this.model(item as B));
   }
+
+  with(...modelActions: string[]) {
+    const arrActionsAndFields: Array<{
+      actions: string[];
+      fields: string[][];
+    }> = [];
+    modelActions.forEach((modelAction) => {
+      const separateActions = modelAction.split("."); // ["posts", "comments"]
+      const actionFields = separateActions.map((action) => {
+        const [a, fields = "*"] = action.split(":");
+        return { action: a, fields };
+      });
+      const actions = actionFields.map((item) => item.action);
+      const fields = actionFields.map((item) => item.fields.split(","));
+      arrActionsAndFields.push({ actions, fields });
+    });
+
+    return new WithBuilder(
+      {
+        model: this.model,
+        on: this.dbUsed,
+      },
+      arrActionsAndFields,
+      this
+    );
+  }
 }
 
-class WithBuilder {
+export class WithBuilder {
+  connection: string;
+  private model: typeof Model<ModelAttributes>;
   constructor(
-    private model: typeof Model<ModelAttributes>,
-    private actionsAndFields: { actions: string[]; fields: string[][] }[]
-  ) {}
+    {
+      model,
+      on,
+    }: {
+      model: typeof Model<ModelAttributes>;
+      on?: string;
+    },
+    private actionsAndFields: { actions: string[]; fields: string[][] }[],
+    private builderInstance?: Builder
+  ) {
+    this.model = model;
+    // @ts-ignore //
+    const newModel = new model() as Model<ModelAttributes>;
+    this.connection = on || newModel.getConnection();
+  }
 
   async get() {
-    const allThisData = (await this.model.all()).map((item) => item.toObject());
+    const allThisData = (
+      !this.builderInstance
+        ? await this.model.on(this.connection).all()
+        : await this.builderInstance.get()
+    ).map((item) => item.toObject());
     if (!allThisData.length) return allThisData;
 
     const currentLevel = {
@@ -671,7 +784,11 @@ class WithBuilder {
   }
 
   async first() {
-    const allThisData = (await this.model.first())?.toObject();
+    const allThisData = (
+      !this.builderInstance
+        ? await this.model.on(this.connection).first()
+        : await this.builderInstance.first()
+    )?.toObject();
     if (!allThisData) return null;
     const currentLevel = {
       data: [[allThisData]],
@@ -731,5 +848,241 @@ class WithBuilder {
       currentLevel.data = nextLevel.data;
       currentLevel.model = nextLevel.model;
     }
+  }
+}
+
+class AfterOn {
+  constructor(
+    private model: typeof Model<ModelAttributes>,
+    private connection: string
+  ) {}
+
+  public async create<Attr extends Record<string, unknown>>(attributes?: Attr) {
+    // @ts-ignore //
+    const instance = new this.model(attributes) as Model<ModelAttributes>;
+    await instance.save();
+    return instance;
+  }
+
+  public where(column: string, value: unknown) {
+    return new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    ).where(column, value);
+  }
+
+  public whereIn(column: string, values: unknown[]) {
+    return new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    ).whereIn(column, values);
+  }
+
+  public whereNotIn(column: string, values: unknown[]) {
+    return new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    ).whereNotIn(column, values);
+  }
+
+  public whereNull(column: string) {
+    return new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    ).whereNull(column);
+  }
+
+  public whereNotNull(column: string) {
+    return new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    ).whereNotNull(column);
+  }
+
+  public whereBetween(column: string, values: [unknown, unknown]) {
+    return new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    ).whereBetween(column, values);
+  }
+
+  public whereNotBetween(column: string, values: [unknown, unknown]) {
+    return new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    ).whereNotBetween(column, values);
+  }
+
+  public join(table: string, column1: string, column2: string) {
+    return new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    ).join(table, column1, column2);
+  }
+
+  public leftJoin(table: string, column1: string, column2: string) {
+    return new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    ).leftJoin(table, column1, column2);
+  }
+
+  public rightJoin(table: string, column1: string, column2: string) {
+    return new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    ).rightJoin(table, column1, column2);
+  }
+
+  public crossJoin(table: string) {
+    return new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    ).crossJoin(table);
+  }
+
+  public fullJoin(table: string, column1: string, column2: string) {
+    return new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    ).fullJoin(table, column1, column2);
+  }
+
+  public groupBy(...columns: string[]) {
+    return new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    ).groupBy(...columns);
+  }
+
+  public orderBy(column: string, direction: "asc" | "desc" = "asc") {
+    return new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    ).orderBy(column, direction);
+  }
+
+  public async all<
+    T extends Model<ModelAttributes> = Model<ModelAttributes>,
+  >(): Promise<T[]> {
+    return await new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    ).get<T>();
+  }
+
+  public async first(): Promise<InstanceType<
+    typeof Model<ModelAttributes>
+  > | null> {
+    return await new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    ).first();
+  }
+
+  public async find<M extends Model<ModelAttributes> = Model<ModelAttributes>>(
+    id: string | number
+  ): Promise<M | null> {
+    return (await new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection
+    )
+      .where(
+        // @ts-ignore //
+        new this.model().getKeyName(),
+        id
+      )
+      .first()) as unknown as M;
+  }
+
+  public async findOrFail<
+    M extends Model<ModelAttributes> = Model<ModelAttributes>,
+  >(id: string | number): Promise<M> {
+    try {
+      const record = await this.find<M>(id);
+      if (!record) {
+        throw new Error("Record not found");
+      }
+      return record;
+    } catch (error) {
+      // @ts-ignore //
+      throw new Error(`Failed to find record: ${error.message}`);
+    }
+  }
+
+  public with(...modelActions: string[]) {
+    const arrActionsAndFields: Array<{
+      actions: string[];
+      fields: string[][];
+    }> = [];
+    modelActions.forEach((modelAction) => {
+      const separateActions = modelAction.split("."); // ["posts", "comments"]
+      const actionFields = separateActions.map((action) => {
+        const [a, fields = "*"] = action.split(":");
+        return { action: a, fields };
+      });
+      const actions = actionFields.map((item) => item.action);
+      const fields = actionFields.map((item) => item.fields.split(","));
+      arrActionsAndFields.push({ actions, fields });
+    });
+
+    return new WithBuilder(
+      {
+        model: this.model,
+        on: this.connection,
+      },
+      arrActionsAndFields
+    );
   }
 }

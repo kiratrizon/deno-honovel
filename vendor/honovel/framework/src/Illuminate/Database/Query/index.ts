@@ -1,5 +1,4 @@
 import { Database } from "Database";
-import { SupportedDrivers } from "configs/@types/index.d.ts";
 import { DB } from "../../Support/Facades/index.ts";
 
 export class SQLError extends Error {
@@ -67,7 +66,7 @@ export class WhereInterpolator {
     ...args: [
       string | ((qb: WhereInterpolator) => void),
       (WhereOperator | WherePrimitive)?,
-      WherePrimitive?
+      WherePrimitive?,
     ]
   ): this {
     this.whereProcess("AND", ...args);
@@ -86,7 +85,7 @@ export class WhereInterpolator {
     ...args: [
       string | ((qb: WhereInterpolator) => void),
       (WhereOperator | WherePrimitive)?,
-      WherePrimitive?
+      WherePrimitive?,
     ]
   ): this {
     this.whereProcess("OR", ...args);
@@ -104,7 +103,7 @@ export class WhereInterpolator {
     ...args: [
       string | ((qb: WhereInterpolator) => void),
       (WhereOperator | WherePrimitive)?,
-      WherePrimitive?
+      WherePrimitive?,
     ]
   ): void {
     let [columnOrFn, operatorOrValue, valueArg] = args;
@@ -469,7 +468,7 @@ export class Builder extends WhereInterpolator {
       table: sqlstring;
       fields?: sqlstring[];
     },
-    private dbUsed: string = DB.getDefaultConnection()
+    protected dbUsed: string = DB.getDefaultConnection()
   ) {
     super(dbUsed);
     this.table = this.extract(table);
@@ -501,7 +500,7 @@ export class Builder extends WhereInterpolator {
       sqlstring,
       string | ((join: JoinInterpolator) => void),
       (string | WhereOperator)?,
-      string?
+      string?,
     ]
   ): this {
     const joinT = this.#returnJoinRaw("INNER", ...args);
@@ -535,7 +534,7 @@ export class Builder extends WhereInterpolator {
       string,
       string | ((join: JoinInterpolator) => void),
       (string | WhereOperator)?,
-      string?
+      string?,
     ]
   ): this {
     const joinT = this.#returnJoinRaw("LEFT", ...args);
@@ -568,7 +567,7 @@ export class Builder extends WhereInterpolator {
       string,
       string | ((join: JoinInterpolator) => void),
       (string | WhereOperator)?,
-      string?
+      string?,
     ]
   ): this {
     const joinT = this.#returnJoinRaw("RIGHT", ...args);
@@ -601,7 +600,7 @@ export class Builder extends WhereInterpolator {
       string,
       string | ((join: JoinInterpolator) => void),
       (string | WhereOperator)?,
-      string?
+      string?,
     ]
   ): this {
     const joinT = this.#returnJoinRaw("FULL", ...args);
@@ -702,7 +701,7 @@ export class Builder extends WhereInterpolator {
       string,
       string | ((join: JoinInterpolator) => void),
       (string | WhereOperator)?,
-      string?
+      string?,
     ]
   ): this {
     if (!(subQuery instanceof Builder)) {
@@ -749,7 +748,7 @@ export class Builder extends WhereInterpolator {
       string,
       string | ((join: JoinInterpolator) => void),
       (string | WhereOperator)?,
-      string?
+      string?,
     ]
   ): this {
     if (!(subQuery instanceof Builder)) {
@@ -796,7 +795,7 @@ export class Builder extends WhereInterpolator {
       string,
       string | ((join: JoinInterpolator) => void),
       (string | WhereOperator)?,
-      string?
+      string?,
     ]
   ): this {
     if (!(subQuery instanceof Builder)) {
@@ -843,7 +842,7 @@ export class Builder extends WhereInterpolator {
       string,
       string | ((join: JoinInterpolator) => void),
       (string | WhereOperator)?,
-      string?
+      string?,
     ]
   ): this {
     if (!(subQuery instanceof Builder)) {
@@ -1191,7 +1190,7 @@ export class Builder extends WhereInterpolator {
       sqlstring,
       string | ((join: JoinInterpolator) => void),
       (string | WhereOperator)?,
-      string?
+      string?,
     ]
   ): [string, false | number] | false {
     const [table, firstOrFn, operatorOrSecond, second] = args;
@@ -1231,7 +1230,7 @@ export class Builder extends WhereInterpolator {
       sqlstring,
       string | ((join: JoinInterpolator) => void),
       (string | WhereOperator)?,
-      string?
+      string?,
     ]
   ): [string, false | number] | false {
     const [table, firstOrFn, operatorOrSecond, second] = args;

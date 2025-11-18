@@ -1,3 +1,103 @@
 @layouts.home()
+@slot('article')
+<h2 class="text-3xl font-semibold mt-12 mb-4 text-indigo-700">Honovel CLI</h2>
 
+<p class="mb-4 text-gray-600">
+    Honovel ships with a powerful CLI inspired by Laravel’s Artisan and Deno’s task runner.
+    You will use it to generate files, run migrations, manage the application, and automate
+    development tasks. All commands are executed using:
+</p>
+
+<pre><code>deno task smelt &lt;command&gt;</code></pre>
+
+<p class="mb-6 text-gray-600">Below is a guide to all available CLI commands and how developers should use them.</p>
+
+<h3 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Configuration & App Management</h3>
+
+<ul class="list-disc list-inside text-gray-600 space-y-2">
+    <li><code>key:generate</code> — Creates a new <code>APP_KEY</code>.  
+        Options:  
+        <ul class="ml-4 list-disc">
+            <li><code>--force</code> Overwrite existing APP_KEY</li>
+            <li><code>--env=&lt;name&gt;</code> Generate key for a specific environment</li>
+        </ul>
+    </li>
+
+    <li><code>make:config &lt;name&gt;</code> — Generates a config file.  
+        Optional: <code>--force</code></li>
+
+    <li><code>publish:config</code> — Builds and publishes config files to <code>config/build</code>.</li>
+
+    <li><code>serve</code> — Start the Honovel server.  
+        Options:  
+        <ul class="ml-4 list-disc">
+            <li><code>--port</code> Set port</li>
+            <li><code>--host</code> Set host</li>
+        </ul>
+    </li>
+</ul>
+
+<h3 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Maintenance Mode</h3>
+
+<ul class="list-disc list-inside text-gray-600 space-y-2">
+    <li><code>down</code> — Put the app in maintenance mode.  
+        Supports message, redirects, retry-after headers, allowed IPs, and secret keys.</li>
+
+    <li><code>up</code> — Bring the app back online.</li>
+</ul>
+
+<h3 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Generators</h3>
+
+<p class="mb-3 text-gray-600">These commands quickly scaffold parts of your application:</p>
+
+<ul class="list-disc list-inside text-gray-600 space-y-2">
+    <li><code>make:controller &lt;name&gt;</code> — Create a controller.  
+        Option: <code>--resource</code></li>
+
+    <li><code>make:model &lt;name&gt;</code> — Create a model.  
+        Options:  
+        <ul class="ml-4 list-disc">
+            <li><code>--migration</code> Also generate a migration</li>
+            <li><code>--factory</code> Also generate a factory</li>
+            <li><code>--controller</code> Also generate a controller</li>
+            <li><code>--resource</code> Make the controller resourceful</li>
+            <li><code>--all</code> Generate all supporting files</li>
+        </ul>
+    </li>
+
+    <li><code>make:migration &lt;name&gt;</code> — Create a migration file.</li>
+
+    <li><code>make:factory &lt;name&gt;</code> — Create a factory.  
+        Option: <code>--model=&lt;Model&gt;</code></li>
+
+    <li><code>make:middleware &lt;name&gt;</code></li>
+
+    <li><code>make:provider &lt;name&gt;</code></li>
+
+    <li><code>make:view &lt;name&gt;</code></li>
+
+    <li><code>make:seeder &lt;name&gt;</code></li>
+</ul>
+
+<h3 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Database Commands</h3>
+
+<ul class="list-disc list-inside text-gray-600 space-y-2">
+    <li><code>migrate</code> — Run all pending migrations.  
+        Options: <code>--seed</code>, <code>--path</code>, <code>--db</code>, <code>--force</code>, <code>--seeder</code></li>
+
+    <li><code>migrate:fresh</code> — Drop all tables & run migrations from scratch.  
+        Same options as <code>migrate</code>.</li>
+
+    <li><code>migrate:refresh</code> — Rollback and rerun all migrations.</li>
+
+    <li><code>db:seed</code> — Run database seeders.  
+        Options: <code>--class</code>, <code>--database</code></li>
+</ul>
+
+<p class="mt-4 text-gray-600">
+    Every command is designed to behave just like Laravel’s Artisan, but built in TypeScript and powered by Deno.
+    As the framework grows, additional generators and tools can be added directly to the Honovel CLI.
+</p>
+
+@end
 @endlayouts.home

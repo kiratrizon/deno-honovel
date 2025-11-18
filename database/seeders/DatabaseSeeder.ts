@@ -1,5 +1,7 @@
 import Seeder from "Illuminate/Database/Seeder.ts";
-import User from "App/Models/User.ts";
+import ContentDetail, {
+  ContentDetailSchema,
+} from "App/Models/ContentDetail.ts";
 import Project from "App/Models/Project.ts";
 import Content, { ContentSchema } from "App/Models/Content.ts";
 
@@ -47,13 +49,6 @@ export default class DatabaseSeeder extends Seeder {
         category: 1,
       },
       {
-        title: "Views",
-        description: "Render templates with support for Blade-like syntax.",
-        view: "views",
-        sort: 5,
-        category: 1,
-      },
-      {
         title: "Models",
         description:
           "Manage your data layer with database connections and ORM-like helpers.",
@@ -78,8 +73,41 @@ export default class DatabaseSeeder extends Seeder {
       },
     ];
 
+    const contentDetails: Record<number, ContentDetailSchema[]> = {
+      1: [
+        {
+          content_id: 1,
+          sub_title: "Install Deno",
+          sub_url: "install-deno",
+        },
+        {
+          content_id: 1,
+          sub_title: "Create Your First Honovel App",
+          sub_url: "create-your-first-honovel-app",
+        },
+        {
+          content_id: 1,
+          sub_title: "Project Structure",
+          sub_url: "project-structure",
+        },
+        {
+          content_id: 1,
+          sub_title: "Next Steps",
+          sub_url: "next-steps",
+        },
+      ],
+      2: [{ content_id: 2, sub_title: "Route Files", sub_url: "route-files" }],
+    };
+
     for (const content of contents) {
-      await Content.create(content);
+      const instance = await Content.create(content);
+      const id = instance.getKey() as number;
+
+      if (contentDetails[id]) {
+        for (const detail of contentDetails[id]) {
+          await ContentDetail.create(detail);
+        }
+      }
     }
   }
 }

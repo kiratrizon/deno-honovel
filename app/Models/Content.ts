@@ -1,5 +1,6 @@
 import { Model } from "Illuminate/Database/Eloquent/index.ts";
 import { HasFactory } from "Illuminate/Database/Eloquent/Factories/index.ts";
+import ContentDetail from "./ContentDetail.ts";
 
 export type ContentSchema = {
   id?: number;
@@ -22,6 +23,10 @@ class Content extends Model<ContentSchema> {
   protected static override use = {
     HasFactory,
   };
+
+  public contentDetails() {
+    return this.hasMany(ContentDetail, "content_id");
+  }
 }
 
 export default Content;

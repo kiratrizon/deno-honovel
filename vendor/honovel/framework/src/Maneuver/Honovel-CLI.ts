@@ -158,6 +158,7 @@ class MyArtisan {
     force: boolean;
     seeder?: string;
   }) {
+    config({ key: "database.default", value: options.db });
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
     }
@@ -203,6 +204,7 @@ class MyArtisan {
     force: boolean;
     seeder?: string;
   }) {
+    config({ key: "database.default", value: options.db });
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
     }
@@ -249,6 +251,7 @@ class MyArtisan {
     force: boolean;
     seeder?: string;
   }) {
+    config({ key: "database.default", value: options.db });
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
     }
@@ -359,9 +362,9 @@ class MyArtisan {
     const dbType = DB.connection(connection).getDriverName();
     switch (dbType) {
       case "mysql": {
-        const result = await DB.connection(dbType).select(
+        const result = await DB.connection(connection).select(
           `SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND table_type = 'BASE TABLE'`,
-          [config("database.connections.mysql.database")]
+          [config(`database.connections.${connection}.database`)]
         );
         tables = result.map((row) => `\`${row.TABLE_NAME}\``);
         break;

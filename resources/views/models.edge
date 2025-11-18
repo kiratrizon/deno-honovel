@@ -1,3 +1,80 @@
 @layouts.home()
 
+@slot('article')
+<article class="prose max-w-none">
+
+    <h1 class="text-3xl font-semibold mb-4 text-indigo-700">Models in Honovel</h1>
+
+    <p class="mb-4 text-gray-600">
+        Models represent your application’s data structure and interact with the database.  
+        Honovel models are inspired by Laravel’s Eloquent, supporting relationships, querying, and data manipulation.
+    </p>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Creating a Model</h2>
+    <p class="text-gray-600 mb-4">
+        Use the CLI to generate a model:
+    </p>
+
+    <pre><code>deno task make:model User</code></pre>
+
+    <p class="text-gray-600 mb-4">
+        Optional flags:
+    </p>
+
+    <ul class="list-disc list-inside text-gray-600 space-y-2 ml-4">
+        <li><code>--migration</code> — Generate a migration file along with the model</li>
+        <li><code>--factory</code> — Generate a factory for the model</li>
+        <li><code>--controller</code> — Generate a controller</li>
+        <li><code>--resource</code> — Make the controller resourceful</li>
+        <li><code>--all</code> — Generate migration, factory, and controller</li>
+    </ul>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Defining a Model</h2>
+    <p class="text-gray-600 mb-4">
+        Example <code>User</code> model in <code>App/Models/User.ts</code>:
+    </p>
+
+    <pre><code class="language-ts">import { Model } from "Illuminate/Database/Eloquent/Model.ts";
+
+export default class User extends Model {
+    static table = "users"; // specify table if different from class name
+    static fillable = ["name", "email", "password"]; // mass assignable fields
+}</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Relationships</h2>
+    <p class="text-gray-600 mb-4">
+        Models can define relationships:
+    </p>
+
+    <pre><code class="language-ts">import Post from "./Post.ts";
+
+export default class User extends Model {
+    posts() {
+        return this.hasMany(Post); // One-to-Many
+    }
+
+    roles() {
+        return this.belongsToMany(Role); // Many-to-Many
+    }
+}</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Querying Models</h2>
+    <p class="text-gray-600 mb-4">
+        You can use the model to query the database:
+    </p>
+
+    <pre><code class="language-ts">const users = await User.where("active", true).get();
+const user = await User.find(1);
+const newUser = await User.create({ name: "Alice", email: "alice@example.com" });</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Summary</h2>
+    <ul class="list-disc list-inside text-gray-600 space-y-2 ml-4">
+        <li>Models are your primary way to interact with the database.</li>
+        <li>Relationships allow you to express complex data structures.</li>
+        <li>The CLI can generate models, migrations, factories, and controllers in one go.</li>
+    </ul>
+
+</article>
+@end
+
 @endlayouts.home

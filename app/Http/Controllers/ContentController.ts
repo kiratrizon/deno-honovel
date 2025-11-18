@@ -1,5 +1,6 @@
 import Controller from "App/Http/Controllers/Controller.ts";
 import Content from "../../Models/Content.ts";
+import ContentDetail from "../../Models/ContentDetail.ts";
 const myTabs = [
   { name: "Home", href: "/", current: false },
   { name: "Documentation", href: "/docs", current: false },
@@ -22,6 +23,10 @@ class ContentController extends Controller {
     if (!content) {
       return redirect("/");
     }
+    const contentDetails = await ContentDetail.where(
+      "content_id",
+      content.id
+    ).get();
     const newMyTabs = [...myTabs].map((tab) => {
       if (tab.href === "/docs") {
         return { ...tab, current: true };
@@ -38,6 +43,7 @@ class ContentController extends Controller {
       currentContent: content,
       // @ts-ignore //
       title: content.title,
+      contentDetails,
     });
   };
 

@@ -6,17 +6,10 @@ export type ContentDetailSchema = {
   content_id: number;
   sub_url: string;
   sub_title: string;
-  contents: string;
-  sort: number;
 };
 
 class ContentDetail extends Model<ContentDetailSchema> {
-  protected static override _fillable = [
-    "content_id",
-    "sub_url",
-    "sub_title",
-    "contents",
-  ];
+  protected static override _fillable = ["content_id", "sub_url", "sub_title"];
 
   protected static override use = {
     HasFactory,

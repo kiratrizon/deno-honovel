@@ -590,140 +590,172 @@ export function toDispatch(
   return generateMiddlewareOrDispatch("dispatch", objArgs, sequenceParams);
 }
 
+export function toNotfound(
+  objArgs: MiddlewareOrDispatch,
+  sequenceParams: string[]
+): MiddlewareHandler {
+  objArgs.from = "notfound";
+  return generateMiddlewareOrDispatch("notfound", objArgs, sequenceParams);
+}
+
 interface MiddlewareOrDispatch {
   debugString: string;
   args: HttpMiddleware | IMyConfig["callback"];
-  from?: "handle" | "fallback" | "dispatch";
+  from?: "handle" | "fallback" | "dispatch" | "notfound";
 }
 function generateMiddlewareOrDispatch(
-  type: "middleware" | "dispatch",
+  type: "middleware" | "dispatch" | "notfound",
   objArgs: MiddlewareOrDispatch,
   sequenceParams: string[] = []
 ): MiddlewareHandler {
-  const from = objArgs.from;
-  return async (c: MyContext, next: () => Promise<void>) => {
-    if (c.get("stopMiddleware") === true) {
-      return await next();
-    }
-    const myHono = c.get("myHono");
-    const request = myHono.request;
-    let middlewareResp;
-    // @ts-ignore //
-    request.resetRoute({
-      ...c.get("subdomain"),
-      ...c.req.param(),
-    });
-
-    const { args, debugString } = objArgs;
-    if (!isFunction(args)) {
-      return await myError(c);
-    } else {
-      let resp: Response | undefined; // build response
-      let isNext = false;
-      try {
-        if (type === "middleware") {
-          const honoClosure = c.get("honoClosure");
-          middlewareResp = await (args as HttpMiddleware)(
-            myHono,
-            // @ts-ignore //
-            honoClosure.next.bind(honoClosure),
-            ...sequenceParams
-          );
-        } else {
-          const params = request.route() as Record<string, string | null>;
-          const newParams: Record<
-            string,
-            Model<ModelAttributes> | string | null
-          > = {};
-          sequenceParams.forEach((param) => {
-            if (keyExist(params, param)) {
-              newParams[param] = params[param] ?? null;
-            } else {
-              newParams[param] = null;
-            }
-          });
-          // @ts-ignore //
-          const bindedModels = request.bindedModels as Record<
-            string,
-            typeof Model<ModelAttributes>
-          >;
-          for (const paramKey of Object.keys(newParams)) {
-            if (keyExist(bindedModels, paramKey)) {
-              const modelClass = bindedModels[paramKey];
-              if (!isNull(newParams[paramKey])) {
-                try {
-                  newParams[paramKey] = await modelClass.findOrFail(
-                    newParams[paramKey] as string
-                  );
-                  continue;
-                } catch (_e: unknown) {
-                  abort(404, (_e as Error).message);
-                }
-              }
-              abort(404);
-            }
-          }
-          middlewareResp = await args(myHono, ...Object.values(newParams));
-        }
-        if (isNull(middlewareResp) && type === "dispatch") {
-          resp = c.json(null);
-        } else {
-          const dispatch = new HonoDispatch(middlewareResp, type);
-          if (
-            (type === "middleware" && !dispatch.isNext) ||
-            type === "dispatch"
-          ) {
-            const result = (await dispatch.build(c)) as Response;
-            resp = result;
-          } else if (type === "middleware" && dispatch.isNext) {
-            isNext = true;
-          }
-        }
-      } catch (e: unknown) {
-        resp = await handleErrors(e, c, request);
-      }
-      if (!isUndefined(middlewareResp)) {
-        if (isNext) {
-          if (from === "handle" && c.get("response") === null) {
-            // increment fromHandle
-            c.set("fromHandle", c.get("fromHandle") + 1);
-          }
-          return await next();
-        }
-      }
-      if (isset(resp)) {
-        c.set("response", resp);
-        c.set("stopMiddleware", true);
+  if (type !== "notfound") {
+    const from = objArgs.from;
+    return async (c: MyContext, next: () => Promise<void>) => {
+      if (c.get("stopMiddleware") === true) {
         return await next();
-      } else {
-        if (["dispatch"].includes(type)) {
-          // @ts-ignore //
-          type = "route";
-        }
-        const debuggingPurpose = renderDebugErrorPage(
-          `${ucFirst(type)} Error`,
-          debugString,
-          `Returned undefined value from the ${type} function.`
-        );
-        if (!isset(env("DENO_DEPLOYMENT_ID"))) {
-          return c.html(debuggingPurpose, 500);
-        }
-        consoledeno.debug(
-          debuggingPurpose,
-          "error",
-          `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-            "HTTP_X_REQUEST_ID"
-          )}`
-        );
-        return c.json(
-          {
-            message: "Internal server error",
-          },
-          500
-        );
       }
-    }
-  };
+      const myHono = c.get("myHono");
+      const request = myHono.request;
+      let middlewareResp;
+      // @ts-ignore //
+      request.resetRoute({
+        ...c.get("subdomain"),
+        ...c.req.param(),
+      });
+
+      const { args, debugString } = objArgs;
+      if (!isFunction(args)) {
+        return await myError(c);
+      } else {
+        let resp: Response | undefined; // build response
+        let isNext = false;
+        try {
+          if (type === "middleware") {
+            const honoClosure = c.get("honoClosure");
+            middlewareResp = await (args as HttpMiddleware)(
+              myHono,
+              // @ts-ignore //
+              honoClosure.next.bind(honoClosure),
+              ...sequenceParams
+            );
+          } else {
+            const params = request.route() as Record<string, string | null>;
+            const newParams: Record<
+              string,
+              Model<ModelAttributes> | string | null
+            > = {};
+            sequenceParams.forEach((param) => {
+              if (keyExist(params, param)) {
+                newParams[param] = params[param] ?? null;
+              } else {
+                newParams[param] = null;
+              }
+            });
+            // @ts-ignore //
+            const bindedModels = request.bindedModels as Record<
+              string,
+              typeof Model<ModelAttributes>
+            >;
+            for (const paramKey of Object.keys(newParams)) {
+              if (keyExist(bindedModels, paramKey)) {
+                const modelClass = bindedModels[paramKey];
+                if (!isNull(newParams[paramKey])) {
+                  try {
+                    newParams[paramKey] = await modelClass.findOrFail(
+                      newParams[paramKey] as string
+                    );
+                    continue;
+                  } catch (_e: unknown) {
+                    abort(404, (_e as Error).message);
+                  }
+                }
+                abort(404);
+              }
+            }
+            middlewareResp = await args(myHono, ...Object.values(newParams));
+          }
+          if (isNull(middlewareResp) && type === "dispatch") {
+            resp = c.json(null);
+          } else {
+            // @ts-ignore //
+            const dispatch = new HonoDispatch(middlewareResp, type);
+            if (
+              (type === "middleware" && !dispatch.isNext) ||
+              type === "dispatch"
+            ) {
+              const result = (await dispatch.build(c)) as Response;
+              resp = result;
+            } else if (type === "middleware" && dispatch.isNext) {
+              isNext = true;
+            }
+          }
+        } catch (e: unknown) {
+          resp = await handleErrors(e, c, request);
+        }
+        if (!isUndefined(middlewareResp)) {
+          if (isNext) {
+            if (from === "handle" && c.get("response") === null) {
+              // increment fromHandle
+              c.set("fromHandle", c.get("fromHandle") + 1);
+            }
+            return await next();
+          }
+        }
+        if (isset(resp)) {
+          c.set("response", resp);
+          c.set("stopMiddleware", true);
+          return await next();
+        } else {
+          if (["dispatch"].includes(type)) {
+            // @ts-ignore //
+            type = "route";
+          }
+          const debuggingPurpose = renderDebugErrorPage(
+            `${ucFirst(type)} Error`,
+            debugString,
+            `Returned undefined value from the ${type} function.`
+          );
+          if (!isset(env("DENO_DEPLOYMENT_ID"))) {
+            return c.html(debuggingPurpose, 500);
+          }
+          consoledeno.debug(
+            debuggingPurpose,
+            "error",
+            `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(
+              "HTTP_X_REQUEST_ID"
+            )}`
+          );
+          return c.json(
+            {
+              message: "Internal server error",
+            },
+            500
+          );
+        }
+      }
+    };
+  } else {
+    return async (c: MyContext) => {
+      const myHono = c.get("myHono");
+      const request = myHono.request;
+      const func = objArgs.args as IMyConfig["callback"];
+      let respond: Response;
+      try {
+        // @ts-ignore //
+        const resp = await func(myHono);
+        // @ts-ignore //
+        const dispatch = new HonoDispatch(resp, type);
+        respond = (await dispatch.build(c)) as Response;
+      } catch (e: unknown) {
+        respond = await handleErrors(e, c, request);
+      }
+
+      return new Response(respond.body, {
+        status: 404,
+        headers: respond.headers,
+      });
+    };
+  }
 }
 
 export function toFallback([count, fallbackParams]: [

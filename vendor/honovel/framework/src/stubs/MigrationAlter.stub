@@ -7,8 +7,7 @@ export default new (class extends Migration {
     await Schema.table("{{ TableName }}", (table: Blueprint) => {
         // alter logic
 
-      },
-      this.connection
+      }
     );
   }
 
@@ -16,8 +15,7 @@ export default new (class extends Migration {
     await Schema.table("{{ TableName }}", (table: Blueprint) => {
         // reverse alter logic
         
-      },
-      this.connection
+      }
     );
   }
 })();

@@ -10,12 +10,11 @@ export default new (class extends Migration {
         table.string("email").unique().nullable();
         table.string("password").nullable();
         table.timestamps();
-      },
-      this.connection
+      }
     );
   }
 
   public async down() {
-    await Schema.dropIfExists("{{ TableName }}", this.connection);
+    await Schema.dropIfExists("{{ TableName }}");
   }
 })();

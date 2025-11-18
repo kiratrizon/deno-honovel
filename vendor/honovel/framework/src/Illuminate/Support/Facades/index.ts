@@ -74,10 +74,9 @@ export class Schema {
   public static async create(
     table: string,
     callback: (blueprint: Blueprint) => void,
-    connection: string
+    connection?: string
   ): Promise<void> {
-    const driver = config("database").connections[connection]
-      .driver as SupportedDrivers;
+    const driver = DB.connection(connection).getDriverName();
     this.validateDB(driver);
     const blueprint = new Blueprint(table, driver);
     callback(blueprint);
@@ -92,10 +91,9 @@ export class Schema {
 
   public static async hasTable(
     table: string,
-    connection: string
+    connection?: string
   ): Promise<boolean> {
-    const driver = config("database").connections[connection]
-      .driver as SupportedDrivers;
+    const driver = DB.connection(connection).getDriverName();
     this.validateDB(driver);
     let query = "";
 
@@ -135,10 +133,9 @@ export class Schema {
 
   public static async dropIfExists(
     table: string,
-    connection: string
+    connection?: string
   ): Promise<void> {
-    const driver = config("database").connections[connection]
-      .driver as SupportedDrivers;
+    const driver = DB.connection(connection).getDriverName();
     this.validateDB(driver);
 
     let sql: string;
@@ -164,10 +161,9 @@ export class Schema {
   public static async table(
     table: string,
     callback: (blueprint: Blueprint) => void,
-    connection: string
+    connection?: string
   ): Promise<void> {
-    const driver = config("database").connections[connection]
-      .driver as SupportedDrivers;
+    const driver = DB.connection(connection).getDriverName();
     this.validateDB(driver);
     const blueprint = new Blueprint(table, driver);
     callback(blueprint);
@@ -561,6 +557,7 @@ type KeysWithICallback<T> = {
   [P in keyof T]: T[P] extends ICallback ? P : unknown;
 }[keyof T];
 
+import HttpHono from "../../../hono/Http/HttpHono.ts";
 class MyRoute {
   private static routeId = 0;
   private static resourceId = 0;
@@ -865,6 +862,13 @@ class MyRoute {
       return this.methodPreference[String(id)];
     }
     return null;
+  }
+
+  private static fallbackFn: ((param: HttpHono) => Promise<void>) | null = null;
+  public static fallback(fn: (param: HttpHono) => Promise<void>): void {
+    if (!this.fallbackFn && isFunction(fn) && empty(this.groupPreference)) {
+      this.fallbackFn = fn;
+    }
   }
 }
 

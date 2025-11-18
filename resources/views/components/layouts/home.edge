@@ -1,6 +1,14 @@
 @layouts.main()
 
 @slot('content')
+<style>
+    html {
+        scroll-padding-top: 3.5rem; /* adjust based on header height */
+        scroll-behavior: smooth;
+    }
+
+</style>
+
     <!-- Layout -->
     <div class="flex mt-14">
         <!-- Sidebar -->
@@ -14,13 +22,15 @@
                         </a>
                         
                         <!-- Sub-items as nested UL -->
-                        @if($contentId == $content.id)
+                        @if(!empty($contentDetails) && $contentId == $content.id)
                             <ul class="pl-4 mt-1 space-y-1 text-gray-600">
-                                <li>
-                                    <a href="#" class="block px-2 py-1 rounded hover:bg-gray-50 active">
-                                        Test
-                                    </a>
-                                </li>
+                                @each($detail in $contentDetails)
+                                    <li>
+                                        <a href="/docs/{{ $content.id }}#{{ $detail.sub_url }}" class="block px-2 py-1 rounded hover:bg-gray-100 text-sm">
+                                            {{ $detail.sub_title }}
+                                        </a>
+                                    </li>
+                                @end
                             </ul>
                         @end
                     @endif
@@ -34,7 +44,21 @@
                         <a href="/docs/{{ $content.id }}" class="block px-3 py-2 rounded hover:bg-gray-50 {{ $contentId == $content.id ? 'active' : '' }}">
                             {{ $content.title }}
                         </a>
+                        <!-- Sub-items as nested UL -->
+                        @if(!empty($contentDetails) && $contentId == $content.id)
+                            <ul class="pl-4 mt-1 space-y-1 text-gray-600">
+                                @each($detail in $contentDetails)
+                                    <li>
+                                        <a href="/docs/{{ $content.id }}#{{ $detail.sub_url }}" class="block px-2 py-1 rounded hover:bg-gray-100 text-sm">
+                                            {{ $detail.sub_title }}
+                                        </a>
+                                    </li>
+                                @end
+                            </ul>
+                        @end
                     @endif
+
+
                 @end
             </nav>
         </aside>

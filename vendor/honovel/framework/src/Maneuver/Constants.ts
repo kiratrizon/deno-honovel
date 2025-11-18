@@ -84,13 +84,6 @@ class Constants implements IConstants {
       "services",
       "broadcasting",
     ];
-    if (notAllowedToWriteFiles.includes(firstKey)) {
-      throw new Error(
-        `This framework does not allow writing to ${notAllowedToWriteFiles.join(
-          ", "
-        )} config`
-      );
-    }
     if (!this.#configStore[firstKey]) {
       this.#configStore[firstKey] = {}; // Create if it doesn't exist
     }

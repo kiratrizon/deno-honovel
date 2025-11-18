@@ -1,0 +1,40 @@
+@layouts.main()
+
+@slot('content')
+<div class="flex mt-14">
+    <!-- Main content -->
+    <main class="flex-1 p-6 overflow-auto h-[calc(100vh-3.5rem)]">
+        <h1 class="text-3xl font-semibold mb-4 text-indigo-700">About Honovel Deno</h1>
+
+        <p class="mb-4 text-gray-600">
+            Honovel Deno is a lightweight web framework inspired by Laravel, but built for Deno.  
+            It aims to provide a simple, expressive, and modern development experience using TypeScript.
+        </p>
+
+        <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Philosophy</h2>
+        <p class="mb-4 text-gray-600">Honovel focuses on:</p>
+        <ul class="list-disc list-inside text-gray-600 space-y-2 ml-4">
+            <li>Developer-friendly routing and controllers</li>
+            <li>Seamless database integration with models</li>
+            <li>Powerful CLI inspired by Artisan</li>
+            <li>TypeScript-first architecture</li>
+        </ul>
+
+        <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Getting Started</h2>
+        <p class="mb-4 text-gray-600">
+            To start building your app, you only need to install Deno and clone the framework.  
+            Then you can run commands like <code>deno task serve</code> to start the development server.
+        </p>
+
+        <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Contributors</h2>
+        <ul class="list-disc list-inside text-gray-600 space-y-2 ml-4">
+            <li>
+                Throy Tower — Founder & Developer
+                <a href="https://github.com/kiratrizon" class="text-indigo-600 underline ml-2" target="_blank">GitHub</a>
+            </li>
+        </ul>
+    </main>
+</div>
+@end
+
+@endlayouts.main

@@ -19,6 +19,7 @@ import {
   URLArranger,
   toFallback,
   returnResponse,
+  toNotfound,
 } from "./Support/FunctionRoute.ts";
 import { IMyConfig } from "./Support/MethodRoute.ts";
 import { honoSession } from "HonoHttp/HonoSession.ts";
@@ -716,6 +717,19 @@ class Server {
                 );
               }
             }
+          }
+          if (Route.fallbackFn) {
+            byEndpointsRouter.use(
+              // @ts-ignore //
+              toNotfound(
+                {
+                  args: Route.fallbackFn,
+                  debugString: Route.fallbackFn.toString(),
+                },
+                []
+              )
+            );
+            Route.fallbackFn = null; // reset after applying
           }
           this.app.route(routePrefix, byEndpointsRouter);
         }
