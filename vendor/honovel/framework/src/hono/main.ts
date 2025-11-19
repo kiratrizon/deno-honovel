@@ -667,6 +667,7 @@ class Server {
                 }
                 newGroupMiddleware.push(...flagMiddlewareArr);
                 const allBuilds = [
+                  ...myGroupMiddleware,
                   ...newGroupMiddleware,
                   returnedDispatch as MiddlewareHandler,
                   ...fallBacksArr,
@@ -700,7 +701,6 @@ class Server {
               generatedopts.forEach((grp) => {
                 // apply the middlewares here
                 // @ts-ignore //
-                newAppGroup.use("*", ...myGroupMiddleware);
                 newAppGroup.route(grp, myNewGroup);
               });
 
@@ -719,22 +719,22 @@ class Server {
             }
           }
           // @ts-ignore //
-          if (Route.fallbackFn) {
-            byEndpointsRouter.use(
-              // @ts-ignore //
-              toNotfound(
-                {
-                  // @ts-ignore //
-                  args: Route.fallbackFn,
-                  // @ts-ignore //
-                  debugString: Route.fallbackFn.toString(),
-                },
-                []
-              )
-            );
-            // @ts-ignore //
-            Route.fallbackFn = null; // reset after applying
-          }
+          // if (Route.fallbackFn) {
+          //   byEndpointsRouter.use(
+          //     // @ts-ignore //
+          //     toNotfound(
+          //       {
+          //         // @ts-ignore //
+          //         args: Route.fallbackFn,
+          //         // @ts-ignore //
+          //         debugString: Route.fallbackFn.toString(),
+          //       },
+          //       []
+          //     )
+          //   );
+          //   // @ts-ignore //
+          //   Route.fallbackFn = null; // reset after applying
+          // }
           this.app.route(routePrefix, byEndpointsRouter);
         }
       }
