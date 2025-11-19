@@ -71,7 +71,8 @@ function serveDiskStatic(urlPrefix: string, diskRoot: string) {
   };
 }
 
-// check localhost:5173 for tailwind dev server
+import inlineConfig from "../../../../vite/vite-manipulate.ts";
+const vitePort = inlineConfig?.server?.port || 5173;
 
 // Check if a Vite server is actually responding
 const isViteRunning = async (port: number): Promise<boolean> => {
@@ -84,7 +85,7 @@ const isViteRunning = async (port: number): Promise<boolean> => {
 };
 
 if (config("app").env === "local") {
-  const viteServer = await isViteRunning(5173);
+  const viteServer = await isViteRunning(vitePort);
   define("viteServer", viteServer, false);
 
   if (viteServer) {

@@ -508,13 +508,22 @@ declare global {
    */
   function arrayLast<T>(array: T[]): T | null;
 
+  /**
+   * Returns the current Deno version as a string.
+   */
   function denoVersion(): string;
 
+  /**
+   * Returns the current framework and Deno version information.
+   */
   function frameworkVersion(): {
     denoVersion: string;
     honovelVersion: string;
   };
 
+  /**
+   * Custom console object for logging messages with different severity levels.
+   */
   const consoledeno: {
     error: (...msg: any) => void;
     warn: (...msg: any) => void;
@@ -522,4 +531,9 @@ declare global {
     success: (...msg: any) => void;
     debug: (...msg: any) => void;
   };
+
+  /**
+   * Indicates if the Vite development server is currently running.
+   */
+  const viteServer: boolean;
 }

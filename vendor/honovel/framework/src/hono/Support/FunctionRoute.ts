@@ -1337,17 +1337,18 @@ export async function handleAction(
                 // @ts-ignore //
                 viteServer
               ) {
+                const port = viteConfig?.server?.port || 5173;
                 args.forEach((file) => {
                   if (
                     file.toLowerCase().endsWith(".js") ||
                     file.toLowerCase().endsWith(".ts")
                   ) {
                     buffer.outputRaw(
-                      `<script type="module" src="http://localhost:5173/${file}"></script>`
+                      `<script type="module" src="http://localhost:${port}/${file}"></script>`
                     );
                   } else if (file.toLowerCase().endsWith(".css")) {
                     buffer.outputRaw(
-                      `<link rel="stylesheet" href="http://localhost:5173/${file}">`
+                      `<link rel="stylesheet" href="http://localhost:${port}/${file}">`
                     );
                   }
                 });
@@ -1355,6 +1356,7 @@ export async function handleAction(
                 // find the manifest.json under use deno readfile
 
                 const pathOfOutdir = viteConfig.build?.outDir || "public/build";
+
                 const viteJson = Deno.readTextFileSync(
                   basePath(`${pathOfOutdir}/.vite/manifest.json`)
                 );
