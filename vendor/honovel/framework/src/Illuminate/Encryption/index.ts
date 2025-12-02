@@ -7,31 +7,33 @@ export class Encrypter {
 
     const envFile = basePath(envPath);
     let envContent = "";
+
     try {
       envContent = Deno.readTextFileSync(envFile);
     } catch {
-      // If file doesn't exist, we start fresh
+      // File does not exist
     }
 
     const appKeyMatch = envContent.match(/^APP_KEY=(.*)$/m);
     const prevKeysMatch = envContent.match(/^PREVIOUS_KEYS=(.*)$/m);
+    const existingKey = appKeyMatch?.[1]?.trim();
 
-    if (appKeyMatch) {
-      if (!force) {
-        consoledeno.info(
-          `APP_KEY already exists in ${envPath}. Use force to overwrite.`
-        );
-        return;
-      }
+    // ✅ If key exists AND is not empty AND not forcing → skip
+    if (existingKey && appKeyMatch && !force) {
+      consoledeno.info(
+        `APP_KEY already exists in ${envPath}. Use force to overwrite.`
+      );
+      return;
+    }
 
-      const oldKey = appKeyMatch[1].trim();
+    // ✅ Handle previous key only if it was a real one
+    if (existingKey) {
       let prevKeys = prevKeysMatch
         ? prevKeysMatch[1].trim().replace(/^"|"$/g, "")
         : "";
 
-      // Append old key to PREVIOUS_KEYS if not already present
-      if (!prevKeys.split(",").includes(oldKey)) {
-        prevKeys = prevKeys ? `${prevKeys},${oldKey}` : oldKey;
+      if (!prevKeys.split(",").includes(existingKey)) {
+        prevKeys = prevKeys ? `${prevKeys},${existingKey}` : existingKey;
       }
 
       if (prevKeysMatch) {
@@ -42,19 +44,21 @@ export class Encrypter {
       } else {
         envContent += `\nPREVIOUS_KEYS="${prevKeys}"`;
       }
+    }
 
-      // Replace APP_KEY
+    // ✅ Replace or append APP_KEY
+    if (appKeyMatch) {
       envContent = envContent.replace(/^APP_KEY=.*$/m, `APP_KEY=${appKey}`);
     } else {
-      // APP_KEY not found — just add it
       if (envContent.trim() !== "") envContent += "\n";
       envContent += `APP_KEY=${appKey}`;
     }
 
-    // Save changes
     Deno.writeTextFileSync(envFile, envContent);
+
     consoledeno.success(`App key generated and saved to ${envPath}`);
-    if (force && appKeyMatch) {
+
+    if (force && existingKey) {
       consoledeno.info(`Old key stored in PREVIOUS_KEYS inside ${envPath}`);
     }
   }

@@ -1,21 +1,4 @@
-import { LoadOptions } from "dotenv";
 import { SupportedDrivers } from "configs/@types/index.d.ts";
-
-import * as path from "node:path";
-
-export default {
-  envPath: path.join(Deno.cwd(), ".env").replace(/\\/g, "/"),
-  examplePath: null,
-} as LoadOptions; // don't delete
-
-export const envs = [
-  ".env",
-  ".env.example",
-  ".env.production",
-  ".env.development",
-  ".env.test",
-];
-
 // export your interface "ImportEnv" here
 
 export interface ImportEnvConfig {
