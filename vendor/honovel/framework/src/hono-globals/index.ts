@@ -1,17 +1,17 @@
 import * as path from "node:path";
 import { toFileUrl } from "jsr:@std/path@0.224.0";
-import { load } from "dotenv";
+import { load, LoadOptions } from "dotenv";
 try {
-  const envObj = (await import("../../../../../environment.ts")).default;
+  const envObj = {
+    examplePath: null,
+  } as LoadOptions; // don't delete
   const data = await load(envObj);
   if (data) {
     for (const [key, value] of Object.entries(data)) {
       Deno.env.set(key, value);
     }
   }
-} catch (_) {
-  console.warn(`Env not loaded, please check your environment.ts file.`);
-}
+} catch (_) {}
 
 if (Deno.env.get("VERCEL") == "1") {
   Deno.env.set("DENO_DEPLOYMENT_ID", Deno.env.get("VERCEL_URL") || "");

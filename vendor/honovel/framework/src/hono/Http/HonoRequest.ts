@@ -1,7 +1,4 @@
-import {
-  RequestMethod,
-  SERVER,
-} from "./HonoRequest.d.ts";
+import { RequestMethod, SERVER } from "./HonoRequest.d.ts";
 import HonoHeader from "./HonoHeader.ts";
 import { isbot } from "isbot";
 import Macroable from "../../Maneuver/Macroable.ts";
@@ -63,9 +60,11 @@ class HonoRequest extends Macroable {
         if (parsed.files) {
           for (const [key, file] of Object.entries(parsed.files)) {
             // multiparser supports both single and multiple files
-            const fileToObj = Array.isArray(file) ? file.map((e) => {
-              return new HonoFile(e);
-            }) : [new HonoFile(file)]
+            const fileToObj = Array.isArray(file)
+              ? file.map((e) => {
+                  return new HonoFile(e);
+                })
+              : [new HonoFile(file)];
             files[key] = fileToObj;
           }
         }
@@ -97,8 +96,21 @@ class HonoRequest extends Macroable {
       const buffer = await c.req.arrayBuffer();
       body = { buffer }; // you can handle it differently depending on use case
     } else {
-      // fallback for unknown or missing content type
-      body = {};
+      switch (c.req.method.toUpperCase()) {
+        case "GET":
+        case "DELETE":
+        case "HEAD":
+          body = c.req.query() || {};
+          break;
+        case "POST":
+        case "PUT":
+        case "PATCH":
+          body = await c.req.json();
+          break;
+        default:
+          body = {};
+          break;
+      }
     }
     this.#files = files;
     this.#myAll = body;
@@ -341,7 +353,6 @@ class HonoRequest extends Macroable {
     }
     return null;
   }
-
 
   public hasFile(key: string): boolean {
     return (

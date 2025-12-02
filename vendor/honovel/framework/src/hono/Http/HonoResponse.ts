@@ -82,7 +82,8 @@ export default class HonoResponseV2 {
     if (!(data instanceof Uint8Array)) {
       throw new Error("Data must be a Uint8Array or a valid file path.");
     }
-    this._body = data;
+    this._body = data as BodyInit;
+
     this._contentType = contentType;
     this._headers.set("Content-Length", data.byteLength.toString());
     return new FileResponse(
@@ -100,7 +101,8 @@ export default class HonoResponseV2 {
     if (!(data instanceof Uint8Array)) {
       throw new Error("Data must be a Uint8Array or a valid file path.");
     }
-    this._body = data;
+    this._body = data as BodyInit;
+
     this._contentType = "application/octet-stream";
     this._headers.set(
       "Content-Disposition",

@@ -3,6 +3,8 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="author" content="Throy Tower" />
+    <meta name="description" content="Honovel Deno Documentation" />
     <!-- logo -->
     <link rel="icon" type="image/png" href="/system-assets/logo/h.png" />
     <title>{{ $title ?? 'Introduction' }} | {{ env('APP_NAME', 'Honovel Deno') }} Docs</title>
@@ -43,5 +45,11 @@
 
 
     {{{ $slots.content ? await $slots.content() : '' }}}
+
+    <footer>
+        <div class="bg-white border-t mt-10 p-4 text-center text-sm text-gray-500">
+            &copy; {{ new Date().getFullYear() }} Honovel Deno. All rights reserved.
+        </div>
+    </footer>
 </body>
 </html>

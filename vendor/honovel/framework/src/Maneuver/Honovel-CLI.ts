@@ -10,12 +10,13 @@ const myCommand = new Command();
 
 import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import * as path from "node:path";
-import { envs } from "../../../../../environment.ts";
 import PreventRequestDuringMaintenance from "Illuminate/Foundation/Http/Middleware/PreventRequestDuringMaintenance.ts";
 import { Encrypter, EnvUpdater } from "Illuminate/Encryption/index.ts";
 import { DatabaseHelper } from "Database";
 import Seeder from "Illuminate/Database/Seeder.ts";
 import Boot from "./Boot.ts";
+
+const envs = [".env"];
 
 await Boot.init();
 class MyArtisan {
@@ -507,14 +508,8 @@ class MyArtisan {
       hasCert,
       "/"
     ).replace(/\/$/, "");
-    let envPath: string | undefined | null = basePath(".env");
-    try {
-      const environment = await import("../../../../../environment.ts");
-      envPath = environment.default.envPath;
-    } catch {
-      // If environment.ts doesn't exist, use default envPath
-    }
-    EnvUpdater.updateAppUrl(envPath as string, APP_URL);
+    const envPath: string | undefined | null = basePath(".env");
+    // EnvUpdater.updateAppUrl(envPath as string, APP_URL);
 
     // @ts-ignore //
     const WARMUP_URL = jsonEncode([

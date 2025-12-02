@@ -743,7 +743,7 @@ class Server {
   }
 
   private static endInit() {
-    this.app.use("*", async function (c: MyContext) {
+    this.app.notFound(async function (c: MyContext) {
       return await myError(c);
     });
 
@@ -753,7 +753,7 @@ class Server {
       const allDomainKeys = Object.keys(allApp); // ["example.com", "api.example.com"]
       allDomainKeys.forEach((domainKey) => {
         const app = allApp[domainKey];
-        app.use("*", async function (c: MyContext) {
+        app.notFound(async function (c: MyContext) {
           return await myError(c);
         });
       });
