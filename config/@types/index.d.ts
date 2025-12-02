@@ -136,6 +136,8 @@ export interface AuthConfig {
 import { SslOptions } from "mysql2";
 import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 import { ServiceProvider } from "Illuminate/Support/index.ts";
+import { IStorage } from "Illuminate/Support/Facades/Storage.ts";
+import { AbstractStore } from "Illuminate/Cache/index.ts";
 
 export type SupportedDrivers = "mysql" | "pgsql" | "sqlite" | "sqlsrv";
 
@@ -270,19 +272,19 @@ export type RedisConfigure<T extends RedisClient> = T extends "deno-redis"
       options?: Record<string, unknown>;
     }
   : T extends "upstash"
-  ? {
-      upstashUrl: string;
-      upstashToken: string;
-    }
-  : T extends "ioredis"
-  ? {
-      ioredisUrl: string;
-    }
-  : T extends "node-redis"
-  ? {
-      nodeRedisUrl: string;
-    }
-  : never;
+    ? {
+        upstashUrl: string;
+        upstashToken: string;
+      }
+    : T extends "ioredis"
+      ? {
+          ioredisUrl: string;
+        }
+      : T extends "node-redis"
+        ? {
+            nodeRedisUrl: string;
+          }
+        : never;
 
 type RedisUpstash = {
   client: "upstash";
@@ -376,7 +378,7 @@ export interface CorsConfig {
 }
 
 export interface SessionConfig {
-  driver: Exclude<CacheDriver, "dynamodb" | "mongodb"> | "cache";
+  driver: Exclude<CacheDriver, "dynamodb" | "mongodb" | "custom"> | "cache";
 
   lifetime: number; // session lifetime in minutes
 
@@ -419,7 +421,8 @@ export type CacheDriver =
   | "memory"
   | "memcached"
   | "dynamodb"
-  | "mongodb";
+  | "mongodb"
+  | "custom";
 
 type CacheStoreFile = {
   driver: "file";
@@ -477,6 +480,12 @@ type CacheStoreMongoDB = {
   prefix?: string;
 };
 
+type CacheStoreCustom = {
+  driver: "custom";
+  prefix?: string;
+  class: typeof AbstractStore;
+};
+
 type CacheStore = Record<
   string,
   | CacheStoreFile
@@ -487,6 +496,7 @@ type CacheStore = Record<
   | CacheStoreMemcached
   | CacheStoreDynamoDB
   | CacheStoreMongoDB
+  | CacheStoreCustom
 >;
 
 export interface CacheConfig {
@@ -548,9 +558,17 @@ export interface S3DiskConfig {
   url?: string;
 }
 
+export interface CustomDiskConfig {
+  driver: "custom";
+  class: typeof IStorage;
+}
+
 export interface FileSystemConfig {
   default: string;
-  disks: Record<string, LocalDiskConfig | PublicDiskConfig | S3DiskConfig>;
+  disks: Record<
+    string,
+    LocalDiskConfig | PublicDiskConfig | S3DiskConfig | CustomDiskConfig
+  >;
 }
 export interface ConfigItems {
   app: AppConfig;

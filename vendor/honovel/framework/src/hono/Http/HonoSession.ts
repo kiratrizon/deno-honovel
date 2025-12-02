@@ -17,8 +17,8 @@ type SessionEncrypt = {
 type NonFunction<T> = T extends (...args: any[]) => any
   ? never // exclude functions
   : T extends object
-  ? { [K in keyof T]: NonFunction<T[K]> }
-  : T;
+    ? { [K in keyof T]: NonFunction<T[K]> }
+    : T;
 
 export function honoSession(): MiddlewareHandler {
   return async (c: MyContext, next: () => Promise<void>) => {

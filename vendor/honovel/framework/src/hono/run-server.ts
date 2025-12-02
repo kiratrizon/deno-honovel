@@ -27,7 +27,7 @@ if (!empty(key) && !empty(cert)) {
   console.warn("SSL key or certificate not found, running without SSL.");
 }
 
-serveObj.port = env("PORT", 80);
+serveObj.port = env("APP_PORT", !empty(key) && !empty(cert) ? 443 : 80);
 
 if (env("OTEL_DENO") === "true") {
   consoledeno.info("OpenTelemetry is enabled");

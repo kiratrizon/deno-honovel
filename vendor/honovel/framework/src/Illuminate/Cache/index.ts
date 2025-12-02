@@ -39,9 +39,16 @@ export interface CacheStoreData {
 }
 
 export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
+  protected prefix: string = "";
+  /**
+   * @param prefix The prefix to use for cache keys.
+   */
+  constructor(prefix?: string) {
+    this.prefix = prefix || config("cache").prefix || "";
+  }
   /**
    * @param key The key to retrieve from the cache.
-   * * @returns The value associated with the key, or null if not found.
+   * @returns The value associated with the key, or null if not found.
    */
   abstract get<K extends keyof T>(key: K): Promise<T[K]>;
   abstract get(key: string): Promise<any>;
@@ -170,14 +177,13 @@ export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
 }
 
 class FileStore extends AbstractStore {
-  private readonly prefix: string;
   private path: string;
   constructor(
     opts: { prefix: string; path?: string } = {
       prefix: "",
     }
   ) {
-    super();
+    super(opts.prefix);
     this.prefix = this.validateFilePath(opts.prefix);
     if (!isset(opts.path) || empty(opts.path) || !isString(opts.path)) {
       throw new Error("FileStore requires a valid path.");
@@ -284,7 +290,6 @@ class FileStore extends AbstractStore {
 class RedisStore extends AbstractStore {
   private static redisClient: RedisClient;
   private readonly connection?: string;
-  private readonly prefix: string;
   // @ts-ignore //
   private manager: RedisManager;
   constructor(
@@ -293,7 +298,7 @@ class RedisStore extends AbstractStore {
       prefix: "",
     }
   ) {
-    super();
+    super(opts.prefix);
     const dbConf = config("database");
     if (!RedisStore.redisClient) {
       RedisStore.redisClient = dbConf.redis?.client || "upstash";
@@ -345,11 +350,9 @@ class RedisStore extends AbstractStore {
 
 class ObjectStore extends AbstractStore {
   private store: Record<string, { value: any; expiresAt: number | null }> = {};
-  private readonly prefix: string;
 
   constructor(opts: { prefix?: string } = { prefix: "" }) {
-    super();
-    this.prefix = opts.prefix || "";
+    super(opts.prefix);
   }
 
   async get(key: string): Promise<any> {
@@ -393,19 +396,18 @@ class ObjectStore extends AbstractStore {
 }
 
 class DatabaseStore extends AbstractStore {
-  private readonly prefix: string;
   private readonly table: string;
   private readonly connection: string;
   constructor({
     table,
     connection,
+    prefix,
   }: {
     prefix: string;
     table: string;
     connection: string;
   }) {
-    super();
-    this.prefix = config("cache").prefix || "";
+    super(prefix);
     if (!isset(table) || !isString(table)) {
       throw new Error("DatabaseStore requires a valid table name.");
     }
@@ -513,11 +515,9 @@ class DatabaseStore extends AbstractStore {
 }
 
 class MemoryStore extends AbstractStore {
-  private readonly prefix: string;
   private store = new InMemoryCached();
   constructor(opts: { prefix?: string } = { prefix: "" }) {
-    super();
-    this.prefix = opts.prefix || "";
+    super(opts.prefix);
   }
   async get(key: string): Promise<any> {
     const newKey = this.validateKey(key);
@@ -548,7 +548,6 @@ class MemoryStore extends AbstractStore {
 }
 
 class MemcachedStore extends AbstractStore {
-  private readonly prefix: string;
   private readonly servers: {
     host: string;
     port: number;
@@ -562,8 +561,7 @@ class MemcachedStore extends AbstractStore {
     prefix?: string;
     servers: { host: string; port: number; weight?: number }[];
   }) {
-    super();
-    this.prefix = opts.prefix || "";
+    super(opts.prefix);
     if (!isset(opts.servers) || !isArray(opts.servers)) {
       throw new Error("MemcachedStore requires a valid servers array.");
     }
@@ -647,7 +645,6 @@ import {
 
 class DynamoDBStore extends AbstractStore {
   private client: DynamoDBClient;
-  private readonly prefix: string;
   private readonly table: string;
   private readonly partitionKey: string;
   constructor(
@@ -661,7 +658,7 @@ class DynamoDBStore extends AbstractStore {
       partitionKey?: string;
     } = {}
   ) {
-    super();
+    super(opts.prefix);
     const { key, secret, region, table, prefix, partitionKey } = opts;
     if (!isset(key) || !isset(secret) || !isset(region)) {
       throw new Error("DynamoDBStore requires valid key, secret, and region.");
@@ -854,7 +851,6 @@ import { Collection, Document } from "mongodb";
 
 class MongoDBStore extends AbstractStore {
   private db: MongoDB;
-  private readonly prefix: string;
   private readonly collection: string;
   private readonly connection: string;
   // @ts-ignore //
@@ -868,8 +864,7 @@ class MongoDBStore extends AbstractStore {
     prefix?: string;
     connection?: string;
   }) {
-    super();
-    this.prefix = prefix || config("cache").prefix || "";
+    super(prefix);
     if (!isset(collection) || !isString(collection) || empty(collection)) {
       throw new Error("MongoDBStore requires a valid collection name.");
     }
@@ -1000,6 +995,7 @@ class CacheManager {
       region?: string;
       partitionKey?: string;
       collection?: string;
+      class?: typeof AbstractStore;
     } = {}
   ) {
     const {
@@ -1083,6 +1079,16 @@ class CacheManager {
           prefix: this.prefix,
           connection,
         });
+        break;
+      }
+      case "custom": {
+        if (!isset(options.class)) {
+          throw new Error(
+            "Custom cache driver requires a class extending AbstractStore."
+          );
+        }
+        // @ts-ignore //
+        this.store = new options.class();
         break;
       }
       default: {

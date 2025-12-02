@@ -28,7 +28,7 @@ const constant: SessionConfig = {
 
   domain: env("SESSION_DOMAIN"),
 
-  secure: env("SESSION_SECURE_COOKIE", true),
+  secure: env("SESSION_SECURE_COOKIE", true), // Set to true in production or if you have certificate
 
   httpOnly: env("SESSION_HTTP_ONLY", true),
 

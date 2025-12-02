@@ -15,6 +15,7 @@ import { Encrypter, EnvUpdater } from "Illuminate/Encryption/index.ts";
 import { DatabaseHelper } from "Database";
 import Seeder from "Illuminate/Database/Seeder.ts";
 import Boot from "./Boot.ts";
+import { createCA, createCert } from "mkcert";
 
 const envs = [".env"];
 
@@ -485,7 +486,7 @@ class MyArtisan {
       path: string = "/__warmup"
     ): string => {
       const protocol = hasCert ? "https" : "http";
-      let host = hostname || "localhost";
+      const host = hostname || "localhost";
 
       const defaultPort = hasCert ? 443 : 80;
       const portPart = port === defaultPort ? "" : `:${port}`;
@@ -759,6 +760,42 @@ class MyArtisan {
           )}`
         );
       })
+
+      .command("make:ssl", "Generate self-signed SSL certificates")
+      .arguments("<domains:string[]>")
+      .action(async (_: unknown, domains: string[]) => {
+        const res = await fetch("https://ipapi.co/json/");
+        const data = await res.json();
+
+        const countryCode = data.country;
+        const state = data.region;
+        const locality = data.city;
+        const organization = `Honovel ${frameworkVersion().honovelVersion}`;
+        const ca = await createCA({
+          organization,
+          countryCode,
+          state,
+          locality,
+          validity: 365, // 1 year
+        });
+
+        const creaatedCert = await createCert({
+          ca: { key: ca.key, cert: ca.cert },
+          domains,
+          validity: 365, // 1 year
+        });
+        const cert = creaatedCert.cert;
+        const key = creaatedCert.key;
+        const sslPath = storagePath("ssl");
+        if (!(await pathExist(sslPath))) {
+          makeDir(sslPath);
+        }
+        // write key and cert
+        writeFile(path.join(sslPath, "key.pem"), key);
+        writeFile(path.join(sslPath, "cert.pem"), cert);
+        consoledeno.success(`SSL certificates generated at ${sslPath}`);
+      })
+
       .command("migrate:fresh", "Drop all tables and rerun all migrations")
       .option("--seed", "Seed the database after fresh migration")
       .option("--path <path:string>", "Specify a custom migrations directory")
@@ -810,7 +847,7 @@ class MyArtisan {
       .action(() => this.publishConfig.bind(this)())
       .command("serve", "Start the Honovel server")
       .option("--port <port:number>", "Port to run the server on", {
-        default: env("PORT", null),
+        default: env("APP_PORT", null),
       })
       .option("--host <host:string>", "Host to run the server on", {
         default: "127.0.0.1",

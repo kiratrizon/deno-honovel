@@ -310,29 +310,6 @@ class Server {
     } else {
       app = new this.Hono();
     }
-    const defaultUrls = ["favicon.ico", "robots.txt"];
-
-    defaultUrls.forEach((url) => {
-      app.get(`/${url}`, async () => {
-        const checkFile = publicPath(url);
-
-        if (await pathExist(checkFile)) {
-          const fileContent = await Deno.readFile(checkFile);
-          const contentType = url.endsWith(".ico")
-            ? "image/x-icon"
-            : "text/plain";
-          return new Response(fileContent, {
-            status: 200,
-            headers: {
-              "Content-Type": contentType,
-            },
-          });
-        }
-
-        // If file doesn't exist → send empty 204 (like Laravel returning no favicon)
-        return new Response(null, { status: 204 });
-      });
-    });
 
     if (withDefaults) {
       app.use(...myStaticDefaults);

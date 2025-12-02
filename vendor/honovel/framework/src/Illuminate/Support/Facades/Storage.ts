@@ -4,7 +4,7 @@ import {
   S3DiskConfig,
 } from "configs/@types/index.d.ts";
 
-export interface IStorage {
+export declare class IStorage {
   /**
    * Save a file to storage
    * @param path - path inside the storage disk
@@ -75,6 +75,8 @@ class Storage {
         return new LocalStorage(diskConfig as LocalDiskConfig);
       case "s3":
         return new S3Storage(diskConfig as S3DiskConfig);
+      case "custom":
+        return new diskConfig.class();
       default:
         throw new Error(`Storage driver for ${disk} is not supported.`);
     }

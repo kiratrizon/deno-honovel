@@ -12,6 +12,7 @@ declare global {
     readonly APP_ENV: "local" | "production" | "staging" | "testing";
     readonly APP_KEY: string;
     readonly APP_DEBUG: boolean;
+    readonly APP_PORT: number;
     readonly APP_URL: string;
     readonly LOG_CHANNEL: string;
     readonly LOG_LEVEL:

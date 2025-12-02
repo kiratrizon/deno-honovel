@@ -44,7 +44,7 @@ declare global {
    *
    * @example
    * const host = env("APP_KEY"); // string or null
-   * const port = env("PORT", 2000); // number
+   * const port = env("APP_PORT", 2000); // number
    *
    * @param {string} key - The name of the environment variable to retrieve.
    * @param {T} [fallback] - An optional fallback value to return (and type to infer) if the variable is not set.
