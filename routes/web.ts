@@ -12,11 +12,9 @@ Route.get("/docs/{content}", [ContentController, "show"]).middleware(
 
 // for "deno run -A https://honovel.deno.dev/create-project my-app@latest" setup
 Route.get("/create-project", async ({ request }) => {
-  return response()
-    .file(basePath("vendor/honovel/framework/install.ts"))
-    .withHeaders({
-      "Content-Type": "application/typescript", // Set the appropriate content type for TypeScript files
-    });
+  return response().file(basePath("install.ts")).withHeaders({
+    "Content-Type": "application/typescript", // Set the appropriate content type for TypeScript files
+  });
 });
 
 Route.get("/auth/google/{code?}", [AuthController, "google"]);
