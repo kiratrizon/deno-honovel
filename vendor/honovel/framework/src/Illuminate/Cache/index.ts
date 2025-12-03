@@ -174,6 +174,20 @@ export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
     const newKey = keys.filter((k) => isset(k) && !empty(k)).join("_");
     return newKey;
   }
+
+  protected warning(storeType: string, err: boolean = false) {
+    if (config("app").env !== "local") {
+      if (!err) {
+        consoledeno.warn(
+          `${storeType} cache store is not recommended for production environments.`
+        );
+      } else {
+        throw new Error(
+          `${storeType} cache store is not allowed for production environments.`
+        );
+      }
+    }
+  }
 }
 
 class FileStore extends AbstractStore {
@@ -184,6 +198,7 @@ class FileStore extends AbstractStore {
     }
   ) {
     super(opts.prefix);
+    this.warning("File driver", true);
     this.prefix = this.validateFilePath(opts.prefix);
     if (!isset(opts.path) || empty(opts.path) || !isString(opts.path)) {
       throw new Error("FileStore requires a valid path.");
@@ -353,6 +368,7 @@ class ObjectStore extends AbstractStore {
 
   constructor(opts: { prefix?: string } = { prefix: "" }) {
     super(opts.prefix);
+    this.warning("Object driver");
   }
 
   async get(key: string): Promise<any> {
@@ -518,6 +534,7 @@ class MemoryStore extends AbstractStore {
   private store = new InMemoryCached();
   constructor(opts: { prefix?: string } = { prefix: "" }) {
     super(opts.prefix);
+    this.warning("Memory driver");
   }
   async get(key: string): Promise<any> {
     const newKey = this.validateKey(key);

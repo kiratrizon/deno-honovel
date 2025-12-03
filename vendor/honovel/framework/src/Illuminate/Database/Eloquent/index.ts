@@ -241,7 +241,7 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     return this; // 🔁 Return the same instance to allow chaining
   }
 
-  public toObject(): Record<Array<string>[number], unknown> {
+  public toObject(): Record<string, unknown> {
     const data = { ...this._attributes };
 
     if ((this.constructor as typeof Model)._visible.length) {

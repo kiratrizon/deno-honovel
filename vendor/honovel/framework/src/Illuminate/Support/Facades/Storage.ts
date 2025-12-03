@@ -54,6 +54,16 @@ class Storage {
     return storageInstance;
   }
 
+  protected static warning(diskDriver: string, err: boolean = false) {
+    if (config("app").env !== "local") {
+      const message = `${diskDriver} storage driver is not ${err ? "recommended" : "allowed"} for production environments.`;
+      if (err) {
+        throw new Error(message);
+      } else {
+        consoledeno.warn(message);
+      }
+    }
+  }
   private static generateStorage(disk?: string): IStorage {
     const filesystems = config("filesystems") || {};
     const disks = filesystems.disks || {};
@@ -70,8 +80,10 @@ class Storage {
     const diskConfig = disks[disk];
     switch (diskConfig.driver) {
       case "public":
+        this.warning("Public driver", true);
         return new PublicStorage(diskConfig as PublicDiskConfig);
       case "local":
+        this.warning("Local driver", true);
         return new LocalStorage(diskConfig as LocalDiskConfig);
       case "s3":
         return new S3Storage(diskConfig as S3DiskConfig);

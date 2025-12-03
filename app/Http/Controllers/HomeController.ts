@@ -1,5 +1,6 @@
 import Controller from "App/Http/Controllers/Controller.ts";
 import Content from "../../Models/Content.ts";
+import { Cache } from "Illuminate/Support/Facades/index.ts";
 
 const myTabs = [
   { name: "Home", href: "/", current: false },
@@ -16,12 +17,23 @@ class HomeController extends Controller {
       }
       return tab;
     });
+    let content = (await Cache.get("home_content")) as Record<
+      string,
+      unknown
+    > | null;
+    if (!content) {
+      content = (await Content.orderBy("sort").first())?.toObject() as Record<
+        string,
+        unknown
+      >;
+    }
 
-    const content = await Content.orderBy("sort").first();
     let id = 1;
     if (content) {
       // @ts-ignore //
       id = content.id!;
+      // save in cache
+      await Cache.put("home_content", content, 3600 * 24); // 1 day
     }
     return view("welcome", { myTabs: newMyTabs, contentId: id, title: "Home" });
   };
