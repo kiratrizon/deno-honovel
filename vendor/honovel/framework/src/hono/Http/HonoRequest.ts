@@ -105,13 +105,18 @@ class HonoRequest extends Macroable {
         case "POST":
         case "PUT":
         case "PATCH":
-          body = await c.req.json();
+          try {
+            body = await c.req.json();
+          } catch {
+            body = {};
+          }
           break;
         default:
           body = {};
           break;
       }
     }
+    console.log(body);
     this.#files = files;
     this.#myAll = body;
 

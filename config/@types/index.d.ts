@@ -378,7 +378,7 @@ export interface CorsConfig {
 }
 
 export interface SessionConfig {
-  driver: Exclude<CacheDriver, "dynamodb" | "mongodb" | "custom"> | "cache";
+  driver: Exclude<CacheDriver, "dynamodb" | "mongodb"> | "cache";
 
   lifetime: number; // session lifetime in minutes
 

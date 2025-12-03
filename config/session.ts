@@ -7,7 +7,7 @@ const constant: SessionConfig = {
 
   expireOnClose: env("SESSION_EXPIRE_ON_CLOSE", false),
 
-  encrypt: env("SESSION_ENCRYPT", false),
+  encrypt: env("SESSION_ENCRYPT", true),
 
   files: storagePath("framework/sessions"),
 
