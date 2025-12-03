@@ -700,7 +700,7 @@ export class Builder<
   }
 
   // @ts-ignore //
-  public override async first(): Promise<InstanceType<T> | null> {
+  public override async first<M extends InstanceType<T>>(): Promise<M | null> {
     const data = await super.first();
     if (!data) return null;
     // @ts-ignore //
