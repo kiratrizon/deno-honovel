@@ -72,6 +72,11 @@ export class SessionModifier {
       throw new Error("Session configuration is not set.");
     }
     const type = SessionModifier.sesConfig.driver || "file";
+    if (config("app").env != "local" && type == "file") {
+      throw new Error(
+        "File session driver is not allowed in production environment."
+      );
+    }
     const keyStore = `${type}_session`;
     const prefix = SessionModifier.sesConfig.prefix || "sess:";
     const stores = config("cache").stores || {};
