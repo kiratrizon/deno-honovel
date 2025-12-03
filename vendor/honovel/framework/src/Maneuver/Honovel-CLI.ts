@@ -16,6 +16,7 @@ import { DatabaseHelper } from "Database";
 import Seeder from "Illuminate/Database/Seeder.ts";
 import Boot from "./Boot.ts";
 import { createCA, createCert } from "mkcert";
+import { dirname, basename } from "https://deno.land/std/path/mod.ts";
 
 const envs = [".env"];
 
@@ -625,6 +626,10 @@ class MyArtisan {
   private async makeView(name: string) {
     // no stub for view, just create empty file
     const view = viewPath(`${name}.edge`);
+    const pathName = dirname(view); // directory path
+    if (!(await pathExist(pathName))) {
+      makeDir(pathName);
+    }
     writeFile(view, "");
     consoledeno.success(
       `View file created at ${path.relative(Deno.cwd(), view)}`
