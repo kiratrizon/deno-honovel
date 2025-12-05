@@ -142,9 +142,6 @@ export class URLArranger {
         if (regex.uuid.test(part)) {
           return `${part}`;
         }
-        if (part === "*") {
-          return `*`;
-        }
         if (part.startsWith("*") && part.endsWith("*")) {
           const type = part.slice(1, -1); // remove * *
 

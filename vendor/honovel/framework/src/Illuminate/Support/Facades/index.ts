@@ -598,9 +598,9 @@ class MyRoute {
     groupInstance.domain(domain);
     return groupInstance;
   }
-  public static where(obj: Record<string, RegExp[] | RegExp>) {
+  public static where(param: string, regex: RegExp) {
     const groupInstance = new GroupRoute();
-    groupInstance.where(obj);
+    groupInstance.where(param, regex);
     return groupInstance;
   }
 

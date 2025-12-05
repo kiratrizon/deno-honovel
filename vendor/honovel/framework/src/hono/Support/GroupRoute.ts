@@ -176,8 +176,8 @@ class Group {
     Group.currentGroup = currentGroup; // Reset to the previous group
   }
 
-  public where(obj: Record<string, RegExp[] | RegExp>): this {
-    this.validateConfig("where", obj);
+  public where(param: string, regex: RegExp): this {
+    this.validateConfig("where", { [param]: regex });
     return this;
   }
 

@@ -55,14 +55,14 @@ export default class ResourceRoute {
     return this;
   }
 
-  public where(ojb: Record<string, RegExp[] | RegExp>): this {
+  public where(param: string, regex: RegExp): this {
     if (!empty(this.allRoutes)) {
       const entries = Object.entries(this.allRoutes);
       entries.forEach(([id]) => {
         // @ts-ignore //
         const methodUsed: IMethodRoute = ResourceRoute.route.getMethod(id);
         if (!isNull(methodUsed)) {
-          methodUsed.where(ojb);
+          methodUsed.where(param, regex);
         }
       });
     }

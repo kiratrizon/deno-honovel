@@ -81,7 +81,8 @@ export declare class IGroupRoute {
    * @returns The result of the where method from the IGroupInstance.
    */
   public static where(
-    obj: Record<string, RegExp>
+    param: string,
+    regex: RegExp
   ): ReturnType<InstanceType<typeof IGroupInstance>["where"]>;
 
   /**
@@ -160,7 +161,7 @@ export declare class IGroupInstance {
    * @param ojb - An object mapping parameter names to regex pattern strings.
    * @returns The current instance of IGroupInstance for method chaining.
    */
-  public where(ojb: Record<string, RegExp[] | RegExp>): this;
+  public where(param: string, regex: RegExp): this;
   /**
    * Define a constraint for a route parameter that only allows numeric values.
    * @param key - The parameter name.
@@ -234,7 +235,7 @@ export interface IMethodRoute {
    * @param ojb - An object mapping parameter names to regex pattern strings.
    * @returns The current instance of IMethodRoute for method chaining.
    */
-  where(ojb: Record<string, RegExp[] | RegExp>): this;
+  where(param: string, regex: RegExp): this;
   /**
    * Define a constraint for a route parameter that only allows numeric characters.
    * @param key - The parameter name.
@@ -297,7 +298,7 @@ export declare class IRoute extends IGroupRoute {
    */
   public static delete<
     T extends BaseController,
-    K extends KeysWithICallback<T>
+    K extends KeysWithICallback<T>,
   >(uri: string, arg: ICallback | [new () => T, K]): IMethodRoute;
 
   /**
@@ -317,7 +318,7 @@ export declare class IRoute extends IGroupRoute {
    */
   public static options<
     T extends BaseController,
-    K extends KeysWithICallback<T>
+    K extends KeysWithICallback<T>,
   >(uri: string, arg: ICallback | [new () => T, K]): IMethodRoute;
 
   /**
@@ -419,7 +420,7 @@ export declare class IResourceRoute {
    * @param ojb - An object mapping parameter names to regex pattern strings.
    * @returns The current instance of IResourceRoute for method chaining.
    */
-  public where(ojb: Record<string, RegExp[] | RegExp>): this;
+  public where(param: string, regex: RegExp): this;
   /**
    * Define a constraint for a route parameter that only allows numeric values.
    * @param key - The parameter name.

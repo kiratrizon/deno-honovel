@@ -80,8 +80,8 @@ class MethodRoute implements IMethodRoute {
     return this;
   }
 
-  public where(ojb: Record<string, RegExp[] | RegExp>): this {
-    this.validateConfig("where", ojb);
+  public where(param: string, regex: RegExp): this {
+    this.validateConfig("where", { [param]: regex });
     return this;
   }
 
