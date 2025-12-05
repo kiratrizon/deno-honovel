@@ -48,7 +48,7 @@ export function regexToHono(
       }
     }
 
-    await next();
+    return await next();
   };
 }
 
@@ -142,7 +142,9 @@ export class URLArranger {
         if (regex.uuid.test(part)) {
           return `${part}`;
         }
-
+        if (part === "*") {
+          return `*`;
+        }
         if (part.startsWith("*") && part.endsWith("*")) {
           const type = part.slice(1, -1); // remove * *
 

@@ -116,7 +116,6 @@ class HonoRequest extends Macroable {
           break;
       }
     }
-    console.log(body);
     this.#files = files;
     this.#myAll = body;
 
