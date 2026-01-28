@@ -522,17 +522,6 @@ declare global {
   };
 
   /**
-   * Custom console object for logging messages with different severity levels.
-   */
-  const consoledeno: {
-    error: (...msg: any) => void;
-    warn: (...msg: any) => void;
-    info: (...msg: any) => void;
-    success: (...msg: any) => void;
-    debug: (...msg: any) => void;
-  };
-
-  /**
    * Indicates if the Vite development server is currently running.
    */
   const viteServer: boolean;

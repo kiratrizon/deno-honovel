@@ -24,7 +24,7 @@ class MongoDB {
         await this.client.connect();
         this.#doneInit = true;
       } catch (error) {
-        consoledeno.error("Failed to connect to MongoDB:", error);
+        console.error("Failed to connect to MongoDB:", error);
         throw error;
       }
     }

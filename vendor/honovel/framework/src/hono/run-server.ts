@@ -1,6 +1,6 @@
-import Server from "./main.ts";
+import Honovel from "Honovel";
 
-const app = Server.app;
+const app = Honovel.app;
 
 // @ts-ignore //
 const HOSTNAME = String(env("HOSTNAME", ""));
@@ -30,7 +30,7 @@ if (!empty(key) && !empty(cert)) {
 serveObj.port = env("APP_PORT", !empty(key) && !empty(cert) ? 443 : 80);
 
 if (env("OTEL_DENO") === "true") {
-  consoledeno.info("OpenTelemetry is enabled");
+  console.info("OpenTelemetry is enabled");
 }
 
 Deno.serve(serveObj, app.fetch);
@@ -47,7 +47,7 @@ try {
 
   for (const warmup of warmups) {
     const test = await fetch(warmup);
-    // consoledeno.info(`Warmup URL: ${warmup} - Status: ${test.status}`);
+    // console.info(`Warmup URL: ${warmup} - Status: ${test.status}`);
   }
 } catch {
   //

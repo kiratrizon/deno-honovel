@@ -2,7 +2,8 @@ import { Route } from "Illuminate/Support/Facades/index.ts";
 import HomeController from "App/Http/Controllers/HomeController.ts";
 import ContentController from "App/Http/Controllers/ContentController.ts";
 import AuthController from "App/Http/Controllers/AuthController.ts";
-import { ruruHTML } from "ruru/server";
+import { RuruClientConfig, ruruHTML } from "ruru/server";
+import { request } from "node:http";
 
 Route.get("/", [HomeController, "index"]);
 
@@ -21,19 +22,16 @@ Route.get("/auth/google/{code?}", [AuthController, "google"]);
 
 Route.get("/about", [HomeController, "about"]);
 
-Route.get("/my-graphql", async () => {
-  let html = ruruHTML({
+Route.get("/my-graphql", async ({ request }) => {
+  const metaTags = [
+    `<link rel="icon" href="/system-assets/logo/deno-honovel.png">`,
+    `<script src="/main-assets/js/ruru-fetch.js"></script>`,
+  ];
+  const html = ruruHTML({
     endpoint: "/api/graphql",
+    htmlParts: {
+      metaTags: metaTags.join("\n"),
+    },
   });
-
-  // Inject favicon
-  html = html.replace(
-    "</head>",
-    `
-      <link rel="icon" type="image/x-icon" href="/system-assets/logo/deno-honovel.png" />
-    </head>
-    `
-  );
-
   return response().html(html);
 });

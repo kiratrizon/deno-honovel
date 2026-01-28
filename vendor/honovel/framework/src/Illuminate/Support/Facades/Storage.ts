@@ -56,11 +56,11 @@ class Storage {
 
   protected static warning(diskDriver: string, err: boolean = false) {
     if (config("app").env !== "local") {
-      const message = `${diskDriver} storage driver is not ${err ? "recommended" : "allowed"} for production environments.`;
+      const message = `${diskDriver} storage driver is not ${err ? 'recommended' : 'allowed'} for production environments.`;
       if (err) {
         throw new Error(message);
       } else {
-        consoledeno.warn(message);
+        console.warn(message);
       }
     }
   }

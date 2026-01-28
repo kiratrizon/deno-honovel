@@ -47,7 +47,7 @@ private readonly routerBindings: Record&lt;string, typeof Model&lt;ModelWithAttr
         Then, in your controller method, you can type-hint the model when retrieving the parameter:
     </p>
 
-    <pre><code class="language-ts">public async show({ request }, user: User) {
+    <pre><code class="language-ts">public async show({ request }, {user}:{user: User}) {
     // 'user' is fetched according to the routerBindings mapping
 }</code></pre>
 
@@ -77,7 +77,7 @@ export default class UserController extends Controller {
         return response().json(users);
     }
 
-    public async show({ request }, id: string) {
+    public async show({ request }, {id}) {
         const user = await User.find(id);
         if (!user) {
             return response().status(404).json({ error: "User not found" });
@@ -91,14 +91,14 @@ export default class UserController extends Controller {
         return response().status(201).json(user);
     }
 
-    public async update({ request }, id: string) {
+    public async update({ request }, {id}) {
         const user = await User.find(id);
         const data = await request.body().value;
         await user.update(data);
         return response().json(user);
     }
 
-    public async destroy({ request }, id: string) {
+    public async destroy({ request }, {id}) {
         const user = await User.find(id);
         await user.delete();
         return response().json({ success: true });

@@ -1,13 +1,13 @@
 import { MiddlewareHandler } from "hono";
 import * as path from "node:path";
 import ChildKernel from "./ChildKernel.ts";
-import HonoClosure from "../Http/HonoClosure.ts";
+import HonoClosure from "HonoHttp/HonoClosure.ts";
 import { IMyConfig } from "./MethodRoute.ts";
-import HonoDispatch from "../Http/HonoDispatch.ts";
+import HonoDispatch from "HonoHttp/HonoDispatch.ts";
 import HttpHono from "HttpHono";
 import { AbortError, DDError } from "../../Maneuver/HonovelErrors.ts";
 import { ContentfulStatusCode } from "http-status";
-import { myError } from "../Http/builder.ts";
+import { myError } from "HonoHttp/builder.ts";
 import { MiddlewareLikeClass } from "Illuminate/Foundation/Http/index.ts";
 import { SQLError } from "Illuminate/Database/Query/index.ts";
 import { Model } from "Illuminate/Database/Eloquent/index.ts";
@@ -17,10 +17,11 @@ import { ValidationException } from "Illuminate/Validation/ValidationException.t
 import { TagContract } from "edge.js/types";
 import HonoView from "HonoHttp/HonoView.ts";
 import HonoRedirect from "HonoHttp/HonoRedirect.ts";
-import { HonoResponse } from "HonoHttp/HonoResponse.ts";
+import { HonoResponse, RedirectResponse } from "HonoHttp/HonoResponse.ts";
 import MessageBag, { ErrorsShape } from "HonoHttp/MessageBag.ts";
 import { SessionDataTypes } from "../../../../@types/declaration/imain.d.ts";
 import viteConfig from "../../../../../vite/vite-manipulate.ts";
+import HRequest from "HonoHttp/HonoRequest.d.ts";
 
 export const regexObj = {
   number: /^\d+$/,
@@ -671,7 +672,7 @@ function generateMiddlewareOrDispatch(
                 abort(404);
               }
             }
-            middlewareResp = await args(myHono, ...Object.values(newParams));
+            middlewareResp = await args(myHono, newParams);
           }
           if (isNull(middlewareResp) && type === "dispatch") {
             resp = c.json(null);
@@ -717,7 +718,7 @@ function generateMiddlewareOrDispatch(
           if (!isset(env("DENO_DEPLOYMENT_ID"))) {
             return c.html(debuggingPurpose, 500);
           }
-          consoledeno.debug(
+          console.debug(
             debuggingPurpose,
             "error",
             `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(
@@ -829,7 +830,7 @@ function generateFallback(
         if (!isset(env("DENO_DEPLOYMENT_ID"))) {
           return c.html(debuggingPurpose, 500);
         }
-        consoledeno.debug(
+        console.debug(
           debuggingPurpose,
           "error",
           `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(
@@ -1203,11 +1204,11 @@ async function handleErrors(
         );
       }
     } else {
-      consoledeno.error(populatedError);
+      console.error(populatedError);
       resp = c.html("Internal server error", 500);
     }
   } else {
-    consoledeno.error("Unexpected error:", e);
+    console.error("Unexpected error:", e);
     resp = c.json({ message: "Internal server error" }, 500);
   }
 
@@ -1268,7 +1269,7 @@ export async function handleAction(
             request.session.get("_token") || ""
           }">`,
         errors: new MessageBag((errors || {}) as ErrorsShape),
-        consoledeno: consoledeno,
+        console: console,
       };
       // @ts-ignore /
       data.addGlobal(edgeGlobals);
@@ -1338,6 +1339,8 @@ export async function handleAction(
               ) {
                 const port = viteConfig?.server?.port || 5173;
                 args.forEach((file) => {
+                  // remove leading slash for file
+                  file = file.replace(/^\//, "");
                   if (
                     file.toLowerCase().endsWith(".js") ||
                     file.toLowerCase().endsWith(".ts")
@@ -1410,17 +1413,7 @@ export async function handleAction(
       });
       return c.html(rendered, 200);
     } else if (data instanceof HonoRedirect) {
-      const sessionFlashData = request.session.get(
-        "_flash"
-      ) as SessionDataTypes["_flash"];
-      const old = sessionFlashData.old;
-      const newData = sessionFlashData.new;
-      // merge
-      const merged = [...old, ...newData];
-      request.session.put("_flash", {
-        old: [],
-        new: [...merged],
-      });
+      saveSessionIfRedirect(request);
       switch (data.type) {
         case "back":
           // @ts-ignore //
@@ -1433,6 +1426,9 @@ export async function handleAction(
           throw new Error("Invalid use of redirect()");
       }
     } else if (data instanceof HonoResponse) {
+      if (data instanceof RedirectResponse) {
+        saveSessionIfRedirect(request);
+      }
       // @ts-ignore //
       const cookies = data.getCookies();
       for (const [name, [value, options]] of Object.entries(cookies)) {
@@ -1452,6 +1448,20 @@ export async function handleAction(
       return c.text(JSON.stringify(data, null, 2), statusCode);
     }
   }
+}
+
+function saveSessionIfRedirect(request: HRequest) {
+  const sessionFlashData = request.session.get(
+    "_flash"
+  ) as SessionDataTypes["_flash"];
+  const old = sessionFlashData.old;
+  const newData = sessionFlashData.new;
+  // merge
+  const merged = [...old, ...newData];
+  request.session.put("_flash", {
+    old: [],
+    new: [...merged],
+  });
 }
 
 export function convertToResponse(c: MyContext, res: Response): Response {

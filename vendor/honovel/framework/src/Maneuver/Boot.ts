@@ -16,10 +16,10 @@ class Boot {
     try {
       Carbon.setCarbonTimezone((config("app.timezone") as string) || "UTC");
       Cache.init();
-      await Database.init();
+      await Database.init(true);
       Auth.setAuth();
     } catch (e) {
-      consoledeno.error(e);
+      console.error(e);
       Deno.exit(1);
     }
   }
@@ -30,8 +30,7 @@ class Boot {
       await SessionInitializer.init();
       CookieKeysCache.init();
     } catch (e) {
-      consoledeno.error(e);
-      Deno.exit(1);
+      console.error(e);
     }
   }
 }

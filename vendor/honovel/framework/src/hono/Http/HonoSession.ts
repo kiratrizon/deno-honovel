@@ -2,7 +2,6 @@ import { MiddlewareHandler } from "hono";
 
 import { ISession } from "../../../../@types/declaration/ISession.d.ts";
 import { Str } from "Illuminate/Support/index.ts";
-import { getMyCookie, setMyCookie } from "./HonoCookie.ts";
 import { deleteCookie } from "hono/cookie";
 import { Cache } from "Illuminate/Support/Facades/index.ts";
 import { SessionConfig } from "../../../../../../config/@types/index.d.ts";
@@ -29,8 +28,6 @@ export function honoSession(): MiddlewareHandler {
 }
 
 export function sessionIdRecursive(): string {
-  const prefix = SessionModifier.sesConfig.prefix || "sess:";
-
   const timestamp = date("YmdHis");
 
   const array = crypto.getRandomValues(new Uint8Array(16));
@@ -38,7 +35,7 @@ export function sessionIdRecursive(): string {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
-  return `${prefix}${timestamp}${randomPart}`;
+  return `${timestamp}${randomPart}`;
 }
 
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -72,10 +69,8 @@ export class SessionModifier {
       throw new Error("Session configuration is not set.");
     }
     const type = SessionModifier.sesConfig.driver || "file";
-    if (config("app").env != "local" && type == "file") {
-      throw new Error(
-        "File session driver is not allowed in production environment."
-      );
+    if (config("app").env != "local" && type == "file"){
+      throw new Error("File session driver is not allowed in production environment.");
     }
     const keyStore = `${type}_session`;
     const prefix = SessionModifier.sesConfig.prefix || "sess:";

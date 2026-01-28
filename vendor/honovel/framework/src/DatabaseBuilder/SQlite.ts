@@ -58,9 +58,9 @@ class SQLite {
       } as QueryResultDerived[T];
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
-      consoledeno.error("SQLite Error:", error.message);
-      consoledeno.error("Query:", query);
-      consoledeno.error("Params:", params);
+      console.error("SQLite Error:", error.message);
+      console.error("Query:", query);
+      console.error("Params:", params);
       throw error;
     }
   }

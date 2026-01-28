@@ -63,7 +63,7 @@ class MySQL {
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
       const formattedQuery = mysql.format(query, params);
-      consoledeno.error(formattedQuery);
+      console.error(formattedQuery);
       throw error;
     }
   }

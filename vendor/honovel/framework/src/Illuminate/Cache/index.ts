@@ -36,6 +36,7 @@ type MaintenanceData = {
 
 export interface CacheStoreData {
   maintenance: MaintenanceData;
+  [key: string]: any;
 }
 
 export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
@@ -171,14 +172,14 @@ export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
       throw new Error(`Key cannot be an empty string`);
     }
     const keys = [this.getPrefix(), key];
-    const newKey = keys.filter((k) => isset(k) && !empty(k)).join("_");
+    const newKey = keys.filter((k) => isset(k) && !empty(k)).join("");
     return newKey;
   }
 
   protected warning(storeType: string, err: boolean = false) {
     if (config("app").env !== "local") {
       if (!err) {
-        consoledeno.warn(
+        console.warn(
           `${storeType} cache store is not recommended for production environments.`
         );
       } else {
@@ -606,7 +607,7 @@ class MemcachedStore extends AbstractStore {
       }
       return jsonDecode(value); // Return the cached value
     } catch (error) {
-      consoledeno.error(`Error getting key "${newKey}":`, error);
+      console.error(`Error getting key "${newKey}":`, error);
       return null; // Handle error gracefully
     }
   }
@@ -621,7 +622,7 @@ class MemcachedStore extends AbstractStore {
         seconds > 0 ? seconds : undefined
       );
     } catch (error) {
-      consoledeno.error(`Error setting key "${newKey}":`, error);
+      console.error(`Error setting key "${newKey}":`, error);
     }
   }
 
@@ -631,7 +632,7 @@ class MemcachedStore extends AbstractStore {
     try {
       await this.client.delete(newKey);
     } catch (error) {
-      consoledeno.error(`Error deleting key "${newKey}":`, error);
+      console.error(`Error deleting key "${newKey}":`, error);
     }
   }
 
@@ -640,7 +641,7 @@ class MemcachedStore extends AbstractStore {
     try {
       await this.client.flush();
     } catch (error) {
-      consoledeno.error("Error flushing Memcached store:", error);
+      console.error("Error flushing Memcached store:", error);
     }
   }
 
@@ -736,7 +737,7 @@ class DynamoDBStore extends AbstractStore {
       await this.client.send(command);
       this.#initialized = true; // Mark as initialized
     } catch (error) {
-      consoledeno.error(`Error creating table "${this.table}":`, error);
+      console.error(`Error creating table "${this.table}":`, error);
       throw error; // Re-throw the error if table creation fails
     }
   }
@@ -777,7 +778,7 @@ class DynamoDBStore extends AbstractStore {
       }
       return null;
     } catch (error) {
-      consoledeno.error(`Error getting key "${newKey}":`, error);
+      console.error(`Error getting key "${newKey}":`, error);
       return null;
     }
   }
@@ -804,7 +805,7 @@ class DynamoDBStore extends AbstractStore {
         })
       );
     } catch (error) {
-      consoledeno.error(`Error setting key "${newKey}":`, error);
+      console.error(`Error setting key "${newKey}":`, error);
     }
   }
 
@@ -821,7 +822,7 @@ class DynamoDBStore extends AbstractStore {
         })
       );
     } catch (error) {
-      consoledeno.error(`Error deleting key "${newKey}":`, error);
+      console.error(`Error deleting key "${newKey}":`, error);
     }
   }
 
@@ -855,7 +856,7 @@ class DynamoDBStore extends AbstractStore {
         }
       }
     } catch (error) {
-      consoledeno.error("Error flushing DynamoDB store:", error);
+      console.error("Error flushing DynamoDB store:", error);
     }
   }
   getPrefix(): string {
@@ -939,7 +940,7 @@ class MongoDBStore extends AbstractStore {
       }
       return null;
     } catch (error) {
-      consoledeno.error(`Error getting key "${newKey}":`, error);
+      console.error(`Error getting key "${newKey}":`, error);
       return null;
     }
   }
@@ -962,7 +963,7 @@ class MongoDBStore extends AbstractStore {
         { upsert: true }
       );
     } catch (error) {
-      consoledeno.error(`Error setting key "${newKey}":`, error);
+      console.error(`Error setting key "${newKey}":`, error);
     }
   }
 
@@ -972,7 +973,7 @@ class MongoDBStore extends AbstractStore {
     try {
       await this.Collection.deleteOne({ key: newKey });
     } catch (error) {
-      consoledeno.error(`Error deleting key "${newKey}":`, error);
+      console.error(`Error deleting key "${newKey}":`, error);
     }
   }
 
@@ -981,7 +982,7 @@ class MongoDBStore extends AbstractStore {
     try {
       await this.Collection.deleteMany({});
     } catch (error) {
-      consoledeno.error("Error flushing MongoDB store:", error);
+      console.error("Error flushing MongoDB store:", error);
     }
   }
 

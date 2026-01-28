@@ -16,7 +16,10 @@ class ContentController extends Controller {
   };
 
   // GET /resource/{id}
-  public show: HttpDispatch = async ({ request }, content: Content) => {
+  public show: HttpDispatch = async (
+    { request },
+    { content }: { content: Content },
+  ) => {
     if (!(content instanceof Content)) {
       return redirect("/");
     }
@@ -25,7 +28,7 @@ class ContentController extends Controller {
     }
     const contentDetails = await ContentDetail.where(
       "content_id",
-      content.id
+      content.id,
     ).get();
     const newMyTabs = [...myTabs].map((tab) => {
       if (tab.href === "/docs") {
@@ -64,7 +67,7 @@ class ContentController extends Controller {
   };
 
   // GET /resource/{id}/edit
-  public edit: HttpDispatch = async ({ request }, id) => {
+  public edit: HttpDispatch = async ({ request }, { id }) => {
     // Return form or data for editing resource
     return response().json({
       message: `edit ${id}`,
@@ -72,7 +75,7 @@ class ContentController extends Controller {
   };
 
   // PUT or PATCH /resource/{id}
-  public update: HttpDispatch = async ({ request }, id) => {
+  public update: HttpDispatch = async ({ request }, { id }) => {
     // Update a resource by ID
     return response().json({
       message: `update ${id}`,
@@ -80,7 +83,7 @@ class ContentController extends Controller {
   };
 
   // DELETE /resource/{id}
-  public destroy: HttpDispatch = async ({ request }, id) => {
+  public destroy: HttpDispatch = async ({ request }, { id }) => {
     // Delete a resource by ID
     return response().json({
       message: `delete ${id}`,

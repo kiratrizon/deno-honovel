@@ -26,49 +26,51 @@ interface GraphQLRequest {
   operationName?: string;
 }
 
-Route.any("/graphql", async ({ request }) => {
-  const schema = new GraphQLSchema({
-    query: new GraphQLObjectType({
-      name: "Query",
-      fields: {
-        hello: {
-          type: GraphQLString,
-          resolve: () => "Hello, world!",
-        },
-        goodbye: {
-          type: GraphQLString,
-          resolve: () => "Goodbye, world!",
-        },
-      },
-    }),
-    mutation: new GraphQLObjectType({
-      name: "Mutation",
-      fields: {
-        createMessage: {
-          type: GraphQLString,
-          args: {
-            input: { type: GraphQLString },
+Route.middleware(["ensure_accepts_json"]).group(() => {
+  Route.any("/graphql", async ({ request }) => {
+    const schema = new GraphQLSchema({
+      query: new GraphQLObjectType({
+        name: "Query",
+        fields: {
+          hello: {
+            type: GraphQLString,
+            resolve: () => "Hello, world!",
           },
-          resolve: (_, { input }) => {
-            // Handle message creation logic here
-            return `Message created: ${input}`;
+          goodbye: {
+            type: GraphQLString,
+            resolve: () => "Goodbye, world!",
           },
         },
-      },
-    }),
-  });
+      }),
+      mutation: new GraphQLObjectType({
+        name: "Mutation",
+        fields: {
+          createMessage: {
+            type: GraphQLString,
+            args: {
+              input: { type: GraphQLString },
+            },
+            resolve: (_, { input }) => {
+              // Handle message creation logic here
+              return `Message created: ${input}`;
+            },
+          },
+        },
+      }),
+    });
 
-  const {
-    query = "",
-    variables = {},
-    operationName,
-  } = request.all() as unknown as GraphQLRequest;
+    const {
+      query = "",
+      variables = {},
+      operationName,
+    } = request.all() as unknown as GraphQLRequest;
 
-  const result = await graphql({
-    schema,
-    source: query,
-    variableValues: variables,
-    operationName,
+    const result = await graphql({
+      schema,
+      source: query,
+      variableValues: variables,
+      operationName,
+    });
+    return response().json(result);
   });
-  return response().json(result);
 });

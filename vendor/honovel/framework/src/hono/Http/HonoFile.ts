@@ -30,7 +30,7 @@ export default class HonoFile {
     try {
       return await storage.put(path, this.#content);
     } catch (error: any) {
-      consoledeno.error(
+      console.error(
         "Error storing file:",
         error.message ? error.message : error
       );

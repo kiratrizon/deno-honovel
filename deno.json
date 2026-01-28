@@ -10,6 +10,7 @@
     "@tailwindcss/vite": "npm:@tailwindcss/vite@^4.1.17",
     "@vef/deno-memcached": "jsr:@vef/deno-memcached@^0.1.1",
     "autoprefixer": "npm:autoprefixer@^10.4.22",
+    "fast-xml-parser": "npm:fast-xml-parser@^5.3.2",
     "graphql": "npm:graphql@^16.12.0",
     "hono-sessions": "jsr:@jcs224/hono-sessions@^0.7.2",
     "hono": "jsr:@hono/hono",
@@ -59,7 +60,8 @@
     "tailwindcss": "npm:tailwindcss@^4.1.17",
     "uuid": "npm:uuid@^11.1.0",
     "prettier": "npm:prettier@^3.0.0",
-    "vite": "npm:vite@^7.2.2"
+    "vite": "npm:vite@^7.2.2",
+    "Honovel": "./vendor/honovel/framework/Server.ts"
   },
   "tasks": {
     "smelt": "deno run -A vendor/bin/novel",

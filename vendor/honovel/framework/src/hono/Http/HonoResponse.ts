@@ -117,17 +117,38 @@ export default class HonoResponseV2 {
     );
   }
 
-  public stream(path: string, contentType?: string) {
-    const file = Deno.openSync(path, { read: true });
+  public stream(
+    input: string | ReadableStream<Uint8Array>,
+    contentType?: string
+  ) {
+    let body: ReadableStream<Uint8Array>;
 
-    if (!contentType) {
-      contentType = HonoResponseV2.guessMimeType(path);
+    if (typeof input === "string") {
+      const file = Deno.openSync(input, { read: true });
+      body = file.readable;
+      contentType ??= HonoResponseV2.guessMimeType(input);
+    } else {
+      body = input;
+      contentType ??= "application/octet-stream";
     }
 
-    this._body = file.readable;
+    this._body = body;
     this._contentType = contentType;
 
-    return new FileResponse(
+    return new StreamResponse(
+      this._body as ReadableStream<Uint8Array>,
+      this._contentType,
+      this._headers,
+      this._status
+    );
+  }
+
+  public text(content: string, status = 200) {
+    this._body = content;
+    this._contentType = "text/plain";
+    this._status = status;
+
+    return new HonoResponse(
       this._body,
       this._contentType,
       this._headers,
@@ -138,6 +159,48 @@ export default class HonoResponseV2 {
   private static guessMimeType(filename: string): string {
     const ext = "." + filename.split(".").pop()?.toLowerCase();
     return this.mimeTypes[ext] || "application/octet-stream";
+  }
+
+  private objectToXML(obj: Record<string, any>, rootName = "root"): string {
+    let xml = `<${rootName}>`;
+
+    for (const key in obj) {
+      if (!obj.hasOwnProperty(key)) continue;
+      const value = obj[key];
+
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          xml += this.objectToXML(item, key);
+        }
+      } else if (typeof value === "object" && value !== null) {
+        xml += this.objectToXML(value, key);
+      } else {
+        xml += `<${key}>${String(value)}</${key}>`;
+      }
+    }
+
+    xml += `</${rootName}>`;
+    return xml;
+  }
+
+  public xml(content: string | Record<string, any>, status = 200) {
+    if (isObject(content)) {
+      content = this.objectToXML(content);
+    }
+    this._body = content as string;
+    this._contentType = "application/xml";
+    this._status = status;
+
+    return new HonoResponse(
+      this._body,
+      this._contentType,
+      this._headers,
+      this._status
+    );
+  }
+
+  public redirectTo(url: string, status = 302) {
+    return new RedirectResponse(url, status);
   }
 }
 
@@ -201,3 +264,25 @@ export class HTMLResponse extends HonoResponse {}
 export class FileResponse extends HonoResponse {}
 
 export class DownloadResponse extends HonoResponse {}
+
+export class StreamResponse extends HonoResponse {
+  constructor(
+    stream: ReadableStream<Uint8Array>,
+    contentType = "application/octet-stream",
+    headers?: Headers,
+    status = 200
+  ) {
+    super(
+      stream,
+      contentType,
+      headers ?? new Headers({ "Content-Type": contentType }),
+      status
+    );
+  }
+}
+
+export class RedirectResponse extends HonoResponse {
+  constructor(url: string, status = 302) {
+    super(null, null, new Headers({ Location: url }), status);
+  }
+}

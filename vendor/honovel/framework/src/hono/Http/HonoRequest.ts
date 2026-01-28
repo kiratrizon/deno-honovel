@@ -15,6 +15,8 @@ import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.
 import { ValidationException } from "Illuminate/Validation/ValidationException.ts";
 import HonoFile from "./HonoFile.ts";
 
+import { XMLParser } from "fast-xml-parser";
+
 class HonoRequest extends Macroable {
   public static HEADER_X_FORWARDED_ALL = [
     "X-Forwarded-For",
@@ -95,6 +97,16 @@ class HonoRequest extends Macroable {
     } else if (contentType.includes("application/octet-stream")) {
       const buffer = await c.req.arrayBuffer();
       body = { buffer }; // you can handle it differently depending on use case
+    } else if (contentType.includes("application/xml")) {
+      const text = await c.req.text();
+      // parse text
+      const parser = new XMLParser();
+      try {
+        const parsed = parser.parse(text);
+        body = parsed;
+      } catch {
+        abort(400, "Invalid XML format");
+      }
     } else {
       switch (c.req.method.toUpperCase()) {
         case "GET":

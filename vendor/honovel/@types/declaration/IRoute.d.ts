@@ -298,7 +298,7 @@ export declare class IRoute extends IGroupRoute {
    */
   public static delete<
     T extends BaseController,
-    K extends KeysWithICallback<T>,
+    K extends KeysWithICallback<T>
   >(uri: string, arg: ICallback | [new () => T, K]): IMethodRoute;
 
   /**
@@ -318,7 +318,7 @@ export declare class IRoute extends IGroupRoute {
    */
   public static options<
     T extends BaseController,
-    K extends KeysWithICallback<T>,
+    K extends KeysWithICallback<T>
   >(uri: string, arg: ICallback | [new () => T, K]): IMethodRoute;
 
   /**

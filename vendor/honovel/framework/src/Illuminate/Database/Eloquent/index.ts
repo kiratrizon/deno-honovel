@@ -70,11 +70,20 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
 
   private _connection?: string;
 
+  /**
+   * Get the database connection for the model.
+   * @returns The name of the database connection.
+   */
   public getConnection(): string {
     const connection = this._connection || this._defaultConnection;
     return connection;
   }
 
+  /**
+   * Set the database connection for the model.
+   * @param connection The name of the database connection.
+   * @returns The model instance.
+   */
   public setConnection(connection: string): this {
     if (!DB.hasConnection(connection)) {
       throw new Error(`Database connection "${connection}" does not exist.`);
@@ -83,20 +92,37 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     return this;
   }
 
+  /**
+   * Get the primary key name for the model.
+   * @returns The primary key name.
+   */
   public getKeyName(): string {
     return (this.constructor as typeof Model)._primaryKey;
   }
 
+  /**
+   * Get the primary key value for the model.
+   * @returns The primary key value.
+   */
   public getKey(): string | number {
     return this._attributes[(this.constructor as typeof Model)._primaryKey] as
       | string
       | number;
   }
 
+  /**
+   * Check if the model uses timestamps.
+   * @returns True if the model uses timestamps, false otherwise.
+   */
   public usesTimestamps(): boolean {
     return (this.constructor as typeof Model)._timeStamps;
   }
 
+  /**
+   * Get an attribute value by key.
+   * @param key The attribute key.
+   * @returns The attribute value or null if not found.
+   */
   public getAttribute<K extends keyof T>(key: K): T[K] | null {
     let value: unknown = this._attributes[key] ?? null;
 
@@ -158,6 +184,10 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     return value as T[K] | null;
   }
 
+  /**
+   * Get all attribute values.
+   * @returns An object containing all attribute values.
+   */
   public getAttributes(): Record<string, unknown> {
     const keys = Object.keys(this._attributes);
     const data: Record<string, unknown> = {};
@@ -167,6 +197,11 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     return data;
   }
 
+  /**
+   * Set an attribute value by key.
+   * @param key The attribute key.
+   * @param value The attribute value.
+   */
   public setAttribute<K extends keyof T>(key: K, value: T[K]): void {
     if (
       isset((this.constructor as typeof Model)._guarded) &&
@@ -195,6 +230,11 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     this._attributes[key] = value;
   }
 
+  /**
+   * Fill the model with attributes.
+   * @param attributes The attributes to fill.
+   * @returns The model instance.
+   */
   public fill(attributes: Partial<T>): this {
     const fillable = [...(this.constructor as typeof Model)._fillable];
     const guarded = [...(this.constructor as typeof Model)._guarded];
@@ -233,6 +273,11 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     return this;
   }
 
+  /**
+   * Force fill the model with attributes.
+   * @param attributes The attributes to fill.
+   * @returns The model instance.
+   */
   public forceFill(attributes: T): this {
     for (const [key, value] of Object.entries(attributes)) {
       // @ts-ignore //
@@ -241,7 +286,11 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     return this; // 🔁 Return the same instance to allow chaining
   }
 
-  public toObject(): Record<string, unknown> {
+  /**
+   * Convert the model instance to a plain object.
+   * @returns A plain object representation of the model.
+   */
+  public toObject(): Record<Array<string>[number], unknown> {
     const data = { ...this._attributes };
 
     if ((this.constructor as typeof Model)._visible.length) {
@@ -263,22 +312,44 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     return data;
   }
 
+  /**
+   * Convert the model instance to a JSON string.
+   * @returns A JSON string representation of the model.
+   */
   public toJSON(): string {
     return jsonEncode(this.toObject());
   }
 
+  /**
+   * Check if the model has a cast for the given attribute.
+   * @param attribute The attribute name.
+   * @returns True if the model has a cast for the attribute, false otherwise.
+   */
   public hasCast(attribute: string): boolean {
     return keyExist((this.constructor as typeof Model)._casts, attribute);
   }
 
+  /**
+   * Get all raw attribute values.
+   * @returns An object containing all raw attribute values.
+   */
   public getRawAttributes(): Record<string, unknown> {
     return { ...this._attributes };
   }
 
+  /**
+   * Get a raw attribute value by key.
+   * @param key The attribute key.
+   * @returns The raw attribute value or null if not found.
+   */
   public getRawAttribute<K extends keyof T>(key: K): T[K] | null {
     return this._attributes[key] ?? null;
   }
 
+  /**
+   * Soft delete the model instance.
+   * @returns The model instance.
+   */
   public softDelete(): this {
     if (!(this.constructor as typeof Model)._softDelete) {
       throw new Error("Soft delete is not enabled for this model.");
@@ -288,6 +359,10 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     return this;
   }
 
+  /**
+   * Restore the soft-deleted model instance.
+   * @returns The model instance.
+   */
   public restore(): this {
     if (!(this.constructor as typeof Model)._softDelete) {
       throw new Error("Soft delete is not enabled for this model.");
@@ -297,6 +372,10 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     return this;
   }
 
+  /**
+   * Check if the model is soft-deleted.
+   * @returns True if the model is soft-deleted, false otherwise.
+   */
   public isTrashed(): boolean {
     if (!(this.constructor as typeof Model)._softDelete) {
       throw new Error("Soft delete is not enabled for this model.");
@@ -307,14 +386,28 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     );
   }
 
+  /**
+   * Get the deleted at column name.
+   * @returns The deleted at column name.
+   */
   public getDeletedAtColumn(): string {
     return (this.constructor as typeof Model)._deletedAtColumn;
   }
 
+  /**
+   * Serialize the model's date attributes.
+   * @param format The date format.
+   * @returns The serialized date string.
+   */
   public serializeDate(format: PHPTimestampFormat = "Y-m-d H:i:s"): string {
     return date(format);
   }
 
+  /**
+   * Add an accessor to the model.
+   * @param attribute The attribute name.
+   * @param fn The accessor function.
+   */
   public addAccessor(
     attribute: keyof T,
     fn: (value: T[keyof T]) => unknown
@@ -348,6 +441,11 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }
   }
 
+  /**
+   * Add a mutator to the model.
+   * @param attribute The attribute name.
+   * @param fn The mutator function.
+   */
   public addMutator<K extends keyof T>(
     attribute: K,
     fn: (value: T[K]) => unknown
@@ -360,6 +458,10 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     ) => unknown;
   }
 
+  /**
+   * Set the database connection for the model.
+   * @param db The database connection name.
+   */
   public static on(db?: string) {
     if (!isset(db)) {
       // @ts-ignore //
@@ -370,6 +472,11 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     return new AfterOn(this, db);
   }
 
+  /**
+   * Create a new model instance.
+   * @param attributes The attributes to set on the model.
+   * @returns The created model instance.
+   */
   public static async create<Attr extends Record<string, unknown>>(
     attributes?: Attr
   ) {
@@ -379,6 +486,11 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     return instance;
   }
 
+  /**
+   * Create a new model instance.
+   * @param connection The database connection name.
+   * @returns The created model instance.
+   */
   // Never use this in production code, it's for development CLI only.
   public static async factory(connection?: string): Promise<Factory> {
     if (!isset(this.use)) {
@@ -407,6 +519,10 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     return factory as Factory;
   }
 
+  /**
+   * Get a new query builder instance for the model.
+   * @returns The query builder instance.
+   */
   public static query(): Builder {
     return new Builder({
       model: this,
@@ -414,7 +530,11 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     });
   }
 
-  // separated with dot
+  /**
+   * Eager load relationships for the model.
+   * @param modelActions The model actions to eager load.
+   * @returns The query builder instance.
+   */
   public static with(...modelActions: string[]) {
     const arrActionsAndFields: Array<{
       actions: string[];
@@ -439,13 +559,34 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     );
   }
 
-  public static where(column: string, value: unknown): Builder {
+  public static where(column:string, operator:WhereOperator, value:WherePrimitive): Builder;
+  public static where(column: string, value: WherePrimitive): Builder;
+  public static where(callback: (qb: WhereInterpolator) => void): Builder;
+  /**
+   * Add a where clause to the query.
+   * @param args The where clause arguments.
+   * @returns The query builder instance.
+   */
+  public static where(
+    ...args: [
+        string | ((qb: WhereInterpolator) => void),
+        (WhereOperator | WherePrimitive)?,
+        WherePrimitive?,
+      ]
+  ): Builder {
     return new Builder({
       model: this,
       fields: ["*"],
-    }).where(column, value);
+      // @ts-ignore //
+    }).where(...args);
   }
 
+  /**
+   * Add a whereIn clause to the query.
+   * @param column The column name.
+   * @param values The values to check for.
+   * @returns The query builder instance.
+   */
   public static whereIn(
     column: string,
     values: unknown[]
@@ -456,6 +597,12 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).whereIn(column, values);
   }
 
+  /**
+   * Add a whereNotIn clause to the query.
+   * @param column The column name.
+   * @param values The values to check for.
+   * @returns The query builder instance.
+   */
   public static whereNotIn(
     column: string,
     values: unknown[]
@@ -466,6 +613,11 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).whereNotIn(column, values);
   }
 
+  /**
+   * Add a whereNull clause to the query.
+   * @param column The column name.
+   * @returns The query builder instance.
+   */
   public static whereNull(
     column: string
   ): Builder<ModelAttributes, typeof Model<ModelAttributes>> {
@@ -475,6 +627,11 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).whereNull(column);
   }
 
+  /**
+   * Add a whereNotNull clause to the query.
+   * @param column The column name.
+   * @returns The query builder instance.
+   */
   public static whereNotNull(
     column: string
   ): Builder<ModelAttributes, typeof Model<ModelAttributes>> {
@@ -484,6 +641,12 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).whereNotNull(column);
   }
 
+  /**
+   * Add a whereBetween clause to the query.
+   * @param column The column name.
+   * @param values The values to check between.
+   * @returns The query builder instance.
+   */
   public static whereBetween(
     column: string,
     values: [unknown, unknown]
@@ -494,6 +657,12 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).whereBetween(column, values);
   }
 
+  /**
+   * Add a whereNotBetween clause to the query.
+   * @param column The column name.
+   * @param values The values to check between.
+   * @returns The query builder instance.
+   */
   public static whereNotBetween(
     column: string,
     values: [unknown, unknown]
@@ -504,6 +673,13 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).whereNotBetween(column, values);
   }
 
+  /**
+   * Add a join clause to the query.
+   * @param table The table name to join.
+   * @param column1 The column name on the main table.
+   * @param column2 The column name on the joined table.
+   * @returns The query builder instance.
+   */
   public static join(table: string, column1: string, column2: string): Builder {
     return new Builder({
       model: this,
@@ -511,6 +687,13 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).join(table, column1, column2);
   }
 
+  /**
+   * Add a leftJoin clause to the query.
+   * @param table The table name to join.
+   * @param column1 The column name on the main table.
+   * @param column2 The column name on the joined table.
+   * @returns The query builder instance.
+   */
   public static leftJoin(
     table: string,
     column1: string,
@@ -522,6 +705,13 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).leftJoin(table, column1, column2);
   }
 
+  /**
+   * Add a rightJoin clause to the query.
+   * @param table The table name to join.
+   * @param column1 The column name on the main table.
+   * @param column2 The column name on the joined table.
+   * @returns The query builder instance.
+   */
   public static rightJoin(
     table: string,
     column1: string,
@@ -533,6 +723,11 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).rightJoin(table, column1, column2);
   }
 
+  /**
+   * Add a crossJoin clause to the query.
+   * @param table The table name to join.
+   * @returns The query builder instance.
+   */
   public static crossJoin(table: string): Builder {
     return new Builder({
       model: this,
@@ -540,6 +735,13 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).crossJoin(table);
   }
 
+  /**
+   * Add a fullJoin clause to the query.
+   * @param table The table name to join.
+   * @param column1 The column name on the main table.
+   * @param column2 The column name on the joined table.
+   * @returns The query builder instance.
+   */
   public static fullJoin(
     table: string,
     column1: string,
@@ -551,6 +753,11 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).fullJoin(table, column1, column2);
   }
 
+  /**
+   * Add a groupBy clause to the query.
+   * @param columns The column names to group by.
+   * @returns The query builder instance.
+   */
   public static groupBy(...columns: string[]): Builder {
     return new Builder({
       model: this,
@@ -558,6 +765,12 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).groupBy(...columns);
   }
 
+  /**
+   * Add an orderBy clause to the query.
+   * @param column The column name to order by.
+   * @param direction The direction to order (asc or desc).
+   * @returns The query builder instance.
+   */
   public static orderBy(
     column: string,
     direction: "asc" | "desc" = "asc"
@@ -568,6 +781,10 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).orderBy(column, direction);
   }
 
+  /**
+   * Get all records from the database.
+   * @returns An array of model instances.
+   */
   public static async all<
     T extends Model<ModelAttributes> = Model<ModelAttributes>,
   >(): Promise<T[]> {
@@ -577,6 +794,10 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).get<T>();
   }
 
+  /**
+   * Get the first record from the database.
+   * @returns The first model instance or null.
+   */
   public static async first(): Promise<InstanceType<
     typeof Model<ModelAttributes>
   > | null> {
@@ -586,6 +807,11 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).first();
   }
 
+  /**
+   * Find a record by its primary key.
+   * @param id The primary key value.
+   * @returns The model instance or null.
+   */
   public static async find<
     M extends Model<ModelAttributes> = Model<ModelAttributes>,
   >(id: string | number): Promise<M | null> {
@@ -600,6 +826,11 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
       .first()) as unknown as M;
   }
 
+  /**
+   * Find a record by its primary key or fail.
+   * @param id The primary key value.
+   * @returns The model instance.
+   */
   public static async findOrFail<
     M extends Model<ModelAttributes> = Model<ModelAttributes>,
   >(id: string | number): Promise<M> {
@@ -616,6 +847,11 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }
   }
 
+  /**
+   * Save the model instance to the database.
+   * Create or update the record.
+   * @returns A promise that resolves when the save operation is complete.
+   */
   async save() {
     const data = this.getRawAttributes();
     const tableName = this.getTableName();
@@ -653,6 +889,12 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }
   }
 
+  /**
+   * Define a one-to-many relationship.
+   * @param relationModel The related model class.
+   * @param foreignKey The foreign key column name.
+   * @returns The relationship query builder.
+   */
   public hasMany(
     relationModel: typeof Model<ModelAttributes>,
     foreignKey?: string
@@ -673,13 +915,17 @@ export abstract class Model<T extends ModelAttributes = ModelAttributes> {
     }).where(foreignKey, this.getKey());
   }
 
+  /**
+   * Check if the user has verified their email address.
+   * @returns True if the email is verified, false otherwise.
+   */
   public hasVerifiedEmail(): boolean {
     const emailVerifiedAt = this.getRawAttribute("email_verified_at");
     return emailVerifiedAt !== null;
   }
 }
 
-import { Builder as RawBuilder, sqlstring } from "../Query/index.ts";
+import { Builder as RawBuilder, sqlstring, WhereInterpolator, WhereOperator, WhereValue, WherePrimitive } from "../Query/index.ts";
 import { Factory, HasFactory } from "./Factories/index.ts";
 
 export class Builder<
@@ -700,11 +946,13 @@ export class Builder<
   }
 
   // @ts-ignore //
-  public override async first<M extends InstanceType<T>>(): Promise<M | null> {
+  public override async first(): Promise<InstanceType<T> | null> {
     const data = await super.first();
     if (!data) return null;
     // @ts-ignore //
-    return new this.model(data as B) as InstanceType<T>;
+    const modelInstance = new this.model();
+    modelInstance.forceFill(data as B);
+    return modelInstance;
   }
 
   // @ts-ignore //
@@ -712,10 +960,18 @@ export class Builder<
     B extends InstanceType<T> = InstanceType<T>,
   >(): Promise<B[]> {
     const data = await super.get();
-    // @ts-ignore //
-    return data.map((item) => new this.model(item as B));
+    return data.map((item) => {
+      // @ts-ignore //
+      const modelInstance = new this.model();
+      modelInstance.forceFill(item as B);
+      return modelInstance as B;
+    });
   }
 
+  /**
+    * Eager load relationships for the model.
+    * @param modelActions The relationships to load.
+    */
   with(...modelActions: string[]) {
     const arrActionsAndFields: Array<{
       actions: string[];

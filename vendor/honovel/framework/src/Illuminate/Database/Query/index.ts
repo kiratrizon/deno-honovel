@@ -25,10 +25,10 @@ type TInsertBuilder = {
 type whereBetweenParams = [WherePrimitive | SQLRaw, WherePrimitive | SQLRaw];
 
 export type sqlstring = SQLRaw | Builder | string;
-type Raw = SQLRaw | string;
-type WherePrimitive = Exclude<any, undefined>;
-type WhereValue = WherePrimitive | WherePrimitive[];
-type WhereOperator =
+export type Raw = SQLRaw | string;
+export type WherePrimitive = Exclude<any, undefined>;
+export type WhereValue = WherePrimitive | WherePrimitive[];
+export type WhereOperator =
   | "="
   | "!="
   | "<"

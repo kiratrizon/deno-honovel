@@ -29,7 +29,7 @@
 Route.view("/", "welcome"); // Directly returns the "welcome" view with GET method
 
 // Route example with params
-Route.get("/docs/{content}", async function({request}, content){
+Route.get("/docs/{content}", async function({request}, {content}){
     return content; // Returns the 'content' URL parameter
 });</code></pre>
 
@@ -164,7 +164,7 @@ Route.get("/posts/{slug?}", [PostController, "show"]); // 'slug' is optional</co
         In your controller, the parameters are passed as method arguments in order:
     </p>
 
-<pre><code class="language-ts">public async show({ request }, id: string) {
+<pre><code class="language-ts">public async show({ request }, {id}) {
     // 'id' contains the value from the URL
 }</code></pre>
 

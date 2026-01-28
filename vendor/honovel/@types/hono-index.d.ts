@@ -84,7 +84,7 @@ declare global {
 
   type HttpDispatch = (
     myHono: HttpHono,
-    ...args: any[]
+    args: Record<string, unknown>
   ) => Promise<number | null | boolean | string | object | []>;
 
   type nullify = null | undefined;

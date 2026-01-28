@@ -6,9 +6,9 @@ export async function myError(
   code: ContentfulStatusCode = 404,
   message: string = "Not Found"
 ) {
-  const { request } = c.get("myHono");
+  const {request} = c.get("myHono");
   if (request.expectsJson() || request.ajax()) {
-    return c.json(
+        return c.json(
       {
         message,
       },

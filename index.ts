@@ -1,3 +1,3 @@
-import Server from "./vendor/honovel/framework/src/hono/main.ts";
+import Honovel from "Honovel";
 
-export default Server.app;
+export default Honovel.app;

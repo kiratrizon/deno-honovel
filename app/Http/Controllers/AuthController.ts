@@ -3,7 +3,7 @@ import GoogleOAuthClient from "../../../vendor/Google/GoogleOAuthClient.ts";
 
 class AuthController extends Controller {
   // create function like this
-  public google: HttpDispatch = async ({ request }, code) => {
+  public google: HttpDispatch = async ({ request }, { code }) => {
     const appUrl = config("app").url;
     const googleAuth = new GoogleOAuthClient({
       clientId: env("GOOGLE_CLIENT_ID") || "",

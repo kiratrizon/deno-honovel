@@ -385,7 +385,7 @@ class Server {
           // route = Route as typeof INRoute;
         }
       } catch (err) {
-        consoledeno.warn(`Route file "${file}" could not be loaded.`, err);
+        console.warn(`Route file "${file}" could not be loaded.`, err);
       }
       const filePath = basePath(`routes/${file}`);
       if (isset(Route)) {
@@ -442,7 +442,7 @@ class Server {
                     optionalParams: arrangerDispatch.optionalParams,
                   };
                 } else {
-                  consoledeno.warn(
+                  console.warn(
                     `Route name "${flagName}" already exists. Overriding it is not allowed.`
                   );
                 }
@@ -591,7 +591,7 @@ class Server {
                   },
                   myParam
                 );
-                // consoledeno.debug(myParam);
+                // console.debug(myParam);
                 const arrangerDispatch = URLArranger.urlCombiner(myConfig.uri);
                 const newMethodUri = arrangerDispatch.string;
 
@@ -614,7 +614,7 @@ class Server {
                   }
                   finalName += flagName;
                   if (keyExist(this.routes, finalName)) {
-                    consoledeno.warn(
+                    console.warn(
                       `Route name "${flagName}" already exists. Overriding it is not allowed.`
                     );
                   } else {
