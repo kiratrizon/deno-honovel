@@ -3,12 +3,11 @@ import HomeController from "App/Http/Controllers/HomeController.ts";
 import ContentController from "App/Http/Controllers/ContentController.ts";
 import AuthController from "App/Http/Controllers/AuthController.ts";
 import { RuruClientConfig, ruruHTML } from "ruru/server";
-import { request } from "node:http";
 
 Route.get("/", [HomeController, "index"]);
 
 Route.get("/docs/{content}", [ContentController, "show"]).middleware(
-  "bind_content"
+  "bind_content",
 );
 
 // for "deno run -A https://honovel.deno.dev/create-project my-app@latest" setup
