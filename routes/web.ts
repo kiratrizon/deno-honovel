@@ -14,6 +14,7 @@ Route.get("/docs/{content}", [ContentController, "show"]).middleware(
 Route.get("/create-project", async ({ request }) => {
   return response().file(basePath("install.ts")).withHeaders({
     "Content-Type": "application/typescript", // Set the appropriate content type for TypeScript files
+    "Cache-Control": "no-cache", // Optional: prevent caching of the file
   });
 });
 
