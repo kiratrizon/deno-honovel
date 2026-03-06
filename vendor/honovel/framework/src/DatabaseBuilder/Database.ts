@@ -743,7 +743,8 @@ export class Database {
 
 export const dbCloser = () => {
   const entries = Object.entries(Database.connections);
-  for (const [driver, connections] of entries) {
+  for (const [, connections] of entries) {
+    const driver = connections.driver;
     switch (driver as SupportedDrivers) {
       case "mysql":
       case "pgsql":
