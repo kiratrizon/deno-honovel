@@ -1,0 +1,17 @@
+import {{ EventName }} from "App/Events/{{ EventName }}.ts";
+
+export default class {{ ClassName }} {
+  /**
+   * Create the event listener.
+   */
+  constructor() {
+    //
+  }
+
+  /**
+   * Handle the event.
+   */
+  public async handle(event: {{ EventName }}): Promise<void> {
+    //
+  }
+}

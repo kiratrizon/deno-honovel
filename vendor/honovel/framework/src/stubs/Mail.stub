@@ -1,0 +1,28 @@
+export default class {{ ClassName }} {
+  /**
+   * Create a new message instance.
+   */
+  constructor() {
+    //
+  }
+
+  /**
+   * Build the message.
+   */
+  public build(): Record<string, any> {
+    return {
+      subject: "Mail Subject",
+      view: "emails.template",
+      data: {
+        // Pass data to the view
+      },
+    };
+  }
+
+  /**
+   * Get the attachments for the message.
+   */
+  public attachments(): any[] {
+    return [];
+  }
+}

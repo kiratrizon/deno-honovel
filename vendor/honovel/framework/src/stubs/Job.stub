@@ -1,0 +1,22 @@
+export default class {{ ClassName }} {
+  /**
+   * Create a new job instance.
+   */
+  constructor() {
+    //
+  }
+
+  /**
+   * Execute the job.
+   */
+  public async handle(): Promise<void> {
+    //
+  }
+
+  /**
+   * Handle a job failure. (Optional)
+   */
+  public async failed(error: Error): Promise<void> {
+    //
+  }
+}

@@ -1,0 +1,17 @@
+export default class {{ ClassName }} {
+  /**
+   * Create a new event instance.
+   */
+  constructor() {
+    //
+  }
+
+  /**
+   * Get the event data.
+   */
+  public getData(): Record<string, any> {
+    return {
+      //
+    };
+  }
+}

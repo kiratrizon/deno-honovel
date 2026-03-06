@@ -1,0 +1,16 @@
+export default class {{ ClassName }} {
+  /**
+   * Run the validation rule.
+   */
+  public passes(attribute: string, value: any): boolean {
+    // Return true if validation passes, false otherwise
+    return true;
+  }
+
+  /**
+   * Get the validation error message.
+   */
+  public message(): string {
+    return "The :attribute is invalid.";
+  }
+}

@@ -1,0 +1,23 @@
+export default class {{ ClassName }} extends Error {
+  /**
+   * Create a new exception instance.
+   */
+  constructor(message: string = "An exception occurred") {
+    super(message);
+    this.name = "{{ ClassName }}";
+  }
+
+  /**
+   * Report the exception.
+   */
+  public report(): void {
+    //
+  }
+
+  /**
+   * Render the exception as an HTTP response.
+   */
+  public render(): Record<string, any> | null {
+    return null;
+  }
+}
