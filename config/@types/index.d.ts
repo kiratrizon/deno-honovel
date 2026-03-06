@@ -297,8 +297,8 @@ export interface SqlSrvConnectionConfig {
 
 export interface MongoConnectionConfig {
   driver: "mongodb";
-  // /** MongoDB database name */
-  // database: string;
+  /** MongoDB database name */
+  database: string;
   /**
    * Full MongoDB connection URI (alternative to host/port)
    * Example: "mongodb://username:password@host:port/database"

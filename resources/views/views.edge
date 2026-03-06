@@ -26,8 +26,8 @@
         Edge templates use a simple, intuitive syntax with curly braces for output:
     </p>
 
-    <pre><code class="language-html">&lt;h1&gt;Hello, {{ username }}&lt;/h1&gt;
-&lt;p&gt;The current time is {{ date }}&lt;/p&gt;</code></pre>
+    <pre><code class="language-html">&lt;h1&gt;Hello, &#123;&#123; $username &#125;&#125;&lt;/h1&gt;
+&lt;p&gt;The current time is &#123;&#123; $date &#125;&#125;&lt;/p&gt;</code></pre>
 
     <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Returning Views from Controllers</h2>
     <p class="mb-4 text-gray-600">
@@ -42,7 +42,7 @@ export default class PageController extends Controller {
     }
 
     public async about({ request }) {
-        return view("pages/about", {
+        return view("pages.about", {
             title: "About Us",
             company: "Honovel"
         });
@@ -58,37 +58,37 @@ export default class PageController extends Controller {
     <pre><code class="language-html">&lt;!DOCTYPE html&gt;
 &lt;html&gt;
 &lt;head&gt;
-    &lt;title&gt;{{ title ?? 'Honovel App' }}&lt;/title&gt;
+    &lt;title&gt;&#123;&#123; $title ?? 'Honovel App' &#125;&#125;&lt;/title&gt;
 &lt;/head&gt;
 &lt;body&gt;
-    @!slot('content')
+    &#64;!slot('content')
 &lt;/body&gt;
 &lt;/html&gt;</code></pre>
 
     <p class="mb-2 text-gray-600 mt-6"><strong>View file using the layout:</strong></p>
-    <pre><code class="language-html">@layouts.main()
+    <pre><code class="language-html">&#64;layouts.main()
 
-@slot('content')
+&#64;slot('content')
     &lt;h1&gt;Welcome to Honovel&lt;/h1&gt;
     &lt;p&gt;This content is inside the layout.&lt;/p&gt;
-@end
+&#64;end
 
-@endlayouts.main</code></pre>
+&#64;endlayouts.main</code></pre>
 
     <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Conditionals and Loops</h2>
     <p class="mb-4 text-gray-600">
         Edge supports conditional statements and loops:
     </p>
 
-    <pre><code class="language-html">@if(user)
-    &lt;p&gt;Welcome back, {{ user.name }}!&lt;/p&gt;
-@else
+    <pre><code class="language-html">&#64;if($user)
+    &lt;p&gt;Welcome back, &#123;&#123; $user.name &#125;&#125;!&lt;/p&gt;
+&#64;else
     &lt;p&gt;Please log in.&lt;/p&gt;
-@end
+&#64;end
 
-@each(item in items)
-    &lt;li&gt;{{ item.name }}&lt;/li&gt;
-@end</code></pre>
+&#64;each($item in $items)
+    &lt;li&gt;&#123;&#123; $item.name &#125;&#125;&lt;/li&gt;
+&#64;end</code></pre>
 
     <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Components</h2>
     <p class="mb-4 text-gray-600">
@@ -96,12 +96,12 @@ export default class PageController extends Controller {
     </p>
 
     <p class="mb-2 text-gray-600"><strong>Component file:</strong> <code>resources/views/components/button.edge</code></p>
-    <pre><code class="language-html">&lt;button class="btn btn-{{ type ?? 'primary' }}"&gt;
-    {{ text }}
+    <pre><code class="language-html">&lt;button class="btn btn-&#123;&#123; $type ?? 'primary' &#125;&#125;"&gt;
+    &#123;&#123; $text &#125;&#125;
 &lt;/button&gt;</code></pre>
 
     <p class="mb-2 text-gray-600 mt-6"><strong>Using the component:</strong></p>
-    <pre><code class="language-html">@component('components/button', { type: 'success', text: 'Click Me' })</code></pre>
+    <pre><code class="language-html">&#64;component('components/button', { type: 'success', text: 'Click Me' })</code></pre>
 
     <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Passing Data to Views</h2>
     <p class="mb-4 text-gray-600">
@@ -120,11 +120,11 @@ export default class PageController extends Controller {
 
     <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Edge Template Features</h2>
     <ul class="list-disc list-inside text-gray-600 space-y-2 ml-4">
-        <li><strong>Includes:</strong> <code>@include('partials/header')</code></li>
+        <li><strong>Includes:</strong> <code>&#64;include('partials/header')</code></li>
         <li><strong>Partials:</strong> Reusable template fragments</li>
         <li><strong>Slots:</strong> Named content sections in layouts</li>
-        <li><strong>Escaping:</strong> <code>{{ }}</code> auto-escapes, <code>{{{ }}}</code> for raw output</li>
-        <li><strong>Comments:</strong> <code>{{-- This is a comment --}}</code></li>
+        <li><strong>Escaping:</strong> <code>&#123;&#123; &#125;&#125;</code> auto-escapes, <code>&#123;&#123;&#123; &#125;&#125;&#125;</code> for raw output</li>
+        <li><strong>Comments:</strong> <code>&#123;&#123;-- This is a comment --&#125;&#125;</code></li>
     </ul>
 
     <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">View Helpers</h2>
@@ -133,15 +133,15 @@ export default class PageController extends Controller {
     </p>
 
     <pre><code class="language-html">&lt;!-- URL/Route helpers --&gt;
-&lt;a href="{{ route('users.show', { id: user.id }) }}"&gt;View Profile&lt;/a&gt;
+&lt;a href="&#123;&#123; route('users.show', { id: $user.id }) &#125;&#125;"&gt;View Profile&lt;/a&gt;
 
 &lt;!-- Asset helpers --&gt;
-&lt;img src="{{ asset('images/logo.png') }}" alt="Logo"&gt;
+&lt;img src="&#123;&#123; asset('images/logo.png') &#125;&#125;" alt="Logo"&gt;
 
 &lt;!-- Session/Flash messages --&gt;
-@if(session.get('success'))
-    &lt;div class="alert success"&gt;{{ session.get('success') }}&lt;/div&gt;
-@end</code></pre>
+&#64;if(session().get('success'))
+    &lt;div class="alert success"&gt;&#123;&#123; session().get('success') &#125;&#125;&lt;/div&gt;
+&#64;end</code></pre>
 
     <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Best Practices</h2>
     <ul class="list-disc list-inside text-gray-600 space-y-2 ml-4">
