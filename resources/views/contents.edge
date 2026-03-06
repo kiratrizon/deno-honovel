@@ -1,6 +1,274 @@
 @layouts.home()
 
+@slot('article')
+<article class="prose max-w-none">
 
+    <h1 class="text-3xl font-semibold mb-4 text-indigo-700">Middleware in Honovel</h1>
 
+    <p class="mb-4 text-gray-600">
+        Middleware provides a convenient mechanism for filtering and inspecting HTTP requests entering your application.
+        Think of middleware as layers that requests must pass through before reaching your application's routes and controllers.
+    </p>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">How Middleware Works</h2>
+    <p class="mb-4 text-gray-600">
+        Each middleware can perform tasks before or after passing the request to the next layer:
+    </p>
+
+    <ul class="list-disc list-inside text-gray-600 space-y-2 ml-4">
+        <li>Authenticate users before they access protected routes</li>
+        <li>Log requests for debugging and analytics</li>
+        <li>Validate CSRF tokens to prevent cross-site attacks</li>
+        <li>Transform request data (trim strings, parse JSON, etc.)</li>
+        <li>Add headers to responses</li>
+        <li>Handle CORS policies</li>
+    </ul>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Creating Middleware</h2>
+    <p class="mb-4 text-gray-600">
+        Generate a new middleware using the CLI:
+    </p>
+
+    <pre><code>deno task smelt make:middleware CheckAge</code></pre>
+
+    <p class="mb-4 text-gray-600">
+        This creates a file at <code>app/Http/Middlewares/CheckAge.ts</code>:
+    </p>
+
+    <pre><code class="language-ts">export default class CheckAge {
+    async handle({ request }, next) {
+        // Perform action before the request
+        const age = request.query('age');
+        
+        if (!age || parseInt(age) < 18) {
+            return response().json({ error: 'You must be 18 or older' }, 403);
+        }
+
+        await next(); // Pass to next middleware/controller
+
+        // Perform action after the request (optional)
+    }
+}</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Registering Middleware</h2>
+    <p class="mb-4 text-gray-600">
+        Middleware is registered in <code>app/Http/Kernel.ts</code>. There are three types:
+    </p>
+
+    <h3 class="text-xl font-medium mt-6 mb-2 text-gray-700">1. Global Middleware</h3>
+    <p class="mb-2 text-gray-600">
+        Runs on every request to your application:
+    </p>
+
+    <pre><code class="language-ts">protected override middleware = [
+    TrustProxies,
+    HandleCors,
+    PayloadParser,
+    ValidatePostSize,
+    TrimStrings,
+    ConvertEmptyStringsToNull,
+];</code></pre>
+
+    <h3 class="text-xl font-medium mt-6 mb-2 text-gray-700">2. Middleware Groups</h3>
+    <p class="mb-2 text-gray-600">
+        Applied to specific route groups (<code>web</code> or <code>api</code>):
+    </p>
+
+    <pre><code class="language-ts">protected override middlewareGroups = {
+    web: [
+        EncryptCookies,
+        StartSession,
+        VerifyCsrfToken,
+        SubstituteBindings,
+    ],
+    api: [
+        SubstituteBindings,
+    ],
+};</code></pre>
+
+    <h3 class="text-xl font-medium mt-6 mb-2 text-gray-700">3. Route Middleware</h3>
+    <p class="mb-2 text-gray-600">
+        Named middleware applied to specific routes:
+    </p>
+
+    <pre><code class="language-ts">protected override routeMiddleware = {
+    auth: Authenticate,
+    'auth.basic': AuthenticateWithBasicAuth,
+    'cache.headers': SetCacheHeaders,
+    can: Authorize,
+    guest: RedirectIfAuthenticated,
+    throttle: ThrottleRequests,
+    verified: EnsureEmailIsVerified,
+    bind_content: BindContent,
+};</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Applying Middleware to Routes</h2>
+    <p class="mb-4 text-gray-600">
+        Use the <code>.middleware()</code> method to apply middleware to routes:
+    </p>
+
+    <pre><code class="language-ts">// Single middleware
+Route.get("/admin", [AdminController, "index"]).middleware("auth");
+
+// Multiple middleware
+Route.get("/profile", [ProfileController, "show"])
+    .middleware("auth")
+    .middleware("verified");
+
+// Middleware with parameters
+Route.get("/api/data", [ApiController, "data"])
+    .middleware("throttle:60,1"); // 60 requests per minute
+
+// Apply to route groups
+Route.group({ middleware: ["auth", "verified"] }, () => {
+    Route.get("/dashboard", [DashboardController, "index"]);
+    Route.get("/settings", [SettingsController, "index"]);
+});</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Built-in Middleware</h2>
+    <p class="mb-4 text-gray-600">
+        Honovel includes several middleware out of the box:
+    </p>
+
+    <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm mb-6">
+        <table class="table-auto w-full text-left text-sm text-gray-700 border-collapse">
+            <thead class="bg-indigo-50 text-indigo-800 font-semibold">
+                <tr>
+                    <th class="px-4 py-2 border">Middleware</th>
+                    <th class="px-4 py-2 border">Key</th>
+                    <th class="px-4 py-2 border">Description</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white">
+                <tr class="hover:bg-indigo-50">
+                    <td class="px-4 py-2 border font-mono text-sm">Authenticate</td>
+                    <td class="px-4 py-2 border font-mono text-indigo-600">auth</td>
+                    <td class="px-4 py-2 border">Ensures user is authenticated</td>
+                </tr>
+                <tr class="hover:bg-indigo-50">
+                    <td class="px-4 py-2 border font-mono text-sm">RedirectIfAuthenticated</td>
+                    <td class="px-4 py-2 border font-mono text-indigo-600">guest</td>
+                    <td class="px-4 py-2 border">Redirect authenticated users away from guest routes</td>
+                </tr>
+                <tr class="hover:bg-indigo-50">
+                    <td class="px-4 py-2 border font-mono text-sm">VerifyCsrfToken</td>
+                    <td class="px-4 py-2 border font-mono text-indigo-600">-</td>
+                    <td class="px-4 py-2 border">Protects against CSRF attacks (web group)</td>
+                </tr>
+                <tr class="hover:bg-indigo-50">
+                    <td class="px-4 py-2 border font-mono text-sm">ThrottleRequests</td>
+                    <td class="px-4 py-2 border font-mono text-indigo-600">throttle</td>
+                    <td class="px-4 py-2 border">Rate limiting for routes</td>
+                </tr>
+                <tr class="hover:bg-indigo-50">
+                    <td class="px-4 py-2 border font-mono text-sm">SubstituteBindings</td>
+                    <td class="px-4 py-2 border font-mono text-indigo-600">-</td>
+                    <td class="px-4 py-2 border">Resolves route parameters to models</td>
+                </tr>
+                <tr class="hover:bg-indigo-50">
+                    <td class="px-4 py-2 border font-mono text-sm">EnsureEmailIsVerified</td>
+                    <td class="px-4 py-2 border font-mono text-indigo-600">verified</td>
+                    <td class="px-4 py-2 border">Ensures user's email is verified</td>
+                </tr>
+                <tr class="hover:bg-indigo-50">
+                    <td class="px-4 py-2 border font-mono text-sm">ValidateSignature</td>
+                    <td class="px-4 py-2 border font-mono text-indigo-600">signed</td>
+                    <td class="px-4 py-2 border">Validates signed URLs</td>
+                </tr>
+                <tr class="hover:bg-indigo-50">
+                    <td class="px-4 py-2 border font-mono text-sm">HandleCors</td>
+                    <td class="px-4 py-2 border font-mono text-indigo-600">-</td>
+                    <td class="px-4 py-2 border">Handles CORS headers (global)</td>
+                </tr>
+                <tr class="hover:bg-indigo-50">
+                    <td class="px-4 py-2 border font-mono text-sm">TrimStrings</td>
+                    <td class="px-4 py-2 border font-mono text-indigo-600">-</td>
+                    <td class="px-4 py-2 border">Trims whitespace from request inputs</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Middleware Parameters</h2>
+    <p class="mb-4 text-gray-600">
+        Some middleware accept parameters separated by colons:
+    </p>
+
+    <pre><code class="language-ts">// Throttle: 100 requests per minute
+Route.get("/api/posts", [PostController, "index"])
+    .middleware("throttle:100,1");
+
+// Cache headers: public, max-age 3600 seconds
+Route.get("/api/public", [ApiController, "public"])
+    .middleware("cache.headers:public;max_age=3600");</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Middleware Execution Order</h2>
+    <p class="mb-4 text-gray-600">
+        Middleware executes in the following order:
+    </p>
+
+    <ol class="list-decimal list-inside text-gray-600 space-y-2 ml-4">
+        <li><strong>Global Middleware</strong> — Applied to all requests</li>
+        <li><strong>Middleware Groups</strong> — Web or API group middleware</li>
+        <li><strong>Route Middleware</strong> — Specific middleware assigned to the route</li>
+        <li><strong>Controller/Handler</strong> — Your route handler executes</li>
+        <li><strong>Middleware (reverse)</strong> — Post-request middleware logic runs</li>
+    </ol>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Advanced Example: Logging Middleware</h2>
+    <pre><code class="language-ts">import { IMiddleware } from "Illuminate/Contracts/IMiddleware.ts";
+
+export default class LogRequests implements IMiddleware {
+    async handle({ request }, next) {
+        const start = Date.now();
+        const method = request.method;
+        const path = request.path;
+
+        console.log(`[${method}] ${path} - Request started`);
+
+        await next(); // Process the request
+
+        const duration = Date.now() - start;
+        console.log(`[${method}] ${path} - Completed in ${duration}ms`);
+    }
+}</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Custom Model Binding</h2>
+    <p class="mb-4 text-gray-600">
+        The <code>SubstituteBindings</code> middleware resolves route parameters to models. 
+        Register your bindings in <code>vendor/honovel/framework/src/Illuminate/Routing/Middleware/SubstituteBindings.ts</code>:
+    </p>
+
+    <pre><code class="language-ts">private readonly routerBindings: Record&lt;string, typeof Model&lt;ModelWithAttributes&gt;&gt; = {
+    user: User,      // {user} → User model
+    post: Post,      // {post} → Post model
+    comment: Comment // {comment} → Comment model
+};</code></pre>
+
+    <p class="mb-4 text-gray-600">
+        Now in your routes:
+    </p>
+
+    <pre><code class="language-ts">Route.get("/users/{user}", [UserController, "show"]);
+// The {user} parameter will be automatically resolved to a User model instance</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Best Practices</h2>
+    <ul class="list-disc list-inside text-gray-600 space-y-2 ml-4">
+        <li>Keep middleware focused on a single responsibility</li>
+        <li>Use global middleware sparingly to avoid performance impact</li>
+        <li>Apply route middleware only where needed</li>
+        <li>Remember: middleware order matters!</li>
+        <li>Always call <code>await next()</code> to pass control forward</li>
+    </ul>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Summary</h2>
+    <p class="text-gray-600">
+        Middleware is a powerful tool for handling cross-cutting concerns in your application.
+        By understanding how to create, register, and apply middleware, you can build more secure,
+        maintainable, and organized Honovel applications.
+    </p>
+
+</article>
+@end
 
 @endlayouts.home

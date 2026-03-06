@@ -1,40 +1,284 @@
 @layouts.home()
 @slot('article')
-<h2 class="text-3xl font-semibold mt-12 mb-4 text-indigo-700">Deployment</h2>
+<article class="prose max-w-none">
+
+<h1 class="text-3xl font-semibold mb-4 text-indigo-700">Deploying Honovel</h1>
 
 <p class="mb-4 text-gray-600">
-    Deploying a <strong>Honovel Deno</strong> application is simple.  
-    You only need to point Deno Deploy to your main entry file.
+    Deploying a <strong>Honovel</strong> application is straightforward and optimized for modern cloud platforms.
+    The framework is designed to work seamlessly with <strong>Deno Deploy</strong>, offering zero-config deployments with automatic scaling and global distribution.
 </p>
 
-<h3 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Steps for Deployment</h3>
+<div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+    <p class="text-blue-800">
+        <strong>Recommended Platform:</strong> Deno Deploy provides the best experience with instant deployments, automatic HTTPS, and global CDN.
+    </p>
+</div>
 
-<ol class="list-decimal list-inside text-gray-600 space-y-2 ml-4">
-    <li>Ensure your project contains <code>index.ts</code> as the main entry point.</li>
-    <li>Push your repository to a Git hosting service (GitHub, GitLab, etc.).</li>
+<h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Deploying to Deno Deploy</h2>
+
+<p class="mb-4 text-gray-600">
+    Deno Deploy is the official hosting platform for Deno applications, offering production-ready infrastructure with minimal configuration.
+</p>
+
+<h3 class="text-xl font-medium mt-6 mb-3 text-gray-700">Step 1: Prepare Your Repository</h3>
+
+<p class="mb-4 text-gray-600">Push your Honovel project to a Git hosting service:</p>
+
+<pre><code class="language-bash"># Initialize git (if not already done)
+git init
+
+# Add all files
+git add .
+
+# Commit your changes
+git commit -m "Initial commit"
+
+# Push to GitHub, GitLab, or Bitbucket
+git remote add origin https://github.com/yourusername/your-app.git
+git push -u origin main</code></pre>
+
+<h3 class="text-xl font-medium mt-6 mb-3 text-gray-700">Step 2: Create a Deno Deploy Project</h3>
+
+<ol class="list-decimal list-inside text-gray-600 space-y-3 ml-4 mb-6">
     <li>
-        Go to <a href="https://deno.com/deploy" target="_blank" class="text-indigo-600 underline">Deno Deploy</a>  
-        and create a new project.
+        Visit <a href="https://deno.com/deploy" target="_blank" class="text-indigo-600 underline">Deno Deploy</a> and sign in with your GitHub account
     </li>
+    <li>Click <strong>"New Project"</strong></li>
+    <li>Select your repository from the list</li>
     <li>
-        During setup, set <code>index.ts</code> as the <strong>entrypoint</strong> of your deployment.
+        <strong>Important:</strong> Set the entrypoint to <code class="bg-gray-100 px-2 py-1 rounded">index.ts</code>
     </li>
-    <li>
-        Configure environment variables in the dashboard, including <code>APP_ENV=production</code>.
-    </li>
-    <li>Your application is now live! Use the provided URL to access it.</li>
+    <li>Choose your production branch (usually <code>main</code> or <code>production</code>)</li>
+    <li>Click <strong>"Deploy Project"</strong></li>
 </ol>
 
-<h3 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Tips</h3>
+<div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6">
+    <p class="text-yellow-800">
+        <strong>Note:</strong> The <code>index.ts</code> file at your project root is the entry point for Honovel. Deno Deploy will automatically execute it.
+    </p>
+</div>
 
-<ul class="list-disc list-inside text-gray-600 space-y-2 ml-4">
-    <li>You don't need to manually run <code>index.ts</code>; Deno Deploy will execute it automatically as the entrypoint.</li>
-    <li>Ensure all dependencies are correctly imported via URLs or vendored.</li>
-    <li>Set any secrets or production environment variables in the dashboard for safety.</li>
+<h3 class="text-xl font-medium mt-6 mb-3 text-gray-700">Step 3: Configure Environment Variables</h3>
+
+<p class="mb-4 text-gray-600">
+    In the Deno Deploy dashboard, add your environment variables under <strong>Settings → Environment Variables</strong>:
+</p>
+
+<div class="bg-gray-50 p-4 rounded-lg mb-6">
+    <h4 class="font-semibold text-gray-800 mb-3">Required Variables:</h4>
+    <table class="table-auto w-full text-left text-sm border-collapse">
+        <thead class="bg-gray-200">
+            <tr>
+                <th class="px-4 py-2 border">Variable</th>
+                <th class="px-4 py-2 border">Value</th>
+                <th class="px-4 py-2 border">Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="px-4 py-2 border font-mono text-xs">APP_ENV</td>
+                <td class="px-4 py-2 border font-mono text-xs">production</td>
+                <td class="px-4 py-2 border text-xs">Sets the application environment</td>
+            </tr>
+            <tr>
+                <td class="px-4 py-2 border font-mono text-xs">APP_KEY</td>
+                <td class="px-4 py-2 border font-mono text-xs">(your generated key)</td>
+                <td class="px-4 py-2 border text-xs">Encryption key from <code>deno task smelt key:generate</code></td>
+            </tr>
+            <tr>
+                <td class="px-4 py-2 border font-mono text-xs">APP_URL</td>
+                <td class="px-4 py-2 border font-mono text-xs">https://your-app.deno.dev</td>
+                <td class="px-4 py-2 border text-xs">Your production URL</td>
+            </tr>
+            <tr>
+                <td class="px-4 py-2 border font-mono text-xs">DB_CONNECTION</td>
+                <td class="px-4 py-2 border font-mono text-xs">mysql</td>
+                <td class="px-4 py-2 border text-xs">Database driver</td>
+            </tr>
+            <tr>
+                <td class="px-4 py-2 border font-mono text-xs">DB_HOST</td>
+                <td class="px-4 py-2 border font-mono text-xs">your-db-host.com</td>
+                <td class="px-4 py-2 border text-xs">Database host</td>
+            </tr>
+            <tr>
+                <td class="px-4 py-2 border font-mono text-xs">DB_DATABASE</td>
+                <td class="px-4 py-2 border font-mono text-xs">your_database</td>
+                <td class="px-4 py-2 border text-xs">Database name</td>
+            </tr>
+            <tr>
+                <td class="px-4 py-2 border font-mono text-xs">DB_USERNAME</td>
+                <td class="px-4 py-2 border font-mono text-xs">your_username</td>
+                <td class="px-4 py-2 border text-xs">Database username</td>
+            </tr>
+            <tr>
+                <td class="px-4 py-2 border font-mono text-xs">DB_PASSWORD</td>
+                <td class="px-4 py-2 border font-mono text-xs">your_password</td>
+                <td class="px-4 py-2 border text-xs">Database password (keep secret!)</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<h3 class="text-xl font-medium mt-6 mb-3 text-gray-700">Step 4: Run Migrations</h3>
+
+<p class="mb-4 text-gray-600">
+    After deployment, you may need to run migrations on your production database. You can do this locally:
+</p>
+
+<pre><code class="language-bash"># Set production database credentials in .env.production
+deno task smelt migrate --db=production --force</code></pre>
+
+<h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Deployment Checklist</h2>
+
+<ul class="space-y-2 mb-6">
+    <li class="flex items-start gap-2">
+        <span class="text-green-600 font-bold">✓</span>
+        <span class="text-gray-700">Ensure all routes and controllers are working locally</span>
+    </li>
+    <li class="flex items-start gap-2">
+        <span class="text-green-600 font-bold">✓</span>
+        <span class="text-gray-700">Generate a production <code>APP_KEY</code> using <code>deno task smelt key:generate</code></span>
+    </li>
+    <li class="flex items-start gap-2">
+        <span class="text-green-600 font-bold">✓</span>
+        <span class="text-gray-700">Set all environment variables in Deno Deploy dashboard</span>
+    </li>
+    <li class="flex items-start gap-2">
+        <span class="text-green-600 font-bold">✓</span>
+        <span class="text-gray-700">Configure production database connection</span>
+    </li>
+    <li class="flex items-start gap-2">
+        <span class="text-green-600 font-bold">✓</span>
+        <span class="text-gray-700">Run database migrations</span>
+    </li>
+    <li class="flex items-start gap-2">
+        <span class="text-green-600 font-bold">✓</span>
+        <span class="text-gray-700">Test your application at the deployed URL</span>
+    </li>
+    <li class="flex items-start gap-2">
+        <span class="text-green-600 font-bold">✓</span>
+        <span class="text-gray-700">Set up custom domain (optional)</span>
+    </li>
 </ul>
 
-<p class="mt-4 text-gray-600">
-    By explicitly setting <code>index.ts</code> as the entrypoint and providing the correct environment variables, your Honovel Deno application can be deployed smoothly.
+<h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Continuous Deployment</h2>
+
+<p class="mb-4 text-gray-600">
+    Deno Deploy automatically redeploys your application whenever you push to your connected branch:
 </p>
+
+<pre><code class="language-bash"># Make changes to your code
+git add .
+git commit -m "Update feature"
+git push
+
+# Deno Deploy automatically rebuilds and deploys 🚀</code></pre>
+
+<h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Alternative Deployment Options</h2>
+
+<h3 class="text-xl font-medium mt-6 mb-3 text-gray-700">Self-Hosted with Docker</h3>
+
+<p class="mb-4 text-gray-600">You can also deploy Honovel using Docker:</p>
+
+<pre><code class="language-dockerfile"># Dockerfile
+FROM denoland/deno:latest
+
+WORKDIR /app
+
+COPY . .
+
+RUN deno cache index.ts
+
+EXPOSE 8000
+
+CMD ["deno", "run", "--allow-all", "index.ts"]</code></pre>
+
+<pre><code class="language-bash"># Build and run
+docker build -t honovel-app .
+docker run -p 8000:8000 --env-file .env honovel-app</code></pre>
+
+<h3 class="text-xl font-medium mt-6 mb-3 text-gray-700">VPS Deployment</h3>
+
+<p class="mb-4 text-gray-600">Deploy to any VPS (DigitalOcean, AWS, Linode, etc.):</p>
+
+<pre><code class="language-bash"># SSH into your server
+ssh user@your-server.com
+
+# Install Deno
+curl -fsSL https://deno.land/install.sh | sh
+
+# Clone your repository
+git clone https://github.com/yourusername/your-app.git
+cd your-app
+
+# Set environment variables
+nano .env
+
+# Run migrations
+deno task smelt migrate --force
+
+# Start the server (use PM2 or systemd for production)
+deno task smelt serve --port=80 --host=0.0.0.0</code></pre>
+
+<h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Performance Tips</h2>
+
+<ul class="list-disc list-inside text-gray-600 space-y-2 ml-4 mb-6">
+    <li>Enable caching with <code>deno task smelt optimize</code> before deployment</li>
+    <li>Use a CDN for static assets</li>
+    <li>Configure database connection pooling</li>
+    <li>Enable gzip compression for responses</li>
+    <li>Use Deno Deploy's global edge network for low latency</li>
+</ul>
+
+<h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Monitoring & Debugging</h2>
+
+<p class="mb-4 text-gray-600">
+    Monitor your deployed application:
+</p>
+
+<ul class="list-disc list-inside text-gray-600 space-y-2 ml-4 mb-6">
+    <li>View logs in the Deno Deploy dashboard</li>
+    <li>Set up error tracking (e.g., Sentry)</li>
+    <li>Monitor performance metrics</li>
+    <li>Use <code>console.log()</code> for debugging (visible in deployment logs)</li>
+</ul>
+
+<h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Security Considerations</h2>
+
+<div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
+    <h4 class="font-semibold text-red-900 mb-2">Production Security Checklist:</h4>
+    <ul class="list-disc list-inside text-red-800 space-y-1 text-sm ml-4">
+        <li>Never commit <code>.env</code> files to version control</li>
+        <li>Use strong, unique <code>APP_KEY</code></li>
+        <li>Enable HTTPS (automatic with Deno Deploy)</li>
+        <li>Configure CORS properly</li>
+        <li>Use environment variables for all secrets</li>
+        <li>Enable CSRF protection for web routes</li>
+        <li>Set secure database credentials</li>
+        <li>Keep dependencies up to date</li>
+    </ul>
+</div>
+
+<h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Summary</h2>
+
+<p class="text-gray-600">
+    Deploying Honovel is designed to be simple and developer-friendly. With Deno Deploy, you get:
+</p>
+
+<ul class="list-disc list-inside text-gray-600 space-y-2 ml-4 mt-4">
+    <li>✨ Zero-configuration deployments</li>
+    <li>🌍 Global edge network</li>
+    <li>🔒 Automatic HTTPS</li>
+    <li>⚡ Fast cold starts</li>
+    <li>📊 Built-in analytics and logging</li>
+    <li>🔄 Automatic scaling</li>
+</ul>
+
+<p class="mt-6 text-gray-600">
+    Your Honovel application is now ready for the world! 🚀
+</p>
+
+</article>
 @end
 @endlayouts.home

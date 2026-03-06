@@ -1,0 +1,164 @@
+@layouts.home()
+
+@slot('article')
+<article class="prose max-w-none">
+
+    <h1 class="text-3xl font-semibold mb-4 text-indigo-700">Views in Honovel</h1>
+
+    <p class="mb-4 text-gray-600">
+        Views in Honovel are powered by <strong>Edge.js</strong>, a modern template engine that provides an elegant syntax for building HTML pages. 
+        Edge allows you to create reusable layouts, components, and partials, making your frontend development clean and maintainable.
+    </p>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Creating Views</h2>
+    <p class="mb-4 text-gray-600">
+        You can create views manually or use the CLI:
+    </p>
+
+    <pre><code>deno task smelt make:view pages/about</code></pre>
+
+    <p class="mb-4 text-gray-600">
+        This creates a view file at <code>resources/views/pages/about.edge</code>.
+    </p>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Basic View Syntax</h2>
+    <p class="mb-4 text-gray-600">
+        Edge templates use a simple, intuitive syntax with curly braces for output:
+    </p>
+
+    <pre><code class="language-html">&lt;h1&gt;Hello, {{ username }}&lt;/h1&gt;
+&lt;p&gt;The current time is {{ date }}&lt;/p&gt;</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Returning Views from Controllers</h2>
+    <p class="mb-4 text-gray-600">
+        Use the global <code>view()</code> function to return views from your controllers:
+    </p>
+
+    <pre><code class="language-ts">import Controller from "App/Http/Controllers/Controller.ts";
+
+export default class PageController extends Controller {
+    public async index({ request }) {
+        return view("welcome"); // Returns resources/views/welcome.edge
+    }
+
+    public async about({ request }) {
+        return view("pages/about", {
+            title: "About Us",
+            company: "Honovel"
+        });
+    }
+}</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Using Layouts</h2>
+    <p class="mb-4 text-gray-600">
+        Layouts help you create consistent page structures. Define a layout and extend it in your views:
+    </p>
+
+    <p class="mb-2 text-gray-600"><strong>Layout file:</strong> <code>resources/views/components/layouts/main.edge</code></p>
+    <pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;{{ title ?? 'Honovel App' }}&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    @!slot('content')
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+    <p class="mb-2 text-gray-600 mt-6"><strong>View file using the layout:</strong></p>
+    <pre><code class="language-html">@layouts.main()
+
+@slot('content')
+    &lt;h1&gt;Welcome to Honovel&lt;/h1&gt;
+    &lt;p&gt;This content is inside the layout.&lt;/p&gt;
+@end
+
+@endlayouts.main</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Conditionals and Loops</h2>
+    <p class="mb-4 text-gray-600">
+        Edge supports conditional statements and loops:
+    </p>
+
+    <pre><code class="language-html">@if(user)
+    &lt;p&gt;Welcome back, {{ user.name }}!&lt;/p&gt;
+@else
+    &lt;p&gt;Please log in.&lt;/p&gt;
+@end
+
+@each(item in items)
+    &lt;li&gt;{{ item.name }}&lt;/li&gt;
+@end</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Components</h2>
+    <p class="mb-4 text-gray-600">
+        Create reusable components in <code>resources/views/components/</code>:
+    </p>
+
+    <p class="mb-2 text-gray-600"><strong>Component file:</strong> <code>resources/views/components/button.edge</code></p>
+    <pre><code class="language-html">&lt;button class="btn btn-{{ type ?? 'primary' }}"&gt;
+    {{ text }}
+&lt;/button&gt;</code></pre>
+
+    <p class="mb-2 text-gray-600 mt-6"><strong>Using the component:</strong></p>
+    <pre><code class="language-html">@component('components/button', { type: 'success', text: 'Click Me' })</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Passing Data to Views</h2>
+    <p class="mb-4 text-gray-600">
+        Pass data as a second argument to the <code>view()</code> function:
+    </p>
+
+    <pre><code class="language-ts">public async show({ request }, {id}) {
+    const user = await User.find(id);
+    
+    return view("users/profile", {
+        user: user,
+        title: `${user.name}'s Profile`,
+        posts: await user.posts().get()
+    });
+}</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Edge Template Features</h2>
+    <ul class="list-disc list-inside text-gray-600 space-y-2 ml-4">
+        <li><strong>Includes:</strong> <code>@include('partials/header')</code></li>
+        <li><strong>Partials:</strong> Reusable template fragments</li>
+        <li><strong>Slots:</strong> Named content sections in layouts</li>
+        <li><strong>Escaping:</strong> <code>{{ }}</code> auto-escapes, <code>{{{ }}}</code> for raw output</li>
+        <li><strong>Comments:</strong> <code>{{-- This is a comment --}}</code></li>
+    </ul>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">View Helpers</h2>
+    <p class="mb-4 text-gray-600">
+        Edge provides helpful functions you can use in templates:
+    </p>
+
+    <pre><code class="language-html">&lt;!-- URL/Route helpers --&gt;
+&lt;a href="{{ route('users.show', { id: user.id }) }}"&gt;View Profile&lt;/a&gt;
+
+&lt;!-- Asset helpers --&gt;
+&lt;img src="{{ asset('images/logo.png') }}" alt="Logo"&gt;
+
+&lt;!-- Session/Flash messages --&gt;
+@if(session.get('success'))
+    &lt;div class="alert success"&gt;{{ session.get('success') }}&lt;/div&gt;
+@end</code></pre>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Best Practices</h2>
+    <ul class="list-disc list-inside text-gray-600 space-y-2 ml-4">
+        <li>Keep views focused on presentation logic only</li>
+        <li>Use layouts to maintain consistent page structure</li>
+        <li>Create components for reusable UI elements</li>
+        <li>Pass only the data needed by each view</li>
+        <li>Use partials to break down complex views</li>
+    </ul>
+
+    <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Next Steps</h2>
+    <p class="text-gray-600">
+        Combine views with routes and controllers to build complete web pages. 
+        For API responses, use <code>response().json()</code> instead of views.
+    </p>
+
+</article>
+@end
+
+@endlayouts.home

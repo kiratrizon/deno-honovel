@@ -4,35 +4,170 @@
 <div class="flex mt-14">
     <!-- Main content -->
     <main class="flex-1 p-6 overflow-auto h-[calc(100vh-3.5rem)]">
-        <h1 class="text-3xl font-semibold mb-4 text-indigo-700">About Honovel Deno</h1>
+        <article class="prose max-w-none">
+            
+            <h1 class="text-4xl font-bold mb-6 text-indigo-700">About Honovel</h1>
 
-        <p class="mb-4 text-gray-600">
-            Honovel Deno is a lightweight web framework inspired by Laravel, but built for Deno.  
-            It aims to provide a simple, expressive, and modern development experience using TypeScript.
-        </p>
+            <p class="mb-6 text-lg text-gray-700">
+                <strong>Honovel</strong> is a lightweight, modern web framework built with <strong>Deno</strong>, <strong>TypeScript</strong>, and <strong>Hono</strong>.
+                Inspired by the elegance and developer experience of Laravel, Honovel brings familiar conventions and powerful tools to the Deno ecosystem.
+            </p>
 
-        <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Philosophy</h2>
-        <p class="mb-4 text-gray-600">Honovel focuses on:</p>
-        <ul class="list-disc list-inside text-gray-600 space-y-2 ml-4">
-            <li>Developer-friendly routing and controllers</li>
-            <li>Seamless database integration with models</li>
-            <li>Powerful CLI inspired by Artisan</li>
-            <li>TypeScript-first architecture</li>
-        </ul>
+            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl mb-8 border border-indigo-100">
+                <p class="text-gray-700 italic">
+                    "Build modern, type-safe web applications with the speed of Deno and the familiarity of Laravel."
+                </p>
+            </div>
 
-        <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Getting Started</h2>
-        <p class="mb-4 text-gray-600">
-            To start building your app, you only need to install Deno and clone the framework.  
-            Then you can run commands like <code>deno task serve</code> to start the development server.
-        </p>
+            <h2 class="text-2xl font-semibold mt-10 mb-4 text-gray-800">Why Honovel?</h2>
+            
+            <div class="grid gap-6 sm:grid-cols-2 mb-8">
+                <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 bg-indigo-100 text-indigo-600 flex items-center justify-center rounded-lg font-bold text-lg">⚡</div>
+                        <div>
+                            <h3 class="font-semibold text-gray-800 mb-1">Lightning Fast</h3>
+                            <p class="text-sm text-gray-600">Built on Deno and Hono for exceptional performance and fast cold starts</p>
+                        </div>
+                    </div>
+                </div>
 
-        <h2 class="text-2xl font-medium mt-8 mb-3 text-gray-800">Contributors</h2>
-        <ul class="list-disc list-inside text-gray-600 space-y-2 ml-4">
-            <li>
-                Throy Tower — Founder & Developer
-                <a href="https://github.com/kiratrizon" class="text-indigo-600 underline ml-2" target="_blank">GitHub</a>
-            </li>
-        </ul>
+                <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 bg-indigo-100 text-indigo-600 flex items-center justify-center rounded-lg font-bold text-lg">🎯</div>
+                        <div>
+                            <h3 class="font-semibold text-gray-800 mb-1">Developer First</h3>
+                            <p class="text-sm text-gray-600">Familiar Laravel-like syntax with TypeScript type safety</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 bg-indigo-100 text-indigo-600 flex items-center justify-center rounded-lg font-bold text-lg">🛠️</div>
+                        <div>
+                            <h3 class="font-semibold text-gray-800 mb-1">Batteries Included</h3>
+                            <p class="text-sm text-gray-600">Routing, ORM, migrations, seeders, middleware, and powerful CLI out of the box</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 bg-indigo-100 text-indigo-600 flex items-center justify-center rounded-lg font-bold text-lg">☁️</div>
+                        <div>
+                            <h3 class="font-semibold text-gray-800 mb-1">Cloud Ready</h3>
+                            <p class="text-sm text-gray-600">Deploy effortlessly to Deno Deploy with zero configuration</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="text-2xl font-semibold mt-10 mb-4 text-gray-800">Core Philosophy</h2>
+            <p class="mb-4 text-gray-600">Honovel is built on these core principles:</p>
+            <ul class="list-disc list-inside text-gray-700 space-y-3 ml-4 mb-8">
+                <li><strong>Convention over Configuration</strong> — Sensible defaults with flexibility when needed</li>
+                <li><strong>Developer Experience</strong> — Intuitive APIs and helpful error messages</li>
+                <li><strong>Type Safety</strong> — Full TypeScript support for catching errors early</li>
+                <li><strong>Modern Tooling</strong> — Leverage Deno's built-in formatter, linter, and test runner</li>
+                <li><strong>Ecosystem Compatibility</strong> — Works seamlessly with existing Deno and npm packages</li>
+            </ul>
+
+            <h2 class="text-2xl font-semibold mt-10 mb-4 text-gray-800">Key Features</h2>
+            
+            <div class="space-y-4 mb-8">
+                <div class="border-l-4 border-indigo-500 bg-indigo-50 p-4">
+                    <h4 class="font-semibold text-indigo-900">Elegant Routing</h4>
+                    <p class="text-sm text-indigo-800 mt-1">Express routes with controller binding, middleware, and automatic model resolution</p>
+                </div>
+
+                <div class="border-l-4 border-purple-500 bg-purple-50 p-4">
+                    <h4 class="font-semibold text-purple-900">Eloquent-like ORM</h4>
+                    <p class="text-sm text-purple-800 mt-1">Query builder and model relationships for MySQL, PostgreSQL, SQLite, and SQL Server</p>
+                </div>
+
+                <div class="border-l-4 border-blue-500 bg-blue-50 p-4">
+                    <h4 class="font-semibold text-blue-900">Powerful CLI (Smelt)</h4>
+                    <p class="text-sm text-blue-800 mt-1">Generate controllers, models, migrations, and more with Artisan-inspired commands</p>
+                </div>
+
+                <div class="border-l-4 border-green-500 bg-green-50 p-4">
+                    <h4 class="font-semibold text-green-900">Edge Template Engine</h4>
+                    <p class="text-sm text-green-800 mt-1">Clean, expressive views with layouts, components, and partials</p>
+                </div>
+
+                <div class="border-l-4 border-orange-500 bg-orange-50 p-4">
+                    <h4 class="font-semibold text-orange-900">Comprehensive Middleware</h4>
+                    <p class="text-sm text-orange-800 mt-1">Authentication, CSRF protection, CORS, rate limiting, and custom middleware support</p>
+                </div>
+            </div>
+
+            <h2 class="text-2xl font-semibold mt-10 mb-4 text-gray-800">Getting Started</h2>
+            <p class="mb-4 text-gray-600">
+                Ready to build with Honovel? Start by installing Deno, then create your first project:
+            </p>
+
+            <div class="bg-gray-900 text-gray-100 p-4 rounded-lg mb-6">
+                <code class="text-sm">
+                    # Install Deno (if not already installed)<br/>
+                    curl -fsSL https://deno.land/install.sh | sh<br/><br/>
+                    # Create a new Honovel project<br/>
+                    deno run -A https://honovel.deno.dev/create-project myapp@latest<br/><br/>
+                    # Start the development server<br/>
+                    cd myapp && deno task smelt serve
+                </code>
+            </div>
+
+            <p class="mb-6 text-gray-600">
+                Visit the <a href="/docs/introduction" class="text-indigo-600 underline">documentation</a> for comprehensive guides and tutorials.
+            </p>
+
+            <h2 class="text-2xl font-semibold mt-10 mb-4 text-gray-800">Built With</h2>
+            <ul class="list-disc list-inside text-gray-700 space-y-2 ml-4 mb-8">
+                <li><strong>Deno</strong> — Secure runtime for JavaScript and TypeScript</li>
+                <li><strong>Hono</strong> — Ultrafast web framework for the edge</li>
+                <li><strong>Edge.js</strong> — Powerful template engine</li>
+                <li><strong>TypeScript</strong> — Typed JavaScript at any scale</li>
+            </ul>
+
+            <h2 class="text-2xl font-semibold mt-10 mb-4 text-gray-800">Community & Support</h2>
+            <p class="mb-4 text-gray-600">
+                Honovel is an open-source project that welcomes contributions from developers worldwide.
+            </p>
+
+            <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 mb-8">
+                <h3 class="font-semibold text-gray-800 mb-3">Get Involved</h3>
+                <ul class="space-y-2 text-gray-700">
+                    <li>⭐ <a href="https://github.com/kiratrizon/honovel" class="text-indigo-600 hover:underline" target="_blank">Star on GitHub</a></li>
+                    <li>🐛 <a href="https://github.com/kiratrizon/honovel/issues" class="text-indigo-600 hover:underline" target="_blank">Report Issues</a></li>
+                    <li>💬 Join discussions and share your projects</li>
+                    <li>🤝 Contribute code, documentation, or examples</li>
+                </ul>
+            </div>
+
+            <h2 class="text-2xl font-semibold mt-10 mb-4 text-gray-800">Creator</h2>
+            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm mb-8">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-2xl">
+                        TT
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-900 text-lg">Throy Tower</h3>
+                        <p class="text-gray-600 text-sm">Founder & Lead Developer</p>
+                        <a href="https://github.com/kiratrizon" class="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 text-sm mt-2" target="_blank">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                            @kiratrizon
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="text-2xl font-semibold mt-10 mb-4 text-gray-800">License</h2>
+            <p class="text-gray-600">
+                Honovel is open-source software licensed under the <strong>MIT license</strong>.
+            </p>
+
+        </article>
     </main>
 </div>
 @end

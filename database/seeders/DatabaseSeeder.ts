@@ -37,6 +37,14 @@ export default class DatabaseSeeder extends Seeder {
         description:
           "Understand how routing works — define routes, controllers, and middleware.",
         view: "routing",
+        sort: 2,
+        category: 1,
+      },
+      {
+        title: "Middleware",
+        description:
+          "Learn how to create, register, and apply middleware for request filtering and cross-cutting concerns.",
+        view: "contents",
         sort: 3,
         category: 1,
       },
@@ -53,22 +61,31 @@ export default class DatabaseSeeder extends Seeder {
         description:
           "Manage your data layer with database connections and ORM-like helpers.",
         view: "models",
+        sort: 5,
+        category: 1,
+      },
+      {
+        title: "Views",
+        description:
+          "Build beautiful UIs with Edge.js templates, layouts, and components.",
+        view: "views",
         sort: 6,
         category: 1,
       },
       {
         title: "Commands",
-        description: "Extend the CLI with custom artisan-like commands.",
+        description:
+          "Explore the powerful Smelt CLI for scaffolding and managing your application.",
         view: "commands",
-        sort: 8,
+        sort: 7,
         category: 1,
       },
       {
         title: "Deployment",
         description:
-          "Best practices for deploying your Honovel Deno application.",
+          "Best practices for deploying your Honovel Deno application to production.",
         view: "deployment",
-        sort: 9,
+        sort: 8,
         category: 2,
       },
     ];

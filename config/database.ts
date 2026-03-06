@@ -56,12 +56,12 @@ const constant: DatabaseConfig = {
   },
 
   redis: {
-    client: "upstash",
     default: "cache",
     connections: {
       cache: {
         upstashUrl: env("UPSTASH_REDIS_REST_URL", ""),
         upstashToken: env("UPSTASH_REDIS_REST_TOKEN", ""),
+        driver: "upstash",
       },
     },
   },
