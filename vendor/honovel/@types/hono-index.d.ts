@@ -47,7 +47,7 @@ declare global {
   function view(
     viewName: string,
     data?: Record<string, unknown>,
-    mergeData?: Record<string, unknown>
+    mergeData?: Record<string, unknown>,
   ): IHonoView;
 
   function route(name: string, params?: Record<string, unknown>): string;
@@ -84,7 +84,7 @@ declare global {
 
   type HttpDispatch = (
     myHono: HttpHono,
-    args: Record<string, unknown>
+    args: Record<string, unknown>,
   ) => Promise<number | null | boolean | string | object | []>;
 
   type nullify = null | undefined;
@@ -115,7 +115,7 @@ declare global {
    */
   function abort(
     statusCode: ContentfulStatusCode,
-    message?: string | Record<string, unknown>
+    message?: string | Record<string, unknown>,
   ): never;
 
   /**
@@ -133,4 +133,6 @@ declare global {
   function redirect(path?: string): IRedirectResponse;
 
   interface MyContext extends Context<HonoTypeImport> {}
+
+  function event(event: object, payload?: any[]): Promise<unknown>;
 }

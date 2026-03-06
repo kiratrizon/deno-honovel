@@ -4,6 +4,7 @@ import {
   IMFlagConfig,
 } from "../../../../@types/declaration/IRoute.d.ts";
 import { regexObj } from "./FunctionRoute.ts";
+import HonoRequest from "HonoHttp/HonoRequest.ts";
 
 type argType = "function" | "controller";
 
@@ -13,6 +14,7 @@ export interface IMyConfig {
   method: string[];
   callback: HttpDispatch | null;
   debugString: string;
+  customRequest?: typeof HonoRequest;
 }
 class MethodRoute implements IMethodRoute {
   private flag: Record<string, unknown> = {
@@ -129,7 +131,7 @@ class MethodRoute implements IMethodRoute {
         } else {
           if (!(v instanceof RegExp)) {
             throw new Error(
-              "Where value must be a RegExp or an array of RegExp"
+              "Where value must be a RegExp or an array of RegExp",
             );
           }
           (this.flag["where"] as Record<string, RegExp[]>)[key].push(v);
@@ -144,6 +146,12 @@ class MethodRoute implements IMethodRoute {
 
   public get myFlag(): IMFlagConfig {
     return this.flag;
+  }
+
+  public setRequest(requestClass: typeof HonoRequest): this {
+    // add a new myConfig to indicate that the request has been changed
+    this.myConfig["customRequest"] = requestClass;
+    return this;
   }
 }
 

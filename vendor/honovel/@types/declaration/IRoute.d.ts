@@ -40,7 +40,7 @@ export declare class IGroupRoute {
    * @returns The result of the middleware method from the IGroupInstance.
    */
   public static middleware(
-    handler: string | (string | HttpMiddleware)[] | HttpMiddleware
+    handler: string | (string | HttpMiddleware)[] | HttpMiddleware,
   ): ReturnType<InstanceType<typeof IGroupInstance>["middleware"]>;
 
   /**
@@ -50,7 +50,7 @@ export declare class IGroupRoute {
    * @returns The result of the prefix method from the IGroupInstance.
    */
   public static prefix(
-    uri: string
+    uri: string,
   ): ReturnType<InstanceType<typeof IGroupInstance>["prefix"]>;
 
   /**
@@ -60,7 +60,7 @@ export declare class IGroupRoute {
    * @returns The result of the domain method from the IGroupInstance.
    */
   public static domain(
-    domain: string
+    domain: string,
   ): ReturnType<InstanceType<typeof IGroupInstance>["domain"]>;
 
   /**
@@ -71,7 +71,7 @@ export declare class IGroupRoute {
    * @returns The result of the as method from the IGroupInstance.
    */
   public static as(
-    name: string
+    name: string,
   ): ReturnType<InstanceType<typeof IGroupInstance>["as"]>; // alias for name()
 
   /**
@@ -82,7 +82,7 @@ export declare class IGroupRoute {
    */
   public static where(
     param: string,
-    regex: RegExp
+    regex: RegExp,
   ): ReturnType<InstanceType<typeof IGroupInstance>["where"]>;
 
   /**
@@ -92,7 +92,7 @@ export declare class IGroupRoute {
    * @returns The result of the whereNumber method from the IGroupInstance.
    */
   public static whereNumber(
-    key: string
+    key: string,
   ): ReturnType<InstanceType<typeof IGroupInstance>["whereNumber"]>;
 
   /**
@@ -102,7 +102,7 @@ export declare class IGroupRoute {
    * @returns The result of the whereAlpha method from the IGroupInstance.
    */
   public static whereAlpha(
-    key: string
+    key: string,
   ): ReturnType<InstanceType<typeof IGroupInstance>["whereAlpha"]>;
 
   /**
@@ -112,7 +112,7 @@ export declare class IGroupRoute {
    * @returns The result of the whereAlphaNumeric method from the IGroupInstance.
    */
   public static whereAlphaNumeric(
-    key: string
+    key: string,
   ): ReturnType<InstanceType<typeof IGroupInstance>["whereAlphaNumeric"]>;
 
   /**
@@ -133,7 +133,7 @@ export declare class IGroupInstance {
    * @returns The current instance of IGroupInstance for method chaining.
    */
   public middleware(
-    handler: string | (string | HttpMiddleware)[] | HttpMiddleware
+    handler: string | (string | HttpMiddleware)[] | HttpMiddleware,
   ): this;
   /**
    * Set a URI prefix for all routes within this group.
@@ -228,7 +228,7 @@ export interface IMethodRoute {
    * @returns The current instance of IMethodRoute for method chaining.
    */
   middleware(
-    handler: string | (string | HttpMiddleware)[] | HttpMiddleware
+    handler: string | (string | HttpMiddleware)[] | HttpMiddleware,
   ): this;
   /**
    * Define parameter constraints using regular expressions.
@@ -254,6 +254,13 @@ export interface IMethodRoute {
    * @returns The current instance of IMethodRoute.
    */
   whereAlphaNumeric(key: string): this;
+
+  /**
+   * Change the request variable into a custom request class that extends HonoRequest.
+   * @param requestClass - A class that extends HonoRequest to be used as the request type for this route.
+   * @returns The current instance of IMethodRoute for method chaining.
+   */
+  setRequest(requestClass: typeof HonoRequest): this;
 }
 
 /**
@@ -268,7 +275,7 @@ export declare class IRoute extends IGroupRoute {
    */
   public static get<T extends BaseController, K extends KeysWithICallback<T>>(
     uri: string,
-    arg: ICallback | [new () => T, K]
+    arg: ICallback | [new () => T, K],
   ): IMethodRoute;
 
   /**
@@ -278,7 +285,7 @@ export declare class IRoute extends IGroupRoute {
    */
   public static post<T extends BaseController, K extends KeysWithICallback<T>>(
     uri: string,
-    arg: ICallback | [new () => T, K]
+    arg: ICallback | [new () => T, K],
   ): IMethodRoute;
 
   /**
@@ -288,7 +295,7 @@ export declare class IRoute extends IGroupRoute {
    */
   public static put<T extends BaseController, K extends KeysWithICallback<T>>(
     uri: string,
-    arg: ICallback | [new () => T, K]
+    arg: ICallback | [new () => T, K],
   ): IMethodRoute;
 
   /**
@@ -298,7 +305,7 @@ export declare class IRoute extends IGroupRoute {
    */
   public static delete<
     T extends BaseController,
-    K extends KeysWithICallback<T>
+    K extends KeysWithICallback<T>,
   >(uri: string, arg: ICallback | [new () => T, K]): IMethodRoute;
 
   /**
@@ -308,7 +315,7 @@ export declare class IRoute extends IGroupRoute {
    */
   public static patch<T extends BaseController, K extends KeysWithICallback<T>>(
     uri: string,
-    arg: ICallback | [new () => T, K]
+    arg: ICallback | [new () => T, K],
   ): IMethodRoute;
 
   /**
@@ -318,7 +325,7 @@ export declare class IRoute extends IGroupRoute {
    */
   public static options<
     T extends BaseController,
-    K extends KeysWithICallback<T>
+    K extends KeysWithICallback<T>,
   >(uri: string, arg: ICallback | [new () => T, K]): IMethodRoute;
 
   /**
@@ -328,7 +335,7 @@ export declare class IRoute extends IGroupRoute {
    */
   public static head<T extends BaseController, K extends KeysWithICallback<T>>(
     uri: string,
-    arg: ICallback | [new () => T, K]
+    arg: ICallback | [new () => T, K],
   ): IMethodRoute;
 
   /**
@@ -338,7 +345,7 @@ export declare class IRoute extends IGroupRoute {
    */
   public static any<T extends BaseController, K extends KeysWithICallback<T>>(
     uri: string,
-    arg: ICallback | [new () => T, K]
+    arg: ICallback | [new () => T, K],
   ): IMethodRoute;
 
   /**
@@ -350,7 +357,7 @@ export declare class IRoute extends IGroupRoute {
   public static match<T extends BaseController, K extends KeysWithICallback<T>>(
     methods: (keyof IChildRoutes)[],
     uri: string,
-    arg: ICallback | [new () => T, K]
+    arg: ICallback | [new () => T, K],
   ): IMethodRoute;
 
   /**
@@ -374,7 +381,7 @@ export declare class IRoute extends IGroupRoute {
   public static view(
     uri: string,
     view: string,
-    data?: Record<string, unknown>
+    data?: Record<string, unknown>,
   ): void;
 
   /**
@@ -384,7 +391,7 @@ export declare class IRoute extends IGroupRoute {
    */
   public static resource<T extends BaseController>(
     uri: string,
-    controller: new () => T
+    controller: new () => T,
   ): IResourceRoute;
 }
 
@@ -393,7 +400,7 @@ export type IdefaultRoute = Record<string, (keyof IHeaderChildRoutes)[]>;
 export declare class IERoute extends IRoute {
   public static pushGroupReference(
     id: number,
-    groupInstance: IGroupInstance
+    groupInstance: IGroupInstance,
   ): void;
 }
 
@@ -402,6 +409,7 @@ import ResourceRoute, {
   ResourceKeys,
 } from "../../framework/src/hono/Support/ResourceRoute.ts";
 import HttpHono from "HttpHono";
+import HonoRequest from "HonoHttp/HonoRequest.ts";
 export interface IReferencesRoute {
   groups: Record<string, IEGroupRoute>;
   methods: Record<string, InstanceType<typeof MethodRoute>>;

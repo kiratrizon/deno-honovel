@@ -148,7 +148,7 @@ globalFn("env", function (key: string, value: any = null): any {
           return JSON.parse(raw);
         } catch (_e) {
           console.error(
-            `Failed to parse environment variable "${key}" as ${getType(value)}`
+            `Failed to parse environment variable "${key}" as ${getType(value)}`,
           );
           return value;
         }
@@ -173,7 +173,7 @@ globalFn(
       writable: true,
       configurable,
     });
-  }
+  },
 );
 
 globalFn("basePath", function (concatenation = "") {
@@ -240,7 +240,7 @@ globalFn(
   function (
     fileString = "",
     content = "",
-    encoding: "utf8" | "utf16le" = "utf8"
+    encoding: "utf8" | "utf16le" = "utf8",
   ) {
     if (!fileString) {
       console.warn("writeFile: Filename is required but not provided.");
@@ -261,7 +261,7 @@ globalFn(
       console.error(`writeFile: Failed to write to ${fileString}`, err);
       // no throw, just log
     }
-  }
+  },
 );
 
 import Constants from "Constants";
@@ -286,7 +286,7 @@ globalFn("getConfigStore", async function (): Promise<Record<string, unknown>> {
           allModules.push(configName);
         } catch (_e) {
           console.warn(
-            `Config file "config/${file.name}" does not export a default value.`
+            `Config file "config/${file.name}" does not export a default value.`,
           );
         }
       }
@@ -335,7 +335,7 @@ globalFn(
   "config",
   function (
     key: string | { key: string; value: any },
-    defaultValue: unknown = null
+    defaultValue: unknown = null,
   ) {
     if (isString(key)) {
       return configure.read(key) || defaultValue;
@@ -344,13 +344,13 @@ globalFn(
       configure.write(key.key, key.value);
       return key.value;
     }
-  }
+  },
 );
 
 globalFn("viewPath", function (concatenation = "") {
   const dir = path.join(
     (config("view.defaultViewDir") as string) || "views",
-    concatenation
+    concatenation,
   );
   return resourcePath(dir);
 });
@@ -397,7 +397,7 @@ globalFn(
       }
       throw err;
     }
-  }
+  },
 );
 
 globalFn("makeDir", function (dirString = "") {
@@ -500,7 +500,7 @@ import { DateTime } from "luxon";
 const getRelativeTime = (
   expression: string,
   direction: "next" | "last",
-  now: DateTime
+  now: DateTime,
 ) => {
   const daysOfWeek = [
     "sunday",
@@ -615,7 +615,7 @@ globalFn(
   function (
     version1: string,
     version2: string,
-    symbol: string = "<=>"
+    symbol: string = "<=>",
   ): boolean | number {
     const parse = (v: string) => v.split(".").map((n) => parseInt(n, 10));
 
@@ -686,7 +686,7 @@ globalFn(
       default:
         throw new Error("Invalid symbol: " + symbol);
     }
-  }
+  },
 );
 
 import { Carbon } from "helpers";
@@ -719,7 +719,6 @@ const originalConsole = {
   error: console.error,
   warn: console.warn,
   info: console.info,
-  log: console.log,
   debug: console.debug,
 };
 
@@ -732,9 +731,6 @@ console.warn = (...msg: any[]) =>
 console.info = (...msg: any[]) =>
   originalConsole.info("\x1b[34m[i] Info:\x1b[0m", ...msg);
 
-console.log = (...msg: any[]) =>
-  originalConsole.log("\x1b[32m[✓] Success:\x1b[0m", ...msg);
-
 console.debug = (...msg: any[]) =>
   originalConsole.debug("\x1b[90m[>] Debug:\x1b[0m", ...msg);
 
@@ -743,8 +739,8 @@ globalFn(
   function (
     value: any,
     destination: string = "debug",
-    identifier: string = ""
-  ) {}
+    identifier: string = "",
+  ) {},
 );
 
 // import process from "node:process";

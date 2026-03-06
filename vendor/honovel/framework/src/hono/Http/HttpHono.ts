@@ -45,6 +45,10 @@ class HttpHono {
   public get Cookie() {
     return this.#Cookie;
   }
+
+  protected changeRequest(newRequest: typeof HonoRequest) {
+    this.#request = new newRequest(this.#c);
+  }
 }
 
 export default HttpHono;

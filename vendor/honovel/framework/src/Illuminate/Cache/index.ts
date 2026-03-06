@@ -19,10 +19,6 @@ import { RedisManager } from "../Redis/index.ts";
 import { DB, Schema } from "../Support/Facades/index.ts";
 import { Migration } from "../Database/Migrations/index.ts";
 import * as path from "node:path";
-import {
-  Memcached as MemcachedClient,
-  InMemoryCached,
-} from "@avroit/memcached";
 
 type MaintenanceData = {
   message: string;
@@ -63,7 +59,7 @@ export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
   abstract put<K extends keyof T>(
     key: K,
     value: T[K],
-    seconds: number
+    seconds: number,
   ): Promise<void>;
   abstract put(key: string, value: any, seconds: number): Promise<void>;
 
@@ -98,7 +94,7 @@ export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
    */
   async increment<K extends keyof T>(
     key: K,
-    value?: number
+    value?: number,
   ): Promise<number | null>;
 
   async increment(key: string, value?: number): Promise<number | null>;
@@ -106,7 +102,7 @@ export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
   // Implementation
   async increment(
     key: keyof T | string,
-    value: number = 1
+    value: number = 1,
   ): Promise<number | null> {
     const current = await this.get(key as any);
     if (typeof current === "number") {
@@ -122,12 +118,12 @@ export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
    */
   async decrement<K extends keyof T>(
     key: K,
-    value?: number
+    value?: number,
   ): Promise<number | null>;
   async decrement(key: string, value?: number): Promise<number | null>;
   async decrement(
     key: keyof T | string,
-    value: number = 1
+    value: number = 1,
   ): Promise<number | null> {
     const current = await this.get(key as any);
     if (typeof current === "number") {
@@ -143,7 +139,7 @@ export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
    */
   async getOrDefault<K extends keyof T>(
     key: K,
-    defaultValue: T[K]
+    defaultValue: T[K],
   ): Promise<T[K]>;
   async getOrDefault(key: string, defaultValue: any): Promise<any>;
   async getOrDefault(key: keyof T | string, defaultValue: any): Promise<any> {
@@ -180,11 +176,11 @@ export abstract class AbstractStore<T extends CacheStoreData = CacheStoreData> {
     if (config("app").env !== "local") {
       if (!err) {
         console.warn(
-          `${storeType} cache store is not recommended for production environments.`
+          `${storeType} cache store is not recommended for production environments.`,
         );
       } else {
         throw new Error(
-          `${storeType} cache store is not allowed for production environments.`
+          `${storeType} cache store is not allowed for production environments.`,
         );
       }
     }
@@ -196,7 +192,7 @@ class FileStore extends AbstractStore {
   constructor(
     opts: { prefix: string; path?: string } = {
       prefix: "",
-    }
+    },
   ) {
     super(opts.prefix);
     this.warning("File driver", true);
@@ -221,7 +217,7 @@ class FileStore extends AbstractStore {
     // For example, read from a JSON file or similar
     const filePath = path.join(
       path.normalize(this.path),
-      path.normalize(`${newKey}.cache.json`)
+      path.normalize(`${newKey}.cache.json`),
     );
     if (!(await pathExist(filePath))) {
       return null; // Key does not exist
@@ -254,7 +250,7 @@ class FileStore extends AbstractStore {
 
     const filePath = path.join(
       path.normalize(this.path),
-      path.normalize(`${newKey}.cache.json`)
+      path.normalize(`${newKey}.cache.json`),
     );
     writeFile(filePath, jsonEncode(cacheItem));
   }
@@ -265,7 +261,7 @@ class FileStore extends AbstractStore {
     await this.init();
     const filePath = path.join(
       path.normalize(this.path),
-      path.normalize(`${newKey}.cache.json`)
+      path.normalize(`${newKey}.cache.json`),
     );
     if (await pathExist(filePath)) {
       Deno.removeSync(filePath);
@@ -283,7 +279,7 @@ class FileStore extends AbstractStore {
         file.name.startsWith(this.prefix)
       ) {
         Deno.removeSync(
-          path.join(path.normalize(this.path), path.normalize(file.name))
+          path.join(path.normalize(this.path), path.normalize(file.name)),
         );
       }
     }
@@ -304,7 +300,7 @@ class FileStore extends AbstractStore {
 }
 
 class RedisStore extends AbstractStore {
-  private static redisClient: RedisClient;
+  private redisClient: RedisClient | null = null;
   private readonly connection?: string;
   // @ts-ignore //
   private manager: RedisManager;
@@ -312,16 +308,9 @@ class RedisStore extends AbstractStore {
     opts: { connection?: string; prefix: string } = {
       connection: "default",
       prefix: "",
-    }
+    },
   ) {
     super(opts.prefix);
-    const dbConf = config("database");
-    if (!RedisStore.redisClient) {
-      RedisStore.redisClient = dbConf.redis?.client || "upstash";
-    }
-    if (!isset(dbConf.redis?.connections)) {
-      throw new Error("Redis connections are not configured.");
-    }
     this.connection = opts.connection;
     this.prefix = opts.prefix || "";
   }
@@ -329,7 +318,21 @@ class RedisStore extends AbstractStore {
   #initialized = false;
   private async init() {
     if (this.#initialized || this.manager) return;
-    this.manager = new RedisManager(RedisStore.redisClient);
+
+    const dbConf = config("database");
+    const redisConfig = dbConf?.redis;
+    if (!isset(redisConfig)) {
+      throw new Error("Redis configuration is not set in the database config.");
+    }
+    const connections = redisConfig?.connections;
+    if (!isset(connections)) {
+      throw new Error(
+        "Redis connections are not defined in the database config.",
+      );
+    }
+    const driver = connections[this.connection || redisConfig.default]?.driver;
+    this.redisClient = driver as RedisClient;
+    this.manager = new RedisManager(this.redisClient);
     await this.manager.init(this.connection);
     // Initialize Redis client here if needed
     this.#initialized = true;
@@ -433,7 +436,7 @@ class DatabaseStore extends AbstractStore {
     const dbConf = config("database");
     if (!keyExist(dbConf.connections, this.connection)) {
       throw new Error(
-        `DatabaseStore requires a valid connection in the database config: ${this.connection}`
+        `DatabaseStore requires a valid connection in the database config: ${this.connection}`,
       );
     }
   }
@@ -509,7 +512,7 @@ class DatabaseStore extends AbstractStore {
               table.text("value");
               table.timestamp("expires_at").nullable();
             },
-            this.connection
+            this.connection,
           );
         }
       }
@@ -532,18 +535,39 @@ class DatabaseStore extends AbstractStore {
 }
 
 class MemoryStore extends AbstractStore {
-  private store = new InMemoryCached();
   constructor(opts: { prefix?: string } = { prefix: "" }) {
     super(opts.prefix);
     this.warning("Memory driver");
   }
+  private store: any;
+  #initialized = false;
+  private async init() {
+    if (this.#initialized) return;
+    this.#initialized = true;
+    try {
+      const { InMemoryCached } = await import("@avroit/memcached");
+      this.store = new InMemoryCached();
+    } catch (_error) {
+      console.error(
+        "Failed to load @avroit/memcached. Please install it using:",
+      );
+      console.error("  deno task install:driver --cache memcached");
+      throw new Error(
+        // @ts-ignore //
+        _error.message ||
+          "MemoryStore requires @avroit/memcached to be installed.",
+      );
+    }
+  }
   async get(key: string): Promise<any> {
+    await this.init();
     const newKey = this.validateKey(key);
     const cacheItem = await this.store.get(newKey);
     if (!isset(cacheItem)) return null; // Key does not exist
     return jsonDecode(cacheItem);
   }
   async put(key: string, value: any, seconds: number): Promise<void> {
+    await this.init();
     value = jsonEncode(value);
     const newKey = this.validateKey(key);
     const expiresAt =
@@ -554,10 +578,12 @@ class MemoryStore extends AbstractStore {
     await this.store.set(newKey, value, expiresAt);
   }
   async forget(key: string): Promise<void> {
+    await this.init();
     const newKey = this.validateKey(key);
     await this.store.delete(newKey);
   }
   async flush(): Promise<void> {
+    await this.init();
     await this.store.flush();
   }
   getPrefix(): string {
@@ -573,7 +599,7 @@ class MemcachedStore extends AbstractStore {
     poolSize?: number;
   }[];
   // @ts-ignore //
-  private client: MemcachedClient;
+  private client: any;
 
   constructor(opts: {
     prefix?: string;
@@ -594,7 +620,20 @@ class MemcachedStore extends AbstractStore {
 
   private async init() {
     if (this.client) return; // Already initialized
-    this.client = new MemcachedClient(this.servers[0]);
+    try {
+      const { Memcached } = await import("@avroit/memcached");
+      this.client = new Memcached(this.servers[0]);
+    } catch (_error) {
+      console.error(
+        "Failed to load @avroit/memcached. Please install it using:",
+      );
+      console.error("  deno task install:driver --cache memcached");
+      throw new Error(
+        // @ts-ignore //
+        _error.message ||
+          "MemcachedStore requires @avroit/memcached to be installed.",
+      );
+    }
   }
 
   public async get(key: string): Promise<any> {
@@ -619,7 +658,7 @@ class MemcachedStore extends AbstractStore {
       await this.client.set(
         newKey,
         jsonEncode(value),
-        seconds > 0 ? seconds : undefined
+        seconds > 0 ? seconds : undefined,
       );
     } catch (error) {
       console.error(`Error setting key "${newKey}":`, error);
@@ -650,21 +689,19 @@ class MemcachedStore extends AbstractStore {
   }
 }
 
-import {
-  DynamoDBClient,
-  PutItemCommand,
-  CreateTableCommand,
-  DescribeTableCommand,
-  GetItemCommand,
-  DeleteItemCommand,
-  ScanCommand,
-  BatchWriteItemCommand,
-} from "@aws-sdk/client-dynamodb";
-
 class DynamoDBStore extends AbstractStore {
-  private client: DynamoDBClient;
+  private client: any;
   private readonly table: string;
   private readonly partitionKey: string;
+  private DynamoDBClient: any;
+  private PutItemCommand: any;
+  private CreateTableCommand: any;
+  private DescribeTableCommand: any;
+  private GetItemCommand: any;
+  private DeleteItemCommand: any;
+  private ScanCommand: any;
+  private BatchWriteItemCommand: any;
+
   constructor(
     driver: CacheDriver,
     opts: {
@@ -674,7 +711,7 @@ class DynamoDBStore extends AbstractStore {
       table?: string;
       prefix?: string;
       partitionKey?: string;
-    } = {}
+    } = {},
   ) {
     super(opts.prefix);
     const { key, secret, region, table, prefix, partitionKey } = opts;
@@ -684,13 +721,7 @@ class DynamoDBStore extends AbstractStore {
     if (!isset(table) || !isString(table)) {
       throw new Error("DynamoDBStore requires a valid table name.");
     }
-    this.client = new DynamoDBClient({
-      region: region,
-      credentials: {
-        accessKeyId: key,
-        secretAccessKey: secret,
-      },
-    });
+
     if (driver !== "dynamodb") {
       throw new Error(`Unsupported cache driver for DynamoDB: ${driver}`);
     }
@@ -700,14 +731,53 @@ class DynamoDBStore extends AbstractStore {
     this.partitionKey = partitionKey;
     this.prefix = prefix || config("cache").prefix || "";
     this.table = table;
+
+    // Store credentials for later use
+    this._key = key;
+    this._secret = secret;
+    this._region = region;
   }
+
+  private _key: string;
+  private _secret: string;
+  private _region: string;
 
   #initialized = false;
   public async init() {
     if (this.#initialized) return; // Already initialized
+
+    // Dynamically load AWS SDK to avoid bloatware
+    try {
+      const awsSdk = await import("@aws-sdk/client-dynamodb");
+      this.DynamoDBClient = awsSdk.DynamoDBClient;
+      this.PutItemCommand = awsSdk.PutItemCommand;
+      this.CreateTableCommand = awsSdk.CreateTableCommand;
+      this.DescribeTableCommand = awsSdk.DescribeTableCommand;
+      this.GetItemCommand = awsSdk.GetItemCommand;
+      this.DeleteItemCommand = awsSdk.DeleteItemCommand;
+      this.ScanCommand = awsSdk.ScanCommand;
+      this.BatchWriteItemCommand = awsSdk.BatchWriteItemCommand;
+
+      this.client = new this.DynamoDBClient({
+        region: this._region,
+        credentials: {
+          accessKeyId: this._key,
+          secretAccessKey: this._secret,
+        },
+      });
+    } catch (_error) {
+      console.error(
+        "Failed to load @aws-sdk/client-dynamodb. Please install it using:",
+      );
+      console.error("  deno task install:driver --cache dynamodb");
+      throw new Error(
+        "DynamoDBStore requires @aws-sdk/client-dynamodb to be installed.",
+      );
+    }
+
     try {
       await this.client.send(
-        new DescribeTableCommand({ TableName: this.table })
+        new this.DescribeTableCommand({ TableName: this.table }),
       );
       this.#initialized = true; // Mark as initialized
       return;
@@ -716,7 +786,7 @@ class DynamoDBStore extends AbstractStore {
         throw error; // Re-throw if it's not a "table doesn't exist" error
       }
     }
-    const command = new CreateTableCommand({
+    const command = new this.CreateTableCommand({
       TableName: this.table,
       KeySchema: [
         {
@@ -748,12 +818,12 @@ class DynamoDBStore extends AbstractStore {
 
     try {
       const result = await this.client.send(
-        new GetItemCommand({
+        new this.GetItemCommand({
           TableName: this.table,
           Key: {
             [this.partitionKey]: { S: newKey },
           },
-        })
+        }),
       );
 
       if (!result.Item || !result.Item.name || !result.Item.name.S) return null;
@@ -796,13 +866,13 @@ class DynamoDBStore extends AbstractStore {
 
     try {
       await this.client.send(
-        new PutItemCommand({
+        new this.PutItemCommand({
           TableName: this.table,
           Item: {
             [this.partitionKey]: { S: newKey },
             name: { S: jsonEncode(data) },
           },
-        })
+        }),
       );
     } catch (error) {
       console.error(`Error setting key "${newKey}":`, error);
@@ -814,12 +884,12 @@ class DynamoDBStore extends AbstractStore {
     const newKey = this.validateKey(key);
     try {
       await this.client.send(
-        new DeleteItemCommand({
+        new this.DeleteItemCommand({
           TableName: this.table,
           Key: {
             [this.partitionKey]: { S: newKey },
           },
-        })
+        }),
       );
     } catch (error) {
       console.error(`Error deleting key "${newKey}":`, error);
@@ -830,13 +900,13 @@ class DynamoDBStore extends AbstractStore {
   public async flush(): Promise<void> {
     await this.init();
     try {
-      const scanCommand = new ScanCommand({
+      const scanCommand = new this.ScanCommand({
         TableName: this.table,
       });
       const items = await this.client.send(scanCommand);
 
       if (items.Items && items.Items.length > 0) {
-        const keysToDelete = items.Items.map((item) => ({
+        const keysToDelete = items.Items.map((item: any) => ({
           [this.partitionKey]: item[this.partitionKey],
         }));
 
@@ -844,9 +914,9 @@ class DynamoDBStore extends AbstractStore {
         for (let i = 0; i < keysToDelete.length; i += 25) {
           const chunk = keysToDelete.slice(i, i + 25);
 
-          const batchWriteCommand = new BatchWriteItemCommand({
+          const batchWriteCommand = new this.BatchWriteItemCommand({
             RequestItems: {
-              [this.table]: chunk.map((key) => ({
+              [this.table]: chunk.map((key: any) => ({
                 DeleteRequest: { Key: key },
               })),
             },
@@ -865,14 +935,13 @@ class DynamoDBStore extends AbstractStore {
 }
 
 import MongoDB from "../../DatabaseBuilder/MongoDB.ts";
-import { Collection, Document } from "mongodb";
 
 class MongoDBStore extends AbstractStore {
   private db: MongoDB;
   private readonly collection: string;
   private readonly connection: string;
   // @ts-ignore //
-  private Collection: Collection;
+  private Collection: any;
   constructor({
     collection = "",
     prefix = "",
@@ -894,13 +963,13 @@ class MongoDBStore extends AbstractStore {
     const dbConf = config("database");
     if (!keyExist(dbConf.connections, this.connection)) {
       throw new Error(
-        `MongoDBStore requires a valid connection in the database config: ${this.connection}`
+        `MongoDBStore requires a valid connection in the database config: ${this.connection}`,
       );
     }
     const driver = dbConf.connections[this.connection].driver;
     if (driver !== "mongodb") {
       throw new Error(
-        `MongoDBStore requires a valid MongoDB connection, got: ${driver}`
+        `MongoDBStore requires a valid MongoDB connection, got: ${driver}`,
       );
     }
     const connectionObj = dbConf.connections[
@@ -918,7 +987,7 @@ class MongoDBStore extends AbstractStore {
     await this.init();
     const newKey = this.validateKey(key);
     try {
-      const result = await (this.Collection as Collection<Document>).findOne({
+      const result = await this.Collection.findOne({
         key: newKey,
       });
       if (!result) return null; // Key does not exist
@@ -960,7 +1029,7 @@ class MongoDBStore extends AbstractStore {
       await this.Collection.updateOne(
         { key: newKey },
         { $set: data },
-        { upsert: true }
+        { upsert: true },
       );
     } catch (error) {
       console.error(`Error setting key "${newKey}":`, error);
@@ -1014,7 +1083,7 @@ class CacheManager {
       partitionKey?: string;
       collection?: string;
       class?: typeof AbstractStore;
-    } = {}
+    } = {},
   ) {
     const {
       path,
@@ -1072,7 +1141,7 @@ class CacheManager {
           !servers.every((server) => isset(server.host) && isset(server.port))
         ) {
           throw new Error(
-            "Each server in MemcachedStore must have host, port, and weight."
+            "Each server in MemcachedStore must have host, port, and weight.",
           );
         }
         this.store = new MemcachedStore({
@@ -1102,7 +1171,7 @@ class CacheManager {
       case "custom": {
         if (!isset(options.class)) {
           throw new Error(
-            "Custom cache driver requires a class extending AbstractStore."
+            "Custom cache driver requires a class extending AbstractStore.",
           );
         }
         // @ts-ignore //

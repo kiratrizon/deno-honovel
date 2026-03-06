@@ -66,15 +66,15 @@ export class Schema {
     if (!supportedSchemaDrivers.includes(db)) {
       throw new Error(
         `Unsupported database driver for schema operations: ${db}. Supported types are: ${supportedSchemaDrivers.join(
-          ", "
-        )}.`
+          ", ",
+        )}.`,
       );
     }
   }
   public static async create(
     table: string,
     callback: (blueprint: Blueprint) => void,
-    connection?: string
+    connection?: string,
   ): Promise<void> {
     const driver = DB.connection(connection).getDriverName();
     this.validateDB(driver);
@@ -82,7 +82,7 @@ export class Schema {
     callback(blueprint);
     if (blueprint.drops.length) {
       throw new Error(
-        "Schema creation does not support dropping columns. Use dropColumn method instead."
+        "Schema creation does not support dropping columns. Use Schema.table() to alter existing tables instead.",
       );
     }
     const converted = blueprint.toSql();
@@ -91,7 +91,7 @@ export class Schema {
 
   public static async hasTable(
     table: string,
-    connection?: string
+    connection?: string,
   ): Promise<boolean> {
     const driver = DB.connection(connection).getDriverName();
     this.validateDB(driver);
@@ -133,7 +133,7 @@ export class Schema {
 
   public static async dropIfExists(
     table: string,
-    connection?: string
+    connection?: string,
   ): Promise<void> {
     const driver = DB.connection(connection).getDriverName();
     this.validateDB(driver);
@@ -161,7 +161,7 @@ export class Schema {
   public static async table(
     table: string,
     callback: (blueprint: Blueprint) => void,
-    connection?: string
+    connection?: string,
   ): Promise<void> {
     const driver = DB.connection(connection).getDriverName();
     this.validateDB(driver);
@@ -203,14 +203,14 @@ export class DB {
 
   public static async statement(
     query: string,
-    params: unknown[] = []
+    params: unknown[] = [],
   ): Promise<boolean> {
     return await new DBConnection(this.dbUsed).statement(query, params);
   }
 
   public static async select(
     query: string,
-    params: unknown[] = []
+    params: unknown[] = [],
   ): Promise<QueryResultDerived["select"]> {
     return await new DBConnection(this.dbUsed).select(query, params);
   }
@@ -225,12 +225,12 @@ export class DB {
   public static async insertOrUpdate(
     table: string,
     data: Record<string, unknown>,
-    uniqueKeys: string[] = []
+    uniqueKeys: string[] = [],
   ) {
     return await new DBConnection(this.dbUsed).insertOrUpdate(
       table,
       data,
-      uniqueKeys
+      uniqueKeys,
     );
   }
 
@@ -268,7 +268,7 @@ class DBConnection {
 
   public async statement(
     query: string,
-    params: unknown[] = []
+    params: unknown[] = [],
   ): Promise<boolean> {
     if (empty(query) || !isString(query)) {
       throw new Error("Query must be a non-empty string.");
@@ -286,7 +286,7 @@ class DBConnection {
 
   public async select(
     query: string,
-    params: unknown[] = []
+    params: unknown[] = [],
   ): Promise<QueryResultDerived["select"]> {
     if (empty(query) || !isString(query)) {
       throw new Error("Query must be a non-empty string.");
@@ -320,7 +320,7 @@ class DBConnection {
   public async insertOrUpdate(
     table: string,
     data: Record<string, unknown>,
-    uniqueKeys: string[] = []
+    uniqueKeys: string[] = [],
   ) {
     if (empty(table) || !isString(table)) {
       throw new Error("Table name must be a non-empty string.");
@@ -338,7 +338,7 @@ class DBConnection {
   public async update(
     table: string,
     data: Record<string, unknown>,
-    where: Record<string, unknown>
+    where: Record<string, unknown>,
   ): Promise<QueryResultDerived["update"]> {
     if (empty(table) || !isString(table)) {
       throw new Error("Table name must be a non-empty string.");
@@ -395,7 +395,7 @@ export class Validator {
 
   static async make(
     data: Record<string, unknown> = {},
-    validations: Record<string, string> = {}
+    validations: Record<string, string> = {},
   ) {
     const v = new this(data, validations);
     await v.#validateAll();
@@ -407,7 +407,7 @@ export class Validator {
   #validations;
   constructor(
     data: Record<string, unknown>,
-    validations: Record<string, string>
+    validations: Record<string, string>,
   ) {
     this.#data = data;
     this.#validations = validations;
@@ -415,7 +415,7 @@ export class Validator {
 
   getErrors() {
     return Object.fromEntries(
-      Object.entries(this.#errors).filter(([_, v]) => (v as string[]).length)
+      Object.entries(this.#errors).filter(([_, v]) => (v as string[]).length),
     );
   }
 
@@ -493,7 +493,7 @@ export class Validator {
 
         if (!tableRef || !column) {
           throw new Error(
-            `Invalid unique rule format: '${val}'. Expected 'table,column' or 'connection.table,column'.`
+            `Invalid unique rule format: '${val}'. Expected 'table,column' or 'connection.table,column'.`,
           );
         }
 
@@ -504,7 +504,7 @@ export class Validator {
 
         if (!isset(connection)) {
           throw new Error(
-            `Database connection '${connection}' is not defined in config.`
+            `Database connection '${connection}' is not defined in config.`,
           );
         }
 
@@ -581,7 +581,7 @@ class MyRoute {
   }
 
   public static middleware(
-    handler: string | (string | HttpMiddleware)[] | HttpMiddleware
+    handler: string | (string | HttpMiddleware)[] | HttpMiddleware,
   ) {
     const groupInstance = new GroupRoute();
     groupInstance.middleware(handler);
@@ -635,21 +635,21 @@ class MyRoute {
   // Public methods using the simplified registration
   public static get<T extends BaseController, K extends KeysWithICallback<T>>(
     uri: string,
-    arg: ICallback | [new () => T, K]
+    arg: ICallback | [new () => T, K],
   ) {
     return this.registerRoute(["get"], uri, arg);
   }
 
   public static post<T extends BaseController, K extends KeysWithICallback<T>>(
     uri: string,
-    arg: ICallback | [new () => T, K]
+    arg: ICallback | [new () => T, K],
   ) {
     return this.registerRoute(["post"], uri, arg);
   }
 
   public static put<T extends BaseController, K extends KeysWithICallback<T>>(
     uri: string,
-    arg: ICallback | [new () => T, K]
+    arg: ICallback | [new () => T, K],
   ) {
     return this.registerRoute(["put"], uri, arg);
   }
@@ -663,7 +663,7 @@ class MyRoute {
 
   public static patch<T extends BaseController, K extends KeysWithICallback<T>>(
     uri: string,
-    arg: ICallback | [new () => T, K]
+    arg: ICallback | [new () => T, K],
   ) {
     return this.registerRoute(["patch"], uri, arg);
   }
@@ -677,30 +677,30 @@ class MyRoute {
 
   public static head<T extends BaseController, K extends KeysWithICallback<T>>(
     uri: string,
-    arg: ICallback | [new () => T, K]
+    arg: ICallback | [new () => T, K],
   ) {
     return this.registerRoute(
       ["head"] as (keyof IHeaderChildRoutes)[],
       uri,
-      arg
+      arg,
     );
   }
 
   public static any<T extends BaseController, K extends KeysWithICallback<T>>(
     uri: string,
-    arg: ICallback | [new () => T, K]
+    arg: ICallback | [new () => T, K],
   ) {
     return this.registerRoute(
       ["get", "post", "put", "delete", "patch", "options"],
       uri,
-      arg
+      arg,
     );
   }
 
   public static match<T extends BaseController, K extends KeysWithICallback<T>>(
     methods: (keyof IChildRoutes)[],
     uri: string,
-    arg: ICallback | [new () => T, K]
+    arg: ICallback | [new () => T, K],
   ) {
     return this.registerRoute(methods, uri, arg);
   }
@@ -708,7 +708,7 @@ class MyRoute {
   public static view(
     uri: string,
     viewName: string,
-    data: Record<string, unknown> = {}
+    data: Record<string, unknown> = {},
   ): void {
     const method = ["get"] as (keyof IChildRoutes)[];
     const arg: ICallback = async () => view(viewName, data);
@@ -739,7 +739,7 @@ class MyRoute {
       ["get"],
       baseUri,
       [controller, "index" as K],
-      rsrcId
+      rsrcId,
     ).name(`${pluralized}.index`);
     thisRoutes[this.routeId] = ["get"];
     identifier.index = this.routeId;
@@ -747,7 +747,7 @@ class MyRoute {
       ["get"],
       `${baseUri}/create`,
       [controller, "create" as K],
-      rsrcId
+      rsrcId,
     ).name(`${pluralized}.create`);
     thisRoutes[this.routeId] = ["get"];
     identifier.create = this.routeId;
@@ -755,7 +755,7 @@ class MyRoute {
       ["post"],
       `${baseUri}`,
       [controller, "store" as K],
-      rsrcId
+      rsrcId,
     ).name(`${pluralized}.post`);
     thisRoutes[this.routeId] = ["post"];
     identifier.post = this.routeId;
@@ -763,7 +763,7 @@ class MyRoute {
       ["get"],
       `${baseUri}/{${singularized}}`,
       [controller, "show" as K],
-      rsrcId
+      rsrcId,
     ).name(`${pluralized}.show`);
     thisRoutes[this.routeId] = ["get"];
     identifier.show = this.routeId;
@@ -771,7 +771,7 @@ class MyRoute {
       ["get"],
       `${baseUri}/{${singularized}}/edit`,
       [controller, "edit" as K],
-      rsrcId
+      rsrcId,
     ).name(`${pluralized}.edit`);
     thisRoutes[this.routeId] = ["get"];
     identifier.edit = this.routeId;
@@ -779,7 +779,7 @@ class MyRoute {
       ["put", "patch"],
       `${baseUri}/{${singularized}}`,
       [controller, "update" as K],
-      rsrcId
+      rsrcId,
     ).name(`${pluralized}.update`);
     thisRoutes[this.routeId] = ["put", "patch"];
     identifier.update = this.routeId;
@@ -787,7 +787,7 @@ class MyRoute {
       ["delete"],
       `${baseUri}/{${singularized}}`,
       [controller, "destroy" as K],
-      rsrcId
+      rsrcId,
     ).name(`${pluralized}.destroy`);
     thisRoutes[this.routeId] = ["delete"];
     identifier.destroy = this.routeId;
@@ -810,7 +810,7 @@ class MyRoute {
     method: (keyof IHeaderChildRoutes)[],
     uri: string,
     arg: ICallback | [new () => T, K],
-    fromResource: null | number = null
+    fromResource: null | number = null,
   ): IMethodRoute {
     const id = ++MyRoute.routeId;
     const instancedRoute = new MethodRoute({ id, uri, method, arg });
@@ -941,7 +941,7 @@ export class Auth {
   public setGuard<G extends GuardName>(guardName: G): void {
     if (!keyExist(Auth.authConf.guards, guardName)) {
       throw new Error(
-        `Guard ${guardName} is not defined in auth configuration.`
+        `Guard ${guardName} is not defined in auth configuration.`,
       );
     }
     this.#defaultGuard = guardName;
@@ -949,7 +949,7 @@ export class Auth {
 
   public async attempt<G extends GuardName>(
     credentials: Record<string, unknown>,
-    remember: boolean = false
+    remember: boolean = false,
   ): Promise<boolean | string> {
     return await this.guard<G>().attempt(credentials, remember);
   }
@@ -1033,7 +1033,7 @@ export class Cache {
    */
   static async get(key: string) {
     return await this.store(this.defaultConnection).get(
-      key as keyof CacheStoreData
+      key as keyof CacheStoreData,
     );
   }
 
@@ -1044,7 +1044,7 @@ export class Cache {
     await this.store(this.defaultConnection).put(
       key as keyof CacheStoreData,
       value,
-      seconds
+      seconds,
     );
   }
 
@@ -1068,7 +1068,7 @@ export class Cache {
   static async forever(key: string, value: any) {
     await this.store(this.defaultConnection).forever(
       key as keyof CacheStoreData,
-      value
+      value,
     );
   }
 
@@ -1077,7 +1077,7 @@ export class Cache {
    */
   static async has(key: string) {
     return await this.store(this.defaultConnection).has(
-      key as keyof CacheStoreData
+      key as keyof CacheStoreData,
     );
   }
 
@@ -1087,7 +1087,7 @@ export class Cache {
   static async increment(key: string, value: number = 1) {
     return await this.store(this.defaultConnection).increment(
       key as keyof CacheStoreData,
-      value
+      value,
     );
   }
 
@@ -1097,7 +1097,7 @@ export class Cache {
   static async decrement(key: string, value: number = 1) {
     return await this.store(this.defaultConnection).decrement(
       key as keyof CacheStoreData,
-      value
+      value,
     );
   }
 
@@ -1107,7 +1107,7 @@ export class Cache {
   static async getOrDefault<T = any>(key: string, defaultValue: T): Promise<T> {
     return await this.store(this.defaultConnection).getOrDefault(
       key as keyof CacheStoreData,
-      defaultValue
+      defaultValue,
     );
   }
 
@@ -1192,7 +1192,7 @@ export class URL {
   private static signed(
     path: string,
     params: Record<string, string | number> = {},
-    expires?: number
+    expires?: number,
   ): string {
     const app = config("app");
     const secret = app.key;
@@ -1207,7 +1207,7 @@ export class URL {
     if (expires) {
       url.searchParams.set(
         "expires",
-        String(Math.floor(Date.now() / 1000) + expires)
+        String(Math.floor(Date.now() / 1000) + expires),
       );
     }
 
@@ -1234,7 +1234,7 @@ export class URL {
 
   public static signedRoute(
     path: string,
-    params: Record<string, unknown>
+    params: Record<string, unknown>,
   ): string {
     return this.signed(path, params as Record<string, string | number>);
   }
@@ -1242,7 +1242,7 @@ export class URL {
   public static temporarySignedRoute(
     path: string,
     params: Record<string, string | number> = {},
-    expiresIn: number
+    expiresIn: number,
   ): string {
     return this.signed(path, params, expiresIn);
   }

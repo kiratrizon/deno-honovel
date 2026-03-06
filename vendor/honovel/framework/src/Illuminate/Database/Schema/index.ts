@@ -2,7 +2,6 @@
 
 import { SupportedDrivers } from "configs/@types/index.d.ts";
 import { Database } from "Database";
-import { th } from "@faker-js/faker";
 
 export type ColumnType =
   | "string" // VARCHAR
@@ -79,7 +78,10 @@ export class Blueprint {
   public columns: ColumnDefinition[] = [];
   public drops: string[] = [];
   private columnCount: number = 0;
-  constructor(table: string, private connection: SupportedDrivers) {
+  constructor(
+    table: string,
+    private connection: SupportedDrivers,
+  ) {
     this.table = table;
   }
   /**
@@ -319,7 +321,7 @@ export class Blueprint {
     });
     const count = this.columnCount;
     this.columnCount++;
-    return this.optionsSelector(this.columns[count]).unsigned();
+    return this.optionsSelector(this.columns[count]);
   }
   /**
    * Adds a foreign key column using BIGINT UNSIGNED.
@@ -333,7 +335,7 @@ export class Blueprint {
     });
     const count = this.columnCount;
     this.columnCount++;
-    return this.optionsSelector(this.columns[count]).unsigned();
+    return this.optionsSelector(this.columns[count]);
   }
   /**
    * Adds a TINYINT column.
@@ -431,7 +433,7 @@ export class Blueprint {
     });
     const count = this.columnCount;
     this.columnCount++;
-    return this.optionsSelector(this.columns[count]).unsigned();
+    return this.optionsSelector(this.columns[count]);
   }
 
   // strings

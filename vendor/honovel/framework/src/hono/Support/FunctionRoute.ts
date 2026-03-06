@@ -12,7 +12,6 @@ import { MiddlewareLikeClass } from "Illuminate/Foundation/Http/index.ts";
 import { SQLError } from "Illuminate/Database/Query/index.ts";
 import { Model } from "Illuminate/Database/Eloquent/index.ts";
 import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
-import HonoRequest from "HonoHttp/HonoRequest.d.ts";
 import { ValidationException } from "Illuminate/Validation/ValidationException.ts";
 import { TagContract } from "edge.js/types";
 import HonoView from "HonoHttp/HonoView.ts";
@@ -22,6 +21,8 @@ import MessageBag, { ErrorsShape } from "HonoHttp/MessageBag.ts";
 import { SessionDataTypes } from "../../../../@types/declaration/imain.d.ts";
 import viteConfig from "../../../../../vite/vite-manipulate.ts";
 import HRequest from "HonoHttp/HonoRequest.d.ts";
+import BindingRegistry from "../Core/BindingRegistry.ts";
+import HonoRequest from "HonoHttp/HonoRequest.ts";
 
 export const regexObj = {
   number: /^\d+$/,
@@ -32,7 +33,7 @@ export const regexObj = {
 };
 export function regexToHono(
   where: Record<string, RegExp[]>,
-  params: string[] = []
+  params: string[] = [],
 ): MiddlewareHandler {
   return async (c: MyContext, next: () => Promise<void>) => {
     const { request } = c.get("myHono");
@@ -41,7 +42,7 @@ export function regexToHono(
       const regexValues = where[key] as RegExp[];
       const paramValue = request.route(key);
       const isPassed = regexValues.some((regex) =>
-        regex.test(String(paramValue))
+        regex.test(String(paramValue)),
       );
 
       if (!isPassed) {
@@ -122,7 +123,7 @@ export class URLArranger {
 
         if (strict) {
           throw new Error(
-            `${JSON.stringify(constantPart)} is not a valid parameter name`
+            `${JSON.stringify(constantPart)} is not a valid parameter name`,
           );
         } else {
           return `${constantPart}`;
@@ -174,7 +175,7 @@ export class URLArranger {
   public static generateOptionalParamRoutes(
     route: string,
     type: "group" | "dispatch" = "dispatch",
-    where: Record<string, RegExp[]> = {}
+    where: Record<string, RegExp[]> = {},
   ): string[] {
     const segments = route.split("/");
     const required: string[] = [];
@@ -228,7 +229,7 @@ export class URLArranger {
 
 function applyConstraintsWithOptional(
   route: string,
-  where: Record<string, RegExp[]>
+  where: Record<string, RegExp[]>,
 ): string {
   return route.replace(
     /:([a-zA-Z0-9_]+)(\?)?/g,
@@ -241,7 +242,7 @@ function applyConstraintsWithOptional(
         return `:${param}{${pattern}}${optionalMark ?? ""}`;
       }
       return full;
-    }
+    },
   );
 }
 
@@ -252,7 +253,7 @@ interface IMiddlewareCompiler {
 }
 
 export function toMiddleware(
-  args: (string | HttpMiddleware | MiddlewareLikeClass)[]
+  args: (string | HttpMiddleware | MiddlewareLikeClass)[],
 ): [MiddlewareHandler[], TFallbackMiddleware[]] {
   const instanceKernel = new ChildKernel();
   const MiddlewareGroups = instanceKernel.MiddlewareGroups;
@@ -294,10 +295,10 @@ export function toMiddleware(
                     }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
                     middleware: [
                       middlewareInstance.handle.bind(
-                        middlewareInstance
+                        middlewareInstance,
                       ) as HttpMiddleware,
                       middlewareParts.flatMap((part) =>
-                        part.split(",").map((p) => p.trim())
+                        part.split(",").map((p) => p.trim()),
                       ),
                     ],
                     from:
@@ -324,10 +325,10 @@ export function toMiddleware(
                     }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
                     middleware: [
                       middlewareInstance.fallback.bind(
-                        middlewareInstance
+                        middlewareInstance,
                       ) as HttpMiddleware,
                       middlewareParts.flatMap((part) =>
-                        part.split(",").map((p) => p.trim())
+                        part.split(",").map((p) => p.trim()),
                       ),
                     ],
                     from: "fallback",
@@ -346,7 +347,7 @@ export function toMiddleware(
                   }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
                   middleware: [
                     middlewareInstance.handle.bind(
-                      middlewareInstance
+                      middlewareInstance,
                     ) as HttpMiddleware,
                     [],
                   ],
@@ -374,7 +375,7 @@ export function toMiddleware(
                   }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
                   middleware: [
                     middlewareInstance.fallback.bind(
-                      middlewareInstance
+                      middlewareInstance,
                     ) as HttpMiddleware,
                     [],
                   ],
@@ -400,10 +401,10 @@ export function toMiddleware(
               }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
               middleware: [
                 middlewareInstance.handle.bind(
-                  middlewareInstance
+                  middlewareInstance,
                 ) as HttpMiddleware,
                 argParts.flatMap((part) =>
-                  part.split(",").map((p) => p.trim())
+                  part.split(",").map((p) => p.trim()),
                 ),
               ],
               from:
@@ -430,10 +431,10 @@ export function toMiddleware(
               }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
               middleware: [
                 middlewareInstance.fallback.bind(
-                  middlewareInstance
+                  middlewareInstance,
                 ) as HttpMiddleware,
                 argParts.flatMap((part) =>
-                  part.split(",").map((p) => p.trim())
+                  part.split(",").map((p) => p.trim()),
                 ),
               ],
               from: "fallback",
@@ -457,7 +458,7 @@ export function toMiddleware(
             }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
             middleware: [
               middlewareInstance.handle.bind(
-                middlewareInstance
+                middlewareInstance,
               ) as HttpMiddleware,
               argParts.flatMap((part) => part.split(",").map((p) => p.trim())),
             ],
@@ -485,7 +486,7 @@ export function toMiddleware(
             }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
             middleware: [
               middlewareInstance.fallback.bind(
-                middlewareInstance
+                middlewareInstance,
               ) as HttpMiddleware,
               argParts.flatMap((part) => part.split(",").map((p) => p.trim())),
             ],
@@ -510,7 +511,7 @@ export function toMiddleware(
             }@handle \n// Code Referrence \n\n${middlewareInstance.handle.toString()}`,
             middleware: [
               middlewareInstance.handle.bind(
-                middlewareInstance
+                middlewareInstance,
               ) as HttpMiddleware,
               [],
             ],
@@ -538,7 +539,7 @@ export function toMiddleware(
             }@fallback \n// Code Referrence \n\n${middlewareInstance.fallback.toString()}`,
             middleware: [
               middlewareInstance.fallback.bind(
-                middlewareInstance
+                middlewareInstance,
               ) as HttpMiddleware,
               [],
             ],
@@ -584,7 +585,7 @@ export function toMiddleware(
 
 export function toDispatch(
   objArgs: MiddlewareOrDispatch,
-  sequenceParams: string[]
+  sequenceParams: string[],
 ): MiddlewareHandler {
   objArgs.from = "dispatch";
   return generateMiddlewareOrDispatch("dispatch", objArgs, sequenceParams);
@@ -592,7 +593,7 @@ export function toDispatch(
 
 export function toNotfound(
   objArgs: MiddlewareOrDispatch,
-  sequenceParams: string[]
+  sequenceParams: string[],
 ): MiddlewareHandler {
   objArgs.from = "notfound";
   return generateMiddlewareOrDispatch("notfound", objArgs, sequenceParams);
@@ -602,11 +603,12 @@ interface MiddlewareOrDispatch {
   debugString: string;
   args: HttpMiddleware | IMyConfig["callback"];
   from?: "handle" | "fallback" | "dispatch" | "notfound";
+  customRequest?: typeof HonoRequest;
 }
 function generateMiddlewareOrDispatch(
   type: "middleware" | "dispatch" | "notfound",
   objArgs: MiddlewareOrDispatch,
-  sequenceParams: string[] = []
+  sequenceParams: string[] = [],
 ): MiddlewareHandler {
   if (type !== "notfound") {
     const from = objArgs.from;
@@ -636,7 +638,7 @@ function generateMiddlewareOrDispatch(
               myHono,
               // @ts-ignore //
               honoClosure.next.bind(honoClosure),
-              ...sequenceParams
+              ...sequenceParams,
             );
           } else {
             const params = request.route() as Record<string, string | null>;
@@ -662,7 +664,7 @@ function generateMiddlewareOrDispatch(
                 if (!isNull(newParams[paramKey])) {
                   try {
                     newParams[paramKey] = await modelClass.findOrFail(
-                      newParams[paramKey] as string
+                      newParams[paramKey] as string,
                     );
                     continue;
                   } catch (_e: unknown) {
@@ -671,6 +673,10 @@ function generateMiddlewareOrDispatch(
                 }
                 abort(404);
               }
+            }
+            if (type === "dispatch" && objArgs.customRequest) {
+              // @ts-ignore //
+              myHono.changeRequest(objArgs.customRequest);
             }
             middlewareResp = await args(myHono, newParams);
           }
@@ -713,7 +719,7 @@ function generateMiddlewareOrDispatch(
           const debuggingPurpose = renderDebugErrorPage(
             `${ucFirst(type)} Error`,
             debugString,
-            `Returned undefined value from the ${type} function.`
+            `Returned undefined value from the ${type} function.`,
           );
           if (!isset(env("DENO_DEPLOYMENT_ID"))) {
             return c.html(debuggingPurpose, 500);
@@ -722,14 +728,14 @@ function generateMiddlewareOrDispatch(
             debuggingPurpose,
             "error",
             `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-              "HTTP_X_REQUEST_ID"
-            )}`
+              "HTTP_X_REQUEST_ID",
+            )}`,
           );
           return c.json(
             {
               message: "Internal server error",
             },
-            500
+            500,
           );
         }
       }
@@ -769,7 +775,7 @@ function generateFallback(
   type: "middleware",
   objArgs: MiddlewareOrDispatch,
   sequenceParams: string[] = [],
-  count = 0
+  count = 0,
 ): MiddlewareHandler {
   return async (c: MyContext, next: () => Promise<void>) => {
     const fromHandle = c.get("fromHandle");
@@ -797,7 +803,7 @@ function generateFallback(
           myHono,
           // @ts-ignore //
           honoClosure.next.bind(honoClosure),
-          ...sequenceParams
+          ...sequenceParams,
         );
         if (isNull(middlewareResp)) {
           resp = c.json(null);
@@ -825,7 +831,7 @@ function generateFallback(
         const debuggingPurpose = renderDebugErrorPage(
           `${ucFirst(type)} Error`,
           debugString,
-          `Returned undefined value from the ${type} function.`
+          `Returned undefined value from the ${type} function.`,
         );
         if (!isset(env("DENO_DEPLOYMENT_ID"))) {
           return c.html(debuggingPurpose, 500);
@@ -834,26 +840,26 @@ function generateFallback(
           debuggingPurpose,
           "error",
           `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-            "HTTP_X_REQUEST_ID"
-          )}`
+            "HTTP_X_REQUEST_ID",
+          )}`,
         );
         return c.json(
           {
             message: "Internal server error",
           },
-          500
+          500,
         );
       }
     }
   };
 }
 
-export const returnResponse = async (c: MyContext) => {
+export const returnResponse: MiddlewareHandler = async (c: MyContext) => {
   const response = c.get("response");
   // dispose session
   const myHono = c.get("myHono");
   await myHono.request.dispose();
-  return response;
+  return response as Response;
 };
 
 export function renderErrorHtml(e: Error): string {
@@ -909,23 +915,79 @@ export const buildRequestInit = (): MiddlewareHandler => {
   };
 };
 
-function forDD(data: unknown) {
-  let newData: unknown;
-  try {
-    newData = jsonDecode(jsonEncode(data));
-  } catch (_e) {
-    newData = data;
-  }
+function forDD(data: any[]) {
+  const newData = BindingRegistry.bindData(data);
+  const formattedHtml = formatDataWithColors(newData);
+
   const html = `
-  <style>
-    body { background: #f8fafc; color: #1a202c; font-family: sans-serif; padding: 2rem; }
-    pre { background: #1a202c; color: #f7fafc; padding: 1.5rem; border-radius: 0.5rem; font-size: 14px; overflow-x: auto; }
-    code { white-space: pre-wrap; word-break: break-word; }
-  </style>
-  <pre><code>${Deno.inspect(newData, {
-    colors: false,
-    depth: Infinity,
-  })}</code></pre>
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/system-assets/logo/h.png" />
+    <title>DD Output</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { 
+        background: #f8fafc; 
+        font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+        padding: 2rem;
+        line-height: 1.6;
+      }
+      .dd-container {
+        background: #fff;
+        border-radius: 0.75rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .dd-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.25rem 1.5rem;
+        font-weight: 600;
+        font-size: 1.125rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .dd-content {
+        padding: 1.5rem;
+        background: #1e1e1e;
+        overflow-x: auto;
+      }
+      .dd-pre {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.8;
+        color: #d4d4d4;
+      }
+      .dd-string { color: #ce9178; }
+      .dd-number { color: #b5cea8; }
+      .dd-boolean { color: #569cd6; }
+      .dd-null { color: #808080; font-style: italic; }
+      .dd-key { color: #9cdcfe; }
+      .dd-bracket { color: #ffd700; font-weight: bold; }
+      .dd-comma { color: #d4d4d4; }
+      .dd-index { color: #4ec9b0; }
+      .dd-class { color: #4ec9b0; font-weight: bold; }
+      .dd-arrow { color: #d4d4d4; }
+    </style>
+  </head>
+  <body>
+    <div class="dd-container">
+      <div class="dd-header">
+        <span style="font-size: 1.5rem;">🔍</span>
+        <span>Debug Output</span>
+      </div>
+      <div class="dd-content">
+        <pre class="dd-pre">${formattedHtml}</pre>
+      </div>
+    </div>
+  </body>
+  </html>
 `;
 
   const json = newData;
@@ -934,6 +996,111 @@ function forDD(data: unknown) {
     html,
     json,
   };
+}
+
+function formatDataWithColors(
+  data: unknown,
+  indent = 0,
+  isArrayItem = false,
+  seen: WeakSet<object> = new WeakSet(),
+  depth = 0,
+  maxDepth = 6,
+): string {
+  const spaces = "  ".repeat(indent);
+  const nextIndent = indent + 1;
+
+  // Depth limiter
+  if (depth > maxDepth) {
+    return `<span class="dd-null">[Max Depth Reached]</span>`;
+  }
+
+  if (data === null) {
+    return `<span class="dd-null">null</span>`;
+  }
+
+  if (data === undefined) {
+    return `<span class="dd-null">undefined</span>`;
+  }
+
+  if (typeof data === "string") {
+    return `<span class="dd-string">"${escapeHtml(data)}"</span>`;
+  }
+
+  if (typeof data === "number") {
+    return `<span class="dd-number">${data}</span>`;
+  }
+
+  if (typeof data === "boolean") {
+    return `<span class="dd-boolean">${data}</span>`;
+  }
+
+  // 🚫 Circular protection
+  if (typeof data === "object") {
+    if (seen.has(data)) {
+      return `<span class="dd-null">[Circular]</span>`;
+    }
+    seen.add(data);
+  }
+
+  if (Array.isArray(data)) {
+    if (data.length === 0) {
+      return `<span class="dd-bracket">[]</span>`;
+    }
+
+    const items = data
+      .map((item, index) => {
+        const formattedItem = formatDataWithColors(
+          item,
+          nextIndent,
+          true,
+          seen,
+          depth + 1,
+          maxDepth,
+        );
+        return `\n${"  ".repeat(nextIndent)}<span class="dd-index">${index}</span> <span class="dd-arrow">=></span> ${formattedItem}`;
+      })
+      .join('<span class="dd-comma">,</span>');
+
+    return `<span class="dd-bracket">[</span>${items}<span class="dd-comma">,</span>\n${spaces}<span class="dd-bracket">]</span>`;
+  }
+
+  if (typeof data === "object") {
+    const className = data.constructor?.name;
+    const isCustomClass = className && className !== "Object";
+
+    const entries = Object.entries(data);
+    if (entries.length === 0) {
+      return isCustomClass
+        ? `<span class="dd-class">${className}</span> <span class="dd-bracket">{}</span>`
+        : `<span class="dd-bracket">{}</span>`;
+    }
+
+    const props = entries
+      .map(([key, value]) => {
+        const formattedValue = formatDataWithColors(
+          value,
+          nextIndent,
+          false,
+          seen,
+          depth + 1,
+          maxDepth,
+        );
+        return `\n${"  ".repeat(nextIndent)}<span class="dd-key">"${escapeHtml(key)}"</span> <span class="dd-arrow">=></span> ${formattedValue}`;
+      })
+      .join('<span class="dd-comma">,</span>');
+
+    const opening = isCustomClass
+      ? `<span class="dd-class">${className}</span> <span class="dd-bracket">{</span>`
+      : `<span class="dd-bracket">{</span>`;
+
+    return `${opening}${props}<span class="dd-comma">,</span>\n${spaces}<span class="dd-bracket">}</span>`;
+  }
+
+  if (typeof data === "function") {
+    return `<span class="dd-class">Function</span> <span class="dd-string">"${data.name || "anonymous"}"</span>`;
+  }
+
+  return `<span class="dd-string">${String(data)}</span>`;
 }
 
 function escapeHtml(input: string): string {
@@ -948,7 +1115,7 @@ function escapeHtml(input: string): string {
 function renderDebugErrorPage(
   title: string,
   debugString: string,
-  message: string = "An unexpected error occurred."
+  message: string = "An unexpected error occurred.",
 ): string {
   return `
 <!DOCTYPE html>
@@ -970,7 +1137,7 @@ function renderDebugErrorPage(
 
       <div class="bg-gray-900 text-green-300 text-sm font-mono p-4 rounded-lg overflow-auto max-h-[400px] border border-gray-700">
         <pre class="whitespace-pre-wrap"><code>${formatDebugString(
-          escapeHtml(debugString)
+          escapeHtml(debugString),
         )}</code></pre>
       </div>
 
@@ -1000,7 +1167,7 @@ export function formatDebugString(code: string): string {
 
 // for tracing
 async function extractControllerTrace(
-  stack: string[]
+  stack: string[],
 ): Promise<string | false> {
   const patterns = [
     /file:\/\/(.+\/app\/Http\/Controllers\/[^:]+):(\d+):(\d+)/,
@@ -1037,7 +1204,7 @@ async function extractControllerTrace(
       stackLine.file as string,
       stackLine.line as number,
       stackLine.column as number,
-      stack[0]
+      stack[0],
     );
   }
   return false;
@@ -1048,7 +1215,7 @@ function tracingLocation(
   file: string,
   line: number,
   column: number,
-  errorDescription: string
+  errorDescription: string,
 ): string {
   const fileLocation = path.relative(basePath(), file).replace(/\\/g, "/");
   const lines = content.split("\n");
@@ -1075,7 +1242,7 @@ function tracingLocation(
           ? `<div class="flex items-start">
               <div class="w-14"></div>
               <pre class="text-sm text-rose-500 pl-4 leading-tight">${" ".repeat(
-                column - 1
+                column - 1,
               )}^</pre>
             </div>`
           : ""
@@ -1106,7 +1273,7 @@ function tracingLocation(
         <div class="bg-white shadow-lg border border-gray-200 rounded-lg overflow-hidden">
           <div class="px-6 py-4 border-b border-gray-100 bg-rose-50">
             <h1 class="text-xl font-semibold text-rose-600">${escapeHtml(
-              errorDescription
+              errorDescription,
             )}</h1>
           </div>
 
@@ -1131,11 +1298,11 @@ function tracingLocation(
 async function handleErrors(
   e: unknown,
   c: MyContext,
-  request: HonoRequest
+  request: HRequest,
 ): Promise<Response> {
   let resp: Response | undefined;
   if (e instanceof DDError) {
-    const data = forDD(e.data);
+    const data = forDD(e.data as any[]);
     if (request.expectsJson()) {
       if (!isset(data.json)) {
         data.json = null;
@@ -1168,7 +1335,7 @@ async function handleErrors(
           message: e.message,
           error_type: e.name,
         },
-        500
+        500,
       );
     } else {
       resp = c.html(renderErrorHtml(e), 500);
@@ -1200,7 +1367,7 @@ async function handleErrors(
             stack: populatedError.stack,
             cause: populatedError.cause,
           },
-          500
+          500,
         );
       }
     } else {
@@ -1217,7 +1384,7 @@ async function handleErrors(
 
 export async function handleAction(
   data: unknown,
-  c: MyContext
+  c: MyContext,
 ): Promise<Response> {
   const request = c.get("myHono").request;
   const Cookie = c.get("myHono").Cookie;
@@ -1248,7 +1415,7 @@ export async function handleAction(
           return arr
             .map(
               (type) =>
-                `<input type="hidden" name="_method" value="${type.toUpperCase()}">`
+                `<input type="hidden" name="_method" value="${type.toUpperCase()}">`,
             )
             .join("");
         },
@@ -1282,7 +1449,7 @@ export async function handleAction(
             buffer.outputRaw(
               `<input type="hidden" name="_token" value="${
                 request.session.get("_token") || ""
-              }">`
+              }">`,
             );
           },
         },
@@ -1300,7 +1467,7 @@ export async function handleAction(
                 (t) =>
                   '<input type="hidden" name="_method" value="' +
                   t.toUpperCase() +
-                  '">'
+                  '">',
               )
               .join("");
 
@@ -1346,11 +1513,11 @@ export async function handleAction(
                     file.toLowerCase().endsWith(".ts")
                   ) {
                     buffer.outputRaw(
-                      `<script type="module" src="http://localhost:${port}/${file}"></script>`
+                      `<script type="module" src="http://localhost:${port}/${file}"></script>`,
                     );
                   } else if (file.toLowerCase().endsWith(".css")) {
                     buffer.outputRaw(
-                      `<link rel="stylesheet" href="http://localhost:${port}/${file}">`
+                      `<link rel="stylesheet" href="http://localhost:${port}/${file}">`,
                     );
                   }
                 });
@@ -1360,7 +1527,7 @@ export async function handleAction(
                 const pathOfOutdir = viteConfig.build?.outDir || "public/build";
 
                 const viteJson = Deno.readTextFileSync(
-                  basePath(`${pathOfOutdir}/.vite/manifest.json`)
+                  basePath(`${pathOfOutdir}/.vite/manifest.json`),
                 );
                 try {
                   const manifest = JSON.parse(viteJson);
@@ -1373,15 +1540,15 @@ export async function handleAction(
                         const css = entry.css || [];
                         css.forEach((cssFile: string) => {
                           buffer.outputRaw(
-                            `<link rel="stylesheet" href="/${staticPath}/${cssFile}">`
+                            `<link rel="stylesheet" href="/${staticPath}/${cssFile}">`,
                           );
                         });
                         buffer.outputRaw(
-                          `<script type="module" src="/${staticPath}/${entry.file}"></script>`
+                          `<script type="module" src="/${staticPath}/${entry.file}"></script>`,
                         );
                       } else if (entry.file.endsWith(".css")) {
                         buffer.outputRaw(
-                          `<link rel="stylesheet" href="/${staticPath}/${entry.file}">`
+                          `<link rel="stylesheet" href="/${staticPath}/${entry.file}">`,
                         );
                       }
                     }
@@ -1401,7 +1568,7 @@ export async function handleAction(
       statusCode = 200;
       // move all new to old
       const sessionFlashData = request.session.get(
-        "_flash"
+        "_flash",
       ) as SessionDataTypes["_flash"];
       const old = sessionFlashData.old;
       const newData = sessionFlashData.new;
@@ -1452,7 +1619,7 @@ export async function handleAction(
 
 function saveSessionIfRedirect(request: HRequest) {
   const sessionFlashData = request.session.get(
-    "_flash"
+    "_flash",
   ) as SessionDataTypes["_flash"];
   const old = sessionFlashData.old;
   const newData = sessionFlashData.new;
@@ -1468,7 +1635,7 @@ export function convertToResponse(c: MyContext, res: Response): Response {
   const newRes = c.newResponse(
     res.body,
     res.status as ContentfulStatusCode,
-    Object.fromEntries(res.headers)
+    Object.fromEntries(res.headers),
   );
   return newRes;
 }

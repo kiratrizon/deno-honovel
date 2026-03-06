@@ -1,29 +1,84 @@
-import { Redis as IORedis } from "ioredis";
-import { Redis as UpstashRedis } from "@upstash/redis";
-import { createClient, RedisClientType } from "redis";
-import { connect, Redis as DenoRedis } from "deno-redis";
 import { RedisConfigure } from "configs/@types/index.d.ts";
 
-async function connectToRedis(
-  config: RedisConfigure<"deno-redis">
-): Promise<DenoRedis> {
-  return await connect({
-    hostname: config.host,
-    port: config.port,
-    password: config.password,
-    db: config.db,
-    username: config.username,
-    tls: config.tls,
-    ...config.options,
-  });
+async function connectToRedis(config: RedisConfigure["deno-redis"]) {
+  try {
+    const { connect } = await import("deno-redis");
+    return await connect({
+      hostname: config.host,
+      port: config.port,
+      password: config.password,
+      db: config.db,
+      username: config.username,
+      tls: config.tls,
+      ...config.options,
+    });
+  } catch (e) {
+    console.error(
+      `Please install "deno-redis" to use the deno-redis client: deno task smelt install:driver --redis deno-redis`,
+    );
+    // @ts-ignore //
+    throw new Error(e.message);
+  }
+}
+
+async function connectToNodeRedis(config: RedisConfigure["node-redis"]) {
+  try {
+    const { createClient } = await import("redis");
+    const client = createClient({
+      url: config.nodeRedisUrl,
+    });
+    await client.connect();
+    return client;
+  } catch (e) {
+    console.error(
+      `Please install "redis" to use the node-redis client: deno task smelt install:driver --redis node-redis`,
+    );
+    // @ts-ignore //
+    throw new Error(e.message);
+  }
+}
+
+async function connectToUpstash(config: RedisConfigure["upstash"]) {
+  try {
+    const { Redis } = await import("@upstash/redis");
+    // validate config
+    if (!config.upstashUrl || !config.upstashToken) {
+      throw new Error(
+        "Upstash Redis configuration requires both upstashUrl and upstashToken.",
+      );
+    }
+    return new Redis({
+      url: config.upstashUrl,
+      token: config.upstashToken,
+    });
+  } catch (e) {
+    console.error(
+      `Please install "upstash" to use the upstash client: deno task smelt install:driver --redis upstash`,
+    );
+    // @ts-ignore //
+    throw new Error(e.message);
+  }
+}
+
+async function connectToIORedis(config: RedisConfigure["ioredis"]) {
+  try {
+    const { Redis } = await import("ioredis");
+    return new Redis(config.ioredisUrl);
+  } catch (e) {
+    console.error(
+      `Please install "ioredis" to use the ioredis client: deno task smelt install:driver --redis ioredis`,
+    );
+    // @ts-ignore //
+    throw new Error(e.message);
+  }
 }
 
 export class RedisManager {
-  #client: IORedis | UpstashRedis | RedisClientType | DenoRedis | null = null;
+  #client: any;
   #redisType: "ioredis" | "upstash" | "node-redis" | "deno-redis";
 
   constructor(
-    redisType: "ioredis" | "upstash" | "node-redis" | "deno-redis" = "ioredis"
+    redisType: "ioredis" | "upstash" | "node-redis" | "deno-redis" = "ioredis",
   ) {
     this.#redisType = redisType;
   }
@@ -45,38 +100,30 @@ export class RedisManager {
 
     switch (this.#redisType) {
       case "ioredis":
-        this.#client = new IORedis(
-          (conf as RedisConfigure<"ioredis">).ioredisUrl
+        this.#client = await connectToIORedis(
+          conf as RedisConfigure["ioredis"],
         );
         break;
       case "upstash": {
-        const upstashConf = {
-          url: (conf as RedisConfigure<"upstash">).upstashUrl,
-          token: (conf as RedisConfigure<"upstash">).upstashToken,
-        };
-        if (!upstashConf.url || !upstashConf.token) {
-          throw new Error(
-            "Upstash Redis configuration requires both url and token."
-          );
-        }
-        this.#client = new UpstashRedis(upstashConf);
+        this.#client = await connectToUpstash(
+          conf as RedisConfigure["upstash"],
+        );
         break;
       }
       case "node-redis": {
-        const client = createClient({
-          url: (conf as RedisConfigure<"node-redis">).nodeRedisUrl,
-        });
-        await client.connect();
-        this.#client = client as RedisClientType; // Explicitly cast to RedisClientType
+        const client = await connectToNodeRedis(
+          conf as RedisConfigure["node-redis"],
+        );
+        this.#client = client;
         break;
       }
       case "deno-redis":
         this.#client = await connectToRedis(
-          conf as RedisConfigure<"deno-redis">
+          conf as RedisConfigure["deno-redis"],
         );
         break;
       default:
-        throw new Error(`Unsupported Redis client: ${this.#redisType}`);
+        throw new Error(`Unsupported Redis driver: ${this.#redisType}`);
     }
   }
 
@@ -86,27 +133,27 @@ export class RedisManager {
     switch (this.#redisType) {
       case "ioredis":
         if (options?.ex) {
-          await (this.#client as IORedis).set(key, value, "EX", options.ex);
+          await (this.#client as any).set(key, value, "EX", options.ex);
         } else {
-          await (this.#client as IORedis).set(key, value);
+          await (this.#client as any).set(key, value);
         }
         break;
       case "upstash":
-        await (this.#client as UpstashRedis).set(
+        await (this.#client as any).set(
           key,
           value,
-          options?.ex ? { ex: options.ex } : undefined
+          options?.ex ? { ex: options.ex } : undefined,
         );
         break;
       case "node-redis":
-        await (this.#client as RedisClientType).set(
+        await (this.#client as any).set(
           key,
           value,
-          options?.ex ? { EX: options.ex } : undefined
+          options?.ex ? { EX: options.ex } : undefined,
         );
         break;
       case "deno-redis":
-        await (this.#client as DenoRedis).set(key, value, options);
+        await (this.#client as any).set(key, value, options);
         break;
     }
   }
@@ -116,13 +163,13 @@ export class RedisManager {
 
     switch (this.#redisType) {
       case "ioredis":
-        return (await (this.#client as IORedis).get(key)) || null;
+        return (await (this.#client as any).get(key)) || null;
       case "upstash":
-        return (await (this.#client as UpstashRedis).get(key)) || null;
+        return (await (this.#client as any).get(key)) || null;
       case "node-redis":
-        return (await (this.#client as RedisClientType).get(key)) || null;
+        return (await (this.#client as any).get(key)) || null;
       case "deno-redis":
-        return (await (this.#client as DenoRedis).get(key)) || null;
+        return (await (this.#client as any).get(key)) || null;
     }
   }
 
@@ -131,13 +178,13 @@ export class RedisManager {
 
     switch (this.#redisType) {
       case "ioredis":
-        return await (this.#client as IORedis).del(key);
+        return await (this.#client as any).del(key);
       case "upstash":
-        return await (this.#client as UpstashRedis).del(key);
+        return await (this.#client as any).del(key);
       case "node-redis":
-        return await (this.#client as RedisClientType).del(key);
+        return await (this.#client as any).del(key);
       case "deno-redis":
-        return await (this.#client as DenoRedis).del(key);
+        return await (this.#client as any).del(key);
     }
   }
 
@@ -146,16 +193,16 @@ export class RedisManager {
 
     switch (this.#redisType) {
       case "ioredis":
-        await (this.#client as IORedis).flushall();
+        await (this.#client as any).flushall();
         break;
       case "upstash":
-        await (this.#client as UpstashRedis).flushall();
+        await (this.#client as any).flushall();
         break;
       case "node-redis":
-        await (this.#client as RedisClientType).flushAll(); // Capital 'A'
+        await (this.#client as any).flushAll(); // Capital 'A'
         break;
       case "deno-redis":
-        await (this.#client as DenoRedis).flushall();
+        await (this.#client as any).flushall();
         break;
       default:
         throw new Error(`flushAll not supported for: ${this.#redisType}`);
@@ -167,13 +214,13 @@ export class RedisManager {
 
     switch (this.#redisType) {
       case "ioredis":
-        return (await (this.#client as IORedis).exists(key)) > 0;
+        return (await (this.#client as any).exists(key)) > 0;
       case "upstash":
-        return (await (this.#client as UpstashRedis).exists(key)) > 0;
+        return (await (this.#client as any).exists(key)) > 0;
       case "node-redis":
-        return (await (this.#client as RedisClientType).exists(key)) > 0;
+        return (await (this.#client as any).exists(key)) > 0;
       case "deno-redis":
-        return (await (this.#client as DenoRedis).exists(key)) > 0;
+        return (await (this.#client as any).exists(key)) > 0;
     }
   }
 }

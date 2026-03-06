@@ -1,4 +1,7 @@
 import { CookieOptions } from "hono/utils/cookie";
+import Collection from "Illuminate/Database/Eloquent/Collection.ts";
+import { Model } from "Illuminate/Database/Eloquent/index.ts";
+import BindingRegistry from "../Core/BindingRegistry.ts";
 
 export default class HonoResponseV2 {
   protected _headers: Headers = new Headers();
@@ -43,8 +46,9 @@ export default class HonoResponseV2 {
   }
 
   public json(data: unknown, status = 200) {
-    this._body = JSON.stringify(data, (_key, value) =>
-      typeof value === "bigint" ? value.toString() : value
+    const newData = BindingRegistry.bindData(data);
+    this._body = JSON.stringify(newData, (_key, value) =>
+      typeof value === "bigint" ? value.toString() : value,
     );
     this._contentType = "application/json";
     this._status = status;
@@ -52,7 +56,7 @@ export default class HonoResponseV2 {
       this._body,
       this._contentType,
       this._headers,
-      this._status
+      this._status,
     );
   }
 
@@ -64,7 +68,7 @@ export default class HonoResponseV2 {
       this._body,
       this._contentType,
       this._headers,
-      this._status
+      this._status,
     );
   }
 
@@ -90,7 +94,7 @@ export default class HonoResponseV2 {
       this._body,
       this._contentType,
       this._headers,
-      this._status
+      this._status,
     );
   }
 
@@ -106,20 +110,20 @@ export default class HonoResponseV2 {
     this._contentType = "application/octet-stream";
     this._headers.set(
       "Content-Disposition",
-      `attachment; filename="${filename}"`
+      `attachment; filename="${filename}"`,
     );
     this._headers.set("Content-Length", data.byteLength.toString());
     return new DownloadResponse(
       this._body,
       this._contentType,
       this._headers,
-      this._status
+      this._status,
     );
   }
 
   public stream(
     input: string | ReadableStream<Uint8Array>,
-    contentType?: string
+    contentType?: string,
   ) {
     let body: ReadableStream<Uint8Array>;
 
@@ -139,7 +143,7 @@ export default class HonoResponseV2 {
       this._body as ReadableStream<Uint8Array>,
       this._contentType,
       this._headers,
-      this._status
+      this._status,
     );
   }
 
@@ -152,7 +156,7 @@ export default class HonoResponseV2 {
       this._body,
       this._contentType,
       this._headers,
-      this._status
+      this._status,
     );
   }
 
@@ -195,7 +199,7 @@ export default class HonoResponseV2 {
       this._body,
       this._contentType,
       this._headers,
-      this._status
+      this._status,
     );
   }
 
@@ -210,7 +214,7 @@ export class HonoResponse {
     protected body: BodyInit | null,
     protected contentType: string | null,
     protected headers: Headers,
-    protected status: number
+    protected status: number,
   ) {
     if (this.contentType) {
       this.headers.set("Content-Type", this.contentType);
@@ -232,7 +236,7 @@ export class HonoResponse {
   public cookie(
     name: string,
     value: string,
-    options: CookieOptions = {}
+    options: CookieOptions = {},
   ): this {
     this.cookies[name] = [value, options];
     return this;
@@ -270,13 +274,13 @@ export class StreamResponse extends HonoResponse {
     stream: ReadableStream<Uint8Array>,
     contentType = "application/octet-stream",
     headers?: Headers,
-    status = 200
+    status = 200,
   ) {
     super(
       stream,
       contentType,
       headers ?? new Headers({ "Content-Type": contentType }),
-      status
+      status,
     );
   }
 }

@@ -1,19 +1,20 @@
 // mysql
 import mysql, { ConnectionOptions, Pool as MPool } from "mysql2/promise";
-// sqlite
 import MySQL from "./MySQL.ts";
 
 // postgresql
 import { Pool as PgPool } from "@db/pgsql";
 import PgSQL from "./PostgreSQL.ts";
+
+// sqlsrv
+import mssql from "mssql";
+import MsSQL from "./MsSQL.ts";
+
 import { Carbon } from "helpers";
 import {
   MySQLConnectionConfigRaw,
   SupportedDrivers,
 } from "configs/@types/index.d.ts";
-
-// sqlsrv
-import mssql from "mssql";
 import {
   ColumnDefinition,
   DBType,
@@ -25,10 +26,10 @@ type TInsertOrUpdateBuilder = {
   data: Record<string, unknown>;
 };
 
-const mappedDBType: Record<string, MySQL | PgSQL> = {
+const mappedDBType: Record<string, MySQL | PgSQL | MsSQL> = {
   mysql: MySQL,
   pgsql: PgSQL,
-  // sqlsrv: "sqlsrv",
+  sqlsrv: MsSQL,
 };
 export type QueryResult =
   | Record<string, unknown>[]
@@ -166,8 +167,8 @@ export class Database {
     string,
     {
       driver: SupportedDrivers;
-      read: (MPool | PgPool)[];
-      write: (MPool | PgPool)[];
+      read: (MPool | PgPool | mssql.ConnectionPool)[];
+      write: (MPool | PgPool | mssql.ConnectionPool)[];
     }
   > = {};
   private readonly dbUsed: SupportedDrivers;
@@ -190,7 +191,7 @@ export class Database {
 
   public async runQuery<T extends keyof QueryResultDerived>(
     query: string,
-    params: unknown[] = []
+    params: unknown[] = [],
   ): Promise<QueryResultDerived[T]> {
     await Database.init();
     const dbType = this.dbUsed;
@@ -218,7 +219,7 @@ export class Database {
         throw new Error(
           `No ${dbType} client available for ${
             isReadQuery ? "read" : "write"
-          } operations.`
+          } operations.`,
         );
       }
 
@@ -227,7 +228,7 @@ export class Database {
         return await mappedDBType[dbType.toLowerCase()].query(
           client,
           newQuery,
-          newParams
+          newParams,
         );
       } catch (error) {
         console.error(`Query failed: ${newQuery}`, `Params:`, newParams);
@@ -288,13 +289,16 @@ export class Database {
                   database: defaultDatabase,
                   charset: defaultCharset,
                   ssl: defaultSSL,
-                  dateStrings: true, // MySQL date strings
                 };
                 if (isset(defaultOptions?.maxConnection)) {
                   poolParams.connectionLimit = defaultOptions.maxConnection;
                 }
+                // date string
+                if (defaultOptions?.dateStrings) {
+                  poolParams.dateStrings = true;
+                }
                 Database.connections[key].write.push(
-                  mysql.createPool(poolParams)
+                  mysql.createPool(poolParams),
                 );
               });
             } else {
@@ -310,13 +314,15 @@ export class Database {
                   database: forMySQL.write?.database || defaultDatabase,
                   charset: forMySQL.write?.charset || defaultCharset,
                   ssl: forMySQL.write?.ssl || defaultSSL,
-                  dateStrings: true, // MySQL date strings
                 };
                 if (isset(defaultOptions?.maxConnection)) {
                   poolParams.connectionLimit = defaultOptions.maxConnection;
                 }
+                if (defaultOptions?.dateStrings) {
+                  poolParams.dateStrings = true;
+                }
                 Database.connections[key].write.push(
-                  mysql.createPool(poolParams)
+                  mysql.createPool(poolParams),
                 );
               });
             }
@@ -339,13 +345,15 @@ export class Database {
                   database: forMySQL.read?.database || defaultDatabase,
                   charset: forMySQL.read?.charset || defaultCharset,
                   ssl: forMySQL.read?.ssl || defaultSSL,
-                  dateStrings: true, // MySQL date strings
                 };
                 if (isset(defaultOptions?.maxConnection)) {
                   poolParams.connectionLimit = defaultOptions.maxConnection;
                 }
+                if (defaultOptions?.dateStrings) {
+                  poolParams.dateStrings = true;
+                }
                 Database.connections[key].read.push(
-                  mysql.createPool(poolParams)
+                  mysql.createPool(poolParams),
                 );
               });
             }
@@ -363,8 +371,7 @@ export class Database {
             const defaultDatabase = forPgSQL.database || "honovel";
             const defaultUser = forPgSQL.user || "postgres";
             const defaultPassword = forPgSQL.password || "";
-            const defaultOptions = forPgSQL.options || {};
-
+            const tls = forPgSQL.tls || { enabled: false };
             // In clever setups: pick the first host as primary (for now)
             for (const host of defaultHosts) {
               const pool = new PgPool(
@@ -374,11 +381,11 @@ export class Database {
                   user: defaultUser,
                   password: defaultPassword,
                   database: defaultDatabase,
-                  ...defaultOptions,
+                  tls,
                 },
                 // pool size (connections per host)
                 5,
-                true // lazy
+                true, // lazy
               );
 
               Database.connections[key].write.push(pool);
@@ -486,7 +493,7 @@ export class Database {
     for (const col of schema.columns) {
       let line = `${this.quoteIdentifier(col.name)} ${this.mapColumnType(
         col,
-        dbType
+        dbType,
       )}`;
 
       if (col.options?.autoIncrement) {
@@ -496,7 +503,7 @@ export class Database {
           line = `${this.quoteIdentifier(col.name)} SERIAL`;
         } else if (dbType === "sqlite") {
           line = `${this.quoteIdentifier(
-            col.name
+            col.name,
           )} INTEGER PRIMARY KEY AUTOINCREMENT`;
           // Note: SQLite only allows AUTOINCREMENT on the primary key
         } else if (dbType === "sqlsrv") {
@@ -538,12 +545,12 @@ export class Database {
         const fkName = `fk_${schema.table}_${col.name}`;
         lines.push(
           `CONSTRAINT ${this.quoteIdentifier(
-            fkName
+            fkName,
           )} FOREIGN KEY (${this.quoteIdentifier(
-            col.name
+            col.name,
           )}) REFERENCES ${this.quoteIdentifier(
-            col.options.on
-          )}(${this.quoteIdentifier(col.options.references)})`
+            col.options.on,
+          )}(${this.quoteIdentifier(col.options.references)})`,
         );
       }
     }
@@ -569,7 +576,7 @@ export class Database {
     for (const col of schema.columns) {
       let line = `${this.quoteIdentifier(col.name)} ${this.mapColumnType(
         col,
-        dbType
+        dbType,
       )}`;
 
       if (!col.options?.nullable) line += " NOT NULL";
@@ -589,12 +596,12 @@ export class Database {
         const fkName = `fk_${schema.table}_${col.name}`;
         statements.push(
           `ALTER TABLE ${tableName} ADD CONSTRAINT ${this.quoteIdentifier(
-            fkName
+            fkName,
           )} FOREIGN KEY (${this.quoteIdentifier(
-            col.name
+            col.name,
           )}) REFERENCES ${this.quoteIdentifier(
-            col.options.on
-          )}(${this.quoteIdentifier(col.options.references)})`
+            col.options.on,
+          )}(${this.quoteIdentifier(col.options.references)})`,
         );
       }
     }
@@ -604,7 +611,7 @@ export class Database {
 
   public insertOrUpdateBuilder(
     input: TInsertOrUpdateBuilder,
-    uniqueKeys: string[]
+    uniqueKeys: string[],
   ): [string, unknown[]] {
     let columns = Object.keys(input.data);
     const values = columns.map((col) => input.data[col] || null);
@@ -612,8 +619,8 @@ export class Database {
 
     const placeholders = `(${columns.map(() => "?").join(", ")})`;
 
-    let sql = `INSERT INTO ${input.table} (${columns.join(
-      ", "
+    let sql = `INSERT INTO ${this.quoteIdentifier(input.table)} (${columns.join(
+      ", ",
     )}) VALUES ${placeholders}`;
 
     if (this.dbUsed === "mysql") {
@@ -636,7 +643,7 @@ export class Database {
       sql += ` ON CONFLICT (${uniqueKeys.join(", ")}) DO UPDATE SET ${updates}`;
     } else if (this.dbUsed === "sqlsrv") {
       throw new Error(
-        "Insert or Update is not natively supported in SQL Server in this builder."
+        "Insert or Update is not natively supported in SQL Server in this builder.",
       );
     }
 
@@ -645,23 +652,30 @@ export class Database {
 
   public quoteIdentifier(name: string): string {
     const dbType = this.dbUsed;
-    if (!sqlReservedWords.includes(name.toLowerCase())) {
-      return name; // No need to quote if not a reserved word
-    }
+    const needsQuoting = sqlReservedWords.includes(name.toLowerCase());
+
     switch (dbType) {
-      case "mysql":
-        return `\`${name}\``;
+      case "mysql": {
+        // Escape backticks and optionally quote
+        const escapedMySQL = name.replace(/`/g, "``");
+        return needsQuoting ? `\`${escapedMySQL}\`` : escapedMySQL;
+      }
       case "sqlite":
-        return `\"${name}\"`;
-      case "pgsql":
-        return `\"${name}\"`;
-      case "sqlsrv":
-        return `[${name}]`;
+      case "pgsql": {
+        // Escape double quotes and optionally quote
+        const escapedPG = name.replace(/"/g, '""');
+        return needsQuoting ? `"${escapedPG}"` : escapedPG;
+      }
+      case "sqlsrv": {
+        // Escape closing brackets and optionally quote
+        const escapedSQL = name.replace(/]/g, "]]");
+        return needsQuoting ? `[${escapedSQL}]` : escapedSQL;
+      }
     }
   }
 
   private formatDefaultValue(value: unknown): string {
-    if (typeof value === "string") return `${value}`;
+    if (typeof value === "string") return `'${value.replace(/'/g, "''")}'`;
     if (typeof value === "boolean") return value ? "1" : "0";
     return String(value);
   }
@@ -691,7 +705,7 @@ export class Database {
   public updateBuilder(
     table: string,
     data: Record<string, unknown>,
-    where: Record<string, unknown>
+    where: Record<string, unknown>,
   ): [string, unknown[]] {
     if (empty(table) || !isString(table)) {
       throw new Error("Table name must be a non-empty string.");
@@ -720,7 +734,7 @@ export class Database {
     }
 
     const sql = `UPDATE ${this.quoteIdentifier(table)} SET ${setClauses.join(
-      ", "
+      ", ",
     )} WHERE ${whereClauses.join(" AND ")}`;
 
     return [sql, values];
@@ -745,8 +759,29 @@ export const dbCloser = () => {
         }
         break;
       case "sqlite":
+        // Close SQLite database connections
+        for (const db of [...connections.read, ...connections.write]) {
+          try {
+            // @ts-ignore - SQLite Database has close() method
+            db.close();
+            console.log(`Closed sqlite database successfully.`);
+          } catch (err) {
+            console.error(`Error closing sqlite database:`, err);
+          }
+        }
+        break;
       case "sqlsrv":
-        // No pooling to close
+        // Close SQL Server connection pools
+        for (const pool of [...connections.read, ...connections.write]) {
+          (pool as mssql.ConnectionPool)
+            .close()
+            .then(() => {
+              console.log(`Closed sqlsrv pool successfully.`);
+            })
+            .catch((err: Error) => {
+              console.error(`Error closing sqlsrv pool:`, err);
+            });
+        }
         break;
       default:
         console.warn(`Unknown database driver: ${driver}`);
@@ -805,6 +840,7 @@ export class DatabaseHelper {
           user: fromReadOrWrite?.user || dbConfig.user || "postgres",
           password: fromReadOrWrite?.password || dbConfig.password || "",
           database: "postgres",
+          tls: dbConfig.tls || { enabled: false },
         };
 
         const poolSize = dbConfig.poolSize || 5;
@@ -853,64 +889,88 @@ export class DatabaseHelper {
   public async askIfDBExist(): Promise<boolean> {
     const dbType = this.dbConfig.connections[this.connection].driver;
     const conn = await this.getConnectionConfig();
-    switch (dbType) {
-      case "mysql": {
-        const sql = `SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`;
-        const result = await MySQL.query<"select">(conn, sql, [
-          this.dbConfig.connections[this.connection].database,
-        ]);
+
+    try {
+      switch (dbType) {
+        case "mysql": {
+          const sql = `SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`;
+          const result = await MySQL.query<"select">(conn, sql, [
+            this.dbConfig.connections[this.connection].database,
+          ]);
+          return result.length > 0;
+        }
+        case "pgsql": {
+          const sql = `SELECT datname FROM pg_database WHERE datname = $1`;
+          const result = await PgSQL.query<"select">(conn, sql, [
+            this.dbConfig.connections[this.connection].database,
+          ]);
+          return result.length > 0;
+        }
+        case "sqlite": {
+          return await pathExist(
+            this.dbConfig.connections[this.connection].database,
+          );
+        }
+        case "sqlsrv": {
+          // const sql = `SELECT name FROM sys.databases WHERE name = @dbName`;
+          // const request = new mssql.Request(conn);
+          // request.input("dbName", mssql.NVarChar, this.dbConfig.connections[connection].database);
+          // const result = await request.query(sql);
+          // return result.recordset.length > 0;
+          return false;
+        }
+      }
+      throw new Error(`Unsupported database driver: ${dbType}`);
+    } finally {
+      // Close connection for non-SQLite databases
+      if (dbType === "mysql") {
         await (conn as MPool).end();
-        return result.length > 0;
-      }
-      case "pgsql": {
-        const sql = `SELECT datname FROM pg_database WHERE datname = $1`;
-        const result = await PgSQL.query<"select">(conn, sql, [
-          this.dbConfig.connections[this.connection].database,
-        ]);
+      } else if (dbType === "pgsql") {
         await (conn as PgPool).end();
-        return result.length > 0;
-      }
-      case "sqlite": {
-        return await pathExist(
-          this.dbConfig.connections[this.connection].database
-        );
-      }
-      case "sqlsrv": {
-        // const sql = `SELECT name FROM sys.databases WHERE name = @dbName`;
-        // const request = new mssql.Request(conn);
-        // request.input("dbName", mssql.NVarChar, this.dbConfig.connections[connection].database);
-        // const result = await request.query(sql);
-        // return result.recordset.length > 0;
-        return false;
+      } else if (dbType === "sqlite") {
+        // @ts-ignore - SQLite Database has close() method
+        conn.close();
       }
     }
-    throw new Error(`Unsupported database driver: ${dbType}`);
   }
 
   public async createDatabase(): Promise<void> {
     const dbType = this.dbConfig.connections[this.connection].driver;
     const conn = await this.getConnectionConfig();
     const dbName = this.dbConfig.connections[this.connection].database;
-    switch (dbType) {
-      case "mysql": {
-        const sql = `CREATE DATABASE IF NOT EXISTS \`${dbName}\``;
-        await MySQL.query<"create">(conn, sql);
+
+    try {
+      switch (dbType) {
+        case "mysql": {
+          const sql = `CREATE DATABASE IF NOT EXISTS \`${dbName}\``;
+          await MySQL.query<"create">(conn, sql);
+          break;
+        }
+        case "pgsql": {
+          const sql = `CREATE DATABASE "${dbName}"`;
+          await PgSQL.query<"create">(conn, sql);
+          break;
+        }
+        case "sqlite": {
+          // SQLite databases are created automatically when connecting
+          break;
+        }
+        case "sqlsrv": {
+          // SQL Server requires a different approach
+          throw new Error(
+            "SQL Server database creation is not implemented yet.",
+          );
+        }
+      }
+    } finally {
+      // Close connection for non-SQLite databases
+      if (dbType === "mysql") {
         await (conn as MPool).end();
-        break;
-      }
-      case "pgsql": {
-        const sql = `CREATE DATABASE \`${dbName}\``;
-        await PgSQL.query<"create">(conn, sql);
+      } else if (dbType === "pgsql") {
         await (conn as PgPool).end();
-        break;
-      }
-      case "sqlite": {
-        // SQLite databases are created automatically when connecting
-        break;
-      }
-      case "sqlsrv": {
-        // SQL Server requires a different approach
-        throw new Error("SQL Server database creation is not implemented yet.");
+      } else if (dbType === "sqlite") {
+        // @ts-ignore - SQLite Database has close() method
+        conn.close();
       }
     }
   }

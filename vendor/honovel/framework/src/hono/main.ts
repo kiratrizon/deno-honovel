@@ -97,7 +97,7 @@ if (config("app").env === "local") {
 
 const headFunction: MiddlewareHandler = async (
   c: MyContext,
-  next: () => Promise<void>
+  next: () => Promise<void>,
 ) => {
   const { request } = c.get("myHono");
   if (!request.isMethod("HEAD")) {
@@ -105,39 +105,19 @@ const headFunction: MiddlewareHandler = async (
   }
   return await next();
 };
-function domainGroup(
-  mainstring: string,
-  {
-    sequenceParams,
-  }: {
-    sequenceParams: string[];
-  }
-): MiddlewareHandler {
-  return async (c: MyContext, next: () => Promise<void>) => {
-    const workingParams = [...sequenceParams];
-    const host = c.req.raw.url.split("://")[1].split("/")[0];
-    const domainParts = host.split(".");
-    const domainPattern = mainstring.split(".");
-    const domainParams: Record<string, string> = {};
-    if (!empty(sequenceParams)) {
-      domainPattern.forEach((part, index) => {
-        if (part === "*" && sequenceParams.length > 0) {
-          const key = workingParams.shift();
-          const value = domainParts[index];
-          if (isset(key) && isset(value)) {
-            domainParams[key] = value;
-          }
-        }
-      });
-    }
-    c.set("subdomain", domainParams);
-    return await next();
-  };
-}
+// Moved to RouteHelpers.ts
+const domainGroup = createDomainGroup;
 
-function convertLaravelDomainToWildcard(domain: string): string {
-  return domain.replace(/\{[^.}]+\}/g, "*");
-}
+import {
+  convertLaravelDomainToWildcard,
+  domainGroup as createDomainGroup,
+  matchesDomainPattern,
+  extractHost,
+  validateRouteName,
+  registerRoute,
+  buildRouteUrl,
+} from "./Support/RouteHelpers.ts";
+
 const myStaticDefaults: MiddlewareHandler[] = [
   serveStatic({ root: path.relative(Deno.cwd(), publicPath()) }),
   serveStatic({
@@ -153,49 +133,50 @@ const [globalMiddleware, globalMiddlewareFallback]: [
 // domain on beta test
 const _forDomain: MiddlewareHandler = async (
   c: MyContext,
-  next: () => Promise<void>
+  next: () => Promise<void>,
 ) => {
   const requestUrl = new URL(c.req.url);
   const appUrl = env("APP_URL", "").toLowerCase();
-  const [protocol, domain] = requestUrl.toString().toLowerCase().split("://");
-  const [incoming, uri] = domain.split("/");
-  let incomingUrl: string;
-  if (isset(env("DENO_DEPLOYMENT_ID"))) {
-    incomingUrl = `${protocol}://${incoming.replace(
-      `-${env("DENO_DEPLOYMENT_ID", "")}`,
-      ""
-    )}`;
-  } else {
-    incomingUrl = `${protocol}://${incoming}`;
-  }
-  incomingUrl = [incomingUrl, uri || ""].join("/");
-  let key: string = "web";
-  if (c.req.raw.url.startsWith("/api/")) {
-    key = "api";
-  }
-  if (!incomingUrl.startsWith(appUrl)) {
-    const host = c.req.raw.url.split("://")[1].split("/")[0];
+  const incomingUrl = buildIncomingUrl(requestUrl);
+  const key: string = c.req.raw.url.startsWith("/api/") ? "api" : "web";
 
+  if (!incomingUrl.startsWith(appUrl)) {
+    const host = extractHost(c.req.raw.url);
+
+    // Direct match
     if (keyExist(Server.domainPattern[key], host)) {
       return await Server.domainPattern[key][host].fetch(c.req.raw);
     }
-    // Check for patterns with wildcards
-    for (const pattern in Server.domainPattern[key]) {
-      if (pattern.includes("*")) {
-        const regex = new RegExp(
-          "^" + pattern.replace(/\./g, "\\.").replace(/\*/g, "[^.]+") + "$"
-        );
 
-        if (regex.test(host)) {
-          return await Server.domainPattern[key][pattern].fetch(c.req.raw);
-        }
+    // Wildcard pattern match
+    for (const pattern in Server.domainPattern[key]) {
+      if (matchesDomainPattern(pattern, host)) {
+        return await Server.domainPattern[key][pattern].fetch(c.req.raw);
       }
     }
+
     return await myError(c);
   }
 
   return await next();
 };
+
+/**
+ * Build incoming URL from request
+ */
+function buildIncomingUrl(requestUrl: URL): string {
+  const [protocol, domain] = requestUrl.toString().toLowerCase().split("://");
+  const [incoming, uri] = domain.split("/");
+
+  let incomingHost: string;
+  if (isset(env("DENO_DEPLOYMENT_ID"))) {
+    incomingHost = incoming.replace(`-${env("DENO_DEPLOYMENT_ID", "")}`, "");
+  } else {
+    incomingHost = incoming;
+  }
+
+  return `${protocol}://${incomingHost}/${uri || ""}`;
+}
 
 class Server {
   private static Hono = Hono;
@@ -265,7 +246,7 @@ class Server {
       this.app.all("/myadmin/*", async (c: MyContext) => {
         const targetUrl = `${env("PHPMYADMIN_HOST")}${c.req.path.replace(
           "/myadmin",
-          ""
+          "",
         )}${c.req.query() ? `?${c.req.raw.url.split("?")[1]}` : ""}`;
 
         const headers = new Headers(c.req.raw.headers);
@@ -302,7 +283,7 @@ class Server {
 
   private static async generateNewApp(
     conf?: Record<string, unknown>,
-    withDefaults: boolean = false
+    withDefaults: boolean = false,
   ): Promise<HonoType> {
     let app: HonoType;
     if (isset(conf) && !empty(conf)) {
@@ -323,7 +304,7 @@ class Server {
 
   private static applyMainMiddleware(
     filePath: string,
-    app: HonoType
+    app: HonoType,
   ): [string, TFallbackMiddleware[]] {
     const mainMiddleware = [];
     // @ts-ignore //
@@ -348,7 +329,7 @@ class Server {
       buildRequestInit(),
       // build the globalMiddlewareHere
       ...globalMiddleware,
-      ...routeGroupMiddleware
+      ...routeGroupMiddleware,
     );
     // return the prefix if exists
     return [groupRoutes[filePath]?.prefix || "/", routeGroupMiddlewareFallback];
@@ -423,27 +404,25 @@ class Server {
               const flagMiddleware = flag.middleware || [];
 
               const myConfig = routeUsed.config;
+              // custom request class handling
+              const customRequestClass = myConfig.customRequest;
               const arrangerDispatch = URLArranger.urlCombiner(myConfig.uri);
               const newApp = await this.generateNewApp();
 
               const splittedUri = URLArranger.generateOptionalParamRoutes(
                 arrangerDispatch.string,
                 "dispatch",
-                flagWhere
+                flagWhere,
               );
               if (flagName !== "") {
-                const fixUri = `${routePrefix == "/" ? "" : routePrefix}${
-                  myConfig.uri
-                }`;
-                if (!keyExist(this.routes, flagName)) {
-                  this.routes[flagName] = {
-                    url: fixUri,
-                    requiredParams: arrangerDispatch.requiredParams,
-                    optionalParams: arrangerDispatch.optionalParams,
-                  };
-                } else {
-                  console.warn(
-                    `Route name "${flagName}" already exists. Overriding it is not allowed.`
+                const fixUri = buildRouteUrl(routePrefix, myConfig.uri);
+                if (validateRouteName(this.routes, flagName)) {
+                  registerRoute(
+                    this.routes,
+                    flagName,
+                    fixUri,
+                    arrangerDispatch.requiredParams,
+                    arrangerDispatch.optionalParams,
                   );
                 }
               }
@@ -452,8 +431,9 @@ class Server {
                 {
                   args: myConfig.callback as IMyConfig["callback"],
                   debugString: myConfig.debugString,
+                  customRequest: customRequestClass,
                 },
-                arrangerDispatch.sequenceParams
+                arrangerDispatch.sequenceParams,
               );
               const [flagMiddlewareArr, flagMiddlewareFallback]: [
                 MiddlewareHandler[],
@@ -486,7 +466,7 @@ class Server {
                 newApp.on(
                   methodarr.map((m) => m.toUpperCase()),
                   splittedUri,
-                  ...allBuilds
+                  ...allBuilds,
                 );
               }
               byEndpointsRouter.route("/", newApp);
@@ -547,7 +527,7 @@ class Server {
 
                 const domainArranger = URLArranger.urlCombiner(
                   domain.split("."),
-                  false
+                  false,
                 );
                 domainArranger.string = domainArranger.string
                   .slice(1)
@@ -564,7 +544,7 @@ class Server {
               if (!empty(name)) {
                 newName = (name.replace(/\*\d+\*/g, "") || "/").replace(
                   /\/+/g,
-                  "/"
+                  "/",
                 );
               }
 
@@ -577,6 +557,8 @@ class Server {
               groupEntries.forEach(([routeId, methodarr]) => {
                 const routeUsed = methods[routeId];
                 const myConfig = routeUsed.config;
+                // custom request class handling
+                const customRequestClass = myConfig.customRequest;
                 const flag = routeUsed.myFlag;
                 const myParam: string[] = [...domainParam];
                 const combinedGroupDispatch = URLArranger.urlCombiner([
@@ -588,8 +570,9 @@ class Server {
                   {
                     args: myConfig.callback as IMyConfig["callback"],
                     debugString: myConfig.debugString,
+                    customRequest: customRequestClass,
                   },
-                  myParam
+                  myParam,
                 );
                 // console.debug(myParam);
                 const arrangerDispatch = URLArranger.urlCombiner(myConfig.uri);
@@ -603,29 +586,24 @@ class Server {
                 const splittedUri = URLArranger.generateOptionalParamRoutes(
                   newMethodUri,
                   "dispatch",
-                  flagWhere
+                  flagWhere,
                 );
                 const flagName = flag.name || "";
                 if (flagName !== "") {
-                  // combine as and flagName
-                  let finalName = "";
-                  if (!empty(as)) {
-                    finalName += `${as}.`;
-                  }
-                  finalName += flagName;
-                  if (keyExist(this.routes, finalName)) {
-                    console.warn(
-                      `Route name "${flagName}" already exists. Overriding it is not allowed.`
+                  const finalName = !empty(as) ? `${as}.${flagName}` : flagName;
+                  const finalUrl = buildRouteUrl(
+                    routePrefix,
+                    `${arrangerGroup.string}${myConfig.uri}`,
+                  );
+
+                  if (validateRouteName(this.routes, finalName)) {
+                    registerRoute(
+                      this.routes,
+                      finalName,
+                      finalUrl,
+                      arrangerDispatch.requiredParams,
+                      arrangerDispatch.optionalParams,
                     );
-                  } else {
-                    const finalUrl = `${routePrefix == "/" ? "" : routePrefix}${
-                      arrangerGroup.string
-                    }${myConfig.uri}`;
-                    this.routes[finalName] = {
-                      url: finalUrl,
-                      requiredParams: arrangerDispatch.requiredParams,
-                      optionalParams: arrangerDispatch.optionalParams,
-                    };
                   }
                 }
                 const flagMiddleware = flag.middleware || [];
@@ -666,7 +644,7 @@ class Server {
                   myNewGroup.on(
                     methodarr.map((m) => m.toUpperCase()),
                     splittedUri,
-                    ...allBuilds
+                    ...allBuilds,
                   );
                 }
               });
@@ -674,7 +652,7 @@ class Server {
               const generatedopts = URLArranger.generateOptionalParamRoutes(
                 arrangerGroup.string,
                 "group",
-                where
+                where,
               );
               generatedopts.forEach((grp) => {
                 // apply the middlewares here
@@ -687,11 +665,11 @@ class Server {
               } else if (isset(domain) && !empty(domain)) {
                 this.applyMainMiddleware(
                   "",
-                  Server.domainPattern[key][domainName] as HonoType
+                  Server.domainPattern[key][domainName] as HonoType,
                 );
                 Server.domainPattern[key][domainName].route(
                   routePrefix,
-                  newAppGroup
+                  newAppGroup,
                 );
               }
             }
@@ -762,7 +740,7 @@ globalFn(
     requiredParams.forEach((param) => {
       finalUrl = finalUrl.replace(
         `{${param}}`,
-        encodeURIComponent(params[param])
+        encodeURIComponent(params[param]),
       );
     });
 
@@ -771,7 +749,7 @@ globalFn(
       if (keyExist(params, param)) {
         finalUrl = finalUrl.replace(
           `{${param}?}`,
-          encodeURIComponent(params[param])
+          encodeURIComponent(params[param]),
         );
       } else {
         // remove segment with optional param cleanly
@@ -780,7 +758,7 @@ globalFn(
     });
 
     return finalUrl;
-  }
+  },
 );
 
 export default Server;
