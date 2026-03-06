@@ -297,23 +297,23 @@ export interface SqlSrvConnectionConfig {
 
 export interface MongoConnectionConfig {
   driver: "mongodb";
-  /** MongoDB database name */
-  database: string;
+  // /** MongoDB database name */
+  // database: string;
   /**
    * Full MongoDB connection URI (alternative to host/port)
    * Example: "mongodb://username:password@host:port/database"
    */
   uri?: string;
-  /** MongoDB host (used if uri is not provided) */
-  host?: string;
-  /** MongoDB port (default: 27017) */
-  port?: number;
-  /** Enable TLS/SSL connection */
-  tls?: boolean;
-  /** MongoDB username for authentication */
-  username?: string;
-  /** MongoDB password for authentication */
-  password?: string;
+  // /** MongoDB host (used if uri is not provided) */
+  // host?: string;
+  // /** MongoDB port (default: 27017) */
+  // port?: number;
+  // /** Enable TLS/SSL connection */
+  // tls?: boolean;
+  // /** MongoDB username for authentication */
+  // username?: string;
+  // /** MongoDB password for authentication */
+  // password?: string;
 
   /** Additional MongoDB connection options */
   options?: {
