@@ -17,14 +17,12 @@ import {
 } from "Illuminate/Http/Middleware/index.ts";
 import TrimStrings from "App/Http/Middlewares/TrimStrings.ts";
 import TrustProxies from "App/Http/Middlewares/TrustProxies.ts";
-import {
-  AuthenticateWithBasicAuth,
-  Authorize,
-  EnsureEmailIsVerified,
-  RequirePassword,
-} from "Illuminate/Auth/Middleware/index.ts";
 import RedirectIfAuthenticated from "./Middlewares/RedirectIfAuthenticated.ts";
 import EncryptCookies from "./Middlewares/EncryptCookies.ts";
+import AuthenticateWithBasicAuth from "Illuminate/Auth/Middleware/AuthenticateWithBasicAuth.ts";
+import Authorize from "Illuminate/Auth/Middleware/Authorize.ts";
+import RequirePassword from "Illuminate/Auth/Middleware/RequirePassword.ts";
+import EnsureEmailIsVerified from "Illuminate/Auth/Middleware/EnsureEmailIsVerified.ts";
 import BindContent from "./Middlewares/BindContent.ts";
 
 class Kernel extends HttpKernel {
