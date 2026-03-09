@@ -722,9 +722,8 @@ const originalConsole = {
   debug: console.debug,
 };
 
-console.error = (...msg: any[]) => {
+console.error = (...msg: any[]) =>
   originalConsole.error("\x1b[31m[x] Error:\x1b[0m", ...msg);
-};
 
 console.warn = (...msg: any[]) =>
   originalConsole.warn("\x1b[33m[!] Warning:\x1b[0m", ...msg);

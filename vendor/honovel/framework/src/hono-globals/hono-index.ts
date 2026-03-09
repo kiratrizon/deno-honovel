@@ -1,7 +1,7 @@
 import "./index.ts";
 
 import HonoView from "HonoHttp/HonoView.ts";
-import { AbortError, DDError } from "../Maneuver/HonovelErrors.ts";
+import { HttpException, DDError } from "../Maneuver/HonovelErrors.ts";
 import HonoRedirect from "HonoHttp/HonoRedirect.ts";
 import HonoResponseV2 from "HonoHttp/HonoResponse.ts";
 import Event from "Illuminate/Events/index.ts";
@@ -27,7 +27,7 @@ globalFn("dd", (...args: unknown[]) => {
 });
 
 globalFn("abort", (statusCode = 500, message = null) => {
-  throw new AbortError(statusCode, message);
+  throw new HttpException(statusCode, message);
 });
 
 globalFn("redirect", (url = null) => {

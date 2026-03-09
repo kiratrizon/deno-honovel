@@ -5,7 +5,7 @@ import HonoClosure from "HonoHttp/HonoClosure.ts";
 import { IMyConfig } from "./MethodRoute.ts";
 import HonoDispatch from "HonoHttp/HonoDispatch.ts";
 import HttpHono from "HttpHono";
-import { AbortError, DDError } from "../../Maneuver/HonovelErrors.ts";
+import { HttpException, DDError } from "../../Maneuver/HonovelErrors.ts";
 import { ContentfulStatusCode } from "http-status";
 import { myError } from "HonoHttp/builder.ts";
 import { MiddlewareLikeClass } from "Illuminate/Foundation/Http/index.ts";
@@ -1321,7 +1321,7 @@ async function handleErrors(
     } else {
       resp = c.html(data.html, 200);
     }
-  } else if (e instanceof AbortError) {
+  } else if (e instanceof HttpException) {
     if (request.expectsJson()) {
       resp = e.toJson();
     } else {

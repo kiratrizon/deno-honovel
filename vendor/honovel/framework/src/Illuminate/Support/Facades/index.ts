@@ -249,6 +249,21 @@ export class DB {
     const driver = this.dbConfig.connections[this.dbUsed].driver;
     return driver as SupportedDrivers;
   }
+
+  public static async update(
+    table: string,
+    data: Record<string, unknown>,
+    where: Record<string, unknown> = {},
+  ): Promise<QueryResultDerived["update"]> {
+    return await new DBConnection(this.dbUsed).update(table, data, where);
+  }
+
+  public static async delete(
+    table: string,
+    where: Record<string, unknown>,
+  ): Promise<QueryResultDerived["delete"]> {
+    return await new DBConnection(this.dbUsed).delete(table, where);
+  }
 }
 
 class DBConnection {
@@ -350,6 +365,23 @@ class DBConnection {
     const db = new Database(this.connection);
     const [sql, values] = db.updateBuilder(table, data, where);
     const result = await db.runQuery<"update">(sql, values);
+    return result;
+  }
+
+  public async delete(
+    table: string,
+    where: Record<string, unknown>,
+  ): Promise<QueryResultDerived["delete"]> {
+    if (empty(table) || !isString(table)) {
+      throw new Error("Table name must be a non-empty string.");
+    }
+    if (empty(where) || !isObject(where)) {
+      throw new Error("Where clause must be a non-empty object.");
+    }
+
+    const db = new Database(this.connection);
+    const [sql, values] = db.deleteBuilder(table, where);
+    const result = await db.runQuery<"delete">(sql, values);
     return result;
   }
 
@@ -997,7 +1029,7 @@ export class Cache {
       const remainingConfig = { ...storeConfig };
 
       // Create and register the store instance
-      const instanceCache = new CacheManager(driver, remainingConfig);
+      const instanceCache = new CacheManager(driver, remainingConfig as any);
       this.stores[connection] = instanceCache.getStore();
     }
 

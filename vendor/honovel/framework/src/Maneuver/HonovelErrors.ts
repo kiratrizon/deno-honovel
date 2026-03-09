@@ -70,7 +70,7 @@ export type HttpStatusCodeValue =
   | 510
   | 511;
 
-export class AbortError extends Error {
+export class HttpException extends Error {
   private httpStatusMessages: Record<HttpStatusCodeValue, string> = {
     // 1xx
     100: "Continue",
@@ -147,7 +147,7 @@ export class AbortError extends Error {
 
   constructor(
     private readonly statusCode: HttpStatusCodeValue = 500,
-    private readonly mess: string | Record<string, unknown> = ""
+    private readonly mess: string | Record<string, unknown> = "",
   ) {
     super("");
     if (!keyExist(this.httpStatusMessages, this.statusCode)) {
@@ -156,7 +156,7 @@ export class AbortError extends Error {
     if (empty(this.mess)) {
       this.mess = this.httpStatusMessages[this.statusCode];
     }
-    this.name = "AbortError";
+    this.name = "HttpException";
   }
 
   public toJson(): Response {
