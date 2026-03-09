@@ -34,11 +34,6 @@ import {
   DatabaseConfig,
   SupportedDrivers,
 } from "configs/@types/index.d.ts";
-import {
-  AbstractStore,
-  CacheManager,
-  CacheStoreData,
-} from "../../Cache/index.ts";
 interface HashOptions {
   rounds?: number;
 }
@@ -1219,6 +1214,10 @@ export class Gate {
 
 import { hmac } from "hmac";
 import { sha256 } from "sha2";
+import CacheManager from "../../Cache/CacheManager.ts";
+import AbstractStore, {
+  CacheStoreData,
+} from "../../Cache/Stores/AbstractStore.ts";
 
 export class URL {
   private static signed(

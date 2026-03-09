@@ -1,4 +1,4 @@
-import { Model } from "Illuminate/Database/Eloquent/index.ts";
+import Model from "Illuminate/Database/Eloquent/Model.ts";
 import Collection from "Illuminate/Database/Eloquent/Collection.ts";
 
 export default class BindingRegistry {

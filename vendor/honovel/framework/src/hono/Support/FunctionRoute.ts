@@ -10,7 +10,7 @@ import { ContentfulStatusCode } from "http-status";
 import { myError } from "HonoHttp/builder.ts";
 import { MiddlewareLikeClass } from "Illuminate/Foundation/Http/index.ts";
 import { SQLError } from "Illuminate/Database/Query/index.ts";
-import { Model } from "Illuminate/Database/Eloquent/index.ts";
+import Model from "Illuminate/Database/Eloquent/Model.ts";
 import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
 import { ValidationException } from "Illuminate/Validation/ValidationException.ts";
 import { TagContract } from "edge.js/types";
@@ -1353,7 +1353,7 @@ async function handleErrors(
       : [];
     populatedError["cause"] = e.cause;
     let errorHtml: string;
-    if (env("APP_DEBUG", true)) {
+    if (config("app").debug) {
       if (!request.expectsJson()) {
         errorHtml =
           (await extractControllerTrace(populatedError.stack as string[])) ||
@@ -1371,9 +1371,9 @@ async function handleErrors(
         );
       }
     } else {
-      console.error(populatedError);
       resp = c.html("Internal server error", 500);
     }
+    console.error(populatedError);
   } else {
     console.error("Unexpected error:", e);
     resp = c.json({ message: "Internal server error" }, 500);

@@ -2,9 +2,10 @@ import { Str } from "Illuminate/Support/index.ts";
 import { deleteCookie } from "hono/cookie";
 import { Cache } from "Illuminate/Support/Facades/index.ts";
 import { SessionConfig } from "../../../../../../../config/@types/index.d.ts";
-import { CacheManager, AbstractStore } from "Illuminate/Cache/index.ts";
 import SessionInitializer from "./SessionInitializer.ts";
 import { sessionIdRecursive } from "./sessionHelpers.ts";
+import AbstractStore from "Illuminate/Cache/Stores/AbstractStore.ts";
+import CacheManager from "Illuminate/Cache/CacheManager.ts";
 
 type SessionEncrypt = {
   encrypt: string; // encrypted session data

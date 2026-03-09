@@ -1,7 +1,3 @@
-import { Builder } from "Illuminate/Database/Eloquent/index.ts";
-import { SupportedDrivers } from "configs/@types/index.d.ts";
-import { sqlstring } from "Illuminate/Database/Query/index.ts";
-
 export type PHPTimestampFormat =
   | "Y-m-d H:i:s"
   | "Y-m-d\\TH:i:sP"

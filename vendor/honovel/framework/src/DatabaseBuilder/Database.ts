@@ -645,7 +645,8 @@ export class Database {
   }
 }
 
-export const dbCloser = () => {
+export const dbCloser = async () => {
+  const logging = config("app").debug;
   const entries = Object.entries(Database.connections);
   for (const [, connections] of entries) {
     const driver = connections.driver;
@@ -653,10 +654,12 @@ export const dbCloser = () => {
       case "mysql":
       case "pgsql":
         for (const pool of [...connections.read, ...connections.write]) {
-          pool
+          await pool
             .end()
             .then(() => {
-              console.log(`Closed ${driver} pool successfully.`);
+              if (logging) {
+                console.log(`Closed ${driver} pool successfully.`);
+              }
             })
             .catch((err: Error) => {
               console.error(`Error closing ${driver} pool:`, err);
@@ -669,7 +672,9 @@ export const dbCloser = () => {
           try {
             // @ts-ignore - SQLite Database has close() method
             db.close();
-            console.log(`Closed sqlite database successfully.`);
+            if (logging) {
+              console.log(`Closed sqlite database successfully.`);
+            }
           } catch (err) {
             console.error(`Error closing sqlite database:`, err);
           }
@@ -678,10 +683,12 @@ export const dbCloser = () => {
       case "sqlsrv":
         // Close SQL Server connection pools
         for (const pool of [...connections.read, ...connections.write]) {
-          (pool as mssql.ConnectionPool)
+          await (pool as mssql.ConnectionPool)
             .close()
             .then(() => {
-              console.log(`Closed sqlsrv pool successfully.`);
+              if (logging) {
+                console.log(`Closed sqlsrv pool successfully.`);
+              }
             })
             .catch((err: Error) => {
               console.error(`Error closing sqlsrv pool:`, err);

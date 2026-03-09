@@ -1,4 +1,5 @@
-import { AbstractStore, CacheManager } from "../../../Cache/index.ts";
+import CacheManager from "../../../Cache/CacheManager.ts";
+import AbstractStore from "../../../Cache/Stores/AbstractStore.ts";
 import { Cache } from "../../../Support/Facades/index.ts";
 
 export default class PreventRequestDuringMaintenance {
@@ -78,7 +79,7 @@ export default class PreventRequestDuringMaintenance {
       const notAllowedDrivers = ["memory", "object"];
       if (notAllowedDrivers.includes(getStore.driver)) {
         throw new Error(
-          `Cache store "${store}" with driver "${getStore.driver}" is not allowed for maintenance mode.`
+          `Cache store "${store}" with driver "${getStore.driver}" is not allowed for maintenance mode.`,
         );
       }
 

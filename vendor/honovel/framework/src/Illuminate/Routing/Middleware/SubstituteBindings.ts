@@ -1,5 +1,5 @@
 import { ModelAttributes } from "../../../../../@types/declaration/Base/IBaseModel.d.ts";
-import { Model } from "../../Database/Eloquent/index.ts";
+import Model from "Illuminate/Database/Eloquent/Model.ts";
 
 export default class SubstituteBindings {
   /**

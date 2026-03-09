@@ -125,17 +125,20 @@ export default class DatabaseHelper {
           );
         }
         case "sqlsrv": {
-          // const sql = `SELECT name FROM sys.databases WHERE name = @dbName`;
-          // const request = new mssql.Request(conn);
-          // request.input("dbName", mssql.NVarChar, this.dbConfig.connections[connection].database);
-          // const result = await request.query(sql);
-          // return result.recordset.length > 0;
-          return false;
+          const sql = `SELECT name FROM sys.databases WHERE name = @dbName`;
+          const request = (conn as mssql.ConnectionPool).request();
+          request.input(
+            "dbName",
+            mssql.NVarChar,
+            this.dbConfig.connections[this.connection].database,
+          );
+          const result = await request.query(sql);
+          return result.recordset.length > 0;
         }
       }
       throw new Error(`Unsupported database driver: ${dbType}`);
     } finally {
-      // Close connection for non-SQLite databases
+      // Close connection for all databases
       if (dbType === "mysql") {
         await (conn as MPool).end();
       } else if (dbType === "pgsql") {
@@ -143,6 +146,8 @@ export default class DatabaseHelper {
       } else if (dbType === "sqlite") {
         // @ts-ignore - SQLite Database has close() method
         conn.close();
+      } else if (dbType === "sqlsrv") {
+        await (conn as mssql.ConnectionPool).close();
       }
     }
   }
@@ -169,14 +174,20 @@ export default class DatabaseHelper {
           break;
         }
         case "sqlsrv": {
-          // SQL Server requires a different approach
-          throw new Error(
-            "SQL Server database creation is not implemented yet.",
-          );
+          const sql = `
+            IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = @dbName)
+            BEGIN
+              CREATE DATABASE [${dbName}]
+            END
+          `;
+          const request = (conn as mssql.ConnectionPool).request();
+          request.input("dbName", mssql.NVarChar, dbName);
+          await request.query(sql);
+          break;
         }
       }
     } finally {
-      // Close connection for non-SQLite databases
+      // Close connection for all databases
       if (dbType === "mysql") {
         await (conn as MPool).end();
       } else if (dbType === "pgsql") {
@@ -184,6 +195,8 @@ export default class DatabaseHelper {
       } else if (dbType === "sqlite") {
         // @ts-ignore - SQLite Database has close() method
         conn.close();
+      } else if (dbType === "sqlsrv") {
+        await (conn as mssql.ConnectionPool).close();
       }
     }
   }

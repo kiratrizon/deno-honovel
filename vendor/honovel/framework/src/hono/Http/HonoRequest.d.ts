@@ -130,7 +130,7 @@ import HonoHeader from "./HonoHeader.ts";
 import { CookieOptions } from "hono/utils/cookie";
 import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";
-import { Model } from "Illuminate/Database/Eloquent/index.ts";
+import Model from "Illuminate/Database/Eloquent/Model.ts";
 import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
 import HonoFile from "./HonoFile.ts";
 
@@ -159,7 +159,7 @@ declare class HonoRequest {
 
   /** Get only a subset of keys from request data */
   only<K extends readonly string[]>(
-    keys: K
+    keys: K,
   ): Pick<Record<string, unknown>, K[number]>;
 
   /** Get all request data except specified keys */
@@ -181,13 +181,13 @@ declare class HonoRequest {
   /** Execute a callback if a key exists */
   whenHas(
     key: string,
-    callback: (value: unknown) => Promise<unknown>
+    callback: (value: unknown) => Promise<unknown>,
   ): Promise<unknown | null>;
 
   /** Execute a callback if a key is filled */
   whenFilled(
     key: string,
-    callback: (value: unknown) => Promise<unknown>
+    callback: (value: unknown) => Promise<unknown>,
   ): Promise<unknown | null>;
 
   /** Get the request path */
@@ -317,7 +317,7 @@ declare class HonoRequest {
 
   /** Validate request data with rules */
   validate<T extends Record<string, string>>(
-    validations: T
+    validations: T,
   ): Promise<Record<keyof T | string, string>>;
 
   /** Bind route parameters to request */

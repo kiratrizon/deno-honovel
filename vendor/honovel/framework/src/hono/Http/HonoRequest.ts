@@ -9,7 +9,7 @@ import { CookieOptions } from "hono/utils/cookie";
 import { deleteCookie } from "hono/cookie";
 import { SessionModifier } from "HonoHttp/HonoSession.ts";
 import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
-import { Model } from "Illuminate/Database/Eloquent/index.ts";
+import Model from "Illuminate/Database/Eloquent/Model.ts";
 import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
 import { ValidationException } from "Illuminate/Validation/ValidationException.ts";
 import HonoFile from "./HonoFile.ts";

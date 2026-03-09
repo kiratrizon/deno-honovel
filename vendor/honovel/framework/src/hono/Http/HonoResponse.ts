@@ -1,6 +1,3 @@
-import { CookieOptions } from "hono/utils/cookie";
-import Collection from "Illuminate/Database/Eloquent/Collection.ts";
-import { Model } from "Illuminate/Database/Eloquent/index.ts";
 import BindingRegistry from "../Core/BindingRegistry.ts";
 import JSONResponse from "./Response/JSONResponse.ts";
 import HTMLResponse from "./Response/HTMLResponse.ts";

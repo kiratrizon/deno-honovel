@@ -1,7 +1,7 @@
 import { toFileUrl } from "jsr:@std/path@0.224.0";
 import { FakerFactory } from "../../../../../../../Faker/index.ts";
 import { DB } from "../../../Support/Facades/index.ts";
-import { Model } from "../index.ts";
+import Model from "Illuminate/Database/Eloquent/Model.ts";
 
 export abstract class Factory {
   protected faker = FakerFactory.create();
@@ -99,8 +99,9 @@ export class HasFactory {
   public static async getFactoryByModel<
     T extends typeof Model<any> = typeof Model<any>,
   >(model: T): Promise<Factory> {
-    const factoryPath =
-      toFileUrl(databasePath(`factories/${model.name}Factory.ts`)).href;
+    const factoryPath = toFileUrl(
+      databasePath(`factories/${model.name}Factory.ts`),
+    ).href;
     const factoryModule = await import(factoryPath);
     if (!isset(factoryModule.default)) {
       throw new Error(

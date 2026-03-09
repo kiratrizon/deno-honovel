@@ -8,8 +8,8 @@ import HonoHeader from "HonoHttp/HonoHeader.ts";
 import HonoFile from "HonoHttp/HonoFile.ts";
 import { SessionModifier } from "HonoHttp/HonoSession.ts";
 import { SERVER } from "HonoHttp/HonoRequest.d.ts";
-import { Model } from "Illuminate/Database/Eloquent/index.ts";
 import { ModelAttributes } from "./Base/IBaseModel.d.ts";
+import Model from "Illuminate/Database/Eloquent/Model.ts";
 
 type ErrorAndData = {
   error: Record<string, unknown>;

@@ -1,4 +1,4 @@
-import { Model } from "./index.ts";
+import Model from "Illuminate/Database/Eloquent/Model.ts";
 
 class Collection<T extends Model> extends Array<T> {
   constructor(items: T[] = []) {
