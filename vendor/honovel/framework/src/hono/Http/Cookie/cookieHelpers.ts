@@ -1,0 +1,112 @@
+import { CookieOptions } from "hono/utils/cookie";
+import { getCookie, setCookie } from "hono/cookie";
+import { hmac } from "hmac";
+import { sha256 } from "sha2";
+import CookieKeysCache from "./CookieKeysCache.ts";
+
+// Utility to convert a Uint8Array to a base64url string
+function toBase64Url(bytes: Uint8Array): string {
+  const base64 = btoa(String.fromCharCode(...bytes));
+  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+// Create HMAC SHA256 signature, using a key as Buffer or Uint8Array
+function createExpectedSignature(base64Value: string, key: Uint8Array): string {
+  const sig = hmac(sha256, key, new TextEncoder().encode(base64Value));
+  return toBase64Url(sig);
+}
+
+export const setMyCookie = (
+  c: MyContext,
+  key: string,
+  value: Exclude<any, undefined>,
+  options: CookieOptions = {},
+) => {
+  const appConfig = config("app");
+  if (empty(appConfig.key) || !isString(appConfig.key)) {
+    throw new Error(
+      'APP_KEY is not set. Please run "deno task smelt key:generate" to generate a key.',
+    );
+  }
+  if (value === undefined || !isString(key)) {
+    throw new Error("Invalid arguments for setting cookie.");
+  }
+  const newValue = `${base64encode(jsonEncode(value))}`;
+  if (
+    isUndefined(newValue) ||
+    !isString(key) ||
+    !isset(CookieKeysCache.mainKey)
+  ) {
+    throw new Error("Invalid arguments for setting cookie.");
+  }
+  const signedValue = `${newValue}.${createExpectedSignature(
+    newValue,
+    CookieKeysCache.mainKey,
+  )}`;
+  setCookie(c, key, signedValue, options);
+};
+
+// Implementation
+export function getMyCookie(
+  cookieValue: any,
+  fromException: boolean = false,
+): string | null {
+  if (fromException) {
+    return cookieValue;
+  }
+  if (isset(cookieValue) && !empty(cookieValue)) {
+    for (const myKey of CookieKeysCache.keys) {
+      const parts = cookieValue.split(".");
+      if (parts.length !== 2) continue; // invalid format → skip
+
+      const [base64Value, signature] = parts;
+
+      const expectedSignature = createExpectedSignature(base64Value, myKey);
+
+      if (signature === expectedSignature) {
+        const decodedValue = base64decode(base64Value);
+        try {
+          return jsonDecode(decodedValue);
+        } catch {
+          // Invalid JSON → skip
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+export function getAllCookies(
+  c: MyContext,
+  exceptions: string[],
+): Record<string, string> {
+  const cookies = getCookie(c);
+  const cookieDoneConverted: Record<string, string> = {};
+  for (const [cookieKey, cookieValue] of Object.entries(cookies)) {
+    if (exceptions.includes(cookieKey)) {
+      cookieDoneConverted[cookieKey] = cookieValue;
+      continue;
+    }
+    CookieKeysCache.keys.forEach((myKey) => {
+      const parts = cookieValue.split(".");
+      if (parts.length !== 2) return; // invalid format → skip
+
+      const [base64Value, signature] = parts;
+
+      const expectedSignature = createExpectedSignature(base64Value, myKey);
+
+      if (signature === expectedSignature) {
+        const decodedValue = base64decode(base64Value);
+        try {
+          const json = jsonDecode(decodedValue);
+          cookieDoneConverted[cookieKey] = json;
+          // Here: you can return immediately (if key is provided) or collect result (if not)
+        } catch {
+          // Invalid JSON → skip
+        }
+      }
+    });
+  }
+  return cookieDoneConverted;
+}
