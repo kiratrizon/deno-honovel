@@ -1,5 +1,5 @@
 import BaseController from "Illuminate/Routing/BaseController";
-
+import HttpHono from "./HttpHono.d.ts";
 export interface IGroupParams {
   prefix?: string;
   middleware?: string | HttpMiddleware | (string | HttpMiddleware)[];
@@ -22,8 +22,9 @@ export interface IHeaderChildRoutes extends IChildRoutes {
 
 export type ICallback = (httpObj: HttpHono, ...args: any[]) => Promise<unknown>;
 
+/** Keys of T whose values are async callbacks (ICallback, HttpDispatch, etc.) */
 type KeysWithICallback<T> = {
-  [P in keyof T]: T[P] extends ICallback ? P : never;
+  [P in keyof T]: T[P] extends (...args: any[]) => Promise<unknown> ? P : never;
 }[keyof T];
 
 /**
@@ -409,7 +410,7 @@ import ResourceRoute, {
   ResourceKeys,
 } from "../../framework/src/hono/Support/ResourceRoute.ts";
 import HonoRequest from "HonoHttp/HonoRequest.ts";
-import HttpHono from "./HttpHono.d.ts";
+
 export interface IReferencesRoute {
   groups: Record<string, IEGroupRoute>;
   methods: Record<string, InstanceType<typeof MethodRoute>>;
