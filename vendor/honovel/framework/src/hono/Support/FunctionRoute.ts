@@ -1,6 +1,5 @@
 import { MiddlewareHandler } from "hono";
 import * as path from "node:path";
-import ChildKernel from "./ChildKernel.ts";
 import HonoClosure from "HonoHttp/HonoClosure.ts";
 import { IMyConfig } from "./MethodRoute.ts";
 import HonoDispatch from "HonoHttp/HonoDispatch.ts";
@@ -8,7 +7,6 @@ import HttpHono from "HttpHono";
 import { HttpException, DDError } from "../../Maneuver/HonovelErrors.ts";
 import { ContentfulStatusCode } from "http-status";
 import { myError } from "HonoHttp/builder.ts";
-import { MiddlewareLikeClass } from "Illuminate/Foundation/Http/index.ts";
 import { SQLError } from "Illuminate/Database/Query/index.ts";
 import Model from "Illuminate/Database/Eloquent/Model.ts";
 import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
@@ -23,6 +21,7 @@ import viteConfig from "../../../../../vite/vite-manipulate.ts";
 import HRequest from "HonoHttp/HonoRequest.d.ts";
 import BindingRegistry from "../Core/BindingRegistry.ts";
 import HonoRequest from "HonoHttp/HonoRequest.ts";
+import { MiddlewareLikeClass } from "Illuminate/Foundation/Configuration/Middleware.ts";
 
 export const regexObj = {
   number: /^\d+$/,
@@ -255,9 +254,8 @@ interface IMiddlewareCompiler {
 export function toMiddleware(
   args: (string | HttpMiddleware | MiddlewareLikeClass)[],
 ): [MiddlewareHandler[], TFallbackMiddleware[]] {
-  const instanceKernel = new ChildKernel();
-  const MiddlewareGroups = instanceKernel.MiddlewareGroups;
-  const RouteMiddleware = instanceKernel.RouteMiddleware;
+  const MiddlewareGroups = application?.getRouter()?.middleware?.groups;
+  const RouteMiddleware = application?.getRouter()?.middleware?.aliases;
   const newArgs = args.flatMap((arg) => {
     const middlewareCallback: IMiddlewareCompiler[] = [];
     if (isString(arg)) {

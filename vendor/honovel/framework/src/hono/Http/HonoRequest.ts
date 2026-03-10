@@ -31,7 +31,7 @@ class HonoRequest extends Macroable {
     this.#c = c;
     (this.constructor as typeof HonoRequest).applyMacrosTo(this);
 
-    if (!this.#c.get("_calibrated")) {
+    if (!isset(this.#c.get("_calibrated"))) {
       // Initialize context storage
       this.#c.set("_files", {});
       this.#c.set("_myAll", {});
@@ -185,7 +185,7 @@ class HonoRequest extends Macroable {
   }
 
   public merge(data: Record<string, unknown>): void {
-    if (!this.#c.get("_built")) {
+    if (this.#c.get("_built") !== true) {
       throw new Error("Request not built yet. Call buildRequest() first.");
     }
     const myAll = this.#c.get("_myAll") as Record<string, unknown>;

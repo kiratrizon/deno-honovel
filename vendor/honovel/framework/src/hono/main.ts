@@ -30,7 +30,6 @@ const warmUpdispatch: HttpDispatch = async () => {
   return response("");
 };
 
-import ChildKernel from "./Support/ChildKernel.ts";
 import GroupRoute from "./Support/GroupRoute.ts";
 import { myError } from "HonoHttp/builder.ts";
 import { PublicDiskConfig } from "configs/@types/index.d.ts";
@@ -125,10 +124,8 @@ const myStaticDefaults: MiddlewareHandler[] = [
   }),
 ];
 
-const [globalMiddleware, globalMiddlewareFallback]: [
-  MiddlewareHandler[],
-  TFallbackMiddleware[],
-] = [...toMiddleware(new ChildKernel().Middleware)];
+const globalMiddleware:MiddlewareHandler[] = [];
+const globalMiddlewareFallback:TFallbackMiddleware[] = [];
 
 // domain on beta test
 const _forDomain: MiddlewareHandler = async (
@@ -192,6 +189,22 @@ class Server {
     }
   > = {};
   public static async init() {
+
+    try {
+      define("application", (await import("../../../../../bootstrap/app.ts"))?.default, false);
+      const appRouter = application?.getRouter();
+      const appRouterMiddleware = appRouter?.middleware;
+      const [globalInstance, globalFallbackInstance] = [...toMiddleware(appRouterMiddleware.global)];
+      // push
+      globalMiddleware.push(...globalInstance);
+      globalMiddlewareFallback.push(...globalFallbackInstance);
+
+    } catch (_e) {
+      console.error("Application not found", _e);
+      if (isset(env("DENO_DEPLOYMENT_ID")) && env("DENO_DEPLOYMENT_ID") !== "") {
+        Deno.exit(1);
+      }
+    }
     await Boot.init();
     this.app = await this.generateNewApp({}, true);
     const conditionalLogger = async (c: any, next: () => Promise<void>) => {
@@ -303,7 +316,7 @@ class Server {
   }
 
   private static applyMainMiddleware(
-    filePath: string,
+    key: string,
     app: HonoType,
   ): [string, TFallbackMiddleware[]] {
     const mainMiddleware = [];
@@ -313,8 +326,8 @@ class Server {
       { middleware: string[]; prefix?: string }
     >;
     if (isset(groupRoutes) && !empty(groupRoutes)) {
-      if (isset(groupRoutes[filePath]) && keyExist(groupRoutes, filePath)) {
-        mainMiddleware.push(...groupRoutes[filePath].middleware);
+      if (isset(groupRoutes[key]) && keyExist(groupRoutes, key)) {
+        mainMiddleware.push(...groupRoutes[key].middleware);
       }
     }
 
@@ -322,6 +335,7 @@ class Server {
       MiddlewareHandler[],
       TFallbackMiddleware[],
     ] = [...toMiddleware(mainMiddleware)];
+    
     // @ts-ignore //
     app.use(
       "*",
@@ -332,7 +346,7 @@ class Server {
       ...routeGroupMiddleware,
     );
     // return the prefix if exists
-    return [groupRoutes[filePath]?.prefix || "/", routeGroupMiddlewareFallback];
+    return [groupRoutes[key]?.prefix || "/", routeGroupMiddlewareFallback];
   }
 
   private static async loadAndValidateRoutes() {
@@ -344,36 +358,26 @@ class Server {
         routeFiles.push(entry.name);
       }
     }
-    const webIndex = routeFiles.indexOf("web.ts");
-    let webmts = false;
-    if (webIndex !== -1) {
-      routeFiles.splice(webIndex, 1);
-      webmts = true;
-    }
-    if (webmts) {
-      // push it to the end of the array
-      routeFiles.push("web.ts");
-    }
-    for (const file of routeFiles) {
-      const key = file.replace(".ts", "");
-      // let route: typeof INRoute;
+    // arrange the routes make the key web in first
+    const routers = application.getRouter().routers;
+    const ordered = {
+      ...Object.fromEntries(
+        Object.entries(routers).filter(([key]) => key !== "web")
+      ),
+      ...(routers.web !== undefined && { web: routers.web })
+    };
+    
+    for (const [key, val] of Object.entries(ordered)) {
       try {
-        if (file === "web.ts") {
-          await import("../../../../../routes/web.ts");
-          // route = Route as typeof INRoute;
-        } else if (file === "api.ts") {
-          await import("../../../../../routes/api.ts");
-          // route = Route as typeof INRoute;
-        }
+        await val();
       } catch (err) {
-        console.warn(`Route file "${file}" could not be loaded.`, err);
+        console.warn(`Route file "${key}" could not be loaded.`, err);
       }
-      const filePath = basePath(`routes/${file}`);
       if (isset(Route)) {
         Server.domainPattern[key] = {};
         const byEndpointsRouter = await this.generateNewApp();
         const [routePrefix, routeGroupMiddlewareFallback] =
-          this.applyMainMiddleware(filePath, byEndpointsRouter);
+          this.applyMainMiddleware(key, byEndpointsRouter);
         const instancedRoute = new Route();
         const allGroup = instancedRoute.getAllGroupsAndMethods();
 
