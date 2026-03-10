@@ -13,9 +13,9 @@ export default class RouteServiceProvider extends ServiceProvider {
    * Bootstrap any application services.
    */
   public async boot(): Promise<void> {
-    Route.middleware("web").group(basePath("routes/web.ts"));
+    Route.middleware("web").group('web');
 
-    Route.prefix("/api").middleware("api").group(basePath("routes/api.ts"));
+    Route.prefix("/api").middleware("api").group('api');
 
     // Route domain is not supported in boot, so we will not register domain routes here.
   }
