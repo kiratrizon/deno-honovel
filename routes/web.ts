@@ -8,7 +8,7 @@ Route.get("/", [HomeController, "index"]);
 
 Route.get("/docs/{content}", [ContentController, "show"]).middleware(
   "bind_content",
-);
+).whereNumber("content");
 
 // for "deno run -A https://honovel.deno.dev/create-project my-app@latest" setup
 Route.get("/create-project", async ({ request }) => {
