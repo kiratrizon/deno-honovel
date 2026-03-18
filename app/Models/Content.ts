@@ -1,4 +1,4 @@
-import { Model } from "Illuminate/Database/Eloquent/index.ts";
+import Model from "Illuminate/Database/Eloquent/Model.ts";
 import { HasFactory } from "Illuminate/Database/Eloquent/Factories/index.ts";
 import ContentDetail from "./ContentDetail.ts";
 
