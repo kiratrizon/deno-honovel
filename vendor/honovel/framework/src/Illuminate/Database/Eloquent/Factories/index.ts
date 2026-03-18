@@ -3,9 +3,11 @@ import { FakerFactory } from "../../../../../../../Faker/index.ts";
 import { DB } from "../../../Support/Facades/index.ts";
 import Model from "Illuminate/Database/Eloquent/Model.ts";
 
+type ModelConstructor = new () => Model;
+
 export abstract class Factory {
   protected faker = FakerFactory.create();
-  protected _model?: typeof Model<any>;
+  protected _model?: ModelConstructor;
   protected _count = 1;
   /**
    * Create a new factory instance for the given model.
@@ -18,7 +20,7 @@ export abstract class Factory {
     this._connection = connection;
   }
 
-  protected setModel(model: typeof Model<any>) {
+  protected setModel(model: ModelConstructor) {
     if (!isset(this._model)) this._model = model;
   }
 
@@ -97,7 +99,7 @@ export abstract class Factory {
 
 export class HasFactory {
   public static async getFactoryByModel<
-    T extends typeof Model<any> = typeof Model<any>,
+    T extends ModelConstructor = ModelConstructor,
   >(model: T): Promise<Factory> {
     const factoryPath = toFileUrl(
       databasePath(`factories/${model.name}Factory.ts`),

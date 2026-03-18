@@ -38,6 +38,14 @@ class Collection<T extends Model> extends Array<T> {
     }
     return data;
   }
+
+  public override map<U>(callbackfn: (value: T, index: number, array: T[]) => U): U[] {
+    const data: U[] = [];
+    this.forEach((item, index, array) => {
+      data.push(callbackfn(item, index, array));
+    });
+    return data;
+  }
 }
 
 export default Collection;

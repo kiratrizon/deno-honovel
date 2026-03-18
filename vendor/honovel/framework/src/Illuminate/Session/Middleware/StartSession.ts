@@ -4,7 +4,7 @@ export default class StartSession {
   public handle: HttpMiddleware = async ({ request }, next) => {
     await request.sessionStart();
 
-    if (!request.session.has("_token")) {
+    if (!request.session.has("_token") || !isset(request.session.get("_token"))) {
       request.session.regenerateToken();
     }
 
@@ -20,8 +20,6 @@ export default class StartSession {
       old: sessionFlash.new, // now readable in controller
       new: [], // reset for new flashes
     });
-    // then flash
-    request.flash();
 
     return next();
   };

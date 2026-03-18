@@ -67,6 +67,10 @@ export default class FileStore extends AbstractStore {
       path.normalize(this.path),
       path.normalize(`${newKey}.cache.json`),
     );
+    // ask always if the path exist then write the file
+    if (!(await pathExist(filePath))) {
+      makeDir(path.dirname(filePath));
+    }
     writeFile(filePath, jsonEncode(cacheItem));
   }
 

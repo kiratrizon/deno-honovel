@@ -1,7 +1,7 @@
 import { ConfigItems } from "configs/@types/index.d.ts";
 import { Carbon } from "helpers";
 
-export {};
+export { };
 
 type IGetType =
   | "string"
@@ -110,13 +110,6 @@ declare global {
     defaultValue?: ConfigItems[T],
   ): ConfigItems[T];
   function config(key: string, defaultValue?: unknown): unknown;
-  function config({
-    key,
-    value,
-  }: {
-    key: string;
-    value: unknown;
-  }): typeof value;
   /**
    * Initializes the configuration store by reading all configuration files in the config directory.
    */
@@ -453,7 +446,7 @@ declare global {
    * @param data - The data to encode.
    * @returns A string representing the JSON-encoded version of the data.
    */
-  function jsonEncode(data: unknown): string;
+  function jsonEncode(data: unknown, pretty?: boolean): string;
 
   /**
    * Decodes the given JSON string into a JavaScript object or returns the data if it's not a string.
@@ -525,4 +518,11 @@ declare global {
    * Indicates if the Vite development server is currently running.
    */
   const viteServer: boolean;
+
+  /**
+   * Checks if the given value is a valid URL.
+   * @param url - The URL to check.
+   * @returns `true` if the URL is valid, otherwise `false`.
+   */
+  function isURL(url: string): boolean;
 }

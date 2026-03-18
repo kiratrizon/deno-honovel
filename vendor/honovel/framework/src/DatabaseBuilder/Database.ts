@@ -13,6 +13,7 @@ import MsSQL from "./MsSQL.ts";
 import { Carbon } from "helpers";
 import {
   MySQLConnectionConfigRaw,
+  SqlSrvConnectionConfig,
   SupportedDrivers,
 } from "configs/@types/index.d.ts";
 import {
@@ -294,6 +295,32 @@ export class Database {
           break;
         }
         case "sqlsrv": {
+          const forSQLServer = value;
+          if (isset(forSQLServer)) {
+            const defaultHosts = Array.isArray(forSQLServer.host)
+              ? forSQLServer.host
+              : [forSQLServer.host || "localhost"];
+            const defaultPort = forSQLServer.port || 1433;
+            const defaultDatabase = forSQLServer.database || "honovel";
+            const defaultUser = forSQLServer.user || "sa";
+            const defaultPassword = forSQLServer.password || "";
+            const defaultOptions: SqlSrvConnectionConfig["options"] =
+              forSQLServer.options;
+            for (const host of defaultHosts) {
+              const pool = new mssql.ConnectionPool(
+                {
+                  host,
+                  port: defaultPort,
+                  user: defaultUser,
+                  password: defaultPassword,
+                  database: defaultDatabase,
+                  options: defaultOptions,
+                },
+              );
+              Database.connections[key].write.push(pool);
+            }
+            Database.connections[key].read = Database.connections[key].write;
+          }
           break;
         }
       }

@@ -15,8 +15,8 @@ type SessionEncrypt = {
 type NonFunction<T> = T extends (...args: any[]) => any
   ? never // exclude functions
   : T extends object
-    ? { [K in keyof T]: NonFunction<T[K]> }
-    : T;
+  ? { [K in keyof T]: NonFunction<T[K]> }
+  : T;
 
 function base64ToUint8Array(base64: string): Uint8Array {
   const binaryString = atob(base64);
@@ -172,7 +172,7 @@ export default class SessionModifier {
     deleteCookie(
       this.#c,
       SessionModifier.sesConfig.cookie ||
-        Str.snake(env("APP_NAME", "honovel") + "_session"),
+      Str.snake(env("APP_NAME", "honovel") + "_session"),
     );
     await this.deleteSession(this.#sessionId);
 
@@ -193,11 +193,10 @@ export default class SessionModifier {
   private async deleteSession(sid: string) {
     const isEncrypt = SessionModifier.sesConfig.encrypt || false;
     const type = SessionModifier.sesConfig.driver || "file";
-    const key = `${
-      type === "file"
+    const key = `${type === "file"
         ? sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")
         : sid
-    }${isEncrypt ? "" : "_plain"}`;
+      }${isEncrypt ? "" : "_plain"}`;
     await SessionModifier.store.forget(key);
   }
 
@@ -212,11 +211,10 @@ export default class SessionModifier {
     if (isEncrypt) {
       data = { encrypt: await this.encrypt(data) };
     }
-    const key = `${
-      type === "file"
+    const key = `${type === "file"
         ? sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")
         : sid
-    }${isEncrypt ? "" : "_plain"}`;
+      }${isEncrypt ? "" : "_plain"}`;
     await SessionModifier.store.put(
       key,
       data,
@@ -226,11 +224,10 @@ export default class SessionModifier {
 
   private async loadSession(sid: string) {
     const isEncrypt = SessionModifier.sesConfig.encrypt || false;
-    const key = `${
-      SessionModifier.sesConfig.driver === "file"
+    const key = `${SessionModifier.sesConfig.driver === "file"
         ? sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")
         : sid
-    }${isEncrypt ? "" : "_plain"}`;
+      }${isEncrypt ? "" : "_plain"}`;
 
     const data = await SessionModifier.store.get(key);
     if (!isset(data)) {

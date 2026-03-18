@@ -1,8 +1,8 @@
 export default class ValidatePostSize {
-  public handle: HttpMiddleware = async ({ request, Configure }, next) => {
+  public handle: HttpMiddleware = async ({ request }, next) => {
     const contentLength = request.header("Content-Length");
 
-    const maxPostSize = Configure.read("post.max_size", "2M") as string; // Default to 2MB
+    const maxPostSize = config("post.max_size", "2M") as string; // Default to 2MB
     if (contentLength) {
       const length = parseInt(contentLength, 10);
 

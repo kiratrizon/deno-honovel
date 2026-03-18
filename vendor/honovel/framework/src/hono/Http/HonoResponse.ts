@@ -206,10 +206,6 @@ export default class HonoResponseV2 {
       this._status,
     );
   }
-
-  public redirectTo(url: string, status = 302) {
-    return new RedirectResponse(url, status);
-  }
 }
 
 export {

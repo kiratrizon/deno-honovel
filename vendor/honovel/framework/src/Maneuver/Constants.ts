@@ -46,65 +46,6 @@ class Constants implements IConstants {
 
     return currentValue ?? defaultValue;
   }
-
-  /**
-   * Writes a value to the specified config path in the in-memory store.
-   * If the config file hasn't been read yet, it will first attempt to load it.
-   *
-   * @param key - Dot-separated string indicating where to write.
-   * @param data - The value to store at the given path.
-   * @returns @void
-   */
-  public write(key: string, data: any): void {
-    if (!this.#configStore) {
-      throw new Error("Config store is not initialized");
-    }
-
-    if (isFunction(data)) {
-      throw new Error("Cannot write a function to the config store");
-    }
-    const keys = key.split(".");
-    if (!keys.length) {
-      return;
-    }
-
-    const firstKey: string = keys.shift()!;
-    const notAllowedToWriteFiles = [
-      "app",
-      "auth",
-      "cache",
-      "database",
-      "filesystems",
-      "mail",
-      "queue",
-      "session",
-      "view",
-      "cors",
-      "logging",
-      "services",
-      "broadcasting",
-    ];
-    if (!this.#configStore[firstKey]) {
-      this.#configStore[firstKey] = {}; // Create if it doesn't exist
-    }
-
-    // Traverse the object and assign the value
-    let current = this.#configStore[firstKey];
-    while (keys.length > 1) {
-      const nextKey = keys.shift()!;
-      if (
-        typeof current[nextKey] !== "object" ||
-        current[nextKey] === null ||
-        Array.isArray(current[nextKey])
-      ) {
-        current[nextKey] = {}; // Ensure intermediate path exists
-      }
-      current = current[nextKey];
-    }
-
-    const finalKey = keys.shift()!;
-    current[finalKey] = data;
-  }
 }
 
 export default Constants;

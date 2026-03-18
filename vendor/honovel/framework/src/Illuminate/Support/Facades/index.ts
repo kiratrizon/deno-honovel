@@ -164,6 +164,7 @@ export class Schema {
     callback(blueprint);
     blueprint.alterMode();
     const converted = blueprint.toSql();
+    // console.error("converted", converted);
     await DB.connection(connection).statement(converted);
   }
 }
@@ -409,7 +410,21 @@ export class Validator {
     "regex",
     "file",
     "array", // ✅ new
+    "boolean",
+    "url",
+    "nullable",
   ];
+
+  #booleanMaps = {
+    "1": true,
+    "true": true,
+    "yes": true,
+    "on": true,
+    "0": false,
+    "false": false,
+    "no": false,
+    "off": false,
+  };
 
   #regex = {
     digit: "\\d+",
@@ -437,7 +452,7 @@ export class Validator {
     validations: Record<string, string>,
   ) {
     this.#data = data;
-    this.#validations = validations;
+    this.#validations = { ...validations };
   }
 
   getErrors() {
@@ -574,6 +589,24 @@ export class Validator {
           }
         }
         break;
+      case "url":
+        if (!isURL(v as string))
+          e.push("The field must be a valid URL.");
+        break;
+      case "boolean": {
+        const normalized = (v as string).toLowerCase();
+        if (normalized === "") {
+          this.#data[key] = false;
+          break;
+        }
+        if (keyExist(this.#booleanMaps, normalized)) {
+          // convert to real boolean
+          this.#data[key] = this.#booleanMaps[normalized];
+        } else {
+          e.push("The field must be a boolean.");
+        }
+        break;
+      }
     }
   }
 }
@@ -584,7 +617,7 @@ type KeysWithICallback<T> = {
   [P in keyof T]: T[P] extends ICallback ? P : unknown;
 }[keyof T];
 
-import HttpHono from "../../../hono/Http/HttpHono.ts";
+import HttpHono from "HttpHono";
 class MyRoute {
   private static routeId = 0;
   private static resourceId = 0;
@@ -908,12 +941,12 @@ type GuardDriver<G extends GuardName> = AuthConfig["guards"][G]["driver"];
 
 type GuardInstance<G extends GuardName> =
   GuardDriver<G> extends "jwt"
-    ? JwtGuard
-    : GuardDriver<G> extends "session"
-      ? SessionGuard
-      : GuardDriver<G> extends "token"
-        ? TokenGuard
-        : never;
+  ? JwtGuard
+  : GuardDriver<G> extends "session"
+  ? SessionGuard
+  : GuardDriver<G> extends "token"
+  ? TokenGuard
+  : never;
 
 export class Auth {
   private static defaultGuard: string;

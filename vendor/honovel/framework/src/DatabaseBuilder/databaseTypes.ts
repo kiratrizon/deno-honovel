@@ -1,15 +1,15 @@
 export type QueryResult =
   | Record<string, unknown>[]
   | {
-      affected: number;
-      lastInsertRowId: number | null;
-      raw: unknown;
-    }
+    affected: number;
+    lastInsertRowId: number | null;
+    raw: unknown;
+  }
   | {
-      message: string;
-      affected?: number;
-      raw: unknown;
-    };
+    message: string;
+    affected?: number;
+    raw: unknown;
+  };
 
 type DDL = {
   message: string;
@@ -111,6 +111,7 @@ export const sqlReservedWords = [
   "outer",
   "primary",
   "procedure",
+  "read",
   "right",
   "rownum",
   "select",

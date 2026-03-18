@@ -1,11 +1,11 @@
 import { Str } from "../../Support/index.ts";
 
 export default class HandleCors {
-  public handle: HttpMiddleware = async ({ request, Configure }, next) => {
+  public handle: HttpMiddleware = async ({ request }, next) => {
     const origin = request.headers.get("origin");
     const host = request.headers.get("host");
 
-    const corsConfig = Configure.read("cors", {});
+    const corsConfig = config("cors");
 
     const allowedOrigins = (corsConfig.allowed_origins || []).map(
       (origin: string) => {

@@ -48,6 +48,12 @@ declare class IRedirectResponse {
   public getTargetUrl(): string;
 
   /**
+   * Attach input data to the session.
+   * @param data - Input data as a key-value map.
+   */
+  public withInput(data?: Record<string, unknown>): this;
+
+  /**
    * Simulate sending the response.
    */
   // public send(): void;

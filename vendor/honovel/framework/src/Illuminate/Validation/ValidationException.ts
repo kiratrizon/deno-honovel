@@ -1,17 +1,16 @@
-export class ValidationException extends Error {
-  public errors: Record<string, string[]>;
+import { ContentfulStatusCode } from "hono/utils/http-status";
+import Exception from "../Foundation/Execptions/Exception.ts";
 
-  public response: unknown | null = null;
+export default class ValidationException extends Exception {
   constructor(
-    errors: Record<string, string[]>,
-    message = "The given data was invalid."
+    message: string = "The given data was invalid.",
+    headers: Record<string, string> = {},
+    httpCode: ContentfulStatusCode = 422
   ) {
-    super(message);
+    super(message, httpCode, headers);
     this.name = "ValidationException";
-    this.errors = errors;
   }
 
-  setDefaultResponse(response: unknown): void {
-    this.response = response;
-  }
+  public errors: Record<string, string[]> = {};
+  public input: Record<string, any> = {};
 }

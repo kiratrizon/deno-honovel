@@ -15,7 +15,7 @@ import {
   WherePrimitive,
 } from "../Query/index.ts";
 
-export default abstract class Model<
+export default class Model<
   T extends ModelAttributes = ModelAttributes,
 > {
   constructor(attributes: Partial<T> = {}) {
@@ -515,6 +515,16 @@ export default abstract class Model<
     return instance;
   }
 
+  public static async createMany<Attr extends Record<string, unknown>>(
+    attributes: Attr[],
+  ) {
+    const instances = attributes.map((attribute) => {
+      return new this(attribute) as Model<ModelAttributes>;
+    });
+    await Promise.all(instances.map((instance) => instance.save()));
+    return instances;
+  }
+
   /**
    * Create a new model instance.
    * @param connection The database connection name.
@@ -542,6 +552,7 @@ export default abstract class Model<
     if (!methodExist(factoryClass, "getFactoryByModel")) {
       throw new Error(`${this.name} does not have a factory method.`);
     }
+    // @ts-ignore //
     const factory = await factoryClass.getFactoryByModel(this);
     // @ts-ignore //
     factory.setConnection(connection);
@@ -825,6 +836,17 @@ export default abstract class Model<
       model: this,
       fields: ["*"],
     }).get<T>();
+  }
+
+  /**
+   * Get the count of records from the database.
+   * @returns The count of records.
+   */
+  public static async count(): Promise<number> {
+    return await new Builder({
+      model: this,
+      fields: ["*"],
+    }).count();
   }
 
   /**

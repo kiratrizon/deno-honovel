@@ -10,7 +10,7 @@ import { Hash } from "../../Support/Facades/index.ts";
  */
 export default class AuthenticateWithBasicAuth {
   public handle: HttpMiddleware = async (
-    { request, Configure },
+    { request },
     next,
     credentialKey = "email",
   ) => {
@@ -25,17 +25,17 @@ export default class AuthenticateWithBasicAuth {
       abort(401, "Unauthorized");
     }
 
-    const defaultGuard = Configure.read("auth")?.default?.guard;
+    const defaultGuard = config("auth")?.default?.guard;
     if (!defaultGuard) {
       console.error("Default guard not configured in auth settings.");
       abort(500, "Internal Server Error");
     }
-    const provider = Configure.read("auth")?.guards?.[defaultGuard]?.provider;
+    const provider = config("auth")?.guards?.[defaultGuard]?.provider;
     if (!provider) {
       console.error(`Provider not configured for guard: ${defaultGuard}`);
       abort(500, "Internal Server Error");
     }
-    const userModel = Configure.read("auth")?.providers?.[provider]?.model;
+    const userModel = config("auth")?.providers?.[provider]?.model;
     if (!userModel) {
       console.error(`Model not configured for provider: ${provider}`);
       abort(500, "Internal Server Error");
@@ -44,7 +44,7 @@ export default class AuthenticateWithBasicAuth {
     const [cred, pass] = credentials;
     const user = await userModel.where(credentialKey, cred).first();
     const passwordKey =
-      Configure.read("auth")?.providers?.[provider]?.passwordKey || "password";
+      config("auth")?.providers?.[provider]?.passwordKey || "password";
     if (!user || !Hash.check(pass, (user as any)[passwordKey])) {
       abort(401, "Unauthorized");
     }

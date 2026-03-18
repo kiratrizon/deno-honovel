@@ -16,7 +16,12 @@ export default class MessageBag {
   }
 
   public first(key: string): string | undefined {
-    return this.errors[key]?.[0];
+    if (this.has(key) && isArray(this.errors[key])) {
+      return this.errors[key][0];
+    } else if (this.has(key) && isString(this.errors[key])) {
+      return this.errors[key];
+    }
+    return '';
   }
 
   public get(key: string): string[] | undefined {

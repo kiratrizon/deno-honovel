@@ -22,7 +22,7 @@ const envs = [".env"];
 
 await Boot.init();
 class MyArtisan {
-  constructor() {}
+  constructor() { }
   private async createConfig(options: { force?: boolean }, name: string) {
     const stubPath = honovelPath("stubs/ConfigDefault.stub");
     const stubContent = getFileContents(stubPath);
@@ -74,7 +74,7 @@ class MyArtisan {
 
     if (options.resource) {
       // remove the Controller in name
-      const paramName = name.replace("Controller", "");
+      const paramName = name.replace("Controller", "").toLowerCase();
       controllerContent = controllerContent.replace(
         /{{ paramName }}/g,
         paramName,
@@ -179,7 +179,7 @@ class MyArtisan {
     force: boolean;
     seeder?: string;
   }) {
-    config({ key: "database.default", value: options.db });
+
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
     }
@@ -196,7 +196,7 @@ class MyArtisan {
         .where("name", name)
         .count();
       if (isApplied) {
-        console.info(`Migration ${name} already applied.`);
+        // console.info(`Migration ${name} already applied.`);
         continue;
       }
       migration.setConnection(options.db);
@@ -225,7 +225,7 @@ class MyArtisan {
     force: boolean;
     seeder?: string;
   }) {
-    config({ key: "database.default", value: options.db });
+
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
     }
@@ -242,7 +242,7 @@ class MyArtisan {
         .where("name", name)
         .count();
       if (isApplied) {
-        console.info(`Migration ${name} already applied.`);
+        // console.info(`Migration ${name} already applied.`);
         continue;
       }
       migration.setConnection(options.db);
@@ -272,7 +272,7 @@ class MyArtisan {
     force: boolean;
     seeder?: string;
   }) {
-    config({ key: "database.default", value: options.db });
+
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
     }
@@ -329,7 +329,7 @@ class MyArtisan {
         .where("name", name)
         .count();
       if (isApplied) {
-        console.info(`Migration ${name} already applied.`);
+        // console.info(`Migration ${name} already applied.`);
         continue;
       }
       migration.setConnection(options.db);
@@ -358,7 +358,7 @@ class MyArtisan {
     db: string;
     force: boolean;
   }) {
-    config({ key: "database.default", value: options.db });
+
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
     }
@@ -415,7 +415,7 @@ class MyArtisan {
     db: string;
     force: boolean;
   }) {
-    config({ key: "database.default", value: options.db });
+
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
     }
@@ -456,7 +456,7 @@ class MyArtisan {
   }
 
   private async migrationStatus(options: { path?: string; db: string }) {
-    config({ key: "database.default", value: options.db });
+
     await this.createMigrationTable(options.db);
 
     const allModules = await loadMigrationModules(options.path);
@@ -928,8 +928,14 @@ class MyArtisan {
   }
 
   private async routeList() {
-    console.log("Route list command is not yet implemented.");
-    console.log("This feature will be available in a future release.");
+    const routesPath = storagePath("framework/route/routes.json");
+    if (await pathExist(routesPath)) {
+      const routes = getFileContents(routesPath);
+      const prettyRoutes = JSON.parse(routes);
+      console.log(prettyRoutes);
+    } else {
+      console.log("Routes file does not exist.");
+    }
   }
 
   private async cacheClear() {
@@ -1016,7 +1022,7 @@ class MyArtisan {
       console.log(
         `Please add this to your bootstrap/app.ts file under withRouting({}):`
       );
-  
+
       // Entire import line in yellow
       console.log("\x1b[33m%s\x1b[0m", 'api: async () => await import("../routes/api.ts"),');
     }
@@ -1041,7 +1047,7 @@ class MyArtisan {
       )
 
       .command("install:api", "Install the API routes")
-      .action(()=>this.installApi())
+      .action(() => this.installApi())
 
       .command("install:driver", "Install optional database/cache drivers")
       .option(
@@ -1205,7 +1211,7 @@ class MyArtisan {
       .arguments("<name:string>")
       .action((_: unknown, name: string) => this.makeException(name))
 
-      .command("route:list", "List all registered routes")
+      .command("route:list", "List all named routes")
       .action(() => this.routeList())
 
       .command("cache:clear", "Clear the application cache")

@@ -46,7 +46,7 @@ try {
   const warmups = JSON.parse(jsonString) || [];
 
   for (const warmup of warmups) {
-    const test = await fetch(warmup);
+    // const test = await fetch(warmup);
     // console.info(`Warmup URL: ${warmup} - Status: ${test.status}`);
   }
 } catch {

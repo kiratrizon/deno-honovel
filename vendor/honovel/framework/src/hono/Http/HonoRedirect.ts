@@ -22,6 +22,8 @@ class HonoRedirect implements IRedirectResponse {
     this.#statusCode = statusCode;
   }
 
+  #withInput: boolean | Record<string, string> = false;
+
   public route(name: string, params?: Record<string, unknown>): this {
     this.#type = "route";
 
@@ -65,6 +67,19 @@ class HonoRedirect implements IRedirectResponse {
     return this;
   }
 
+  public withInput(data: Record<string, string>): this {
+    if (!isObject(data)) {
+      this.#withInput = true;
+    } else {
+      this.#withInput = {...data};
+    }
+    return this;
+  }
+
+  public get withInputValue(): boolean | Record<string, string> {
+    return this.#withInput;
+  }
+
   public getTargetUrl(): string {
     if (this.#type !== "back") {
       return this.#myRedirectData[this.#type];
@@ -78,6 +93,14 @@ class HonoRedirect implements IRedirectResponse {
 
   public get statusCode() {
     return this.#statusCode;
+  }
+
+  public get flashData(): Record<string, unknown> {
+    return this.#flashData;
+  }
+
+  public get errorData(): Record<string, unknown> {
+    return this.#errorData;
   }
 }
 

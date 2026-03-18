@@ -1,20 +1,16 @@
-import { IConfigure } from "../../../../@types/declaration/MyImports.d.ts";
 import HonoRequest from "HonoHttp/HonoRequest.ts";
 import HRequest from "HonoHttp/HonoRequest.d.ts";
-import Constants from "Constants";
 import { Auth } from "Illuminate/Support/Facades/index.ts";
 import { Cookie } from "./HonoCookie.ts";
 
 class HttpHono {
   #request: HonoRequest;
-  #config: typeof IConfigure;
   #c: MyContext;
   #auth: Auth;
   #Cookie: Cookie;
   constructor(c: MyContext) {
     this.#c = c;
     this.#request = new HonoRequest(this.#c);
-    this.#config = new Constants(myConfigData) as unknown as typeof IConfigure;
     this.#auth = new Auth(this.#c);
     this.#Cookie = new Cookie(this.#c);
   }
@@ -22,9 +18,6 @@ class HttpHono {
   public get request(): HRequest {
     // @ts-ignore //
     return this.#request;
-  }
-  public get Configure() {
-    return this.#config;
   }
 
   public get csrfToken() {

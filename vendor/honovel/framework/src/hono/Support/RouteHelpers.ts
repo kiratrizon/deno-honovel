@@ -112,11 +112,16 @@ export function registerRoute(
   url: string,
   requiredParams: string[],
   optionalParams: string[],
+  method: string[],
 ): void {
+  if (url.endsWith("/") && url.length > 1) {
+    url = url.slice(0, -1);
+  }
   routes[name] = {
     url,
     requiredParams,
     optionalParams,
+    method,
   };
 }
 
@@ -124,7 +129,8 @@ export function registerRoute(
  * Build final route URL with prefix
  */
 export function buildRouteUrl(prefix: string, uri: string): string {
-  return `${prefix === "/" ? "" : prefix}${uri}`;
+  const url = (`${prefix === "/" ? "" : prefix}${uri}`).replace(/\/\//g, "/");
+  return url;
 }
 
 /**

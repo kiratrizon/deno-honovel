@@ -126,7 +126,6 @@ export interface SERVER {
   HTTP_X_REQUEST_ID: string;
 }
 import { ISession } from "../../../../@types/declaration/ISession.d.ts";
-import HonoHeader from "./HonoHeader.ts";
 import { CookieOptions } from "hono/utils/cookie";
 import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";

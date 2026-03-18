@@ -20,6 +20,9 @@ import {
   toFallback,
   returnResponse,
   toNotfound,
+  saveSessionIfRedirect,
+  convertToResponse,
+  exceptionToResponse,
 } from "./Support/FunctionRoute.ts";
 import { IMyConfig } from "./Support/MethodRoute.ts";
 import { honoSession } from "HonoHttp/HonoSession.ts";
@@ -116,6 +119,8 @@ import {
   registerRoute,
   buildRouteUrl,
 } from "./Support/RouteHelpers.ts";
+import NotFoundHttpException from "Illuminate/Foundation/HttpExecptions/NotFoundHttpException.ts";
+import { RedirectResponse } from "HonoHttp/HonoResponse.ts";
 
 const myStaticDefaults: MiddlewareHandler[] = [
   serveStatic({ root: path.relative(Deno.cwd(), publicPath()) }),
@@ -124,8 +129,8 @@ const myStaticDefaults: MiddlewareHandler[] = [
   }),
 ];
 
-const globalMiddleware:MiddlewareHandler[] = [];
-const globalMiddlewareFallback:TFallbackMiddleware[] = [];
+const globalMiddleware: MiddlewareHandler[] = [];
+const globalMiddlewareFallback: TFallbackMiddleware[] = [];
 
 // domain on beta test
 const _forDomain: MiddlewareHandler = async (
@@ -201,7 +206,7 @@ class Server {
 
     } catch (_e) {
       console.error("Application not found", _e);
-      if (isset(env("DENO_DEPLOYMENT_ID")) && env("DENO_DEPLOYMENT_ID") !== "") {
+      if (!isset(env("DENO_DEPLOYMENT_ID")) || empty(env("DENO_DEPLOYMENT_ID"))) {
         Deno.exit(1);
       }
     }
@@ -291,7 +296,7 @@ class Server {
 
     // initialize the app
     await this.loadAndValidateRoutes();
-    this.endInit();
+    await this.endInit();
   }
 
   private static async generateNewApp(
@@ -335,7 +340,7 @@ class Server {
       MiddlewareHandler[],
       TFallbackMiddleware[],
     ] = [...toMiddleware(mainMiddleware)];
-    
+
     // @ts-ignore //
     app.use(
       "*",
@@ -366,7 +371,7 @@ class Server {
       ),
       ...(routers.web !== undefined && { web: routers.web })
     };
-    
+
     for (const [key, val] of Object.entries(ordered)) {
       try {
         await val();
@@ -427,6 +432,7 @@ class Server {
                     fixUri,
                     arrangerDispatch.requiredParams,
                     arrangerDispatch.optionalParams,
+                    methodarr
                   );
                 }
               }
@@ -477,24 +483,24 @@ class Server {
             }
           }
 
-          const warmUpFallbacks: TFallbackMiddleware[] = [
-            ...globalMiddlewareFallback,
-            ...routeGroupMiddlewareFallback,
-          ];
-          const warmUpFallbacksArr: MiddlewareHandler[] = [];
-          warmUpFallbacks.forEach((fb, index) => {
-            warmUpFallbacksArr.unshift(toFallback([index + 1, fb]));
-          });
+          // const warmUpFallbacks: TFallbackMiddleware[] = [
+          //   ...globalMiddlewareFallback,
+          //   ...routeGroupMiddlewareFallback,
+          // ];
+          // const warmUpFallbacksArr: MiddlewareHandler[] = [];
+          // warmUpFallbacks.forEach((fb, index) => {
+          //   warmUpFallbacksArr.unshift(toFallback([index + 1, fb]));
+          // });
 
-          const warmUpBuilds = [
-            toDispatch({ args: warmUpdispatch, debugString: "" }, []),
-            ...warmUpFallbacksArr,
-            returnResponse,
-          ];
-          const warmUpApp = await this.generateNewApp();
-          // @ts-ignore //
-          warmUpApp.get("/__warmup", ...warmUpBuilds);
-          byEndpointsRouter.route("/", warmUpApp);
+          // const warmUpBuilds = [
+          //   toDispatch({ args: warmUpdispatch, debugString: "" }, []),
+          //   ...warmUpFallbacksArr,
+          //   returnResponse,
+          // ];
+          // const warmUpApp = await this.generateNewApp();
+          // // @ts-ignore //
+          // warmUpApp.get("/__warmup", ...warmUpBuilds);
+          // byEndpointsRouter.route("/", warmUpApp);
 
           // for groups
           if (isset(groups) && !empty(groups) && isObject(groups)) {
@@ -558,6 +564,17 @@ class Server {
                 MiddlewareHandler[],
                 TFallbackMiddleware[],
               ] = toMiddleware(middleware);
+
+              const hasOnlySlash: {
+                found: boolean;
+                method: string[];
+                allBuilds: MiddlewareHandler[];
+              } = {
+                found: false,
+                method: [],
+                allBuilds: [],
+              };
+
               groupEntries.forEach(([routeId, methodarr]) => {
                 const routeUsed = methods[routeId];
                 const myConfig = routeUsed.config;
@@ -587,7 +604,7 @@ class Server {
                 ];
 
                 const flagWhere = flag.where || {};
-                const splittedUri = URLArranger.generateOptionalParamRoutes(
+                let splittedUri = URLArranger.generateOptionalParamRoutes(
                   newMethodUri,
                   "dispatch",
                   flagWhere,
@@ -607,6 +624,7 @@ class Server {
                       finalUrl,
                       arrangerDispatch.requiredParams,
                       arrangerDispatch.optionalParams,
+                      methodarr
                     );
                   }
                 }
@@ -634,6 +652,18 @@ class Server {
                   returnResponse,
                 ];
 
+                // make sure splittedUri is not only "/" else splice
+                splittedUri = splittedUri.filter(str => {
+                  if (str === "/") {
+                    hasOnlySlash.found = true;
+                  }
+                  return true;    // keep this element
+                });
+
+                if (hasOnlySlash.found) {
+                  hasOnlySlash.method = methodarr;
+                  hasOnlySlash.allBuilds = [...allBuilds];
+                }
                 if (
                   methodarr.length === 1 &&
                   arrayFirst(methodarr) === "head"
@@ -658,6 +688,19 @@ class Server {
                 "group",
                 where,
               );
+
+              if (hasOnlySlash.found) {
+                generatedopts.forEach((grp) => {
+                  if (hasOnlySlash.method.length === 1 && hasOnlySlash.method[0] === "head") {
+                    hasOnlySlash.allBuilds.splice(1, 0, headFunction);
+                    // @ts-ignore //
+                    newAppGroup.get(grp == "/" ? grp : `${grp}/`, ...hasOnlySlash.allBuilds);
+                  } else {
+                    // @ts-ignore //
+                    newAppGroup.on(hasOnlySlash.method, grp == "/" ? grp : `${grp}/`, ...hasOnlySlash.allBuilds);
+                  }
+                });
+              }
               generatedopts.forEach((grp) => {
                 // apply the middlewares here
                 // @ts-ignore //
@@ -696,14 +739,17 @@ class Server {
           //   Route.fallbackFn = null; // reset after applying
           // }
           this.app.route(routePrefix, byEndpointsRouter);
+        } else {
+          console.error("No routes found");
         }
       }
     }
   }
 
-  private static endInit() {
+  private static async endInit() {
     this.app.notFound(async function (c: MyContext) {
-      return await myError(c);
+      const notFoundInstance = new NotFoundHttpException();
+      return await exceptionToResponse(c, notFoundInstance);
     });
 
     const ServerDomainKeys = Object.keys(this.domainPattern); // ["web", "api"]
@@ -717,6 +763,17 @@ class Server {
         });
       });
     });
+
+    // save routes in a file cache
+    if (!isset(env("DENO_DEPLOYMENT_ID")) || empty(env("DENO_DEPLOYMENT_ID"))) {
+      if (!(await pathExist(storagePath("framework/route")))) {
+        makeDir(storagePath("framework/route"));
+      }
+
+      // arrange json file with pretty format
+      const prettyRoutes = JSON.stringify(this.routes, null, 2);
+      writeFile(path.join(storagePath("framework/route"), "routes.json"), prettyRoutes);
+    }
   }
 }
 
@@ -761,7 +818,19 @@ globalFn(
       }
     });
 
-    return finalUrl;
+    // $_GET build
+    const allParams = [...requiredParams, ...optionalParams];
+    let buildUrl = config("app.url") + finalUrl;
+    const $_GET: string[] = [];
+    Object.entries(params).forEach(([key, value]) => {
+      if (!allParams.includes(key) && isset(value)) {
+        $_GET.push(`${key}=${encodeURIComponent(value)}`);
+      }
+    });
+    if ($_GET.length > 0) {
+      buildUrl += `?${$_GET.join("&")}`;
+    }
+    return buildUrl;
   },
 );
 
