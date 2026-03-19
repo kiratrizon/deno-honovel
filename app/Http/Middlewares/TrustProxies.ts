@@ -1,4 +1,4 @@
-import { IConfigure } from "../../../vendor/honovel/@types/declaration/MyImports.d.ts";
+
 import HonoRequest from "HonoHttp/HonoRequest.ts";
 
 export default class TrustProxies {
@@ -7,14 +7,14 @@ export default class TrustProxies {
 
   protected headers = HonoRequest.HEADER_X_FORWARDED_ALL;
 
-  public handle: HttpMiddleware = async ({ request, Configure }, next) => {
+  public handle: HttpMiddleware = async ({ request }, next) => {
     const remoteIp = request.ip();
 
-    const headers = Configure.read(
+    const headers = config(
       "trustedproxy.headers",
       this.headers
     ) as string[];
-    if (this.isTrustedProxy(remoteIp, Configure)) {
+    if (this.isTrustedProxy(remoteIp)) {
       for (const header of headers) {
         const value = request.header(header);
         if (value) {
@@ -26,8 +26,8 @@ export default class TrustProxies {
     return next();
   };
 
-  protected isTrustedProxy(ip: string, Configure: typeof IConfigure): boolean {
-    const proxies = Configure.read(
+  protected isTrustedProxy(ip: string): boolean {
+    const proxies = config(
       "trustedproxy.proxies",
       this.proxies
     ) as string[];

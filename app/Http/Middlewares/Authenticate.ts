@@ -1,6 +1,6 @@
 export default class Authenticate {
-  public handle: HttpMiddleware = async ({ Configure, Auth }, next, guard) => {
-    const authConf = Configure.read("auth");
+  public handle: HttpMiddleware = async ({ Auth }, next, guard) => {
+    const authConf = config("auth");
     if (!isset(guard)) {
       if (isset(authConf.default)) {
         guard = authConf.default.guard;
