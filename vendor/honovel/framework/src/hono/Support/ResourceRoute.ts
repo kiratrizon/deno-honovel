@@ -8,7 +8,7 @@ export type ResourceKeys =
   | "index"
   | "show"
   | "create"
-  | "post"
+  | "store"
   | "update"
   | "destroy"
   | "edit";
@@ -121,8 +121,8 @@ export default class ResourceRoute {
       this.mode === "only"
         ? this.filterKeys
         : (Object.keys(this.identifiers) as ResourceKeys[]).filter(
-            (k) => !this.filterKeys.includes(k)
-          );
+          (k) => !this.filterKeys.includes(k)
+        );
 
     const filteredRoutes: Record<number, (keyof IHeaderChildRoutes)[]> = {};
 

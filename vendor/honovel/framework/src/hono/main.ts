@@ -215,6 +215,10 @@ class Server {
     const conditionalLogger = async (c: any, next: () => Promise<void>) => {
       const url = c.req.url;
       // skip if path ends with __warmup
+      const skipPaths = ['/.well-known', '/robots.txt', '/favicon.ico'];
+      if (skipPaths.some(path => new URL(url).pathname.startsWith(path))) {
+        return await next(); // skip logging
+      }
       if (!url.endsWith("__warmup")) {
         await logger()(c, next); // call logger middleware
       } else {

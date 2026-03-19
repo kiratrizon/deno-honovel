@@ -26,10 +26,25 @@ export interface MiddlewareLikeInstance {
 }
 
 export interface MiddlewareLikeClass {
-  new (): MiddlewareLikeInstance;
+  new(): MiddlewareLikeInstance;
 }
 
 export type MiddlewareLike = string | MiddlewareLikeClass;
+
+const defaultAliases: Record<string, MiddlewareLikeClass> = {
+  auth: Authenticate,
+  "auth.basic": AuthenticateWithBasicAuth,
+  "cache.headers": SetCacheHeaders,
+  can: Authorize,
+  ensure_accepts_json: EnsureAcceptsJson,
+  guest: RedirectIfAuthenticated,
+  "password.confirm": RequirePassword,
+  signed: ValidateSignature,
+  throttle: ThrottleRequests,
+  verified: EnsureEmailIsVerified,
+};
+
+export type keysOfDefaultAliases = keyof typeof defaultAliases;
 
 export default class Middleware {
   private static global: MiddlewareLikeClass[] = [
@@ -45,18 +60,7 @@ export default class Middleware {
     web: [EncryptCookies, StartSession, VerifyCsrfToken, SubstituteBindings],
     api: [SubstituteBindings],
   };
-  private static aliases: Record<string, MiddlewareLikeClass> = {
-    auth: Authenticate,
-    "auth.basic": AuthenticateWithBasicAuth,
-    "cache.headers": SetCacheHeaders,
-    can: Authorize,
-    ensure_accepts_json: EnsureAcceptsJson,
-    guest: RedirectIfAuthenticated,
-    "password.confirm": RequirePassword,
-    signed: ValidateSignature,
-    throttle: ThrottleRequests,
-    verified: EnsureEmailIsVerified,
-  };
+  private static aliases: Record<keysOfDefaultAliases, MiddlewareLikeClass> = { ...defaultAliases };
 
   public static append(middleware: MiddlewareLikeClass) {
     this.global.push(middleware);
@@ -75,7 +79,7 @@ export default class Middleware {
     return this;
   }
 
-  public static alias(aliases: Record<string, MiddlewareLikeClass>) {
+  public static alias(aliases: Record<keysOfDefaultAliases | string, MiddlewareLikeClass>) {
     Object.assign(this.aliases, aliases);
     return this;
   }

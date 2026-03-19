@@ -41,7 +41,7 @@ export declare class IGroupRoute {
    * @returns The result of the middleware method from the IGroupInstance.
    */
   public static middleware(
-    handler: string | (string | HttpMiddleware)[] | HttpMiddleware,
+    handler: keysOfDefaultAliases | (keysOfDefaultAliases | HttpMiddleware)[] | HttpMiddleware,
   ): ReturnType<InstanceType<typeof IGroupInstance>["middleware"]>;
 
   /**
@@ -229,7 +229,7 @@ export interface IMethodRoute {
    * @returns The current instance of IMethodRoute for method chaining.
    */
   middleware(
-    handler: string | (string | HttpMiddleware)[] | HttpMiddleware,
+    handler: keysOfDefaultAliases | (keysOfDefaultAliases | HttpMiddleware)[] | HttpMiddleware,
   ): this;
   /**
    * Define parameter constraints using regular expressions.
@@ -410,6 +410,7 @@ import ResourceRoute, {
   ResourceKeys,
 } from "../../framework/src/hono/Support/ResourceRoute.ts";
 import HonoRequest from "HonoHttp/HonoRequest.ts";
+import { keysOfDefaultAliases } from "Illuminate/Foundation/Configuration/Middleware.ts";
 
 export interface IReferencesRoute {
   groups: Record<string, IEGroupRoute>;

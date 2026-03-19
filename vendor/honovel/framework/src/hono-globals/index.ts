@@ -338,7 +338,7 @@ globalFn(
     defaultValue: unknown = null,
   ) {
     if (isString(key)) {
-      return configure.read(key) || defaultValue;
+      return configure?.read(key, defaultValue) ?? defaultValue;
     }
     throw new Error("Invalid key");
   },

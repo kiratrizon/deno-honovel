@@ -1,7 +1,9 @@
 import { genSaltSync, hashSync, compareSync } from "bcrypt";
 import { Blueprint, TableSchema } from "../../Database/Schema/index.ts";
+import dns from 'node:dns';
 import BaseController from "Illuminate/Routing/BaseController";
 import pluralize from "pluralize";
+import { Carbon } from "helpers";
 import {
   Authenticatable,
   BaseGuard,
@@ -399,21 +401,65 @@ interface IRegex {
   slug: string;
   uuid: string;
 }
+
+/** Valid validation rule names – used for typing only (private #validRules not usable in type positions). */
+const VALID_RULE_NAMES = [
+  "required",
+  "required_if",
+  "required_unless",
+  "required_with",
+  "required_without",
+  "sometimes",
+  "nullable",
+  "string",
+  "integer",
+  "numeric",
+  "float",
+  "boolean",
+  "alpha",
+  "alpha_num",
+  "alpha_dash",
+  "slug",
+  "uuid",
+  "array",
+  "distinct",
+  "file",
+  "image",
+  "mimes",
+  "mimetypes",
+  "dimensions",
+  "min",
+  "max",
+  "size",
+  "unique",
+  "exists",
+  "email",
+  "url",
+  "ip",
+  "ipv4",
+  "ipv6",
+  "active_url",
+  "date",
+  "date_format",
+  "after",
+  "after_or_equal",
+  "before",
+  "before_or_equal",
+  "timezone",
+  "confirmed",
+  "same",
+  "different",
+  "in",
+  "not_in",
+  "json",
+  "present",
+  "regex",
+] as const;
+
+export type ValidRuleName = (typeof VALID_RULE_NAMES)[number];
+
 export class Validator {
-  #validRules = [
-    "required",
-    "email",
-    "min",
-    "max",
-    "unique",
-    "confirmed",
-    "regex",
-    "file",
-    "array", // ✅ new
-    "boolean",
-    "url",
-    "nullable",
-  ];
+  #validRules: readonly string[] = VALID_RULE_NAMES;
 
   #booleanMaps = {
     "1": true,
@@ -468,16 +514,26 @@ export class Validator {
   async #validateAll() {
     for (const [key, ruleStr] of Object.entries(this.#validations)) {
       this.#errors[key] = [];
-      for (const rule of ruleStr.split("|")) {
+
+      const rules = ruleStr.split("|");
+      const v = this.#data[key];
+
+      // ✅ Check nullable first
+      if (rules.includes("nullable") && (!isset(v) || empty(v))) {
+        // skip all remaining validations for this field
+        continue;
+      }
+
+      for (const rule of rules) {
         const [name, val] = rule.split(":");
         if (!this.#validRules.includes(name))
           throw new Error(`Validation rule ${name} is not supported.`);
-        await this.#applyRule(key, name, val);
+        await this.#applyRule(key, name as ValidRuleName, val);
       }
     }
   }
 
-  async #applyRule(key: string, name: string, val: unknown) {
+  async #applyRule(key: string, name: ValidRuleName, val: unknown) {
     const v = this.#data[key];
     const e = this.#errors[key];
 
@@ -594,7 +650,7 @@ export class Validator {
           e.push("The field must be a valid URL.");
         break;
       case "boolean": {
-        const normalized = (v as string).toLowerCase();
+        const normalized = (v as string)?.toLowerCase() || "";
         if (normalized === "") {
           this.#data[key] = false;
           break;
@@ -606,6 +662,362 @@ export class Validator {
           e.push("The field must be a boolean.");
         }
         break;
+      }
+      case "string": {
+        if (!isString(v)) e.push("The field must be a string.");
+        break;
+      }
+      case "required_if": {
+        const [field, value] = (val as string).split(",");
+        if (this.#data[field] === value) {
+          if (!isset(v) || empty(v)) e.push("This field is required.");
+        }
+        break;
+      }
+      case "required_unless": {
+        const [field, value] = (val as string).split(",");
+        if (this.#data[field] !== value) {
+          if (!isset(v) || empty(v)) e.push("This field is required.");
+        }
+        break;
+      }
+      case "required_with": {
+        const otherFields = (val as string).split(",");
+        for (const field of otherFields) {
+          if (isset(this.#data[field]) && !empty(this.#data[field])) {
+            if (!isset(v) || empty(v)) e.push("This field is required.");
+            break;
+          }
+        }
+        break;
+      }
+
+      case "required_without": {
+        const otherFields = (val as string).split(",");
+        for (const field of otherFields) {
+          if (!isset(this.#data[field]) || empty(this.#data[field])) {
+            if (!isset(v) || empty(v)) e.push("This field is required.");
+            break;
+          }
+        }
+        break;
+      }
+      case "sometimes": {
+        if (!isset(v) || empty(v)) e.push("This field is required.");
+        break;
+      }
+      case "integer": {
+        try {
+          const parsed = parseInt(v as string);
+          if (isNaN(parsed)) {
+            e.push("This field must be a valid integer.");
+            break;
+          }
+          // edit the value to the parsed integer
+          if (!isInteger(parsed)) {
+            e.push("This field must be a valid integer.");
+            break;
+          }
+          this.#data[key] = parsed;
+        } catch (_error) {
+          e.push("This field must be a valid integer.");
+          break;
+        }
+        break;
+      }
+      case "float":
+      case "numeric": {
+        try {
+          const parsed = parseFloat(v as string);
+          if (isNaN(parsed)) {
+            e.push("This field must be a valid numeric.");
+            break;
+          }
+          this.#data[key] = parsed;
+        } catch (_error) {
+          e.push("This field must be a valid numeric.");
+          break;
+        }
+        break;
+      }
+      case "alpha": {
+        if (!((v as string)?.match(/^[a-zA-Z]+$/))) e.push("This field must contain only alphabetic characters.");
+        break;
+      }
+      case "alpha_num": {
+        if (!((v as string)?.match(/^[a-zA-Z0-9]+$/))) e.push("This field must contain only alphanumeric characters.");
+        break;
+      }
+      case "alpha_dash": {
+        if (!((v as string)?.match(/^[a-zA-Z0-9-_]+$/))) e.push("This field must contain only alphanumeric characters and dashes.");
+        break;
+      }
+      case "slug": {
+        if (!((v as string)?.match(/^[a-z0-9-]+$/))) e.push("This field must contain only lowercase alphanumeric characters and dashes.");
+        break;
+      }
+      case "uuid": {
+        if (!((v as string)?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/))) e.push("This field must be a valid UUID.");
+        break;
+      }
+
+      case "image": {
+        if (!isArray(v) || !((v as FormFile[]).every(f => f?.content instanceof Uint8Array))) {
+          e.push("This field must be an image.");
+        }
+        break;
+      }
+      case "mimetypes": {
+        if (!isArray(v) || !((v as FormFile[]).every(f => f?.content instanceof Uint8Array))) {
+          e.push("This field must be a valid file.");
+          break;
+        }
+        const allowed = (val as string).split(",");
+        if (!((v as FormFile[])[0]?.contentType) || !allowed.includes((v as FormFile[])[0]?.contentType as string)) {
+          e.push(`The file must be of type: ${allowed.join(", ")}.`);
+        }
+        break;
+      }
+
+      case "size": {
+        const expectedKB = parseInt(val as string);
+        if (!isArray(v) || !((v as FormFile[]).every(f => f?.content instanceof Uint8Array))) {
+          e.push("This field must be a file.");
+          break;
+        }
+        for (const f of v as FormFile[]) {
+          const sizeKB = f.size / 1024;
+          if (sizeKB > expectedKB) {
+            e.push(`Each file must be less than ${expectedKB} KB.`);
+            break;
+          }
+        }
+        break;
+      }
+
+      case "distinct": {
+        if (!isArray(v)) {
+          e.push("This field must be an array.");
+          break;
+        }
+        const values = (v as FormFile[]).map(f => f.filename); // or some property to compare
+        if (new Set(values).size !== values.length) {
+          e.push("This field must contain only distinct values.");
+        }
+        break;
+      }
+
+      case "dimensions": {
+        // Optional: requires image parsing to get width/height
+        // You would use something like "image-size" or a browser API
+        // Example format: val = "width=100,height=200"
+        const file = (v as FormFile[])[0];
+        if (!file?.contentType?.startsWith("image/")) {
+          e.push("This field must be an image.");
+          break;
+        }
+        // parse val and check dimensions if you implement image parser
+        break;
+      }
+      case "exists": {
+        const [tableRef, column] = (val as string).split(",");
+        if (!tableRef || !column) {
+          throw new Error(
+            `Invalid exists rule format: '${val}'. Expected 'table,column' or 'connection.table,column'.`,
+          );
+        }
+        const tryTable = tableRef.split(".");
+        const connection = (
+          tryTable.length === 2 ? tryTable[0] : config("database").default
+        ) as string;
+        if (!isset(connection)) {
+          throw new Error(
+            `Database connection '${connection}' is not defined in config.`,
+          );
+        }
+        const table = tryTable.length === 2 ? tryTable[1] : tableRef;
+        const exists = await DB.connection(connection)
+          .table(table)
+          .where(column, v)
+          .first();
+        if (!exists) {
+          e.push("This field must exist.");
+        }
+        break;
+      }
+      case "ip": {
+        const ip = v as string;
+        const ipv4Regex = /^(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)){3}$/;
+        const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:))|(::1)$/;
+        if (!ip.match(ipv4Regex) && !ip.match(ipv6Regex)) {
+          e.push("The field must be a valid IP address.");
+        }
+        break;
+      }
+      case "ipv4": {
+        const ip = v as string;
+        const ipv4Regex = /^(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)){3}$/;
+        if (!ip.match(ipv4Regex)) {
+          e.push("The field must be a valid IPv4 address.");
+        }
+        break;
+      }
+      case "ipv6": {
+        const ip = v as string;
+        const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:))|(::1)$/;
+        if (!ip.match(ipv6Regex)) {
+          e.push("The field must be a valid IPv6 address.");
+        }
+        break;
+      }
+      case "active_url": {
+        try {
+          const url = new globalThis.URL(v as string);
+          // awaitable DNS lookup
+          await dns.promises.lookup(url.hostname);
+        } catch (_error) {
+          e.push("The field must be an active URL.");
+        }
+        break;
+      }
+      case "date": {
+        const date = v as string;
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!date.match(dateRegex)) {
+          e.push("The field must be a valid date.");
+        }
+        break;
+      }
+      case "date_format": {
+        const dateStr = v as string;
+        const format = val as string; // Laravel-style format, e.g., "Y-m-d H:i:s"
+
+        try {
+          const parsed = Carbon.parse(dateStr, format);
+          if (!parsed || parsed.toString() !== dateStr) {
+            e.push(`The field must match the date format ${format}.`);
+          }
+        } catch {
+          e.push(`The field must match the date format ${format}.`);
+        }
+        break;
+      }
+      case "after": {
+        const other = (val as string) && keyExist(this.#data, val as string) ? this.#data[val as string] : val;
+        const valueDate = Carbon.make(v as string | number | Date);
+        const otherDate = Carbon.make(other as string | number | Date);
+        if (!valueDate || !otherDate) {
+          e.push("The field must be a valid date after the specified date.");
+          break;
+        }
+        const valueTs = new Date(valueDate.toString()).getTime();
+        const otherTs = new Date(otherDate.toString()).getTime();
+        if (valueTs <= otherTs) {
+          e.push("The field must be a date after the specified date.");
+        }
+        break;
+      }
+      case "after_or_equal": {
+        const other = (val as string) && keyExist(this.#data, val as string) ? this.#data[val as string] : val;
+        const valueDate = Carbon.make(v as string | number | Date);
+        const otherDate = Carbon.make(other as string | number | Date);
+        if (!valueDate || !otherDate) {
+          e.push("The field must be a valid date.");
+          break;
+        }
+        const valueTs = new Date(valueDate.toString()).getTime();
+        const otherTs = new Date(otherDate.toString()).getTime();
+        if (valueTs < otherTs) {
+          e.push("The field must be a date on or after the specified date.");
+        }
+        break;
+      }
+      case "before": {
+        const other = (val as string) && keyExist(this.#data, val as string) ? this.#data[val as string] : val;
+        const valueDate = Carbon.make(v as string | number | Date);
+        const otherDate = Carbon.make(other as string | number | Date);
+        if (!valueDate || !otherDate) {
+          e.push("The field must be a valid date before the specified date.");
+          break;
+        }
+        const valueTs = new Date(valueDate.toString()).getTime();
+        const otherTs = new Date(otherDate.toString()).getTime();
+        if (valueTs >= otherTs) {
+          e.push("The field must be a date before the specified date.");
+        }
+        break;
+      }
+      case "before_or_equal": {
+        const other = (val as string) && keyExist(this.#data, val as string) ? this.#data[val as string] : val;
+        const valueDate = Carbon.make(v as string | number | Date);
+        const otherDate = Carbon.make(other as string | number | Date);
+        if (!valueDate || !otherDate) {
+          e.push("The field must be a valid date.");
+          break;
+        }
+        const valueTs = new Date(valueDate.toString()).getTime();
+        const otherTs = new Date(otherDate.toString()).getTime();
+        if (valueTs > otherTs) {
+          e.push("The field must be a date on or before the specified date.");
+        }
+        break;
+      }
+      case "timezone": {
+        try {
+          Intl.DateTimeFormat(undefined, { timeZone: v as string });
+        } catch {
+          e.push("The field must be a valid timezone.");
+        }
+        break;
+      }
+      case "same": {
+        const otherValue = this.#data[val as string];
+        if (v !== otherValue) {
+          e.push(`The field must match ${val as string}.`);
+        }
+        break;
+      }
+      case "different": {
+        const otherValue = this.#data[val as string];
+        if (v === otherValue) {
+          e.push(`The field must be different from ${val as string}.`);
+        }
+        break;
+      }
+      case "in": {
+        const allowed = (val as string).split(",").map((s) => s.trim());
+        if (!allowed.includes(v as string)) {
+          e.push(`The field must be one of: ${allowed.join(", ")}.`);
+        }
+        break;
+      }
+      case "not_in": {
+        const disallowed = (val as string).split(",").map((s) => s.trim());
+        if (disallowed.includes(v as string)) {
+          e.push(`The field must not be one of: ${disallowed.join(", ")}.`);
+        }
+        break;
+      }
+      case "json": {
+        if (typeof v !== "string") {
+          e.push("The field must be a string.");
+          break;
+        }
+        try {
+          jsonDecode(v as string);
+        } catch {
+          e.push("The field must be valid JSON.");
+        }
+        break;
+      }
+      case "present": {
+        if (!keyExist(this.#data, key)) {
+          e.push("The field must be present.");
+        }
+        break;
+      }
+      default: {
+        abort(422, `Invalid validation rule: ${val}`);
       }
     }
   }
@@ -789,11 +1201,11 @@ class MyRoute {
     const identifier: IResourceRouteConf["identifier"] = {
       index: 0,
       create: 0,
-      post: 0,
       show: 0,
       edit: 0,
       update: 0,
       destroy: 0,
+      store: 0,
     };
     this.registerRoute(
       ["get"],
@@ -816,9 +1228,9 @@ class MyRoute {
       `${baseUri}`,
       [controller, "store" as K],
       rsrcId,
-    ).name(`${pluralized}.post`);
+    ).name(`${pluralized}.store`);
     thisRoutes[this.routeId] = ["post"];
-    identifier.post = this.routeId;
+    identifier.store = this.routeId;
     this.registerRoute(
       ["get"],
       `${baseUri}/{${singularized}}`,

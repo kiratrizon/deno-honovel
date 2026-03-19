@@ -296,7 +296,7 @@ export default class Model<
    * @param attributes The attributes to fill.
    * @returns The model instance.
    */
-  public forceFill(attributes: T): this {
+  public forceFill(attributes: Record<string, unknown>): this {
     for (const [key, value] of Object.entries(attributes)) {
       // @ts-ignore //
       this.setAttribute(key, value);
