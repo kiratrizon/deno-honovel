@@ -27,7 +27,7 @@ export default class FileStore extends AbstractStore {
 
   async get(key: string): Promise<any> {
     // Implement logic to retrieve value from file cache
-    const newKey = this.validateFilePath(this.validateKey(key));
+    const newKey = this.validateKey(key);
     await this.init();
     // For example, read from a JSON file or similar
     const filePath = path.join(
@@ -54,7 +54,7 @@ export default class FileStore extends AbstractStore {
 
   async put(key: string, value: any, seconds: number): Promise<void> {
     // Implement logic to store value in file cache
-    const newKey = this.validateFilePath(this.validateKey(key));
+    const newKey = this.validateKey(key);
     await this.init();
     // Logic to write value to a file, possibly with expiration logic
     const expiresAt =
@@ -77,7 +77,7 @@ export default class FileStore extends AbstractStore {
 
   async forget(key: string): Promise<void> {
     // Implement logic to remove key from file cache
-    const newKey = this.validateFilePath(this.validateKey(key));
+    const newKey = this.validateKey(key);
     await this.init();
     const filePath = path.join(
       path.normalize(this.path),
@@ -146,5 +146,10 @@ export default class FileStore extends AbstractStore {
         }
       }
     }
+  }
+
+  protected override validateKey(key: string): string {
+    const newKey = super.validateKey(key);
+    return this.validateFilePath(newKey);
   }
 }
