@@ -55,7 +55,7 @@ export abstract class Factory {
   public async create(
     overrides: Record<string, unknown> = {},
   ): Promise<
-    Model<Record<string, unknown>> | Model<Record<string, unknown>>[]
+    Model<Record<string, unknown>>[]
   > {
     const defs = this.make(overrides);
     const models: Model<Record<string, unknown>>[] = [];
@@ -68,7 +68,7 @@ export abstract class Factory {
       models.push(instance);
     }
 
-    return this._count === 1 ? models[0] : models;
+    return models;
   }
 
   /** Create a single model */
@@ -77,11 +77,9 @@ export abstract class Factory {
   ): Promise<Model<Record<string, unknown>>> {
     const currentCount = this._count;
     this._count = 1;
-    const data = this.create(overrides) as Promise<
-      Model<Record<string, unknown>>
-    >;
+    const data = await this.create(overrides);
     this._count = currentCount;
-    return data;
+    return data[0] ?? null;
   }
 
   /** Create multiple models */

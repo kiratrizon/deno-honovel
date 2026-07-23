@@ -56,4 +56,7 @@ export default class MemoryStore extends AbstractStore {
   getPrefix(): string {
     return this.prefix;
   }
+  async deleteExpired(): Promise<void> {
+    // The InMemoryCached store automatically handles expiration, so no action is needed here.
+  }
 }

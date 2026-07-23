@@ -6,7 +6,7 @@ export default new (class extends Migration {
   public async up() {
     await Schema.table("{{ TableName }}", (table: Blueprint) => {
         // alter logic
-
+        
       }
     );
   }
@@ -14,7 +14,7 @@ export default new (class extends Migration {
   public async down() {
     await Schema.table("{{ TableName }}", (table: Blueprint) => {
         // reverse alter logic
-        
+
       }
     );
   }

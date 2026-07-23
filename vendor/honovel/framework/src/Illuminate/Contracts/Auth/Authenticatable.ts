@@ -65,7 +65,7 @@ export default abstract class Authenticatable<
    */
   async setRememberToken(token: string): Promise<void> {
     // @ts-ignore //
-    this.fill({ remember_token: token });
+    this.fill({ [this.getRememberTokenName()]: token });
     // Save the model to persist the new token
     await this.save();
   }

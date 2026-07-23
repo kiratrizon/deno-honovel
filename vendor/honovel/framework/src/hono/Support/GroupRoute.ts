@@ -79,7 +79,9 @@ class Group {
     }
     if (methodName === "domain") {
       if ((value as string).includes("?"))
-        throw new Error("Domain cannot be optional");
+        throw new Error(
+          ` ${methodName.charAt(0).toUpperCase() + methodName.slice(1)} in group route cannot be optional`,
+        );
     }
     if (methodName !== "where") {
       this.flag[methodName] = value;
@@ -101,7 +103,7 @@ class Group {
         } else {
           if (!(v instanceof RegExp)) {
             throw new Error(
-              "Where value must be a RegExp or an array of RegExp"
+              "Where value must be a RegExp or an array of RegExp",
             );
           }
           (this.flag["where"] as Record<string, RegExp[]>)[key].push(v);
@@ -119,7 +121,6 @@ class Group {
     }
   > = {};
 
-
   private static groupIdList: number[] = [];
   public group(callback: (() => void) | string): void {
     if (isString(callback)) {
@@ -132,11 +133,26 @@ class Group {
     const previousGroupId = Group.groupId;
     if (previousGroupId > 0) {
       const previousGroupInstance = Group.groupReference[previousGroupId];
-      // get the middleware of the previous group
-      const flagConf = previousGroupInstance?.flagConfig;
-      const previousMiddleware = flagConf?.middleware;
-      if (previousMiddleware) {
-        this.flag["middleware"] = [...(previousMiddleware as any[]), ...(this.flag["middleware"] as string[])];
+      if (previousGroupInstance) {
+        // get the middleware of the previous group
+        const flagConf = previousGroupInstance?.flagConfig;
+        const previousMiddleware = flagConf?.middleware;
+        const previousWhere = flagConf.where;
+        if (!isset(this.flag["middleware"])) {
+          this.flag["middleware"] = [];
+        }
+        if (previousMiddleware) {
+          this.flag["middleware"] = [
+            ...(previousMiddleware as any[]),
+            ...(this.flag["middleware"] as string[]),
+          ];
+        }
+        if (!isset(this.flag["where"])) {
+          this.flag["where"] = {};
+        }
+        if (previousWhere) {
+          this.flag["where"] = { ...previousWhere };
+        }
       }
     }
     if (Group.groupIdList.length === 0) {
@@ -181,7 +197,7 @@ class Group {
         isset(Group.currentDomain)
       ) {
         throw new Error(
-          `Group domain already called for domain ${Group.currentDomain}`
+          `Group domain already called for domain ${Group.currentDomain}`,
         );
       }
       Group.callbackCalled = true;

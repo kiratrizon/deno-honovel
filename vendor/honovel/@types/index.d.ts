@@ -1,7 +1,7 @@
 import { ConfigItems } from "configs/@types/index.d.ts";
 import { Carbon } from "helpers";
 
-export { };
+export {};
 
 type IGetType =
   | "string"
@@ -109,7 +109,7 @@ declare global {
     key: T,
     defaultValue?: ConfigItems[T],
   ): ConfigItems[T];
-  function config(key: string, defaultValue?: unknown): unknown;
+  function config<T extends unknown>(key: string, defaultValue?: T): T;
   /**
    * Initializes the configuration store by reading all configuration files in the config directory.
    */
@@ -249,7 +249,7 @@ declare global {
    * Checks whether a file exists relative to a predefined base path.
    *
    * Usage:
-   *   const exists = fileExist('path/to/file.txt');
+   *   const exists = pathExists('path/to/file.txt');
    *
    * - If no path is provided, returns `false`.
    * - Resolves the file path relative to `'../../../'` from the current `__dirname`.
@@ -258,7 +258,33 @@ declare global {
    * @param fileString - Relative file path from the base path.
    * @returns `true` if the file exists, otherwise `false`.
    */
-  function pathExist(fileString?: string): Promise<boolean>;
+  function pathExists(fileString: string): boolean;
+
+  /**
+   * Async equivalent of `pathExists`, using `Deno.stat` instead of `Deno.statSync`.
+   *
+   * Use this instead of `pathExists` when the path being checked is per-request-unique
+   * (e.g. keyed by session ID) rather than one of a small, reusable set of paths — in that
+   * case the check can't be cached away, so it must not block the event loop while it runs.
+   *
+   * @param fileString - Relative file path from the base path.
+   * @returns `true` if the file exists, otherwise `false`.
+   */
+  function pathExistsAsync(fileString: string): Promise<boolean>;
+
+  /**
+   * Checks if the given path is a directory.
+   * @param dirString - The relative path to check.
+   * @returns `true` if the path is a directory, otherwise `false`.
+   */
+  function isDir(dirString: string): boolean;
+
+  /**
+   * Checks if the given path is a file.
+   * @param fileString - The relative path to check.
+   * @returns `true` if the path is a file, otherwise `false`.
+   */
+  function isFile(fileString: string): boolean;
 
   /**
    * Writes the provided content to a file relative to the base path.
@@ -481,7 +507,7 @@ declare global {
   function versionCompare(
     version1: string,
     version2: string,
-    operator: IVersionOperator | IVersionSymbol,
+    operator?: IVersionOperator | IVersionSymbol,
   ): boolean | number;
 
   function moveUploadedFile(
@@ -525,4 +551,12 @@ declare global {
    * @returns `true` if the URL is valid, otherwise `false`.
    */
   function isURL(url: string): boolean;
+
+  /**
+   * sprintf function that formats a string using placeholders and values.
+   * @param format - The format string containing placeholders.
+   * @param args - The values to replace the placeholders in the format string.
+   * @returns The formatted string with placeholders replaced by the provided values.
+   */
+  function sprintf(format: string, ...args: unknown[]): string;
 }

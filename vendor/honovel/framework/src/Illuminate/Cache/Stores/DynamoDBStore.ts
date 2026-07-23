@@ -245,4 +245,75 @@ export default class DynamoDBStore extends AbstractStore {
   getPrefix(): string {
     return this.prefix;
   }
+
+  async deleteExpired(): Promise<void> {
+    await this.init();
+    const prefix = this.getPrefix();
+    if (!prefix) {
+      return;
+    }
+
+    try {
+      const now = time();
+      let exclusiveStartKey: Record<string, unknown> | undefined;
+
+      do {
+        const scanCommand = new this.ScanCommand({
+          TableName: this.table,
+          FilterExpression: "begins_with(#pk, :prefix)",
+          ExpressionAttributeNames: {
+            "#pk": this.partitionKey,
+          },
+          ExpressionAttributeValues: {
+            ":prefix": { S: prefix },
+          },
+          ...(exclusiveStartKey
+            ? { ExclusiveStartKey: exclusiveStartKey }
+            : {}),
+        });
+        const result = await this.client.send(scanCommand);
+        exclusiveStartKey = result.LastEvaluatedKey;
+
+        if (!result.Items?.length) {
+          continue;
+        }
+
+        const keysToDelete = result.Items.filter((item: any) => {
+          const storageKey = item[this.partitionKey]?.S;
+          if (!storageKey || !storageKey.startsWith(prefix) || !item.name?.S) {
+            return false;
+          }
+          try {
+            const data = jsonDecode(item.name.S);
+            if (!isset(data.expiresAt) || isNull(data.expiresAt)) {
+              return false;
+            }
+            const expiresAt = isString(data.expiresAt)
+              ? strToTime(data.expiresAt)
+              : data.expiresAt;
+            return isInteger(expiresAt) && now > expiresAt;
+          } catch {
+            return false;
+          }
+        }).map((item: any) => ({
+          [this.partitionKey]: item[this.partitionKey],
+        }));
+
+        for (let i = 0; i < keysToDelete.length; i += 25) {
+          const chunk = keysToDelete.slice(i, i + 25);
+          await this.client.send(
+            new this.BatchWriteItemCommand({
+              RequestItems: {
+                [this.table]: chunk.map((key: any) => ({
+                  DeleteRequest: { Key: key },
+                })),
+              },
+            }),
+          );
+        }
+      } while (exclusiveStartKey);
+    } catch (error) {
+      console.error("Error deleting expired DynamoDB cache items:", error);
+    }
+  }
 }

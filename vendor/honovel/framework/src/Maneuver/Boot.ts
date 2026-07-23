@@ -13,24 +13,24 @@ class Boot {
    * It is called when the application is started
    * Execute all the packages that need to be initialized
    */
-  static async init() {
+  static async init(fromCli: boolean = false) {
     //
     try {
       Carbon.setCarbonTimezone((config("app.timezone") as string) || "UTC");
       Cache.init();
-      await Database.init(true);
-      Auth.setAuth();
+      
+      if(!fromCli){
+        await Database.init(true);
+        Auth.setAuth();
+        Exceptions.render(ValidationException, async ({ request }, e) => {
+          if (request.expectsJson() || request.is("api/*") || request.ajax()) {
+            return response().json({ message: e.message, errors: e.errors, input: e.input })
+          } else {
+            return redirect().back().withInput().withErrors(e.errors);
+          }
+        });
+      }
 
-      Exceptions.render<typeof ValidationException>(ValidationException, async ({ request }, e) => {
-        if (request.expectsJson() || request.is("api/*") || request.ajax()) {
-          return response().json({ message: e.message, errors: e.errors, input: e.input })
-        } else {
-          // save errors to session
-          request.flash();
-          request.session.flash("errors", e.errors);
-          return redirect().back();
-        }
-      });
     } catch (e) {
       console.error(e);
       Deno.exit(1);

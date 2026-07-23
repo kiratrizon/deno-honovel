@@ -4,12 +4,14 @@ import { logger } from "hono/logger";
 import { serveStatic } from "hono/deno";
 import * as path from "node:path";
 
-import { Hono, MiddlewareHandler, Next } from "hono";
+import { Hono, MiddlewareHandler } from "hono";
 import Boot from "../Maneuver/Boot.ts";
 
 import { HonoType } from "../../../@types/declaration/imain.d.ts";
 
 import { INRoute } from "../../../@types/declaration/IRoute.d.ts";
+
+import { methodOverride } from "hono/method-override";
 import {
   buildRequestInit,
   regexToHono,
@@ -18,12 +20,11 @@ import {
   toMiddleware,
   URLArranger,
   toFallback,
-  returnResponse,
   toNotfound,
-  saveSessionIfRedirect,
-  convertToResponse,
+  returnResponse,
   exceptionToResponse,
 } from "./Support/FunctionRoute.ts";
+import type HttpHono from "HttpHono";
 import { IMyConfig } from "./Support/MethodRoute.ts";
 import { honoSession } from "HonoHttp/HonoSession.ts";
 import { Route as Router } from "Illuminate/Support/Facades/index.ts";
@@ -76,24 +77,52 @@ function serveDiskStatic(urlPrefix: string, diskRoot: string) {
 import inlineConfig from "../../../../vite/vite-manipulate.ts";
 const vitePort = inlineConfig?.server?.port || 5173;
 
-// Check if a Vite server is actually responding
+/** Max wait when the dev server is down (Windows TCP + fetch can hang for many seconds). */
+const VITE_PROBE_MS = 250;
+
+// Check if something is listening on the Vite port (TCP probe — faster than HTTP; capped timeout)
 const isViteRunning = async (port: number): Promise<boolean> => {
   try {
-    const resp = await fetch(`http://127.0.0.1:${port}`, { method: "GET" });
-    return resp.status < 500; // true if server responds
-  } catch (_e) {
-    return false; // connection refused or server not up
+    const conn = await Deno.connect({
+      hostname: "127.0.0.1",
+      port,
+      signal: AbortSignal.timeout(VITE_PROBE_MS),
+    });
+    conn.close();
+    return true;
+  } catch {
+    return false;
   }
 };
 
 if (config("app").env === "local") {
-  const viteServer = await isViteRunning(vitePort);
-  define("viteServer", viteServer, false);
-
-  if (viteServer) {
-    console.info("✅ Vite server is running");
+  let viteServer: boolean = false;
+  // vite local versioning
+  // this will be the last version of the framework that will support vite local development for deno 2.7.5 and below
+  if (
+    versionCompare(frameworkVersion().honovelVersion, "2.0.1", ">") &&
+    versionCompare(frameworkVersion().denoVersion, "2.7.5", ">") &&
+    versionCompare(frameworkVersion().denoVersion, "2.7.11", "<")
+  ) {
+    console.warn(
+      "⚡ Vite server is not supported for this version of the framework",
+      frameworkVersion(),
+    );
   } else {
-    // console.info("⚡ Vite server is not running");
+    viteServer = await isViteRunning(vitePort);
+    define("viteServer", viteServer, false);
+    if (viteServer) {
+      // check a json file if exist
+      if (!pathExists(basePath("storage/framework/cache/vite.json"))) {
+        makeDir(path.dirname(basePath("storage/framework/cache/vite.json")));
+        writeFile(
+          basePath("storage/framework/cache/vite.json"),
+          jsonEncode({
+            files: [],
+          }),
+        );
+      }
+    }
   }
 }
 
@@ -180,11 +209,39 @@ function buildIncomingUrl(requestUrl: URL): string {
   return `${protocol}://${incomingHost}/${uri || ""}`;
 }
 
+import { DetectorOptions, languageDetector } from "hono/language";
+import { RouterLoader } from "Illuminate/Foundation/Application.ts";
+
+const i18n = {
+  order: ["path", "querystring", "cookie", "header"],
+  lookupQueryString: "lang",
+  lookupCookie: "language",
+  lookupFromHeaderKey: "accept-language",
+  lookupFromPathIndex: 0,
+  caches: ["cookie"],
+  ignoreCase: true,
+  fallbackLanguage: "en",
+  supportedLanguages: config("app.supported_locales", ["en"]),
+  cookieOptions: {
+    sameSite: "Strict",
+    secure: true,
+    maxAge: 365 * 24 * 60 * 60,
+    httpOnly: true,
+  },
+  debug: false,
+} as DetectorOptions;
+
 class Server {
   private static Hono = Hono;
   public static app: HonoType;
   public static domainPattern: Record<string, Record<string, HonoType>> = {};
 
+  private static console: RouterLoader;
+
+  private static routeFallbacks: Record<
+    string,
+    ((param: HttpHono) => Promise<void>) | null
+  > = {};
   public static routes: Record<
     string,
     {
@@ -194,19 +251,26 @@ class Server {
     }
   > = {};
   public static async init() {
-
     try {
-      define("application", (await import("../../../../../bootstrap/app.ts"))?.default, false);
+      define(
+        "application",
+        (await import("../../../../../bootstrap/app.ts"))?.default,
+        false,
+      );
       const appRouter = application?.getRouter();
       const appRouterMiddleware = appRouter?.middleware;
-      const [globalInstance, globalFallbackInstance] = [...toMiddleware(appRouterMiddleware.global)];
+      const [globalInstance, globalFallbackInstance] = [
+        ...toMiddleware(appRouterMiddleware.global),
+      ];
       // push
       globalMiddleware.push(...globalInstance);
       globalMiddlewareFallback.push(...globalFallbackInstance);
-
     } catch (_e) {
       console.error("Application not found", _e);
-      if (!isset(env("DENO_DEPLOYMENT_ID")) || empty(env("DENO_DEPLOYMENT_ID"))) {
+      if (
+        !isset(env("DENO_DEPLOYMENT_ID")) ||
+        empty(env("DENO_DEPLOYMENT_ID"))
+      ) {
         Deno.exit(1);
       }
     }
@@ -215,12 +279,12 @@ class Server {
     const conditionalLogger = async (c: any, next: () => Promise<void>) => {
       const url = c.req.url;
       // skip if path ends with __warmup
-      const skipPaths = ['/.well-known', '/robots.txt', '/favicon.ico'];
-      if (skipPaths.some(path => new URL(url).pathname.startsWith(path))) {
+      const skipPaths = ["/.well-known", "/robots.txt", "/favicon.ico"];
+      if (skipPaths.some((path) => new URL(url).pathname.startsWith(path))) {
         return await next(); // skip logging
       }
       if (!url.endsWith("__warmup")) {
-        await logger()(c, next); // call logger middleware
+        return await logger()(c, next); // call logger middleware
       } else {
         return await next(); // skip logger
       }
@@ -229,7 +293,7 @@ class Server {
     this.app.use(conditionalLogger);
 
     if (!env("DENO_DEPLOYMENT_ID", null)) {
-      const disks = config("filesystems").disks || {};
+      const disks = config("filesystems")?.disks || {};
 
       for (const [, diskConfig] of Object.entries(disks)) {
         const disk = diskConfig as PublicDiskConfig;
@@ -261,6 +325,9 @@ class Server {
       await providerInstance.boot();
     }
     await Boot.finalInit();
+
+    // phpmyadmin logic
+    // put PHPMYADMIN_HOST in env in order to embed phpmyadmin in the app
     if (isset(env("PHPMYADMIN_HOST"))) {
       this.app.get("/myadmin", async (c: MyContext) => {
         return c.redirect("/myadmin/", 301);
@@ -273,6 +340,14 @@ class Server {
 
         const headers = new Headers(c.req.raw.headers);
 
+        headers.set("Host", new URL(targetUrl).host);
+        headers.set("X-Forwarded-Host", c.req.header("host") ?? "");
+        headers.set(
+          "X-Forwarded-Proto",
+          isFile(storagePath("ssl/cert.pem")) ? "https" : "http",
+        );
+        headers.set("X-Forwarded-Port", String(env("APP_PORT")));
+
         // Clone body safely (handle GET without body)
         let body: BodyInit | null = null;
         if (c.req.method !== "GET" && c.req.method !== "HEAD") {
@@ -284,13 +359,28 @@ class Server {
           method: c.req.method,
           headers,
           body,
+          redirect: "manual",
         });
 
-        // Clone response headers safely (some need to be removed)
         const responseHeaders = new Headers(response.headers);
-        responseHeaders.delete("content-encoding"); // remove problematic headers if needed
+
+        // Remove problematic headers
+        responseHeaders.delete("content-encoding");
+        responseHeaders.delete("content-length");
+
+        // Rewrite redirects to stay under /myadmin
+        const location = responseHeaders.get("location");
+        if (location) {
+          const url = new URL(location, env("PHPMYADMIN_HOST") as string);
+
+          responseHeaders.set(
+            "location",
+            `/myadmin${url.pathname}${url.search}${url.hash}`,
+          );
+        }
 
         const responseBody = await response.arrayBuffer();
+
         return new Response(responseBody, {
           status: response.status,
           headers: responseHeaders,
@@ -306,6 +396,7 @@ class Server {
   private static async generateNewApp(
     conf?: Record<string, unknown>,
     withDefaults: boolean = false,
+    key?: string,
   ): Promise<HonoType> {
     let app: HonoType;
     if (isset(conf) && !empty(conf)) {
@@ -314,13 +405,21 @@ class Server {
       app = new this.Hono();
     }
 
+    const asterisk = "*";
+
     if (withDefaults) {
+      app.use(asterisk, methodOverride({ app }));
       app.use(...myStaticDefaults);
-      app.use("*", async (c: MyContext, next: () => Promise<void>) => {
+      app.use(asterisk, async (c: MyContext, next: () => Promise<void>) => {
         c.set("subdomain", {});
         return await next();
       });
     }
+
+    if (key === "web") {
+      app.use(languageDetector(i18n));
+    }
+
     return app;
   }
 
@@ -340,22 +439,24 @@ class Server {
       }
     }
 
+    const asterisk = "*";
     const [routeGroupMiddleware, routeGroupMiddlewareFallback]: [
       MiddlewareHandler[],
       TFallbackMiddleware[],
     ] = [...toMiddleware(mainMiddleware)];
-
-    // @ts-ignore //
     app.use(
-      "*",
+      asterisk,
       honoSession(),
       buildRequestInit(),
-      // build the globalMiddlewareHere
       ...globalMiddleware,
       ...routeGroupMiddleware,
     );
     // return the prefix if exists
-    return [groupRoutes[key]?.prefix || "/", routeGroupMiddlewareFallback];
+    const result: [string, TFallbackMiddleware[]] = [
+      groupRoutes[key]?.prefix || "/",
+      routeGroupMiddlewareFallback,
+    ];
+    return result;
   }
 
   private static async loadAndValidateRoutes() {
@@ -371,12 +472,16 @@ class Server {
     const routers = application.getRouter().routers;
     const ordered = {
       ...Object.fromEntries(
-        Object.entries(routers).filter(([key]) => key !== "web")
+        Object.entries(routers).filter(([key]) => key !== "web"),
       ),
-      ...(routers.web !== undefined && { web: routers.web })
+      ...(routers.web !== undefined && { web: routers.web }),
     };
 
     for (const [key, val] of Object.entries(ordered)) {
+      if (key == "commands") {
+        this.console = val;
+        continue;
+      }
       try {
         await val();
       } catch (err) {
@@ -384,7 +489,7 @@ class Server {
       }
       if (isset(Route)) {
         Server.domainPattern[key] = {};
-        const byEndpointsRouter = await this.generateNewApp();
+        const byEndpointsRouter = await this.generateNewApp({}, false, key);
         const [routePrefix, routeGroupMiddlewareFallback] =
           this.applyMainMiddleware(key, byEndpointsRouter);
         const instancedRoute = new Route();
@@ -396,7 +501,11 @@ class Server {
           defaultRoute,
           defaultResource,
           resourceReferrence,
+          fallback,
         } = allGroup;
+        if (isset(fallback)) {
+          this.routeFallbacks[key] = fallback;
+        }
         if (isset(methods) && !empty(methods)) {
           if (!empty(defaultResource)) {
             for (const di of defaultResource) {
@@ -436,7 +545,7 @@ class Server {
                     fixUri,
                     arrangerDispatch.requiredParams,
                     arrangerDispatch.optionalParams,
-                    methodarr
+                    methodarr,
                   );
                 }
               }
@@ -487,24 +596,26 @@ class Server {
             }
           }
 
-          // const warmUpFallbacks: TFallbackMiddleware[] = [
-          //   ...globalMiddlewareFallback,
-          //   ...routeGroupMiddlewareFallback,
-          // ];
-          // const warmUpFallbacksArr: MiddlewareHandler[] = [];
-          // warmUpFallbacks.forEach((fb, index) => {
-          //   warmUpFallbacksArr.unshift(toFallback([index + 1, fb]));
-          // });
+          if (config("app.env") == "local") {
+            const warmUpFallbacks: TFallbackMiddleware[] = [
+              ...globalMiddlewareFallback,
+              ...routeGroupMiddlewareFallback,
+            ];
+            const warmUpFallbacksArr: MiddlewareHandler[] = [];
+            warmUpFallbacks.forEach((fb, index) => {
+              warmUpFallbacksArr.unshift(toFallback([index + 1, fb]));
+            });
 
-          // const warmUpBuilds = [
-          //   toDispatch({ args: warmUpdispatch, debugString: "" }, []),
-          //   ...warmUpFallbacksArr,
-          //   returnResponse,
-          // ];
-          // const warmUpApp = await this.generateNewApp();
-          // // @ts-ignore //
-          // warmUpApp.get("/__warmup", ...warmUpBuilds);
-          // byEndpointsRouter.route("/", warmUpApp);
+            const warmUpBuilds = [
+              toDispatch({ args: warmUpdispatch, debugString: "" }, []),
+              ...warmUpFallbacksArr,
+              returnResponse,
+            ];
+            const warmUpApp = await this.generateNewApp();
+            // @ts-ignore //
+            warmUpApp.get("/__warmup", ...warmUpBuilds);
+            byEndpointsRouter.route("/", warmUpApp);
+          }
 
           // for groups
           if (isset(groups) && !empty(groups) && isObject(groups)) {
@@ -578,6 +689,11 @@ class Server {
                 method: [],
                 allBuilds: [],
               };
+              const generatedopts = URLArranger.generateOptionalParamRoutes(
+                arrangerGroup.string,
+                "group",
+                where,
+              );
 
               groupEntries.forEach(([routeId, methodarr]) => {
                 const routeUsed = methods[routeId];
@@ -618,7 +734,7 @@ class Server {
                   const finalName = !empty(as) ? `${as}.${flagName}` : flagName;
                   const finalUrl = buildRouteUrl(
                     routePrefix,
-                    `${arrangerGroup.string}${myConfig.uri}`,
+                    `${newName}${myConfig.uri}`,
                   );
 
                   if (validateRouteName(this.routes, finalName)) {
@@ -628,7 +744,7 @@ class Server {
                       finalUrl,
                       arrangerDispatch.requiredParams,
                       arrangerDispatch.optionalParams,
-                      methodarr
+                      methodarr,
                     );
                   }
                 }
@@ -657,11 +773,11 @@ class Server {
                 ];
 
                 // make sure splittedUri is not only "/" else splice
-                splittedUri = splittedUri.filter(str => {
-                  if (str === "/") {
+                splittedUri = splittedUri.filter((str) => {
+                  if (str === "/" && !generatedopts.includes("/")) {
                     hasOnlySlash.found = true;
                   }
-                  return true;    // keep this element
+                  return true; // keep this element
                 });
 
                 if (hasOnlySlash.found) {
@@ -687,21 +803,26 @@ class Server {
                 }
               });
               const newAppGroup = await this.generateNewApp();
-              const generatedopts = URLArranger.generateOptionalParamRoutes(
-                arrangerGroup.string,
-                "group",
-                where,
-              );
 
               if (hasOnlySlash.found) {
                 generatedopts.forEach((grp) => {
-                  if (hasOnlySlash.method.length === 1 && hasOnlySlash.method[0] === "head") {
+                  if (
+                    hasOnlySlash.method.length === 1 &&
+                    hasOnlySlash.method[0] === "head"
+                  ) {
                     hasOnlySlash.allBuilds.splice(1, 0, headFunction);
-                    // @ts-ignore //
-                    newAppGroup.get(grp == "/" ? grp : `${grp}/`, ...hasOnlySlash.allBuilds);
+                    newAppGroup.get(
+                      // @ts-ignore //
+                      grp == "/" ? grp : `${grp}/`,
+                      ...hasOnlySlash.allBuilds,
+                    );
                   } else {
-                    // @ts-ignore //
-                    newAppGroup.on(hasOnlySlash.method, grp == "/" ? grp : `${grp}/`, ...hasOnlySlash.allBuilds);
+                    newAppGroup.on(
+                      hasOnlySlash.method,
+                      // @ts-ignore //
+                      grp == "/" ? grp : `${grp}/`,
+                      ...hasOnlySlash.allBuilds,
+                    );
                   }
                 });
               }
@@ -725,23 +846,6 @@ class Server {
               }
             }
           }
-          // @ts-ignore //
-          // if (Route.fallbackFn) {
-          //   byEndpointsRouter.use(
-          //     // @ts-ignore //
-          //     toNotfound(
-          //       {
-          //         // @ts-ignore //
-          //         args: Route.fallbackFn,
-          //         // @ts-ignore //
-          //         debugString: Route.fallbackFn.toString(),
-          //       },
-          //       []
-          //     )
-          //   );
-          //   // @ts-ignore //
-          //   Route.fallbackFn = null; // reset after applying
-          // }
           this.app.route(routePrefix, byEndpointsRouter);
         } else {
           console.error("No routes found");
@@ -751,10 +855,47 @@ class Server {
   }
 
   private static async endInit() {
-    this.app.notFound(async function (c: MyContext) {
-      const notFoundInstance = new NotFoundHttpException();
-      return await exceptionToResponse(c, notFoundInstance);
-    });
+    if (!empty(this.routeFallbacks)) {
+      // @ts-ignore //
+      const groupRoutesMain = GroupRoute.groupRouteMain as Record<
+        string,
+        { middleware: string[]; prefix?: string }
+      >;
+      const fallbackEntries = Object.entries(this.routeFallbacks)
+        .filter(([, fn]) => isset(fn))
+        .map(([key, fn]) => ({
+          prefix: groupRoutesMain[key]?.prefix || "/",
+          fn: fn as (param: HttpHono) => Promise<void>,
+        }))
+        .sort((a, b) => b.prefix.length - a.prefix.length);
+
+      this.app.notFound(async (c: MyContext) => {
+        const path = c.req.path;
+        const matched = fallbackEntries.find(
+          ({ prefix }) =>
+            prefix === "/" || path === prefix || path.startsWith(`${prefix}/`),
+        );
+
+        if (!matched) {
+          const notFoundInstance = new NotFoundHttpException();
+          return await exceptionToResponse(c, notFoundInstance);
+        }
+        const handler = toNotfound(
+          {
+            debugString: "Route::fallback",
+            // @ts-ignore //
+            args: matched.fn,
+          },
+          [],
+        );
+        return (await handler(c, async () => {})) as Response;
+      });
+    } else {
+      this.app.notFound(async function (c: MyContext) {
+        const notFoundInstance = new NotFoundHttpException();
+        return await exceptionToResponse(c, notFoundInstance);
+      });
+    }
 
     const ServerDomainKeys = Object.keys(this.domainPattern); // ["web", "api"]
     ServerDomainKeys.forEach((key) => {
@@ -770,13 +911,20 @@ class Server {
 
     // save routes in a file cache
     if (!isset(env("DENO_DEPLOYMENT_ID")) || empty(env("DENO_DEPLOYMENT_ID"))) {
-      if (!(await pathExist(storagePath("framework/route")))) {
+      if (!pathExists(storagePath("framework/route"))) {
         makeDir(storagePath("framework/route"));
       }
 
       // arrange json file with pretty format
       const prettyRoutes = JSON.stringify(this.routes, null, 2);
-      writeFile(path.join(storagePath("framework/route"), "routes.json"), prettyRoutes);
+      writeFile(
+        path.join(storagePath("framework/route"), "routes.json"),
+        prettyRoutes,
+      );
+    }
+
+    if (isset(this.console) && isFunction(this.console)) {
+      await this.console();
     }
   }
 }

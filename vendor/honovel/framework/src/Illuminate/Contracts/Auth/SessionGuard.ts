@@ -2,6 +2,7 @@ import { Hash } from "../../Support/Facades/index.ts";
 import { Carbon } from "helpers";
 import BaseGuard from "./BaseGuard.ts";
 import Authenticatable from "./Authenticatable.ts";
+import { Str } from "../../Support/index.ts";
 
 type AuthenticatableAttrSession = {
   password: string;
@@ -42,9 +43,11 @@ export default class SessionGuard extends BaseGuard {
 
     // Check if remember token exists in cookies
     const rememberToken = request.cookie(sessguardKey);
+    // @ts-ignore //
+    const instanceModel = new this.model() as Authenticatable;
     if (rememberToken) {
       const user = (await this.model
-        .where("remember_token", rememberToken)
+        .where(instanceModel.getRememberTokenName(), rememberToken)
         .first()) as Authenticatable | null;
       if (user) {
         this.rememberUser = true;
@@ -81,6 +84,9 @@ export default class SessionGuard extends BaseGuard {
     if (!user) {
       return false;
     }
+    if (!user.getAuthPassword()) {
+      return false;
+    }
     if (!Hash.check(credentials[passwordKey], user.getAuthPassword())) {
       return false;
     }
@@ -112,15 +118,12 @@ export default class SessionGuard extends BaseGuard {
     const Cookie = this.c.get("myHono").Cookie;
     if (remember) {
       // If "remember me" is checked, set the remember token
-      const generatedToken = `${
-        this.guardName
-      }_${user.getAuthIdentifier()}_${strToTime(Carbon.now().addDays(30))}`;
-      const rememberToken = Hash.make(generatedToken);
+      const rememberToken = Str.random(60);
       await user.setRememberToken(rememberToken);
-      await user.save();
 
       Cookie.queue(sessguardKey, rememberToken, {
         maxAge: 30 * 24 * 60 * 60, // 30 days
+        path: "/",
       });
       this.rememberUser = true;
     }
@@ -135,6 +138,7 @@ export default class SessionGuard extends BaseGuard {
     request.session.forget(sessguardKey);
     Cookie.queue(sessguardKey, "", {
       maxAge: -1, // Delete the cookie
+      path: "/",
     });
     // @ts-ignore //
     this.c.set("auth_user", null);

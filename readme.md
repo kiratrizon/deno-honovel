@@ -20,7 +20,7 @@ Welcome to **Honovel Deno** — a Laravel-inspired web framework powered by [Hon
 
 - Install Deno first, refer the installation [here](https://docs.deno.com/runtime/getting_started/installation/). -- skip this if you already have Deno Runtime
 
-- Refer Honovel [here](https://honovel.deno.dev/docs/1)
+- Refer Honovel [here](https://honovel.kiratrizon.deno.net/docs/1)
 
 
 📝 **License**

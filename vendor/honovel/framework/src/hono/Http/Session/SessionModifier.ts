@@ -15,8 +15,8 @@ type SessionEncrypt = {
 type NonFunction<T> = T extends (...args: any[]) => any
   ? never // exclude functions
   : T extends object
-  ? { [K in keyof T]: NonFunction<T[K]> }
-  : T;
+    ? { [K in keyof T]: NonFunction<T[K]> }
+    : T;
 
 function base64ToUint8Array(base64: string): Uint8Array {
   const binaryString = atob(base64);
@@ -84,7 +84,7 @@ export default class SessionModifier {
       case "file": {
         const pathDefault: string =
           SessionModifier.sesConfig.files || storagePath("framework/sessions");
-        if (!(await pathExist(pathDefault))) {
+        if (!pathExists(pathDefault)) {
           makeDir(pathDefault);
         }
         configuration.path = pathDefault;
@@ -156,9 +156,14 @@ export default class SessionModifier {
       secure: SessionModifier.sesConfig.secure || false,
       httpOnly: SessionModifier.sesConfig.httpOnly || true,
       partitioned: SessionModifier.sesConfig.partitioned || false,
+      path: SessionModifier.sesConfig.path || "/",
     });
 
     this.#value = await this.loadSession(this.#sessionId);
+
+    // garbage collection
+    await this.gc();
+
     // @ts-ignore //
     this.#c.get("session").updateValues(this.#value);
     // @ts-ignore //
@@ -172,7 +177,7 @@ export default class SessionModifier {
     deleteCookie(
       this.#c,
       SessionModifier.sesConfig.cookie ||
-      Str.snake(env("APP_NAME", "honovel") + "_session"),
+        Str.snake(env("APP_NAME", "honovel") + "_session"),
     );
     await this.deleteSession(this.#sessionId);
 
@@ -193,10 +198,11 @@ export default class SessionModifier {
   private async deleteSession(sid: string) {
     const isEncrypt = SessionModifier.sesConfig.encrypt || false;
     const type = SessionModifier.sesConfig.driver || "file";
-    const key = `${type === "file"
+    const key = `${
+      type === "file"
         ? sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")
         : sid
-      }${isEncrypt ? "" : "_plain"}`;
+    }${isEncrypt ? "_encrypted" : "_plain"}`;
     await SessionModifier.store.forget(key);
   }
 
@@ -211,10 +217,11 @@ export default class SessionModifier {
     if (isEncrypt) {
       data = { encrypt: await this.encrypt(data) };
     }
-    const key = `${type === "file"
+    const key = `${
+      type === "file"
         ? sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")
         : sid
-      }${isEncrypt ? "" : "_plain"}`;
+    }${isEncrypt ? "_encrypted" : "_plain"}`;
     await SessionModifier.store.put(
       key,
       data,
@@ -224,10 +231,11 @@ export default class SessionModifier {
 
   private async loadSession(sid: string) {
     const isEncrypt = SessionModifier.sesConfig.encrypt || false;
-    const key = `${SessionModifier.sesConfig.driver === "file"
+    const key = `${
+      SessionModifier.sesConfig.driver === "file"
         ? sid.replace(SessionModifier.sesConfig.prefix || "sess:", "")
         : sid
-      }${isEncrypt ? "" : "_plain"}`;
+    }${isEncrypt ? "_encrypted" : "_plain"}`;
 
     const data = await SessionModifier.store.get(key);
     if (!isset(data)) {
@@ -323,5 +331,16 @@ export default class SessionModifier {
     }
 
     return null;
+  }
+
+  // garbage collection
+  private async gc(): Promise<void> {
+    if (methodExist(SessionModifier.store, "deleteExpired")) {
+      const [chance, outOf] = SessionModifier.sesConfig.lottery;
+      const wins = Math.floor(Math.random() * outOf) + 1 <= chance;
+      if (wins) {
+        await SessionModifier.store.deleteExpired();
+      }
+    }
   }
 }

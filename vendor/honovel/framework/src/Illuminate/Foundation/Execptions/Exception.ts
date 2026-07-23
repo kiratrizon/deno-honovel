@@ -75,14 +75,30 @@ export default class Exception extends Error {
         510: "Not Extended",
         511: "Network Authentication Required",
     };
-    public httpCode: ContentfulStatusCode = 500;
-    public headers: Record<string, string> = {};
+    #httpCode: ContentfulStatusCode = 500;
+    #headers: Record<string, string> = {};
     constructor(message: string, httpCode: ContentfulStatusCode = 500, headers: Record<string, string> = {}) {
         super(message);
 
         Error.captureStackTrace(this, this.constructor);
         this.name = "Exception";
-        this.httpCode = httpCode;
-        this.headers = headers;
+        this.setHttpCode(httpCode);
+        this.setHeaders(headers);
+    }
+
+    private setHttpCode(httpCode: ContentfulStatusCode) {
+        this.#httpCode = httpCode;
+    }
+
+    private setHeaders(headers: Record<string, string>) {
+        this.#headers = headers;
+    }
+
+    public get httpCode() {
+        return this.#httpCode;
+    }
+
+    public get headers() {
+        return this.#headers;
     }
 }

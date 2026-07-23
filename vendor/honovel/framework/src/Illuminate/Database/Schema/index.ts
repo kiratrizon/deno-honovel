@@ -2,6 +2,7 @@
 
 import { SupportedDrivers } from "configs/@types/index.d.ts";
 import { Database } from "Database";
+import pluralize from "pluralize";
 
 export type ColumnType =
   | "string" // VARCHAR
@@ -77,12 +78,28 @@ export class Blueprint {
   private table: string;
   public columns: ColumnDefinition[] = [];
   public drops: string[] = [];
+  /** Table-level default character set (MySQL only), e.g. `$table->charset = 'utf8mb4'`. */
+  public charset?: string;
+  /** Table-level default collation (MySQL only), e.g. `$table->collation = 'utf8mb4_unicode_ci'`. */
+  public collation?: string;
   private columnCount: number = 0;
   constructor(
     table: string,
     private connection: SupportedDrivers,
   ) {
     this.table = table;
+  }
+
+  /** Laravel-style: `user_id` → `users`, `third_class_id` → `third_classes`. */
+  static #guessReferencedTableFromForeignKeyColumn(columnName: string): string {
+    if (!columnName.endsWith("_id")) {
+      throw new Error(
+        `Cannot infer referenced table for column "${columnName}". ` +
+          `Use constrained('table_name') or foreign('table_name').references('id').`,
+      );
+    }
+    const withoutSuffix = columnName.slice(0, -3);
+    return pluralize.plural(withoutSuffix);
   }
   /**
    * Provides chainable column option modifiers for a specific column definition.
@@ -232,6 +249,23 @@ export class Blueprint {
        */
       foreign: (table: string) => {
         column.options.foreign = table;
+        return this.optionsSelector(column);
+      },
+
+      /**
+       * Shorthand: infer referenced table from `{singular}_id` (e.g. `user_id` → `users`),
+       * default referenced column `id`. Matches Laravel's `foreignId()->constrained()`.
+       */
+      constrained: (
+        referencedTable?: string,
+        referencedColumn: string = "id",
+      ) => {
+        const refTable =
+          referencedTable !== undefined && referencedTable !== ""
+            ? referencedTable
+            : Blueprint.#guessReferencedTableFromForeignKeyColumn(column.name);
+        column.options.foreign = refTable;
+        column.options.references = referencedColumn;
         return this.optionsSelector(column);
       },
 
@@ -814,20 +848,110 @@ export class Blueprint {
         return `INDEX \`${indexName}\` (\`${col.name}\`)`;
       });
 
+    const foreignKeySqls = this.columns
+      .map((col) => this.#foreignKeyConstraintFragment(col, db))
+      .filter((s): s is string => s !== null);
+
     if (this.#isAlter) {
       const statements: string[] = [];
-      for (const colSql of columnSqls) {
-        statements.push(`ALTER TABLE ${table} ADD COLUMN ${colSql}`);
+      for (let i = 0; i < columnSqls.length; i++) {
+        const verb = this.columns[i].options.change ? "MODIFY" : "ADD";
+        statements.push(`ALTER TABLE ${table} ${verb} COLUMN ${columnSqls[i]}`);
+        const alterFk = this.#foreignKeyAlterStatement(
+          this.columns[i],
+          table,
+          db,
+        );
+        if (alterFk) statements.push(alterFk);
       }
       for (const name of this.drops ?? []) {
         const col = db.quoteIdentifier(name);
         statements.push(`ALTER TABLE ${table} DROP COLUMN ${col}`);
       }
+      if (this.connection === "mysql" && (this.charset || this.collation)) {
+        let sql = `ALTER TABLE ${table} CONVERT TO CHARACTER SET ${this.charset ?? "utf8mb4"}`;
+        if (this.collation) sql += ` COLLATE ${this.collation}`;
+        statements.push(sql);
+      }
       return statements.length ? statements.join(";\n") + ";" : "";
     } else {
-      const all = [...columnSqls, ...indexes].join(",\n  ");
-      return `CREATE TABLE ${table} (\n  ${all}\n);`;
+      const all = [...columnSqls, ...indexes, ...foreignKeySqls].join(",\n  ");
+      let tableOptions = "";
+      if (this.connection === "mysql") {
+        const opts: string[] = [];
+        if (this.charset) opts.push(`DEFAULT CHARSET=${this.charset}`);
+        if (this.collation) opts.push(`COLLATE=${this.collation}`);
+        if (opts.length) tableOptions = ` ${opts.join(" ")}`;
+      }
+      return `CREATE TABLE ${table} (\n  ${all}\n)${tableOptions};`;
     }
+  }
+
+  /** Table-level FOREIGN KEY line inside CREATE TABLE (not emitted for SQLite ALTER quirks). */
+  #foreignKeyConstraintFragment(
+    col: ColumnDefinition,
+    db: Database,
+  ): string | null {
+    const { name, options } = col;
+    if (!options.foreign || !options.references) return null;
+    const fkName = `${this.table}_${name}_foreign`;
+    let sql =
+      `CONSTRAINT ${db.quoteIdentifier(fkName)} FOREIGN KEY (${db.quoteIdentifier(name)}) ` +
+      `REFERENCES ${db.quoteIdentifier(options.foreign)} (${db.quoteIdentifier(options.references)})`;
+    if (options.onDelete) {
+      sql += ` ON DELETE ${this.#normalizeReferentialAction(options.onDelete)}`;
+    }
+    if (
+      options.onUpdate &&
+      !this.#isTimestampColumnOnUpdate(options.onUpdate)
+    ) {
+      sql += ` ON UPDATE ${this.#normalizeReferentialAction(options.onUpdate)}`;
+    }
+    return sql;
+  }
+
+  /** ALTER TABLE … ADD CONSTRAINT (after ADD COLUMN). */
+  #foreignKeyAlterStatement(
+    col: ColumnDefinition,
+    quotedTable: string,
+    db: Database,
+  ): string | null {
+    if (this.connection === "sqlite") {
+      // SQLite has limited ALTER; skip FK add here to avoid runtime errors.
+      return null;
+    }
+    const { name, options } = col;
+    if (!options.foreign || !options.references) return null;
+    const fkName = `${this.table}_${name}_foreign`;
+    let sql =
+      `ALTER TABLE ${quotedTable} ADD CONSTRAINT ${db.quoteIdentifier(fkName)} ` +
+      `FOREIGN KEY (${db.quoteIdentifier(name)}) ` +
+      `REFERENCES ${db.quoteIdentifier(options.foreign)} (${db.quoteIdentifier(options.references)})`;
+    if (options.onDelete) {
+      sql += ` ON DELETE ${this.#normalizeReferentialAction(options.onDelete)}`;
+    }
+    if (
+      options.onUpdate &&
+      !this.#isTimestampColumnOnUpdate(options.onUpdate)
+    ) {
+      sql += ` ON UPDATE ${this.#normalizeReferentialAction(options.onUpdate)}`;
+    }
+    return sql;
+  }
+
+  #isTimestampColumnOnUpdate(value: string): boolean {
+    return value.trim().toUpperCase().startsWith("CURRENT_TIMESTAMP");
+  }
+
+  #normalizeReferentialAction(action: string): string {
+    const key = action.trim().toLowerCase().replace(/_/g, " ");
+    const map: Record<string, string> = {
+      cascade: "CASCADE",
+      restrict: "RESTRICT",
+      "set null": "SET NULL",
+      "no action": "NO ACTION",
+    };
+    return map[key] ?? action.trim().toUpperCase();
   }
 
   private columnToSql(col: ColumnDefinition): string {
@@ -836,6 +960,16 @@ export class Blueprint {
     const parts: string[] = [
       `${db.quoteIdentifier(name)} ${this.mapType(type, col)}`,
     ];
+
+    // Character set & collation (MySQL only; applies to CHAR/VARCHAR/TEXT/ENUM/SET types)
+    if (this.connection === "mysql") {
+      if (options.charset) {
+        parts.push(`CHARACTER SET ${options.charset}`);
+      }
+      if (options.collation) {
+        parts.push(`COLLATE ${options.collation}`);
+      }
+    }
 
     // Unsigned (only for MySQL/PostgreSQL)
     if (options.unsigned && ["mysql"].includes(this.connection)) {

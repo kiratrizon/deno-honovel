@@ -45,9 +45,11 @@ try {
   // Parse it into an object
   const warmups = JSON.parse(jsonString) || [];
 
-  for (const warmup of warmups) {
-    // const test = await fetch(warmup);
-    // console.info(`Warmup URL: ${warmup} - Status: ${test.status}`);
+  if (config("app.env") == "local") {
+    for (const warmup of warmups) {
+      const test = await fetch(warmup);
+      console.info(`Warmup URL: ${warmup} - Status: ${test.status}`);
+    }
   }
 } catch {
   //

@@ -167,4 +167,10 @@ export default abstract class AbstractStore<
       }
     }
   }
+
+  // garbage collection
+  /**
+   * Garbage collection for the cache store.
+   */
+  abstract deleteExpired(): Promise<void>;
 }

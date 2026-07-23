@@ -1,5 +1,6 @@
 import BaseController from "Illuminate/Routing/BaseController";
-import HttpHono from "./HttpHono.d.ts";
+import HttpHono from "HttpHono";
+import IHttpHono from "./HttpHono.d.ts";
 export interface IGroupParams {
   prefix?: string;
   middleware?: string | HttpMiddleware | (string | HttpMiddleware)[];
@@ -41,7 +42,10 @@ export declare class IGroupRoute {
    * @returns The result of the middleware method from the IGroupInstance.
    */
   public static middleware(
-    handler: keysOfDefaultAliases | (keysOfDefaultAliases | HttpMiddleware)[] | HttpMiddleware,
+    handler:
+      | keysOfDefaultAliases
+      | (keysOfDefaultAliases | HttpMiddleware)[]
+      | HttpMiddleware,
   ): ReturnType<InstanceType<typeof IGroupInstance>["middleware"]>;
 
   /**
@@ -229,7 +233,10 @@ export interface IMethodRoute {
    * @returns The current instance of IMethodRoute for method chaining.
    */
   middleware(
-    handler: keysOfDefaultAliases | (keysOfDefaultAliases | HttpMiddleware)[] | HttpMiddleware,
+    handler:
+      | keysOfDefaultAliases
+      | (keysOfDefaultAliases | HttpMiddleware)[]
+      | HttpMiddleware,
   ): this;
   /**
    * Define parameter constraints using regular expressions.
@@ -394,6 +401,12 @@ export declare class IRoute extends IGroupRoute {
     uri: string,
     controller: new () => T,
   ): IResourceRoute;
+
+  /**
+   * Register a fallback callback, invoked when no other route matches.
+   * @param fn - The callback to run for unmatched requests.
+   */
+  public static fallback(fn: (param: IHttpHono) => Promise<any>): void;
 }
 
 export type IdefaultRoute = Record<string, (keyof IHeaderChildRoutes)[]>;
@@ -418,6 +431,7 @@ export interface IReferencesRoute {
   defaultRoute: IdefaultRoute;
   defaultResource: number[];
   resourceReferrence: Record<string, ResourceRoute>;
+  fallback: ((param: HttpHono) => Promise<void>) | null;
 }
 
 export declare class INRoute extends IRoute {

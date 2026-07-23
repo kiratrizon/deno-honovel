@@ -5,26 +5,25 @@ export async function myError(
   c: MyContext,
   code: ContentfulStatusCode = 404,
   message: string = "Not Found",
-  headers: Record<string, string> = {}
+  headers: Record<string, string> = {},
 ) {
   const extractMyHono = c.get("myHono");
   const request = extractMyHono?.request;
   if (!request) {
     return c.json({ message }, code, headers);
   }
-  if (request.expectsJson() || request.ajax()) {
-        return c.json(
+  if (request.expectsJson() || request.ajax() || request.is("api/*")) {
+    return c.json(
       {
         message,
       },
       code,
-      headers
+      headers,
     );
   }
 
-  // console.trace("myError");
   // this is for html
-  if (!(await pathExist(viewPath(`error/${code}.edge`)))) {
+  if (!pathExists(viewPath(`error/${code}.edge`))) {
     const content = getFileContents(honovelPath("hono/defaults/abort.stub"));
     const finalContent = content
       .replace(/{{ code }}/g, code.toString())

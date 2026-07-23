@@ -120,8 +120,8 @@ export default class DatabaseHelper {
           return result.length > 0;
         }
         case "sqlite": {
-          return await pathExist(
-            this.dbConfig.connections[this.connection].database,
+          return pathExists(
+            this.dbConfig.connections[this.connection].database as string,
           );
         }
         case "sqlsrv": {

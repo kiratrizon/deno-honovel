@@ -68,4 +68,8 @@ export default class RedisStore extends AbstractStore {
   getPrefix(): string {
     return this.prefix;
   }
+
+  async deleteExpired(): Promise<void> {
+    // Redis handles expiration automatically, so no action is needed here.
+  }
 }

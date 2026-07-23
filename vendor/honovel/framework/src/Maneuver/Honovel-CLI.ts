@@ -12,7 +12,7 @@ import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import * as path from "node:path";
 import PreventRequestDuringMaintenance from "Illuminate/Foundation/Http/Middleware/PreventRequestDuringMaintenance.ts";
 import { Encrypter, EnvUpdater } from "Illuminate/Encryption/index.ts";
-import { DatabaseHelper } from "Database";
+import { Database, DatabaseHelper } from "Database";
 import Seeder from "Illuminate/Database/Seeder.ts";
 import Boot from "./Boot.ts";
 import { createCA, createCert } from "mkcert";
@@ -20,14 +20,14 @@ import { dirname, basename } from "https://deno.land/std/path/mod.ts";
 
 const envs = [".env"];
 
-await Boot.init();
+await Boot.init(true);
 class MyArtisan {
-  constructor() { }
+  constructor() {}
   private async createConfig(options: { force?: boolean }, name: string) {
     const stubPath = honovelPath("stubs/ConfigDefault.stub");
     const stubContent = getFileContents(stubPath);
     if (!options.force) {
-      if (await pathExist(basePath(`config/${name}.ts`))) {
+      if (pathExists(basePath(`config/${name}.ts`))) {
         console.error(
           `Config file ${basePath(`config/${name}.ts`)} already exist.`,
         );
@@ -55,7 +55,7 @@ class MyArtisan {
       output += `  ${name},\n`;
     }
     output += `};\n`;
-    if (!(await pathExist(basePath("config/build")))) {
+    if (!pathExists(basePath("config/build"))) {
       makeDir(basePath("config/build"));
     }
     writeFile(basePath("config/build/myConfig.ts"), output);
@@ -179,7 +179,6 @@ class MyArtisan {
     force: boolean;
     seeder?: string;
   }) {
-
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
     }
@@ -225,7 +224,6 @@ class MyArtisan {
     force: boolean;
     seeder?: string;
   }) {
-
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
     }
@@ -272,7 +270,6 @@ class MyArtisan {
     force: boolean;
     seeder?: string;
   }) {
-
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
     }
@@ -358,7 +355,6 @@ class MyArtisan {
     db: string;
     force: boolean;
   }) {
-
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
     }
@@ -415,7 +411,6 @@ class MyArtisan {
     db: string;
     force: boolean;
   }) {
-
     if (!options.force) {
       await this.askIfDBNotExist(options.db);
     }
@@ -456,7 +451,6 @@ class MyArtisan {
   }
 
   private async migrationStatus(options: { path?: string; db: string }) {
-
     await this.createMigrationTable(options.db);
 
     const allModules = await loadMigrationModules(options.path);
@@ -525,44 +519,57 @@ class MyArtisan {
   }
 
   private async dropAllTables(connection: string): Promise<void> {
+    const db = DB.connection(connection);
+    const dbType = db.getDriverName();
+
     let tables: string[] = [];
-    const dbType = DB.connection(connection).getDriverName();
+
     switch (dbType) {
       case "mysql": {
-        const result = await DB.connection(connection).select(
-          `SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND table_type = 'BASE TABLE'`,
+        const result = await db.select(
+          `SELECT table_name
+           FROM information_schema.tables
+           WHERE table_schema = ?
+           AND table_type = 'BASE TABLE'`,
           [config(`database.connections.${connection}.database`)],
         );
+
         tables = result.map((row) => `\`${row.TABLE_NAME}\``);
         break;
       }
 
       case "pgsql": {
-        const result = await DB.connection(connection).select(
-          `SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tableowner = current_user`,
+        const result = await db.select(
+          `SELECT tablename
+           FROM pg_tables
+           WHERE schemaname = 'public'`,
         );
+
         tables = result.map((row) => `"${row.tablename}"`);
         break;
       }
 
       case "sqlite": {
-        const result = await DB.connection(connection).select(
-          `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`,
+        const result = await db.select(
+          `SELECT name
+           FROM sqlite_master
+           WHERE type = 'table'
+           AND name NOT LIKE 'sqlite_%'`,
         );
+
         tables = result.map((row) => `"${row.name}"`);
         break;
       }
 
       case "sqlsrv": {
-        const result = await DB.connection(connection).select(
-          `SELECT name FROM sys.tables`,
-        );
+        const result = await db.select(`SELECT name FROM sys.tables`);
+
         tables = result.map((row) => `[${row.name}]`);
         break;
       }
 
       default:
-        throw new Error(`Unsupported DB type: \`${dbType}\``);
+        throw new Error(`Unsupported DB type: ${dbType}`);
     }
 
     if (tables.length === 0) {
@@ -570,13 +577,63 @@ class MyArtisan {
       return;
     }
 
-    if (dbType === "sqlite") {
-      for (const table of tables) {
-        await DB.connection(connection).statement(`DROP TABLE ${table};`);
+    try {
+      switch (dbType) {
+        case "sqlite": {
+          await db.statement(`PRAGMA foreign_keys = OFF`);
+
+          for (const table of tables) {
+            await db.statement(`DROP TABLE ${table}`);
+          }
+
+          break;
+        }
+
+        case "mysql": {
+          await db.statement(`SET FOREIGN_KEY_CHECKS = 0`);
+
+          const dropSQL = `DROP TABLE ${tables.join(", ")}`;
+          await db.statement(dropSQL);
+
+          break;
+        }
+
+        case "pgsql": {
+          const dropSQL = `DROP TABLE ${tables.join(", ")} CASCADE`;
+          await db.statement(dropSQL);
+
+          break;
+        }
+
+        case "sqlsrv": {
+          await db.statement(`
+            EXEC sp_msforeachtable
+            'ALTER TABLE ? NOCHECK CONSTRAINT all'
+          `);
+
+          const dropSQL = `DROP TABLE ${tables.join(", ")}`;
+          await db.statement(dropSQL);
+
+          break;
+        }
       }
-    } else {
-      const dropSQL = `DROP TABLE ${tables.join(", ")};`;
-      await DB.connection(connection).statement(dropSQL);
+    } finally {
+      switch (dbType) {
+        case "sqlite":
+          await db.statement(`PRAGMA foreign_keys = ON`);
+          break;
+
+        case "mysql":
+          await db.statement(`SET FOREIGN_KEY_CHECKS = 1`);
+          break;
+
+        case "sqlsrv":
+          await db.statement(`
+            EXEC sp_msforeachtable
+            'ALTER TABLE ? WITH CHECK CHECK CONSTRAINT all'
+          `);
+          break;
+      }
     }
   }
 
@@ -607,6 +664,7 @@ class MyArtisan {
   private async serve(options: {
     port?: number | null | string;
     host: string;
+    tunnel?: boolean;
   }) {
     const port = options.port;
     const serverPath = "vendor/honovel/framework/src/hono/run-server.ts";
@@ -689,15 +747,16 @@ class MyArtisan {
     Deno.mkdirSync(path.dirname(warmupJsonPath), { recursive: true });
 
     Deno.writeTextFileSync(warmupJsonPath, WARMUP_URL);
+
+    const cmdArgs = ["run", "--config", "./deno.json", "-A"];
+    if (options.tunnel) {
+      cmdArgs.push("--tunnel");
+    }
+    cmdArgs.push(
+      ...[`--watch${watchFlag}`, `--watch-exclude=vite.ts`, serverPath],
+    );
     const cmd = new Deno.Command("deno", {
-      args: [
-        "run",
-        "--config",
-        "./deno.json",
-        "-A",
-        `--watch${watchFlag}`,
-        serverPath,
-      ],
+      args: cmdArgs,
       stdout: "inherit",
       stderr: "inherit",
       env: envObj,
@@ -791,7 +850,7 @@ class MyArtisan {
     // no stub for view, just create empty file
     const view = viewPath(`${name}.edge`);
     const pathName = dirname(view); // directory path
-    if (!(await pathExist(pathName))) {
+    if (!pathExists(pathName)) {
       makeDir(pathName);
     }
     writeFile(view, "");
@@ -803,7 +862,7 @@ class MyArtisan {
     const stubContent = getFileContents(stubPath);
     const requestContent = stubContent.replace(/{{ ClassName }}/g, name);
     // make directory first
-    if (!(await pathExist(appPath(`/Http/Requests`)))) {
+    if (!pathExists(appPath(`/Http/Requests`))) {
       makeDir(appPath(`/Http/Requests`));
     }
     writeFile(appPath(`/Http/Requests/${name}.ts`), requestContent);
@@ -820,7 +879,7 @@ class MyArtisan {
     const stubContent = getFileContents(stubPath);
     const mailContent = stubContent.replace(/{{ ClassName }}/g, name);
     // make directory first
-    if (!(await pathExist(appPath(`/Mail`)))) {
+    if (!pathExists(appPath(`/Mail`))) {
       makeDir(appPath(`/Mail`));
     }
     writeFile(appPath(`/Mail/${name}.ts`), mailContent);
@@ -837,7 +896,7 @@ class MyArtisan {
     const stubContent = getFileContents(stubPath);
     const eventContent = stubContent.replace(/{{ ClassName }}/g, name);
     // make directory first
-    if (!(await pathExist(appPath(`/Events`)))) {
+    if (!pathExists(appPath(`/Events`))) {
       makeDir(appPath(`/Events`));
     }
     writeFile(appPath(`/Events/${name}.ts`), eventContent);
@@ -864,7 +923,7 @@ class MyArtisan {
     }
 
     // make directory first
-    if (!(await pathExist(appPath(`/Listeners`)))) {
+    if (!pathExists(appPath(`/Listeners`))) {
       makeDir(appPath(`/Listeners`));
     }
     writeFile(appPath(`/Listeners/${name}.ts`), listenerContent);
@@ -881,7 +940,7 @@ class MyArtisan {
     const stubContent = getFileContents(stubPath);
     const jobContent = stubContent.replace(/{{ ClassName }}/g, name);
     // make directory first
-    if (!(await pathExist(appPath(`/Jobs`)))) {
+    if (!pathExists(appPath(`/Jobs`))) {
       makeDir(appPath(`/Jobs`));
     }
     writeFile(appPath(`/Jobs/${name}.ts`), jobContent);
@@ -898,7 +957,7 @@ class MyArtisan {
     const stubContent = getFileContents(stubPath);
     const ruleContent = stubContent.replace(/{{ ClassName }}/g, name);
     // make directory first
-    if (!(await pathExist(appPath(`/Rules`)))) {
+    if (!pathExists(appPath(`/Rules`))) {
       makeDir(appPath(`/Rules`));
     }
     writeFile(appPath(`/Rules/${name}.ts`), ruleContent);
@@ -915,7 +974,7 @@ class MyArtisan {
     const stubContent = getFileContents(stubPath);
     const exceptionContent = stubContent.replace(/{{ ClassName }}/g, name);
     // make directory first
-    if (!(await pathExist(appPath(`/Exceptions`)))) {
+    if (!pathExists(appPath(`/Exceptions`))) {
       makeDir(appPath(`/Exceptions`));
     }
     writeFile(appPath(`/Exceptions/${name}.ts`), exceptionContent);
@@ -929,7 +988,7 @@ class MyArtisan {
 
   private async routeList() {
     const routesPath = storagePath("framework/route/routes.json");
-    if (await pathExist(routesPath)) {
+    if (pathExists(routesPath)) {
       const routes = getFileContents(routesPath);
       const prettyRoutes = JSON.parse(routes);
       console.log(prettyRoutes);
@@ -941,7 +1000,7 @@ class MyArtisan {
   private async cacheClear() {
     const cachePath = storagePath("framework/cache");
 
-    if (await pathExist(cachePath)) {
+    if (pathExists(cachePath)) {
       try {
         for await (const entry of Deno.readDir(cachePath)) {
           if (entry.isFile && entry.name !== ".gitignore") {
@@ -972,7 +1031,7 @@ class MyArtisan {
 
     try {
       // Check if symlink already exists
-      if (await pathExist(publicStorage)) {
+      if (pathExists(publicStorage)) {
         console.warn("The 'public/storage' directory already exists.");
         return;
       }
@@ -1008,7 +1067,7 @@ class MyArtisan {
     const apiPath = basePath("routes/api.ts");
 
     try {
-      if (await pathExist(apiPath)) {
+      if (pathExists(apiPath)) {
         console.info(`API routes file ${apiPath} already exist.`);
         return;
       }
@@ -1016,19 +1075,46 @@ class MyArtisan {
       const stubPath = honovelPath("stubs/backend.stub");
       const stubContent = getFileContents(stubPath);
       writeFile(apiPath, stubContent);
-      console.log(`API routes file created at ${path.relative(Deno.cwd(), apiPath)}`);
+      console.log(
+        `API routes file created at ${path.relative(Deno.cwd(), apiPath)}`,
+      );
     } finally {
       // make yellow color
       console.log(
-        `Please add this to your bootstrap/app.ts file under withRouting({}):`
+        `Please add this to your bootstrap/app.ts file under withRouting({}):`,
       );
 
       // Entire import line in yellow
-      console.log("\x1b[33m%s\x1b[0m", 'api: async () => await import("../routes/api.ts"),');
+      console.log(
+        "\x1b[33m%s\x1b[0m",
+        'api: async () => await import("../routes/api.ts"),',
+      );
     }
   }
 
   public async command(args: string[]): Promise<void> {
+    const commandName = args.find((arg) => !arg.startsWith("-")) || "";
+    const dbCommands = new Set([
+      "db:seed",
+      "migrate",
+      "migrate:fresh",
+      "migrate:refresh",
+      "migrate:rollback",
+      "migrate:reset",
+      "migrate:status",
+      "cache:clear",
+      "config:cache",
+      "config:clear",
+      "optimize",
+      "optimize:clear",
+      "down",
+      "up",
+    ]);
+
+    if (dbCommands.has(commandName)) {
+      await Database.init(true);
+    }
+
     await myCommand
       .name("deno task")
       .description("Honovel CLI")
@@ -1264,7 +1350,7 @@ class MyArtisan {
         const cert = creaatedCert.cert;
         const key = creaatedCert.key;
         const sslPath = storagePath("ssl");
-        if (!(await pathExist(sslPath))) {
+        if (!pathExists(sslPath)) {
           makeDir(sslPath);
         }
         // write key and cert
@@ -1373,8 +1459,13 @@ class MyArtisan {
       .option("--host <host:string>", "Host to run the server on", {
         default: "127.0.0.1",
       })
-      .action((options: { port?: number | null | string; host: string }) =>
-        this.serve.bind(this)(options),
+      .option("--tunnel", "Expose your application")
+      .action(
+        (options: {
+          port?: number | null | string;
+          host: string;
+          tunnel?: boolean;
+        }) => this.serve.bind(this)(options),
       )
       // for maintenance mode
       .command("down", "Put the application into maintenance mode")

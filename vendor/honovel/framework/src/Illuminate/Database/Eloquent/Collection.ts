@@ -39,11 +39,31 @@ class Collection<T extends Model> extends Array<T> {
     return data;
   }
 
-  public override map<U>(callbackfn: (value: T, index: number, array: T[]) => U): U[] {
+  public override map<U>(
+    callbackfn: (value: T, index: number, array: T[]) => U,
+  ): U[] {
     const data: U[] = [];
     this.forEach((item, index, array) => {
       data.push(callbackfn(item, index, array));
     });
+    return data;
+  }
+
+  public override slice(start?: number, end?: number): T[] {
+    const length = this.length;
+    let begin = start ?? 0;
+    let stop = end ?? length;
+
+    if (begin < 0) begin = Math.max(length + begin, 0);
+    else begin = Math.min(begin, length);
+
+    if (stop < 0) stop = Math.max(length + stop, 0);
+    else stop = Math.min(stop, length);
+
+    const data: T[] = [];
+    for (let i = begin; i < stop; i++) {
+      data.push(this[i]);
+    }
     return data;
   }
 }

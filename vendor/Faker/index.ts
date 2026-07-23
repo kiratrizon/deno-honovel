@@ -45,7 +45,7 @@ export class FakerFactory {
 
   /** @returns A random username */
   public username(): string {
-    return this.faker.internet.userName();
+    return this.faker.internet.username();
   }
 
   /** @returns A random email address */
@@ -242,7 +242,9 @@ export class FakerFactory {
 
   /** @returns A random boolean value */
   public boolean(): boolean {
-    return this.faker.datatype.boolean();
+    return this.faker.datatype.boolean({
+      probability: 0.5,
+    });
   }
 
   /**

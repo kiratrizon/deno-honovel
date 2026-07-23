@@ -1,5 +1,6 @@
 import { Database } from "Database";
 import { DB } from "../../Support/Facades/index.ts";
+import Paginator from "../../Pagination/Paginator.ts";
 
 export class SQLError extends Error {
   constructor(message: string) {
@@ -43,8 +44,36 @@ export type WhereOperator =
 
 type JoinType = "INNER" | "LEFT" | "RIGHT" | "FULL" | "CROSS";
 type OrderByDirection = "ASC" | "DESC" | "asc" | "desc";
+// An ORDER BY entry is either a quoted column + direction, or a raw SQL
+// expression carrying its own placeholder bindings (see `orderByRaw`).
+type OrderByEntry =
+  | { kind: "column"; expr: string; direction: OrderByDirection }
+  | { kind: "raw"; expr: string; bindings: WhereValue[] };
 type WhereSeparator = "AND" | "OR";
 const placeHolderuse: string = "?";
+
+// Operators are interpolated directly into SQL (they cannot be bound as
+// parameters), so only this fixed set is ever allowed. Any other value —
+// including attacker-controlled input reaching an operator position — is
+// rejected instead of being spliced into the query.
+const allowedWhereOperators: readonly string[] = [
+  "=",
+  "!=",
+  "<>",
+  "<",
+  "<=",
+  ">",
+  ">=",
+  "LIKE",
+  "NOT LIKE",
+];
+function assertWhereOperator(operator: WhereOperator): WhereOperator {
+  const normalized = String(operator).trim().toUpperCase();
+  if (!allowedWhereOperators.includes(normalized)) {
+    throw new SQLError(`Invalid SQL operator: ${operator}`);
+  }
+  return normalized as WhereOperator;
+}
 
 // where
 export class WhereInterpolator {
@@ -70,6 +99,15 @@ export class WhereInterpolator {
     ]
   ): this {
     this.whereProcess("AND", ...args);
+    return this;
+  }
+
+  // whereRaw
+  public whereRaw(raw: SQLRaw, bindings: WhereValue[] = []): this {
+    if (!(raw instanceof SQLRaw)) {
+      throw new SQLError("Invalid where raw clause");
+    }
+    this.whereClauses.push([raw.toString(), bindings]);
     return this;
   }
 
@@ -143,7 +181,7 @@ export class WhereInterpolator {
       value = operatorOrValue as WherePrimitive;
     } else {
       value = valueArg;
-      operator = operatorOrValue as WhereOperator;
+      operator = assertWhereOperator(operatorOrValue as WhereOperator);
     }
     if (!empty(columnOrFn) && isString(columnOrFn)) {
       column = columnOrFn;
@@ -453,7 +491,7 @@ export class JoinInterpolator extends WhereInterpolator {
 export class Builder extends WhereInterpolator {
   private limitValue: number | null = null;
   private offsetValue: number | null = null;
-  private orderByValue: Record<string, OrderByDirection>[] = [];
+  private orderByValue: OrderByEntry[] = [];
   private groupByValue: string[] = [];
   #bindings: Record<string, WhereValue[]> = {};
   #params: WherePrimitive[] = [];
@@ -864,7 +902,11 @@ export class Builder extends WhereInterpolator {
     return this;
   }
 
-  public limit(value: number): this {
+  public limit(value: number | null): this {
+    if (value === null) {
+      this.limitValue = null;
+      return this;
+    }
     if (!isInteger(value) || value < 0) {
       throw new SQLError("Limit must be a non-negative number");
     }
@@ -872,7 +914,11 @@ export class Builder extends WhereInterpolator {
     return this;
   }
 
-  public offset(value: number): this {
+  public offset(value: number | null): this {
+    if (value === null) {
+      this.offsetValue = null;
+      return this;
+    }
     if (!isInteger(value) || value < 0) {
       throw new SQLError("Offset must be a non-negative number");
     }
@@ -887,7 +933,35 @@ export class Builder extends WhereInterpolator {
     if (!["ASC", "DESC"].includes(direction.toUpperCase())) {
       throw new SQLError("Invalid order direction");
     }
-    this.orderByValue.push({ [column]: direction });
+    this.orderByValue.push({
+      kind: "column",
+      expr: this.database.quoteIdentifier(column),
+      direction,
+    });
+    return this;
+  }
+
+  /**
+   * Add a raw ORDER BY expression to the query.
+   *
+   * Use this only for orderings the quoted `orderBy` cannot express (e.g.
+   * `FIELD(status, ...)`, `CASE WHEN ...`, computed expressions). The raw SQL
+   * is emitted verbatim, so it MUST NOT contain user input as text — pass any
+   * user-supplied values as `?` placeholders and provide them via `bindings`.
+   *
+   * @param raw A SQLRaw expression (e.g. `DB.raw("FIELD(status, ?, ?)")`).
+   * @param bindings Values bound to the placeholders in `raw`, in order.
+   * @returns The query builder instance.
+   */
+  public orderByRaw(raw: SQLRaw, bindings: WhereValue[] = []): this {
+    if (!(raw instanceof SQLRaw)) {
+      throw new SQLError("Invalid raw order by clause");
+    }
+    this.orderByValue.push({
+      kind: "raw",
+      expr: raw.toString(),
+      bindings: [...bindings],
+    });
     return this;
   }
 
@@ -899,7 +973,7 @@ export class Builder extends WhereInterpolator {
       if (!isString(column) || empty(column)) {
         throw new SQLError("Invalid column name for groupBy");
       }
-      this.groupByValue.push(column);
+      this.groupByValue.push(this.database.quoteIdentifier(column));
     }
     return this;
   }
@@ -972,28 +1046,23 @@ export class Builder extends WhereInterpolator {
     }
   }
 
-  #built: boolean = false;
-  private toSqlWithValues(type: string = "select") {
-    if (this.#built) {
-      return;
-    }
-    const field = this.fields;
-    const joins = this.joinClauses;
-    const where = this.whereClauses;
-    const groupBy = this.groupByValue;
-    const having = this.havingClauses;
-    const orderBy = this.orderByValue;
-    const offset = this.offsetValue;
-    const limit = this.limitValue;
+  /**
+   * Single compile pass: fills `#sql` and `#params` together so they always match.
+   * `toSql()` and `getBindings()` both delegate here (call twice if you need both and
+   * want to avoid two passes — use `getCompiledQuery()` instead).
+   */
+  #compileQuery(kind: "select" | "delete" = "select") {
+    this.#params = [];
+    const field = [...this.fields];
+    const joins = [...this.joinClauses];
+    const where = [...this.whereClauses];
+    const groupBy = [...this.groupByValue];
+    const having = [...this.havingClauses];
+    const orderBy = [...this.orderByValue];
+    const offset = this.offsetValue ?? null;
+    const limit = this.limitValue ?? null;
 
-    let sql;
-    if (type === "insert") {
-      sql = "INSERT INTO";
-    } else if (type === "delete") {
-      sql = "DELETE";
-    } else {
-      sql = "SELECT";
-    }
+    let sql = kind === "delete" ? "DELETE" : "SELECT";
     const fieldStr: string[] = [];
     field.forEach(([str, bool]) => {
       if (bool) {
@@ -1001,7 +1070,7 @@ export class Builder extends WhereInterpolator {
       }
       fieldStr.push(str);
     });
-    if (type === "select") {
+    if (kind === "select") {
       sql += ` ${fieldStr.join(", ")}`;
     }
     sql += ` ${this.buildFromClause()}`;
@@ -1049,71 +1118,104 @@ export class Builder extends WhereInterpolator {
         " ORDER BY " +
         orderBy
           .map((order) => {
-            const column = Object.keys(order)[0];
-            const direction = order[column];
-            return `${column} ${direction}`;
+            if (order.kind === "raw") {
+              this.#params.push(...order.bindings);
+              return order.expr;
+            }
+            return `${order.expr} ${order.direction}`;
           })
           .join(", ");
     }
-    if (offset !== null) {
-      sql += ` OFFSET ?`;
-      this.#params.push(offset);
-    }
-    if (limit !== null) {
-      sql += ` LIMIT ?`;
-      this.#params.push(limit);
+
+    const driver = this.database.getDriver();
+    const wantsLimit = limit !== null;
+    const wantsOffset = offset !== null;
+
+    if (driver === "sqlsrv" && kind === "select") {
+      if (wantsLimit || wantsOffset) {
+        if (orderBy.length === 0) {
+          sql += " ORDER BY (SELECT NULL)";
+        }
+        if (wantsLimit && wantsOffset) {
+          sql += ` OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`;
+          this.#params.push(offset, limit);
+        } else if (wantsLimit) {
+          sql += ` OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY`;
+          this.#params.push(limit);
+        } else {
+          throw new SQLError(
+            "SQL Server requires a LIMIT when using OFFSET; add .limit(n)",
+          );
+        }
+      }
+    } else if (driver === "sqlsrv" && kind === "delete" && (wantsLimit || wantsOffset)) {
+      throw new SQLError(
+        "DELETE with LIMIT or OFFSET is not supported for SQL Server in this query builder",
+      );
+    } else {
+      if (wantsLimit) {
+        sql += ` LIMIT ?`;
+        this.#params.push(limit);
+      }
+
+      if (isset(limit) && isInteger(limit) && wantsOffset) {
+        sql += ` OFFSET ?`;
+        this.#params.push(offset);
+      }
     }
 
     this.#sql = sql;
-    this.#built = true;
+  }
+
+  /**
+   * Compile once and return SQL and bindings together (avoids two `#compileQuery` runs
+   * when you need both, unlike separate `toSql()` + `getBindings()`).
+   */
+  public getCompiledQuery(kind: "select" | "delete" = "select"): {
+    sql: string;
+    bindings: WherePrimitive[];
+  } {
+    this.#compileQuery(kind);
+    return { sql: this.#sql, bindings: this.#params };
   }
 
   public toSql() {
-    this.toSqlWithValues();
+    this.#compileQuery("select");
     return this.#sql;
   }
 
   public getBindings() {
-    this.toSqlWithValues();
+    this.#compileQuery("select");
     return this.#params;
   }
 
   public async get() {
-    const { sql, values } = {
-      sql: this.toSql(),
-      values: this.getBindings(),
-    };
-    const result = await this.database.runQuery<"select">(sql, values);
+    this.#compileQuery("select");
+    const result = await this.database.runQuery<"select">(this.#sql, this.#params);
     return result;
   }
 
   public async first() {
     this.limit(1);
-    const { sql, values } = {
-      sql: this.toSql(),
-      values: this.getBindings(),
-    };
-    const result = await this.database.runQuery<"select">(sql, values);
+    this.#compileQuery("select");
+    const result = await this.database.runQuery<"select">(this.#sql, this.#params);
     return result[0] || null;
   }
 
   public async count(): Promise<number> {
+    const lastSelect = [...this.fields];
     this.select(DB.raw("COUNT(*) AS count"));
-    const { sql, values } = {
-      sql: this.toSql(),
-      values: this.getBindings(),
-    };
+    this.#compileQuery("select");
+    const sql = this.#sql;
+    const values = this.#params;
     const result = await this.database.runQuery<"select">(sql, values);
+    this.fields = lastSelect;
     return Number(result[0]?.count || 0);
   }
 
   public async delete() {
-    this.toSqlWithValues("delete");
-    const { sql, values } = {
-      sql: this.#sql,
-      values: this.#params,
-    };
-    const result = await this.database.runQuery<"delete">(sql, values);
+    this.#compileQuery("delete");
+    const result = await this.database.runQuery<"delete">(this.#sql, this.#params);
     return result;
   }
 
@@ -1168,7 +1270,16 @@ export class Builder extends WhereInterpolator {
       .join(", ");
 
     const values = rows.flatMap((row) =>
-      columns.map((col) => row[col] || null)
+      columns.map((col) => {
+        const value = row[col];
+        if (!isset(value)) {
+          return null;
+        }
+        if (value instanceof Date) {
+          return value.toISOString();
+        }
+        return value;
+      })
     );
 
     const db = this.database;
@@ -1177,7 +1288,7 @@ export class Builder extends WhereInterpolator {
       ", "
     )}) VALUES ${placeholders}`;
 
-    if (this.dbUsed === "pgsql") {
+    if (this.database.getDriver() === "pgsql") {
       sql += " RETURNING *";
     }
 
@@ -1206,7 +1317,7 @@ export class Builder extends WhereInterpolator {
       if (newArgs.length === 4) {
         column1 = firstOrFn as string;
         column2 = second as string;
-        operator = operatorOrSecond as WhereOperator;
+        operator = assertWhereOperator(operatorOrSecond as WhereOperator);
       } else if (newArgs.length === 3) {
         column1 = firstOrFn as string;
         column2 = operatorOrSecond as string;
@@ -1214,8 +1325,10 @@ export class Builder extends WhereInterpolator {
       if (!isset(column1) || !isset(column2)) {
         throw new SQLError("Invalid join clause");
       }
+      const qCol1 = this.database.quoteIdentifier(column1);
+      const qCol2 = this.database.quoteIdentifier(column2);
       return [
-        `${type} JOIN ${newTable} ON ${column1} ${operator} ${column2}`,
+        `${type} JOIN ${newTable} ON ${qCol1} ${operator} ${qCol2}`,
         isRaw,
       ];
     }
@@ -1247,7 +1360,7 @@ export class Builder extends WhereInterpolator {
       if (newArgs.length === 4) {
         column1 = firstOrFn as string;
         column2 = second as string;
-        operator = operatorOrSecond as WhereOperator;
+        operator = assertWhereOperator(operatorOrSecond as WhereOperator);
       } else if (newArgs.length === 3) {
         column1 = firstOrFn as string;
         column2 = operatorOrSecond as string;
@@ -1255,8 +1368,10 @@ export class Builder extends WhereInterpolator {
       if (!isset(column1) || !isset(column2)) {
         throw new SQLError("Invalid join clause");
       }
+      const qCol1 = this.database.quoteIdentifier(column1);
+      const qCol2 = this.database.quoteIdentifier(column2);
       return [
-        `${type} JOIN ${newTable} ON ${column1} ${operator} ${column2}`,
+        `${type} JOIN ${newTable} ON ${qCol1} ${operator} ${qCol2}`,
         isRaw,
       ];
     }
@@ -1350,13 +1465,25 @@ export class Builder extends WhereInterpolator {
   ): void {
     const db = this.database;
     column = db.quoteIdentifier(column);
-    const clause = `${column} ${operator} ?`;
+    const safeOperator = assertWhereOperator(operator as WhereOperator);
+    const clause = `${column} ${safeOperator} ?`;
     const values: WhereValue[] = [value];
     if (this.havingClauses.length > 0) {
       this.havingClauses.push([`${type} ${clause}`, values]);
     } else {
       this.havingClauses.push([clause, values]);
     }
+  }
+
+  async paginate(page: number, perPage: number = 10, urlPath?: URL): Promise<Paginator<Record<string, unknown>>> {
+    const offset = (page - 1) * perPage;
+    this.limit(perPage);
+    this.offset(offset);
+    const data = await this.get();
+    this.limit(null);
+    this.offset(null);
+    const total = await this.count();
+    return new Paginator(data, total, page, perPage, urlPath);
   }
 }
 type HavingOperator =

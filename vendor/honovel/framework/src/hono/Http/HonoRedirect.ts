@@ -71,7 +71,7 @@ class HonoRedirect implements IRedirectResponse {
     if (!isObject(data)) {
       this.#withInput = true;
     } else {
-      this.#withInput = {...data};
+      this.#withInput = { ...data };
     }
     return this;
   }

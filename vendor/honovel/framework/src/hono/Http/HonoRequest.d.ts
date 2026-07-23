@@ -129,7 +129,7 @@ import { ISession } from "../../../../@types/declaration/ISession.d.ts";
 import { CookieOptions } from "hono/utils/cookie";
 import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";
-import Model from "Illuminate/Database/Eloquent/Model.ts";
+import Model, { ModelConstructor } from "Illuminate/Database/Eloquent/Model.ts";
 import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
 import HonoFile from "./HonoFile.ts";
 
@@ -191,6 +191,9 @@ declare class HonoRequest {
 
   /** Get the request path */
   path(): string;
+
+  /** Get the request full path */
+  fullPath(): string;
 
   /** Get the full request URL */
   readonly url: string;
@@ -315,12 +318,22 @@ declare class HonoRequest {
   dispose(): Promise<void>;
 
   /** Validate request data with rules */
-  validate<T extends Record<string, string>>(
+  validate<T extends Record<string, any>>(
     validations: T,
-  ): Promise<Record<keyof T | string, string>>;
+
+    /**
+     * Custom messages for validator errors.
+     * Example:
+     * {
+     *   "email.required": "The email field is required.",
+     *   "email.email": "The email field must be a valid email address.",
+     * }
+     */
+    messages?: Record<string, string>,
+  ): Promise<Record<keyof T | string, any>>;
 
   /** Bind route parameters to request */
-  public bindRoute(params: Record<string, typeof Model<ModelAttributes>>): void;
+  public bindRoute(params: Record<string, ModelConstructor>): void;
 
   /**
    * Set a variable along the request lifecycle
@@ -336,6 +349,38 @@ declare class HonoRequest {
    * @param key
    */
   public get(key: string): unknown;
+
+  /**
+   * Set the language for the request
+   * @param lang
+   */
+  public setLanguage(lang?: string): void;
+
+  /**
+   * Set the fallback language for the request
+   * @param lang
+   */
+  public setFallbackLanguage(lang?: string): void;
+
+  /**
+   * Get the language for the request
+   * @param lang
+   */
+  public getLanguage(): string;
+
+  /**
+   * Get the fallback language for the request
+   * @param lang
+   */
+  public getFallbackLanguage(): string;
+
+  /**
+   * Internationalization (i18n) translation function
+   * @param key The translation key
+   * @param replacements Optional replacements for placeholders in the translation string
+   * @returns The translated string
+   */
+  public __(key: string, replacements?: Record<string, string>): string;
 }
 
 export default HonoRequest;

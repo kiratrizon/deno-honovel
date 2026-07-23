@@ -13,7 +13,7 @@ export default class DatabaseSeeder extends Seeder {
         description:
           "A Laravel-like typescript-only web framework powered by Deno and Hono.",
         github_url: "https://github.com/kiratrizon/honovel",
-        live_demo_url: "https://honovel.deno.dev",
+        live_demo_url: "https://honovel.kiratrizon.deno.net",
       },
     ];
 

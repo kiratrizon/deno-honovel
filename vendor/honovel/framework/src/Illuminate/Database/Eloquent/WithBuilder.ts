@@ -1,6 +1,7 @@
 import { ModelAttributes } from "../../../../../@types/declaration/Base/IBaseModel.d.ts";
 import Model from "./Model.ts";
 import Builder from "./Builder.ts";
+import Paginator from "../../Pagination/Paginator.ts";
 
 export default class WithBuilder {
   connection: string;
@@ -103,5 +104,26 @@ export default class WithBuilder {
       currentLevel.data = nextLevel.data;
       currentLevel.model = nextLevel.model;
     }
+  }
+
+  async paginate(page: number, perPage: number = 10, urlPath?: URL) {
+
+    const total = !this.builderInstance
+      ? await this.model.on(this.connection).count()
+      : await this.builderInstance.count();
+
+    const allThisData = !this.builderInstance
+      ? await this.model.on(this.connection).limit(perPage).offset((page - 1) * perPage).get()
+      : await this.builderInstance.limit(perPage).offset((page - 1) * perPage).get();
+
+    // iterate with
+    const currentLevel = {
+      data: [allThisData],
+      model: this.model,
+    };
+    for (const { actions, fields } of this.actionsAndFields) {
+      await this.iterateWith(currentLevel, [...actions], [...fields]);
+    }
+    return new Paginator(currentLevel.data as unknown as Record<string, unknown>[], total, page, perPage, urlPath);
   }
 }

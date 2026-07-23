@@ -7,7 +7,7 @@ export default class AfterOn {
   constructor(
     private model: typeof Model<ModelAttributes>,
     private connection: string,
-  ) {}
+  ) { }
 
   public async create<Attr extends Record<string, unknown>>(attributes?: Attr) {
     // @ts-ignore //
@@ -236,5 +236,35 @@ export default class AfterOn {
       },
       arrActionsAndFields,
     );
+  }
+
+  limit(limit: number) {
+    return new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection,
+    ).limit(limit);
+  }
+
+  offset(offset: number) {
+    return new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection,
+    ).offset(offset);
+  }
+
+  async count(): Promise<number> {
+    return await new Builder(
+      {
+        model: this.model,
+        fields: ["*"],
+      },
+      this.connection,
+    ).count();
   }
 }

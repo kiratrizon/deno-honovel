@@ -97,4 +97,20 @@ export default class MemcachedStore extends AbstractStore {
   getPrefix(): string {
     return this.prefix;
   }
+
+  async deleteExpired(): Promise<void> {
+    await this.init();
+    const now = time();
+    const keys = await this.client.getAllKeys();
+    for (const key of keys) {
+      const value = await this.client.get(key);
+      if (value?.expiresAt && now > value.expiresAt) {
+        try {
+          await this.client.delete(key);
+        } catch (error) {
+          console.error(`Error deleting key "${key}":`, error);
+        }
+      }
+    }
+  }
 }

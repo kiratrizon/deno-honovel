@@ -1,20 +1,25 @@
 import Model from "Illuminate/Database/Eloquent/Model.ts";
 import Collection from "Illuminate/Database/Eloquent/Collection.ts";
+import Paginator from "Illuminate/Pagination/Paginator.ts";
 
 export default class BindingRegistry {
   private static bindings: {
     action: string;
     class: any;
   }[] = [
-    {
-      action: "toObject",
-      class: Model,
-    },
-    {
-      action: "toArray",
-      class: Collection,
-    },
-  ];
+      {
+        action: "toObject",
+        class: Model,
+      },
+      {
+        action: "toArray",
+        class: Collection,
+      },
+      {
+        action: "toObject",
+        class: Paginator,
+      }
+    ];
 
   public static bind(action: string, selectedClass: any) {
     this.bindings.push({ action, class: selectedClass });

@@ -30,13 +30,13 @@ export default class Builder<
   }
 
   // @ts-ignore //
-  public override async first(): Promise<InstanceType<T> | null> {
+  public override async first<M extends typeof Model = typeof Model>(): Promise<InstanceType<M> | null> {
     const data = await super.first();
     if (!data) return null;
     // @ts-ignore //
     const modelInstance = new this.model();
     modelInstance.forceFill(data as B);
-    return modelInstance;
+    return modelInstance as InstanceType<M>;
   }
 
   // @ts-ignore //

@@ -46,6 +46,8 @@ export type Variables = {
   _bindedModels: Record<string, typeof Model<ModelAttributes>>;
   _server: SERVER;
   _variables: Record<string, unknown>;
+  language: string;
+  fallbackLanguage: string;
 };
 
 export type HonoTypeImport = {

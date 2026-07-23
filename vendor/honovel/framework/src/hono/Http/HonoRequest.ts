@@ -24,6 +24,13 @@ class HonoRequest extends Macroable {
     "X-Forwarded-Port",
   ];
 
+  /** Parsed `lang/{locale}/{file}.json` contents, keyed by "locale/file". A HonoRequest is
+   * re-created on every request (see HttpHono's constructor), so this must live on the
+   * class, not the instance, to actually avoid repeat reads across requests. Translation
+   * files don't change during a process's lifetime, so a `null` cache entry (file missing
+   * or invalid JSON) is cached too, avoiding a repeat failed read on every call. */
+  static #translationCache = new Map<string, Record<string, unknown> | null>();
+
   #c: MyContext;
 
   constructor(c: MyContext) {
@@ -67,8 +74,8 @@ class HonoRequest extends Macroable {
             // multiparser supports both single and multiple files
             const fileToObj = Array.isArray(file)
               ? file.map((e) => {
-                return new HonoFile(e);
-              })
+                  return new HonoFile(e);
+                })
               : [new HonoFile(file)];
             files[key] = fileToObj;
           }
@@ -299,6 +306,10 @@ class HonoRequest extends Macroable {
 
   public path(): string {
     return this.#c.req.path || "";
+  }
+
+  public fullPath(): string {
+    return this.url.slice(this.url.indexOf("/", 8));
   }
 
   public get url(): string {
@@ -571,12 +582,14 @@ class HonoRequest extends Macroable {
 
   public async validate<T extends Record<string, string>>(
     validations: T,
+    messages?: Record<string, string>,
   ): Promise<Record<keyof T, string>>;
   public async validate<T extends Record<string, string>>(
     validations: T,
+    messages?: Record<string, string>,
   ): Promise<Record<keyof T | string, string>> {
     const data = this.method == "GET" ? this.query() : this.input();
-    const validation = await Validator.make(data, validations);
+    const validation = await Validator.make(data, validations, messages);
 
     if (validation.fails()) {
       const errors = validation.getErrors();
@@ -610,6 +623,82 @@ class HonoRequest extends Macroable {
       string,
       typeof Model<ModelAttributes>
     >;
+  }
+
+  /**
+   * Set the language isolation.
+   */
+  public setLanguage(lang?: string): void {
+    if (isset(lang) && isString(lang) && lang.length > 0) {
+      this.#c.set("language", lang);
+    }
+  }
+
+  /**
+   * Get the language isolation.
+   */
+  public getLanguage(): string {
+    return this.#c.get("language") || config("app.locale", "en") || "en";
+  }
+
+  /**
+   * Get the fallback language isolation.
+   */
+  public getFallbackLanguage(): string {
+    return (
+      this.#c.get("fallbackLanguage") ||
+      config("app.fallback_locale", "en") ||
+      "en"
+    );
+  }
+
+  /** Loads and parses a `lang/{locale}/{file}.json` file, caching the result (including
+   * `null` on a missing file or invalid JSON) so repeat `__()` calls for the same file
+   * never touch disk again for the lifetime of the process. */
+  static #loadTranslationFile(
+    locale: string,
+    file: string,
+  ): Record<string, unknown> | null {
+    const cacheKey = `${locale}/${file}`;
+    const cached = HonoRequest.#translationCache.get(cacheKey);
+    if (cached !== undefined) return cached;
+
+    const contents = getFileContents(basePath(`lang/${locale}/${file}.json`));
+    let data: Record<string, unknown> | null = null;
+    if (contents) {
+      try {
+        data = JSON.parse(contents);
+      } catch {
+        data = null;
+      }
+    }
+    HonoRequest.#translationCache.set(cacheKey, data);
+    return data;
+  }
+
+  public __(key: string, replace: Record<string, string> = {}): string {
+    const parts = key.split(".");
+    const file = parts.length === 1 ? "default" : parts[0];
+    const nestedKeys = parts.length === 1 ? parts : parts.slice(1);
+
+    const resolve = (locale: string): string | null => {
+      const data = HonoRequest.#loadTranslationFile(locale, file);
+      if (!data) return null;
+
+      let current: unknown = data;
+      for (const k of nestedKeys) {
+        if (current === null || typeof current !== "object") return null;
+        current = (current as Record<string, unknown>)[k];
+      }
+
+      if (typeof current !== "string") return null;
+
+      return current.replace(/:(\w+)/g, (_, k) => replace[k] ?? `:${k}`);
+    };
+
+    return (
+      resolve(this.getLanguage()) ?? resolve(this.getFallbackLanguage()) ?? key
+    );
   }
 }
 

@@ -6,11 +6,11 @@ import { RuruClientConfig, ruruHTML } from "ruru/server";
 
 Route.get("/", [HomeController, "index"]);
 
-Route.get("/docs/{content}", [ContentController, "show"]).middleware(
-  "bind_content",
-).whereNumber("content");
+Route.get("/docs/{content}", [ContentController, "show"])
+  .middleware("bind_content")
+  .whereNumber("content");
 
-// for "deno run -A https://honovel.deno.dev/create-project my-app@latest" setup
+// for "deno run -A https://honovel.kiratrizon.deno.net/create-project my-app@latest" setup
 Route.get("/create-project", async ({ request }) => {
   return response().file(basePath("install.ts")).withHeaders({
     "Content-Type": "application/typescript", // Set the appropriate content type for TypeScript files

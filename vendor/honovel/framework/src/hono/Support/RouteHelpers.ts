@@ -117,6 +117,11 @@ export function registerRoute(
   if (url.endsWith("/") && url.length > 1) {
     url = url.slice(0, -1);
   }
+
+  if (config("app.enable_locale")) {
+    optionalParams.unshift("lang?");
+  }
+
   routes[name] = {
     url,
     requiredParams,
@@ -129,7 +134,8 @@ export function registerRoute(
  * Build final route URL with prefix
  */
 export function buildRouteUrl(prefix: string, uri: string): string {
-  const url = (`${prefix === "/" ? "" : prefix}${uri}`).replace(/\/\//g, "/");
+  // console.log(prefix, uri);
+  const url = `${prefix === "/" ? "" : prefix}${uri}`.replace(/\/\//g, "/");
   return url;
 }
 

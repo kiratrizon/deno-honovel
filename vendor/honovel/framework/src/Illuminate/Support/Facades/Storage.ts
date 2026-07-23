@@ -260,17 +260,15 @@ class LocalStorage implements IStorage {
   }
 }
 
-// s3
-import {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
-  DeleteObjectCommand,
-  HeadObjectCommand,
-} from "@aws-sdk/client-s3";
+// s3 — the AWS SDK is only imported (dynamically, below) when a disk with driver "s3" is
+// actually used. Storage.ts sits on the always-loaded request path (HonoRequest -> HonoFile
+// -> Storage), so a static import here would load the whole SDK on every boot regardless of
+// whether any app ever configures S3.
+type S3Sdk = typeof import("@aws-sdk/client-s3");
 
 class S3Storage implements IStorage {
-  #S3Client: S3Client;
+  #sdk: S3Sdk | null = null;
+  #client: import("@aws-sdk/client-s3").S3Client | null = null;
 
   constructor(private setup: S3DiskConfig) {
     if (!setup) throw new Error("S3 disk configuration is invalid");
@@ -281,14 +279,20 @@ class S3Storage implements IStorage {
         "S3 disk configuration must have bucket, key, secret and region"
       );
     }
+  }
 
-    this.#S3Client = new S3Client({
-      region: setup.region,
-      credentials: {
-        accessKeyId: setup.key,
-        secretAccessKey: setup.secret,
-      },
-    });
+  private async client(): Promise<{ sdk: S3Sdk; client: import("@aws-sdk/client-s3").S3Client }> {
+    if (!this.#sdk || !this.#client) {
+      this.#sdk = await import("@aws-sdk/client-s3");
+      this.#client = new this.#sdk.S3Client({
+        region: this.setup.region,
+        credentials: {
+          accessKeyId: this.setup.key,
+          secretAccessKey: this.setup.secret,
+        },
+      });
+    }
+    return { sdk: this.#sdk, client: this.#client };
   }
 
   getUrl(path: string): string {
@@ -297,8 +301,9 @@ class S3Storage implements IStorage {
   }
 
   async put(path: string, contents: Uint8Array): Promise<string> {
-    await this.#S3Client.send(
-      new PutObjectCommand({
+    const { sdk, client } = await this.client();
+    await client.send(
+      new sdk.PutObjectCommand({
         Bucket: this.setup.bucket,
         Key: path,
         Body: contents,
@@ -308,8 +313,9 @@ class S3Storage implements IStorage {
   }
 
   async get(path: string): Promise<Uint8Array> {
-    const result = await this.#S3Client.send(
-      new GetObjectCommand({
+    const { sdk, client } = await this.client();
+    const result = await client.send(
+      new sdk.GetObjectCommand({
         Bucket: this.setup.bucket,
         Key: path,
       })
@@ -336,8 +342,9 @@ class S3Storage implements IStorage {
   }
 
   async delete(path: string): Promise<void> {
-    await this.#S3Client.send(
-      new DeleteObjectCommand({
+    const { sdk, client } = await this.client();
+    await client.send(
+      new sdk.DeleteObjectCommand({
         Bucket: this.setup.bucket,
         Key: path,
       })
@@ -346,8 +353,9 @@ class S3Storage implements IStorage {
 
   async exists(path: string): Promise<boolean> {
     try {
-      await this.#S3Client.send(
-        new HeadObjectCommand({
+      const { sdk, client } = await this.client();
+      await client.send(
+        new sdk.HeadObjectCommand({
           Bucket: this.setup.bucket,
           Key: path,
         })

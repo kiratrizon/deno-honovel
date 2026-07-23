@@ -125,4 +125,24 @@ export default class MongoDBStore extends AbstractStore {
   getPrefix(): string {
     return this.prefix;
   }
+
+  async deleteExpired(): Promise<void> {
+    await this.init();
+    const prefix = this.getPrefix();
+    if (!prefix) {
+      return;
+    }
+
+    const now = time();
+    const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    try {
+      await this.Collection.deleteMany({
+        key: { $regex: `^${escapedPrefix}` },
+        expiresAt: { $exists: true, $ne: null, $lt: now },
+      });
+    } catch (error) {
+      console.error("Error deleting expired MongoDB cache items:", error);
+    }
+  }
 }

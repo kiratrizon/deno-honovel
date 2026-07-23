@@ -47,4 +47,13 @@ export default class ObjectStore extends AbstractStore {
   getPrefix(): string {
     return this.prefix;
   }
+
+  async deleteExpired(): Promise<void> {
+    for (const key in this.store) {
+      const cacheItem = this.store[key];
+      if (cacheItem.expiresAt && time() > cacheItem.expiresAt) {
+        delete this.store[key];
+      }
+    }
+  }
 }

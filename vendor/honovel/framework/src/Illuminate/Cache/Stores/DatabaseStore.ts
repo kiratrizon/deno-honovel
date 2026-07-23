@@ -120,4 +120,11 @@ export default class DatabaseStore extends AbstractStore {
   getPrefix(): string {
     return this.prefix;
   }
+
+  async deleteExpired(): Promise<void> {
+    await this.init();
+    const sql = `DELETE FROM ${this.table} WHERE expires_at < ?`;
+    const values: any[] = [Carbon.now()];
+    await DB.connection(this.connection).statement(sql, values);
+  }
 }

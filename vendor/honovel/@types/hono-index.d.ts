@@ -8,7 +8,7 @@ import { SessionModifier } from "HonoHttp/HonoSession.ts";
 import { Context } from "hono";
 import { HonoTypeImport } from "./declaration/imain.d.ts";
 
-import HttpHono from "HttpHono";
+import HttpHono from "./declaration/HttpHono.d.ts";
 import IRedirectResponse from "./declaration/IHonoRedirect.d.ts";
 import HonoResponseV2, { HTMLResponse } from "HonoHttp/HonoResponse.ts";
 import Application from "Illuminate/Foundation/Application.ts";
@@ -109,7 +109,7 @@ declare global {
 
   interface MyContext extends Context<HonoTypeImport> { }
 
-  function event(event: object, payload?: any[]): Promise<unknown>;
+  function myEvent(event: object, payload?: any[]): Promise<unknown>;
 
   const application: Application;
 }
