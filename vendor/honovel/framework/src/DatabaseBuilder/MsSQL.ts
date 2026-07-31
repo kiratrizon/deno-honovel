@@ -1,9 +1,11 @@
-import mssql from "mssql";
+// mssql is referenced only in type position here, and the package ships no
+// declarations, so this uses the structural pool type from ./drivers.ts instead.
+import type { MssqlConnectionPool } from "./drivers.ts";
 import { QueryResultDerived } from "Database";
 
 class MsSQL {
   public static async query<T extends keyof QueryResultDerived>(
-    pool: mssql.ConnectionPool,
+    pool: MssqlConnectionPool,
     query: string,
     params: unknown[] = [],
   ): Promise<QueryResultDerived[T]> {

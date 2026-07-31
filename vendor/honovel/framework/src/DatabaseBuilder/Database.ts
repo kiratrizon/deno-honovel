@@ -1,14 +1,20 @@
+// Driver packages are loaded on demand via ./drivers.ts so that an app only pays
+// to instantiate the driver it actually uses. Everything imported here is
+// type-only and erases at runtime.
+
 // mysql
-import mysql, { ConnectionOptions, Pool as MPool } from "mysql2/promise";
-import MySQL from "./MySQL.ts";
+import type { ConnectionOptions, Pool as MPool } from "mysql2/promise";
 
 // postgresql
-import { Pool as PgPool } from "@db/pgsql";
-import PgSQL from "./PostgreSQL.ts";
+import type { Pool as PgPool } from "@db/pgsql";
 
-// sqlsrv
-import mssql from "mssql";
-import MsSQL from "./MsSQL.ts";
+import {
+  loadMssql,
+  loadMysql,
+  loadPgPool,
+  loadQueryDriver,
+} from "./drivers.ts";
+import type { MssqlConnectionPool } from "./drivers.ts";
 
 import { Carbon } from "helpers";
 import {
@@ -32,12 +38,6 @@ type TInsertOrUpdateBuilder = {
   data: Record<string, unknown>;
 };
 
-const mappedDBType: Record<string, MySQL | PgSQL | MsSQL> = {
-  mysql: MySQL,
-  pgsql: PgSQL,
-  sqlsrv: MsSQL,
-};
-
 // This is for RDBMS like MySQL, PostgreSQL, etc.
 export class Database {
   public static client: MPool | PgPool | undefined;
@@ -46,8 +46,8 @@ export class Database {
     string,
     {
       driver: SupportedDrivers;
-      read: (MPool | PgPool | mssql.ConnectionPool)[];
-      write: (MPool | PgPool | mssql.ConnectionPool)[];
+      read: (MPool | PgPool | MssqlConnectionPool)[];
+      write: (MPool | PgPool | MssqlConnectionPool)[];
     }
   > = {};
   private readonly dbUsed: SupportedDrivers;
@@ -81,19 +81,13 @@ export class Database {
     await Database.init();
     const dbType = this.dbUsed;
 
-    if (
-      !isset(env("DENO_DEPLOYMENT_ID")) &&
-      dbType === "sqlite" &&
-      !mappedDBType.sqlite
-    ) {
-      const localSQlite = await import("./SQlite.ts");
-      const SQlite = localSQlite.default;
-      mappedDBType.sqlite = SQlite;
-    }
+    // Both resolved on first use, so a driver this app never queries stays out
+    // of the module graph and off the boot path entirely.
+    await Database.ensureConnection(this.connection);
+    const queryDriver = await loadQueryDriver(dbType);
 
     const [newQuery, newParams] = this.beforeQuery(query, params);
-    const dbKeys = Object.keys(mappedDBType);
-    if (dbKeys.includes(dbType.toLowerCase())) {
+    if (queryDriver) {
       const queryType = newQuery.trim().split(" ")[0].toLowerCase();
       const isReadQuery = Database.readQueries.includes(queryType);
       const useClient = isReadQuery
@@ -110,11 +104,7 @@ export class Database {
 
       try {
         // @ts-ignore //
-        return await mappedDBType[dbType.toLowerCase()].query(
-          client,
-          newQuery,
-          newParams,
-        );
+        return await queryDriver.query(client, newQuery, newParams);
       } catch (error) {
         console.error(`Query failed: ${newQuery}`, `Params:`, newParams);
         throw error;
@@ -124,6 +114,18 @@ export class Database {
   }
 
   private static doneInit = false;
+
+  /**
+   * Validate the database configuration.
+   *
+   * Pools are deliberately NOT created here — see ensureConnection(). Building
+   * every configured connection up front meant a project that merely *declares*
+   * a mysql connection loaded mysql2 on boot even when it only ever queried
+   * sqlite, which is wasted work on every serverless cold start.
+   *
+   * Consequence worth knowing: an unreachable host or bad credentials now
+   * surface on first query rather than at boot.
+   */
   public static async init(force: boolean = false): Promise<void> {
     if (Database.doneInit && !force) {
       return;
@@ -134,204 +136,252 @@ export class Database {
     if (!isset(connections) || !isObject(connections)) {
       throw new Error("Database connections are not configured properly.");
     }
-    const connectionEntries = Object.entries(connections);
-    for (const [key, value] of connectionEntries) {
-      if (isset(env("DENO_DEPLOYMENT_ID")) && value.driver === "sqlite") {
-        continue;
-      }
-      if (!isset(Database.connections[key]) && value.driver !== "mongodb") {
-        Database.connections[key] = {
-          driver: value.driver as SupportedDrivers,
-          read: [],
-          write: [],
-        };
-      }
-      switch (value.driver) {
-        case "mysql": {
-          const forMySQL = value;
-          if (isset(forMySQL)) {
-            const defaultPassword = forMySQL.password || "";
-            const defaultHost = isArray(forMySQL.host)
-              ? forMySQL.host
-              : [forMySQL.host || "localhost"];
-            const defaultPort = forMySQL.port || 3306;
-            const defaultDatabase = forMySQL.database;
-            const defaultUser = forMySQL.user || "root";
-            const defaultCharset = forMySQL.charset || "utf8mb4";
-            const defaultSSL = forMySQL.ssl;
-            const defaultOptions: MySQLConnectionConfigRaw["options"] =
-              forMySQL.options;
-            if (
-              !isset(forMySQL.write) ||
-              (!empty(forMySQL.write) && !isObject(forMySQL.write))
-            ) {
-              defaultHost.forEach((host) => {
-                const poolParams: Partial<ConnectionOptions> = {
-                  host,
-                  port: defaultPort,
-                  user: defaultUser,
-                  password: defaultPassword,
-                  database: defaultDatabase,
-                  charset: defaultCharset,
-                  ssl: defaultSSL,
-                  multipleStatements: true,
-                };
-                if (isset(defaultOptions?.maxConnection)) {
-                  poolParams.connectionLimit = defaultOptions.maxConnection;
-                }
-                // date string
-                if (defaultOptions?.dateStrings) {
-                  poolParams.dateStrings = true;
-                }
-                Database.connections[key].write.push(
-                  mysql.createPool(poolParams),
-                );
-              });
-            } else {
-              const writeHosts = isArray(forMySQL.write?.host)
-                ? forMySQL.write.host
-                : [forMySQL.write?.host || "localhost"];
-              writeHosts.forEach((host) => {
-                const poolParams: Partial<ConnectionOptions> = {
-                  host,
-                  port: forMySQL.write?.port || defaultPort,
-                  user: forMySQL.write?.user || defaultUser,
-                  password: forMySQL.write?.password || defaultPassword,
-                  database: forMySQL.write?.database || defaultDatabase,
-                  charset: forMySQL.write?.charset || defaultCharset,
-                  ssl: forMySQL.write?.ssl || defaultSSL,
-                  multipleStatements: true,
-                };
-                if (isset(defaultOptions?.maxConnection)) {
-                  poolParams.connectionLimit = defaultOptions.maxConnection;
-                }
-                if (defaultOptions?.dateStrings) {
-                  poolParams.dateStrings = true;
-                }
-                Database.connections[key].write.push(
-                  mysql.createPool(poolParams),
-                );
-              });
-            }
+    if (force) {
+      // Backs reconnect(): discard the built pools so the next query rebuilds
+      // them. Use closeConnections() first if the old pools should be shut down —
+      // the previous eager init did not close them either, it appended a second
+      // set of pools to the same arrays on every forced re-init.
+      Database.resetConnections();
+    }
+    Database.doneInit = true;
+  }
 
-            if (
-              !isset(forMySQL.read) ||
-              (!empty(forMySQL.read) && !isObject(forMySQL.read))
-            ) {
-              Database.connections[key].read = Database.connections[key].write;
-            } else {
-              const readHosts = isArray(forMySQL.read?.host)
-                ? forMySQL.read.host
-                : [forMySQL.read?.host || "localhost"];
-              readHosts.forEach((host) => {
-                const poolParams: Partial<ConnectionOptions> = {
-                  host,
-                  port: forMySQL.read?.port || defaultPort,
-                  user: forMySQL.read?.user || defaultUser,
-                  password: forMySQL.read?.password || defaultPassword,
-                  database: forMySQL.read?.database || defaultDatabase,
-                  charset: forMySQL.read?.charset || defaultCharset,
-                  ssl: forMySQL.read?.ssl || defaultSSL,
-                  multipleStatements: true,
-                };
-                if (isset(defaultOptions?.maxConnection)) {
-                  poolParams.connectionLimit = defaultOptions.maxConnection;
-                }
-                if (defaultOptions?.dateStrings) {
-                  poolParams.dateStrings = true;
-                }
-                Database.connections[key].read.push(
-                  mysql.createPool(poolParams),
-                );
-              });
-            }
-          }
-          break;
-        }
-        case "pgsql": {
-          const forPgSQL = value;
-          if (isset(forPgSQL)) {
-            const defaultHosts = Array.isArray(forPgSQL.host)
-              ? forPgSQL.host
-              : [forPgSQL.host || "localhost"];
+  /**
+   * Forget every built pool so the next query rebuilds from config.
+   *
+   * Clears the in-flight memo too — dropping a connection from `connections`
+   * without clearing `building` would leave ensureConnection() short-circuiting
+   * on a resolved promise and never rebuilding.
+   */
+  public static resetConnections(): void {
+    Database.connections = {};
+    Database.building = {};
+  }
 
-            const defaultPort = forPgSQL.port || 5432;
-            const defaultDatabase = forPgSQL.database || "honovel";
-            const defaultUser = forPgSQL.user || "postgres";
-            const defaultPassword = forPgSQL.password || "";
-            const tls = forPgSQL.tls || { enabled: false };
-            // In clever setups: pick the first host as primary (for now)
-            for (const host of defaultHosts) {
-              const pool = new PgPool(
-                {
-                  hostname: host,
-                  port: defaultPort,
-                  user: defaultUser,
-                  password: defaultPassword,
-                  database: defaultDatabase,
-                  tls,
-                },
-                // pool size (connections per host)
-                5,
-                true, // lazy
-              );
+  // In-flight builds keyed by connection name. Two requests arriving together on
+  // a cold isolate must not each build a pool for the same connection.
+  private static building: Record<string, Promise<void>> = {};
 
-              Database.connections[key].write.push(pool);
-            }
+  /** Build the pools for a single connection, once, on first use. */
+  public static async ensureConnection(key: string): Promise<void> {
+    if (isset(Database.connections[key]) && !empty(Database.connections[key].write)) {
+      return;
+    }
+    if (!(key in Database.building)) {
+      Database.building[key] = Database.buildConnection(key);
+    }
+    try {
+      await Database.building[key];
+    } catch (e) {
+      // Drop the memo so a later attempt can retry instead of replaying failure.
+      delete Database.building[key];
+      throw e;
+    }
+  }
 
-            // Mirror read/write if you don't separate them
-            Database.connections[key].read = Database.connections[key].write;
-          }
-          break;
-        }
-
-        case "sqlite": {
-          const forSQLite = value;
-          if (isset(forSQLite)) {
-            const dbPath =
-              forSQLite.database || databasePath("database.sqlite");
-            if (!dbPath) {
-              throw new Error("Database path is not configured.");
-            }
-            const sqliteModule = await import("jsr:@db/sqlite");
-            const SqliteDB = sqliteModule.Database;
-            // @ts-ignore //
-            Database.connections[key].write.push(new SqliteDB(dbPath));
-            // @ts-ignore //
-            Database.connections[key].read.push(new SqliteDB(dbPath));
-          }
-          break;
-        }
-        case "sqlsrv": {
-          const forSQLServer = value;
-          if (isset(forSQLServer)) {
-            const defaultHosts = Array.isArray(forSQLServer.host)
-              ? forSQLServer.host
-              : [forSQLServer.host || "localhost"];
-            const defaultPort = forSQLServer.port || 1433;
-            const defaultDatabase = forSQLServer.database || "honovel";
-            const defaultUser = forSQLServer.user || "sa";
-            const defaultPassword = forSQLServer.password || "";
-            const defaultOptions: SqlSrvConnectionConfig["options"] =
-              forSQLServer.options;
-            for (const host of defaultHosts) {
-              const pool = new mssql.ConnectionPool({
+  private static async buildConnection(key: string): Promise<void> {
+    const connections = config("database")?.connections || {};
+    const value = connections[key];
+    if (!isset(value)) {
+      throw new Error(`Database connection "${key}" is not configured.`);
+    }
+    if (isset(env("DENO_DEPLOYMENT_ID")) && value.driver === "sqlite") {
+      return;
+    }
+    if (!isset(Database.connections[key]) && value.driver !== "mongodb") {
+      Database.connections[key] = {
+        driver: value.driver as SupportedDrivers,
+        read: [],
+        write: [],
+      };
+    }
+    switch (value.driver) {
+      case "mysql": {
+        const forMySQL = value;
+        if (isset(forMySQL)) {
+          const mysql = await loadMysql();
+          const defaultPassword = forMySQL.password || "";
+          const defaultHost = isArray(forMySQL.host)
+            ? forMySQL.host
+            : [forMySQL.host || "localhost"];
+          const defaultPort = forMySQL.port || 3306;
+          const defaultDatabase = forMySQL.database;
+          const defaultUser = forMySQL.user || "root";
+          const defaultCharset = forMySQL.charset || "utf8mb4";
+          const defaultSSL = forMySQL.ssl;
+          const defaultOptions: MySQLConnectionConfigRaw["options"] =
+            forMySQL.options;
+          if (
+            !isset(forMySQL.write) ||
+            (!empty(forMySQL.write) && !isObject(forMySQL.write))
+          ) {
+            defaultHost.forEach((host) => {
+              const poolParams: Partial<ConnectionOptions> = {
                 host,
                 port: defaultPort,
                 user: defaultUser,
                 password: defaultPassword,
                 database: defaultDatabase,
-                options: defaultOptions,
-              });
-              Database.connections[key].write.push(pool);
-            }
-            Database.connections[key].read = Database.connections[key].write;
+                charset: defaultCharset,
+                ssl: defaultSSL,
+                multipleStatements: true,
+              };
+              if (isset(defaultOptions?.maxConnection)) {
+                poolParams.connectionLimit = defaultOptions.maxConnection;
+              }
+              // date string
+              if (defaultOptions?.dateStrings) {
+                poolParams.dateStrings = true;
+              }
+              Database.connections[key].write.push(
+                mysql.createPool(poolParams),
+              );
+            });
+          } else {
+            const writeHosts = isArray(forMySQL.write?.host)
+              ? forMySQL.write.host
+              : [forMySQL.write?.host || "localhost"];
+            writeHosts.forEach((host) => {
+              const poolParams: Partial<ConnectionOptions> = {
+                host,
+                port: forMySQL.write?.port || defaultPort,
+                user: forMySQL.write?.user || defaultUser,
+                password: forMySQL.write?.password || defaultPassword,
+                database: forMySQL.write?.database || defaultDatabase,
+                charset: forMySQL.write?.charset || defaultCharset,
+                ssl: forMySQL.write?.ssl || defaultSSL,
+                multipleStatements: true,
+              };
+              if (isset(defaultOptions?.maxConnection)) {
+                poolParams.connectionLimit = defaultOptions.maxConnection;
+              }
+              if (defaultOptions?.dateStrings) {
+                poolParams.dateStrings = true;
+              }
+              Database.connections[key].write.push(
+                mysql.createPool(poolParams),
+              );
+            });
           }
-          break;
+
+          if (
+            !isset(forMySQL.read) ||
+            (!empty(forMySQL.read) && !isObject(forMySQL.read))
+          ) {
+            Database.connections[key].read = Database.connections[key].write;
+          } else {
+            const readHosts = isArray(forMySQL.read?.host)
+              ? forMySQL.read.host
+              : [forMySQL.read?.host || "localhost"];
+            readHosts.forEach((host) => {
+              const poolParams: Partial<ConnectionOptions> = {
+                host,
+                port: forMySQL.read?.port || defaultPort,
+                user: forMySQL.read?.user || defaultUser,
+                password: forMySQL.read?.password || defaultPassword,
+                database: forMySQL.read?.database || defaultDatabase,
+                charset: forMySQL.read?.charset || defaultCharset,
+                ssl: forMySQL.read?.ssl || defaultSSL,
+                multipleStatements: true,
+              };
+              if (isset(defaultOptions?.maxConnection)) {
+                poolParams.connectionLimit = defaultOptions.maxConnection;
+              }
+              if (defaultOptions?.dateStrings) {
+                poolParams.dateStrings = true;
+              }
+              Database.connections[key].read.push(
+                mysql.createPool(poolParams),
+              );
+            });
+          }
         }
+        break;
+      }
+      case "pgsql": {
+        const forPgSQL = value;
+        if (isset(forPgSQL)) {
+          const PgPoolCtor = await loadPgPool();
+          const defaultHosts = Array.isArray(forPgSQL.host)
+            ? forPgSQL.host
+            : [forPgSQL.host || "localhost"];
+
+          const defaultPort = forPgSQL.port || 5432;
+          const defaultDatabase = forPgSQL.database || "honovel";
+          const defaultUser = forPgSQL.user || "postgres";
+          const defaultPassword = forPgSQL.password || "";
+          const tls = forPgSQL.tls || { enabled: false };
+          // In clever setups: pick the first host as primary (for now)
+          for (const host of defaultHosts) {
+            const pool = new PgPoolCtor(
+              {
+                hostname: host,
+                port: defaultPort,
+                user: defaultUser,
+                password: defaultPassword,
+                database: defaultDatabase,
+                tls,
+              },
+              // pool size (connections per host)
+              5,
+              true, // lazy
+            );
+
+            Database.connections[key].write.push(pool);
+          }
+
+          // Mirror read/write if you don't separate them
+          Database.connections[key].read = Database.connections[key].write;
+        }
+        break;
+      }
+
+      case "sqlite": {
+        const forSQLite = value;
+        if (isset(forSQLite)) {
+          const dbPath =
+            forSQLite.database || databasePath("database.sqlite");
+          if (!dbPath) {
+            throw new Error("Database path is not configured.");
+          }
+          const sqliteModule = await import("jsr:@db/sqlite");
+          const SqliteDB = sqliteModule.Database;
+          // @ts-ignore //
+          Database.connections[key].write.push(new SqliteDB(dbPath));
+          // @ts-ignore //
+          Database.connections[key].read.push(new SqliteDB(dbPath));
+        }
+        break;
+      }
+      case "sqlsrv": {
+        const forSQLServer = value;
+        if (isset(forSQLServer)) {
+          const mssql = await loadMssql();
+          const defaultHosts = Array.isArray(forSQLServer.host)
+            ? forSQLServer.host
+            : [forSQLServer.host || "localhost"];
+          const defaultPort = forSQLServer.port || 1433;
+          const defaultDatabase = forSQLServer.database || "honovel";
+          const defaultUser = forSQLServer.user || "sa";
+          const defaultPassword = forSQLServer.password || "";
+          const defaultOptions: SqlSrvConnectionConfig["options"] =
+            forSQLServer.options;
+          for (const host of defaultHosts) {
+            const pool = new mssql.ConnectionPool({
+              host,
+              port: defaultPort,
+              user: defaultUser,
+              password: defaultPassword,
+              database: defaultDatabase,
+              options: defaultOptions,
+            });
+            Database.connections[key].write.push(pool);
+          }
+          Database.connections[key].read = Database.connections[key].write;
+        }
+        break;
       }
     }
-    this.doneInit = true;
   }
 
   private beforeQuery(query: string, params: any[] = []): [string, any[]] {
@@ -683,32 +733,43 @@ export class Database {
   }
 }
 
-export const dbCloser = async () => {
+/**
+ * Close every pool this process opened and reset the registry.
+ *
+ * A connection's `read` and `write` are the *same array* unless it configures
+ * them separately (always so for pgsql and sqlsrv), so the pools are
+ * de-duplicated by identity first. Spreading both arrays closed every pool
+ * twice, and the second close fails on an already-closed pool.
+ *
+ * Safe to call without exiting the process — see dbCloser for the signal
+ * handler that does exit.
+ */
+export const closeConnections = async (): Promise<void> => {
   const logging = config("app").debug;
-  const entries = Object.entries(Database.connections);
-  for (const [, connections] of entries) {
+  for (const connections of Object.values(Database.connections)) {
     const driver = connections.driver;
+    const pools = [
+      ...new Set<unknown>([...connections.read, ...connections.write]),
+    ];
     switch (driver as SupportedDrivers) {
       case "mysql":
       case "pgsql":
-        for (const pool of [...connections.read, ...connections.write]) {
-          await pool
-            .end()
-            .then(() => {
-              if (logging) {
-                console.log(`Closed ${driver} pool successfully.`);
-              }
-            })
-            .catch((err: Error) => {
-              if (logging) {
-                console.error(`Error closing ${driver} pool:`, err);
-              }
-            });
+        for (const pool of pools) {
+          try {
+            await (pool as MPool | PgPool).end();
+            if (logging) {
+              console.log(`Closed ${driver} pool successfully.`);
+            }
+          } catch (err) {
+            if (logging) {
+              console.error(`Error closing ${driver} pool:`, err);
+            }
+          }
         }
         break;
       case "sqlite":
         // Close SQLite database connections
-        for (const db of [...connections.read, ...connections.write]) {
+        for (const db of pools) {
           try {
             // @ts-ignore - SQLite Database has close() method
             db.close();
@@ -724,19 +785,17 @@ export const dbCloser = async () => {
         break;
       case "sqlsrv":
         // Close SQL Server connection pools
-        for (const pool of [...connections.read, ...connections.write]) {
-          await (pool as mssql.ConnectionPool)
-            .close()
-            .then(() => {
-              if (logging) {
-                console.log(`Closed sqlsrv pool successfully.`);
-              }
-            })
-            .catch((err: Error) => {
-              if (logging) {
-                console.error(`Error closing sqlsrv pool:`, err);
-              }
-            });
+        for (const pool of pools) {
+          try {
+            await (pool as MssqlConnectionPool).close();
+            if (logging) {
+              console.log(`Closed sqlsrv pool successfully.`);
+            }
+          } catch (err) {
+            if (logging) {
+              console.error(`Error closing sqlsrv pool:`, err);
+            }
+          }
         }
         break;
       default:
@@ -744,6 +803,12 @@ export const dbCloser = async () => {
         break;
     }
   }
+  Database.resetConnections();
+};
+
+/** SIGINT handler: close every pool, then exit. */
+export const dbCloser = async () => {
+  await closeConnections();
   Deno.exit(0);
 };
 

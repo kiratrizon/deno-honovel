@@ -1,8 +1,15 @@
-import mysql, { Pool as MPool } from "mysql2/promise";
-import MySQL from "./MySQL.ts";
-import { Pool as PgPool } from "@db/pgsql";
-import PgSQL from "./PostgreSQL.ts";
-import mssql from "mssql";
+// Driver packages and their query adapters are loaded on demand via ./drivers.ts
+// so this module — re-exported from Database.ts, and therefore always in the
+// graph — does not drag mysql2 and mssql onto the boot path.
+import type { Pool as MPool } from "mysql2/promise";
+import type { Pool as PgPool } from "@db/pgsql";
+import {
+  loadMssql,
+  loadMysql,
+  loadPgPool,
+  loadQueryDriver,
+} from "./drivers.ts";
+import type { MssqlConnectionPool } from "./drivers.ts";
 
 export default class DatabaseHelper {
   private dbConfig = config("database");
@@ -36,6 +43,7 @@ export default class DatabaseHelper {
           conf.user = dbConfig.user || "root";
           conf.password = dbConfig.password || "";
         }
+        const mysql = await loadMysql();
         const client = await mysql.createConnection(conf);
         return client as MPool;
       }
@@ -59,7 +67,8 @@ export default class DatabaseHelper {
         const poolSize = dbConfig.poolSize || 5;
 
         // Lazy connect
-        const pool = new PgPool(conf, poolSize, true);
+        const PgPoolCtor = await loadPgPool();
+        const pool = new PgPoolCtor(conf, poolSize, true);
 
         return pool;
       }
@@ -90,7 +99,8 @@ export default class DatabaseHelper {
           conf.password = dbConfig.password || "";
         }
         conf.database = "master"; // SQL Server requires a database to connect
-        const client = new mssql.ConnectionPool(conf);
+        const mssql = await loadMssql();
+        const client = new mssql.ConnectionPool(conf) as MssqlConnectionPool;
         await client.connect();
         return client;
       }
@@ -107,6 +117,8 @@ export default class DatabaseHelper {
       switch (dbType) {
         case "mysql": {
           const sql = `SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`;
+          const MySQL = await loadQueryDriver("mysql");
+          // @ts-ignore //
           const result = await MySQL.query<"select">(conn, sql, [
             this.dbConfig.connections[this.connection].database,
           ]);
@@ -114,6 +126,8 @@ export default class DatabaseHelper {
         }
         case "pgsql": {
           const sql = `SELECT datname FROM pg_database WHERE datname = $1`;
+          const PgSQL = await loadQueryDriver("pgsql");
+          // @ts-ignore //
           const result = await PgSQL.query<"select">(conn, sql, [
             this.dbConfig.connections[this.connection].database,
           ]);
@@ -126,7 +140,8 @@ export default class DatabaseHelper {
         }
         case "sqlsrv": {
           const sql = `SELECT name FROM sys.databases WHERE name = @dbName`;
-          const request = (conn as mssql.ConnectionPool).request();
+          const mssql = await loadMssql();
+          const request = (conn as MssqlConnectionPool).request();
           request.input(
             "dbName",
             mssql.NVarChar,
@@ -147,7 +162,7 @@ export default class DatabaseHelper {
         // @ts-ignore - SQLite Database has close() method
         conn.close();
       } else if (dbType === "sqlsrv") {
-        await (conn as mssql.ConnectionPool).close();
+        await (conn as MssqlConnectionPool).close();
       }
     }
   }
@@ -161,11 +176,15 @@ export default class DatabaseHelper {
       switch (dbType) {
         case "mysql": {
           const sql = `CREATE DATABASE IF NOT EXISTS \`${dbName}\``;
+          const MySQL = await loadQueryDriver("mysql");
+          // @ts-ignore //
           await MySQL.query<"create">(conn, sql);
           break;
         }
         case "pgsql": {
           const sql = `CREATE DATABASE "${dbName}"`;
+          const PgSQL = await loadQueryDriver("pgsql");
+          // @ts-ignore //
           await PgSQL.query<"create">(conn, sql);
           break;
         }
@@ -180,7 +199,8 @@ export default class DatabaseHelper {
               CREATE DATABASE [${dbName}]
             END
           `;
-          const request = (conn as mssql.ConnectionPool).request();
+          const mssql = await loadMssql();
+          const request = (conn as MssqlConnectionPool).request();
           request.input("dbName", mssql.NVarChar, dbName);
           await request.query(sql);
           break;
@@ -196,7 +216,7 @@ export default class DatabaseHelper {
         // @ts-ignore - SQLite Database has close() method
         conn.close();
       } else if (dbType === "sqlsrv") {
-        await (conn as mssql.ConnectionPool).close();
+        await (conn as MssqlConnectionPool).close();
       }
     }
   }

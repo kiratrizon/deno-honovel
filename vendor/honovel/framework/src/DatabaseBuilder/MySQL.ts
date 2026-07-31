@@ -1,4 +1,7 @@
-import mysql, { Pool, PoolConnection } from "mysql2/promise";
+// This module is only ever reached through the lazy loader in ./drivers.ts, so a
+// static mysql2 import here is fine — it loads with the adapter, not on boot.
+import mysql from "mysql2/promise";
+import type { Pool, PoolConnection } from "mysql2/promise";
 import { QueryResultDerived } from "Database";
 
 class MySQL {

@@ -1,4 +1,4 @@
-import { Pool } from "@db/pgsql";
+import type { Pool } from "@db/pgsql";
 import { QueryResultDerived } from "Database";
 
 class PgSQL {
