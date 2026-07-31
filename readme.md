@@ -125,12 +125,6 @@ deno task vite:dev      # run Vite in dev mode
 deno task vite:build    # build assets for production
 ```
 
-### Config Watcher
-
-```bash
-deno task watch:config    # watch config files for changes
-```
-
 ## Project Structure
 
 ```
