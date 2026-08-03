@@ -5,7 +5,7 @@ import { DDError } from "../Maneuver/HonovelErrors.ts";
 import HonoRedirect from "HonoHttp/HonoRedirect.ts";
 import HonoResponseV2 from "HonoHttp/HonoResponse.ts";
 import Event from "Illuminate/Events/index.ts";
-import Exceptions from "Illuminate/Foundation/Execptions/Exceptions.ts";
+import Exceptions from "Illuminate/Foundation/Exceptions/Exceptions.ts";
 
 globalFn("response", function (html = null, status = 200) {
   if (!isset(html)) {

@@ -52,28 +52,9 @@ export default class HandleCors {
         );
     }
 
-    // set variables for fallback
-    request.set("isSameOrigin", isSameOrigin);
-    request.set("allowedOrigins", allowedOrigins);
-    request.set("allowedMethods", allowedMethods);
-    request.set("allowedHeaders", allowedHeaders);
-    request.set("allowCredentials", allowCredentials);
-    request.set("origin", origin);
-    return next();
-  };
+    const res = await next();
 
-  public fallback: HttpMiddleware = async ({ request }, next) => {
-    const isSameOrigin = request.get("isSameOrigin") as boolean;
-    const allowedOrigins = (request.get("allowedOrigins") || []) as string[];
-    const allowedMethods = (request.get("allowedMethods") || []) as string[];
-    const allowedHeaders = (request.get("allowedHeaders") || []) as string[];
-    const allowCredentials = (request.get("allowCredentials") ||
-      false) as boolean;
-    const origin = (request.get("origin") || "") as string;
-
-    const res = next();
-
-    if (isSameOrigin || allowedOrigins.includes(origin)) {
+    if (isSameOrigin || allowedOrigins.includes(origin as string)) {
       res.headers.set("Access-Control-Allow-Origin", origin || "*");
       res.headers.set("Access-Control-Allow-Methods", allowedMethods.join(","));
       res.headers.set("Access-Control-Allow-Headers", allowedHeaders.join(","));

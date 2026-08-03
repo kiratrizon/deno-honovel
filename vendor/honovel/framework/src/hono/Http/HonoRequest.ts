@@ -573,7 +573,14 @@ class HonoRequest extends Macroable {
     await sessionMod.end();
   }
 
+  // trap the dispose to avoid it from running twice
+  #disposed = false;
+
   public async dispose(): Promise<void> {
+    if (this.#disposed) {
+      return;
+    }
+    this.#disposed = true;
     const sessionMod = this.#c.get("_sessionMod") as SessionModifier;
     // @ts-ignore //
     const sessionValue = this.#c.get("session").values;

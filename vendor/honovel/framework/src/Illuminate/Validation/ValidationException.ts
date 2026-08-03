@@ -1,5 +1,5 @@
 import { ContentfulStatusCode } from "hono/utils/http-status";
-import Exception from "../Foundation/Execptions/Exception.ts";
+import Exception from "../Foundation/Exceptions/Exception.ts";
 
 export default class ValidationException extends Exception {
   constructor(

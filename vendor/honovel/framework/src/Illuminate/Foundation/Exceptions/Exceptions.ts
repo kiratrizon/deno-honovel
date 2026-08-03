@@ -1,25 +1,26 @@
 import Exception from "./Exception.ts";
 import IHttpHono from "../../../../../@types/declaration/HttpHono.d.ts";
 import { HonoResponse } from "HonoHttp/HonoResponse.ts";
-import HttpException from "../HttpExecptions/HttpException.ts";
+import HttpException from "../HttpExceptions/HttpException.ts";
 import Application, { ExceptionConstructor } from "../Application.ts";
 import IHonoView from "../../../../../@types/declaration/IHonoView.d.ts";
 export type IExceptionCallback<T extends ExceptionConstructor = ExceptionConstructor> = (httpObj: IHttpHono, exception: InstanceType<T>) => Promise<HonoResponse | IHonoView | string | null | undefined | number | boolean | Record<string, any> | Array<any>>;
 
-import AccessDeniedHttpException from "../HttpExecptions/AccessDeniedHttpException.ts";
-import BadRequestHttpException from "../HttpExecptions/BadRequestHttpException.ts";
-import ConflictHttpException from "../HttpExecptions/ConflictHttpException.ts";
-import GoneHttpException from "../HttpExecptions/GoneHttpException.ts";
-import LengthRequiredHttpException from "../HttpExecptions/LengthRequiredHttpException.ts";
-import LockedHttpException from "../HttpExecptions/LockedHttpException.ts";
-import NotAcceptableHttpException from "../HttpExecptions/NotAcceptableHttpException.ts";
-import NotFoundHttpException from "../HttpExecptions/NotFoundHttpException.ts";
-import PreconditionFailedHttpException from "../HttpExecptions/PreconditionFailedHttpException.ts";
-import PreconditionRequiredHttpException from "../HttpExecptions/PreconditionRequiredHttpException.ts";
-import ServiceUnavailableHttpException from "../HttpExecptions/ServiceUnavailableHttpException.ts";
-import TooManyRequestsHttpException from "../HttpExecptions/TooManyRequestsHttpException.ts";
-import UnprocessableEntityHttpException from "../HttpExecptions/UnprocessableEntityHttpException.ts";
-import UnsupportedMediaTypeHttpException from "../HttpExecptions/UnsupportedMediaTypeHttpException.ts";
+import AccessDeniedHttpException from "../HttpExceptions/AccessDeniedHttpException.ts";
+import BadRequestHttpException from "../HttpExceptions/BadRequestHttpException.ts";
+import ConflictHttpException from "../HttpExceptions/ConflictHttpException.ts";
+import GoneHttpException from "../HttpExceptions/GoneHttpException.ts";
+import InternalServerErrorHttpException from "../HttpExceptions/InternalServerErrorHttpException.ts";
+import LengthRequiredHttpException from "../HttpExceptions/LengthRequiredHttpException.ts";
+import LockedHttpException from "../HttpExceptions/LockedHttpException.ts";
+import NotAcceptableHttpException from "../HttpExceptions/NotAcceptableHttpException.ts";
+import NotFoundHttpException from "../HttpExceptions/NotFoundHttpException.ts";
+import PreconditionFailedHttpException from "../HttpExceptions/PreconditionFailedHttpException.ts";
+import PreconditionRequiredHttpException from "../HttpExceptions/PreconditionRequiredHttpException.ts";
+import ServiceUnavailableHttpException from "../HttpExceptions/ServiceUnavailableHttpException.ts";
+import TooManyRequestsHttpException from "../HttpExceptions/TooManyRequestsHttpException.ts";
+import UnprocessableEntityHttpException from "../HttpExceptions/UnprocessableEntityHttpException.ts";
+import UnsupportedMediaTypeHttpException from "../HttpExceptions/UnsupportedMediaTypeHttpException.ts";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 import AuthenticationException from "./AuthenticationException.ts";
 export default class Exceptions {
@@ -43,6 +44,7 @@ export default class Exceptions {
             423: LockedHttpException,
             428: PreconditionRequiredHttpException,
             429: TooManyRequestsHttpException,
+            500: InternalServerErrorHttpException,
             503: ServiceUnavailableHttpException,
             406: NotAcceptableHttpException,
             401: AuthenticationException,

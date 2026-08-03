@@ -129,7 +129,7 @@ import { ISession } from "../../../../@types/declaration/ISession.d.ts";
 import { CookieOptions } from "hono/utils/cookie";
 import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";
-import Model, { ModelConstructor } from "Illuminate/Database/Eloquent/Model.ts";
+import Model from "Illuminate/Database/Eloquent/Model.ts";
 import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
 import HonoFile from "./HonoFile.ts";
 
@@ -332,8 +332,13 @@ declare class HonoRequest {
     messages?: Record<string, string>,
   ): Promise<Record<keyof T | string, any>>;
 
-  /** Bind route parameters to request */
-  public bindRoute(params: Record<string, ModelConstructor>): void;
+  /**
+   * Bind route parameters to request.
+   *
+   * Takes the model *classes*, not construct signatures — route binding calls
+   * statics on them (findOrFail), so the type has to be `typeof Model`.
+   */
+  public bindRoute(params: Record<string, typeof Model<ModelAttributes>>): void;
 
   /**
    * Set a variable along the request lifecycle

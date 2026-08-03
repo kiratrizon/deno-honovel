@@ -12,7 +12,7 @@ export async function myError(
   if (!request) {
     return c.json({ message }, code, headers);
   }
-  if (request.expectsJson() || request.ajax() || request.is("api/*")) {
+  if (request.expectsJson() || request.ajax()) {
     return c.json(
       {
         message,

@@ -13,7 +13,7 @@ import IRedirectResponse from "./declaration/IHonoRedirect.d.ts";
 import HonoResponseV2, { HTMLResponse } from "HonoHttp/HonoResponse.ts";
 import Application from "Illuminate/Foundation/Application.ts";
 
-export { };
+export {};
 declare global {
   /**
    * Instantiates a new HonoResponse object.
@@ -52,14 +52,13 @@ declare global {
 
   type HttpMiddleware = (
     myHono: HttpHono,
-    // @ts-ignore //
     next: HonoClosure["next"],
     ...args: string[]
   ) => Promise<unknown>;
 
   type HttpDispatch<T = { [key: string]: any }> = (
     myHono: HttpHono,
-    args: T
+    args: T, // url route param
   ) => Promise<number | null | boolean | string | object | []>;
 
   type nullify = null | undefined;
@@ -107,7 +106,7 @@ declare global {
 
   function redirect(path?: string): IRedirectResponse;
 
-  interface MyContext extends Context<HonoTypeImport> { }
+  interface MyContext extends Context<HonoTypeImport> {}
 
   function myEvent(event: object, payload?: any[]): Promise<unknown>;
 

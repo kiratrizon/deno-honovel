@@ -1,5 +1,5 @@
 import { ContentfulStatusCode } from "hono/utils/http-status";
-import Exception from "../Execptions/Exception.ts";
+import Exception from "../Exceptions/Exception.ts";
 
 export type HttpStatusCodeValue =
   | 100

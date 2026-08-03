@@ -22,7 +22,6 @@ import PayloadParser from "../Http/Middleware/PayloadParser.ts";
 
 export interface MiddlewareLikeInstance {
   handle?: HttpMiddleware;
-  fallback?: HttpMiddleware;
 }
 
 export interface MiddlewareLikeClass {

@@ -10,11 +10,10 @@ import { myError } from "HonoHttp/builder.ts";
 import { SQLError } from "Illuminate/Database/Query/index.ts";
 import Model from "Illuminate/Database/Eloquent/Model.ts";
 import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
-import ValidationException from "Illuminate/Validation/ValidationException.ts";
 import { TagContract } from "edge.js/types";
 import HonoView from "HonoHttp/HonoView.ts";
 import HonoRedirect from "HonoHttp/HonoRedirect.ts";
-import { HonoResponse, RedirectResponse } from "HonoHttp/HonoResponse.ts";
+import { HonoResponse } from "HonoHttp/HonoResponse.ts";
 import MessageBag, { ErrorsShape } from "HonoHttp/MessageBag.ts";
 import { SessionDataTypes } from "../../../../@types/declaration/imain.d.ts";
 import viteConfig from "../../../../../vite/vite-manipulate.ts";
@@ -22,8 +21,8 @@ import HRequest from "HonoHttp/HonoRequest.d.ts";
 import BindingRegistry from "../Core/BindingRegistry.ts";
 import HonoRequest from "HonoHttp/HonoRequest.ts";
 import { MiddlewareLikeClass } from "Illuminate/Foundation/Configuration/Middleware.ts";
-import HttpException from "Illuminate/Foundation/HttpExecptions/HttpException.ts";
-import Exception from "Illuminate/Foundation/Execptions/Exception.ts";
+import InternalServerErrorHttpException from "Illuminate/Foundation/HttpExceptions/InternalServerErrorHttpException.ts";
+import Exception from "Illuminate/Foundation/Exceptions/Exception.ts";
 import Application from "Illuminate/Foundation/Application.ts";
 
 export const regexObj = {
@@ -56,14 +55,6 @@ export function regexToHono(
   };
 }
 
-const defaultHandle: HttpMiddleware = async function ({ request }, next) {
-  return next();
-};
-export type TFallbackMiddleware = [
-  "middleware",
-  MiddlewareOrDispatch,
-  string[],
-];
 export class URLArranger {
   public static urlCombiner(input: string[] | string, strict = true) {
     if (isString(input)) {
@@ -261,15 +252,13 @@ function applyConstraintsWithOptional(
 interface IMiddlewareCompiler {
   debugString: string;
   middleware: [HttpMiddleware, string[]];
-  from?: "handle" | "fallback";
 }
 
 function splitMiddlewareParams(parts: string[]): string[] {
   return parts.flatMap((part) => part.split(",").map((p) => p.trim()));
 }
 
-/** Pushes `handle`/`fallback` compiler entries for a middleware instance. Every call site in
- * toMiddleware() used to repeat this same handle/fallback-extraction logic inline. */
+/** Pushes the compiler entry for a middleware instance's handle(). */
 function pushMiddlewareEntries(
   middlewareCallback: IMiddlewareCompiler[],
   middlewareInstance: InstanceType<MiddlewareLikeClass>,
@@ -277,39 +266,17 @@ function pushMiddlewareEntries(
   params: string[],
 ): void {
   const handle = middlewareInstance.handle;
-  const fallback = middlewareInstance.fallback;
-  const hasHandle =
-    methodExist(middlewareInstance, "handle") && isFunction(handle);
-  const hasFallback =
-    methodExist(middlewareInstance, "fallback") && isFunction(fallback);
-
-  if (hasHandle) {
+  if (methodExist(middlewareInstance, "handle") && isFunction(handle)) {
     middlewareCallback.push({
       debugString: `// class ${className}@handle \n// Code Referrence \n\n${handle.toString()}`,
       middleware: [handle.bind(middlewareInstance) as HttpMiddleware, params],
-      from: hasFallback ? "handle" : undefined,
-    });
-  }
-
-  if (hasFallback) {
-    if (!hasHandle) {
-      middlewareCallback.push({
-        debugString: "",
-        middleware: [defaultHandle, []],
-        from: "handle",
-      });
-    }
-    middlewareCallback.push({
-      debugString: `// class ${className}@fallback \n// Code Referrence \n\n${fallback.toString()}`,
-      middleware: [fallback.bind(middlewareInstance) as HttpMiddleware, params],
-      from: "fallback",
     });
   }
 }
 
 export function toMiddleware(
   args: (string | HttpMiddleware | MiddlewareLikeClass)[],
-): [MiddlewareHandler[], TFallbackMiddleware[]] {
+): MiddlewareHandler[] {
   const MiddlewareGroups = application?.getRouter()?.middleware?.groups;
   const RouteMiddleware = application?.getRouter()?.middleware?.aliases;
   const newArgs = args.flatMap((arg) => {
@@ -401,31 +368,101 @@ export function toMiddleware(
     return middlewareCallback;
   });
 
-  const returnMiddleware: [MiddlewareHandler[], TFallbackMiddleware[]] = [
-    [],
-    [],
-  ];
-
-  newArgs.forEach((args) => {
-    const newObj: MiddlewareOrDispatch = {
-      debugString: args.debugString,
-      args: args.middleware[0],
-      from: args.from,
-    };
-
-    const param: TFallbackMiddleware = [
-      "middleware",
-      newObj,
+  return newArgs.map((args) =>
+    generateOnionMiddleware(
+      {
+        debugString: args.debugString,
+        args: args.middleware[0],
+      },
       args.middleware[1] || [],
-    ];
-    const generatedMiddleware = generateMiddlewareOrDispatch(...param);
-    if (args.from == "fallback") {
-      returnMiddleware[1].push(param);
-    } else {
-      returnMiddleware[0].push(generatedMiddleware);
+    ),
+  );
+}
+
+// use hono next in the logic
+function generateOnionMiddleware(
+  objArgs: MiddlewareOrDispatch,
+  sequenceParams: string[] = [],
+): MiddlewareHandler {
+  return async (c: MyContext, next: () => Promise<void>) => {
+    const myHono = c.get("myHono");
+    const request = myHono.request;
+    // @ts-ignore //
+    request.resetRoute({
+      ...c.get("subdomain"),
+      ...c.req.param(),
+    });
+
+    const { args, debugString } = objArgs;
+    if (!isFunction(args)) {
+      return await myError(c);
     }
-  });
-  return returnMiddleware;
+
+    const closure = new HonoClosure(c, next);
+    let resp: Response | undefined;
+
+    try {
+      // execited the middleware
+      const middlewareResp: any = await (args as HttpMiddleware)(
+        myHono,
+        closure.next.bind(closure),
+        ...sequenceParams,
+      );
+
+      // if next function is awaited
+      if (closure.continued) {
+        if (
+          !isUndefined(middlewareResp) &&
+          !isNull(middlewareResp) &&
+          !(middlewareResp instanceof HonoClosure)
+        ) {
+          // if there is response...
+          if (middlewareResp instanceof Response) {
+            // if not the same then reassign
+            if (middlewareResp !== c.res) {
+              c.res = middlewareResp;
+            }
+          } else {
+            // no more manual execution of return next() here, honovel response here... view(), response(), redirect() etc...
+            const dispatch = new HonoDispatch(middlewareResp, "middleware");
+            // this is obviously won't return a HonoClosure instance
+            if (!dispatch.isNext) {
+              const built = (await dispatch.build(c)) as Response;
+              if (built !== c.res) {
+                c.res = built;
+              }
+            }
+          }
+        }
+        return;
+      }
+
+      // for not awaited next();
+
+      const dispatch = new HonoDispatch(middlewareResp, "middleware");
+      // if it returns HonoClosure
+      if (dispatch.isNext) {
+        // just a normal next()
+        return await next();
+      }
+      // honovel response here... view(), response(), redirect() etc...
+      resp = (await dispatch.build(c)) as Response;
+    } catch (e: unknown) {
+      resp = await handleErrors(e, c, request);
+    }
+
+    // if response is already set... return resp
+    if (isset(resp)) {
+      return resp;
+    }
+    // if it is undefined or null... or what else, debug
+    return await renderDebugOrInternalError(
+      c,
+      request,
+      "middleware",
+      debugString,
+    );
+  };
 }
 
 export function toDispatch(
@@ -447,20 +484,16 @@ export function toNotfound(
 interface MiddlewareOrDispatch {
   debugString: string;
   args: HttpMiddleware | IMyConfig["callback"];
-  from?: "handle" | "fallback" | "dispatch" | "notfound";
+  from?: "dispatch" | "notfound";
   customRequest?: typeof HonoRequest;
 }
 function generateMiddlewareOrDispatch(
-  type: "middleware" | "dispatch" | "notfound",
+  type: "dispatch" | "notfound",
   objArgs: MiddlewareOrDispatch,
   sequenceParams: string[] = [],
 ): MiddlewareHandler {
   if (type !== "notfound") {
-    const from = objArgs.from;
-    return async (c: MyContext, next: () => Promise<void>) => {
-      if (c.get("stopMiddleware") === true) {
-        return await next();
-      }
+    return async (c: MyContext, _next: () => Promise<void>) => {
       const myHono = c.get("myHono");
       const request = myHono.request;
       let middlewareResp;
@@ -475,17 +508,8 @@ function generateMiddlewareOrDispatch(
         return await myError(c);
       } else {
         let resp: Response | undefined; // build response
-        let isNext = false;
         try {
-          if (type === "middleware") {
-            const honoClosure = c.get("honoClosure");
-            middlewareResp = await (args as HttpMiddleware)(
-              myHono,
-              // @ts-ignore //
-              honoClosure.next.bind(honoClosure),
-              ...sequenceParams,
-            );
-          } else {
+          {
             const params = request.route() as Record<string, string | null>;
             const newParams: Record<
               string,
@@ -530,38 +554,25 @@ function generateMiddlewareOrDispatch(
           } else {
             // @ts-ignore //
             const dispatch = new HonoDispatch(middlewareResp, type);
-            if (
-              (type === "middleware" && !dispatch.isNext) ||
-              type === "dispatch"
-            ) {
-              const result = (await dispatch.build(c)) as Response;
-              resp = result;
-            } else if (type === "middleware" && dispatch.isNext) {
-              isNext = true;
-            }
+            resp = (await dispatch.build(c)) as Response;
           }
         } catch (e: unknown) {
           resp = await handleErrors(e, c, request);
         }
-        if (!isUndefined(middlewareResp)) {
-          if (isNext) {
-            if (from === "handle" && c.get("response") === null) {
-              // increment fromHandle
-              c.set("fromHandle", c.get("fromHandle") + 1);
-            }
-            return await next();
-          }
-        }
         if (isset(resp)) {
-          c.set("response", resp);
-          c.set("stopMiddleware", true);
-          return await next();
+          // The dispatch is the last handler in the chain now; return directly.
+          return resp;
         } else {
           if (["dispatch"].includes(type)) {
             // @ts-ignore //
             type = "route";
           }
-          return renderDebugOrInternalError(c, request, type, debugString);
+          return await renderDebugOrInternalError(
+            c,
+            request,
+            type,
+            debugString,
+          );
         }
       }
     };
@@ -589,114 +600,49 @@ function generateMiddlewareOrDispatch(
   }
 }
 
-export function toFallback([count, fallbackParams]: [
-  number,
-  TFallbackMiddleware,
-]) {
-  return generateFallback(...fallbackParams, count);
-}
-
-function generateFallback(
-  type: "middleware",
-  objArgs: MiddlewareOrDispatch,
-  sequenceParams: string[] = [],
-  count = 0,
-): MiddlewareHandler {
-  return async (c: MyContext, next: () => Promise<void>) => {
-    const fromHandle = c.get("fromHandle");
-    if (count !== fromHandle) {
-      return await next();
-    }
-    c.set("fromHandle", fromHandle - 1);
-    const myHono = c.get("myHono");
-    const request = myHono.request;
-    let middlewareResp;
-    // @ts-ignore //
-    request.resetRoute({
-      ...c.get("subdomain"),
-      ...c.req.param(),
-    });
-    const { args, debugString } = objArgs;
-    if (!isFunction(args)) {
-      return await myError(c);
-    } else {
-      let resp: Response | undefined; // build response
-      let isNext = false;
-      try {
-        const honoClosure = c.get("honoClosure");
-        middlewareResp = await (args as HttpMiddleware)(
-          myHono,
-          // @ts-ignore //
-          honoClosure.next.bind(honoClosure),
-          ...sequenceParams,
-        );
-        if (isNull(middlewareResp)) {
-          resp = c.json(null);
-        } else {
-          const dispatch = new HonoDispatch(middlewareResp, type);
-          if (type === "middleware" && !dispatch.isNext) {
-            const result = (await dispatch.build(c)) as Response;
-            resp = result;
-          } else if (type === "middleware" && dispatch.isNext) {
-            isNext = true;
-          }
-        }
-      } catch (e: unknown) {
-        resp = await handleErrors(e, c, request);
-      }
-      if (!isUndefined(middlewareResp)) {
-        if (isNext) {
-          return await next();
-        }
-      }
-      if (isset(resp)) {
-        await request.dispose();
-        return resp;
-      } else {
-        return renderDebugOrInternalError(c, request, type, debugString);
-      }
-    }
-  };
-}
-
-/** Shared by generateMiddlewareOrDispatch and generateFallback: renders the debug error
- * page locally, or logs and returns a generic 500 in deployed environments. */
-function renderDebugOrInternalError(
+/** Renders the debug error page locally, or logs and returns a generic 500 in
+ * deployed environments. */
+async function renderDebugOrInternalError(
   c: MyContext,
   request: HRequest,
   type: string,
   debugString: string,
-): Response {
-  const debuggingPurpose = renderDebugErrorPage(
-    `${ucFirst(type)} Error`,
-    debugString,
+): Promise<Response> {
+  const title = `${ucFirst(type)} Error`;
+
+  const exception = new InternalServerErrorHttpException(
     `Returned undefined value from the ${type} function.`,
   );
-  if (!isset(env("DENO_DEPLOYMENT_ID"))) {
-    return c.html(debuggingPurpose, 500);
-  }
-  console.debug(
-    debuggingPurpose,
-    "error",
-    `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(
-      "HTTP_X_REQUEST_ID",
-    )}`,
-  );
-  return c.json(
-    {
-      message: "Internal server error",
-    },
-    500,
-  );
-}
+  const { message, httpCode, headers } = exception;
 
-export const returnResponse: MiddlewareHandler = async (c: MyContext) => {
-  const response = c.get("response");
-  // dispose session
-  const myHono = c.get("myHono");
-  await myHono.request.dispose();
-  return response as Response;
-};
+  // use app.debug anyway
+  if (config("app.debug")) {
+    // transfer to json when it's an ajax or expectsJson();
+    if (request.expectsJson() || request.ajax()) {
+      return c.json(
+        { message, exception: exception.name, title, trace: debugString },
+        httpCode,
+        headers,
+      );
+    }
+    return c.html(
+      renderDebugErrorPage(title, debugString, message),
+      httpCode,
+      headers,
+    );
+  } else {
+    const debuggingPurpose = renderDebugErrorPage(title, debugString, message);
+    console.debug(
+      debuggingPurpose,
+      "error",
+      `Request URI ${request.method.toUpperCase()} ${request.path()}\nRequest ID ${request.server(
+        "HTTP_X_REQUEST_ID",
+      )}`,
+    );
+  }
+
+  return await exceptionToResponse(c, exception);
+}
 
 export function renderErrorHtml(e: Error): string {
   return `
@@ -743,11 +689,14 @@ ${e.stack.replace(/</g, "&lt;")}
 export const buildRequestInit = (): MiddlewareHandler => {
   return async (c: MyContext, next: () => Promise<void>) => {
     c.set("myHono", new HttpHono(c));
-    c.set("honoClosure", new HonoClosure(c));
-    c.set("fromHandle", 0);
-    c.set("response", null);
-    c.set("stopMiddleware", false);
-    await next();
+    try {
+      // each of them are already bound to hono middleware
+      await next();
+    } finally {
+      // after next is executed...
+      // dispose the session
+      await c.get("myHono").request.dispose();
+    }
   };
 };
 

@@ -1,7 +1,7 @@
 import Middleware from "./Configuration/Middleware.ts";
-import Exception from "./Execptions/Exception.ts";
-import Exceptions, { IExceptionCallback } from "./Execptions/Exceptions.ts";
-import HttpException from "./HttpExecptions/HttpException.ts";
+import Exception from "./Exceptions/Exception.ts";
+import Exceptions, { IExceptionCallback } from "./Exceptions/Exceptions.ts";
+import HttpException from "./HttpExceptions/HttpException.ts";
 
 export type RouterLoader = () => Promise<any>;
 
