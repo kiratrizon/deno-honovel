@@ -1,9 +1,14 @@
 import BaseController from "Illuminate/Routing/BaseController";
 import HttpHono from "HttpHono";
 import IHttpHono from "./HttpHono.d.ts";
+import { MiddlewareLikeClass } from "Illuminate/Foundation/Configuration/Middleware.ts";
 export interface IGroupParams {
   prefix?: string;
-  middleware?: string | HttpMiddleware | (string | HttpMiddleware)[];
+  middleware?:
+    | string
+    | HttpMiddleware
+    | MiddlewareLikeClass
+    | (string | HttpMiddleware | MiddlewareLikeClass)[];
   as?: string;
   domain?: string;
 }
@@ -44,8 +49,9 @@ export declare class IGroupRoute {
   public static middleware(
     handler:
       | keysOfDefaultAliases
-      | (keysOfDefaultAliases | HttpMiddleware)[]
-      | HttpMiddleware,
+      | (keysOfDefaultAliases | HttpMiddleware | MiddlewareLikeClass)[]
+      | HttpMiddleware
+      | MiddlewareLikeClass,
   ): ReturnType<InstanceType<typeof IGroupInstance>["middleware"]>;
 
   /**
@@ -138,7 +144,11 @@ export declare class IGroupInstance {
    * @returns The current instance of IGroupInstance for method chaining.
    */
   public middleware(
-    handler: string | (string | HttpMiddleware)[] | HttpMiddleware,
+    handler:
+      | string
+      | (string | HttpMiddleware | MiddlewareLikeClass)[]
+      | HttpMiddleware
+      | MiddlewareLikeClass,
   ): this;
   /**
    * Set a URI prefix for all routes within this group.
@@ -194,7 +204,7 @@ export declare class IGroupInstance {
 }
 
 interface FlagConfig {
-  middleware?: (string | HttpMiddleware)[];
+  middleware?: (string | HttpMiddleware | MiddlewareLikeClass)[];
   where?: Record<string, RegExp[]>;
 }
 
@@ -235,8 +245,9 @@ export interface IMethodRoute {
   middleware(
     handler:
       | keysOfDefaultAliases
-      | (keysOfDefaultAliases | HttpMiddleware)[]
-      | HttpMiddleware,
+      | (keysOfDefaultAliases | HttpMiddleware | MiddlewareLikeClass)[]
+      | HttpMiddleware
+      | MiddlewareLikeClass,
   ): this;
   /**
    * Define parameter constraints using regular expressions.

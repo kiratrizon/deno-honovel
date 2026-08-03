@@ -4,7 +4,10 @@ export default class StartSession {
   public handle: HttpMiddleware = async ({ request }, next) => {
     await request.sessionStart();
 
-    if (!request.session.has("_token") || !isset(request.session.get("_token"))) {
+    if (
+      !request.session.has("_token") ||
+      !isset(request.session.get("_token"))
+    ) {
       request.session.regenerateToken();
     }
 
@@ -21,16 +24,15 @@ export default class StartSession {
       new: [], // reset for new flashes
     });
 
-    return next();
-  };
+    const res = await next();
 
-  public fallback: HttpMiddleware = async ({ request }, next) => {
-    const sessionFlash = request.session.get(
-      "_flash"
+    // remove old values
+    const outgoingFlash = request.session.get(
+      "_flash",
     ) as SessionDataTypes["_flash"];
-    if (sessionFlash && isArray(sessionFlash.old)) {
-      for (const key of sessionFlash.old) {
-        if (sessionFlash.new.includes(key)) {
+    if (outgoingFlash && isArray(outgoingFlash.old)) {
+      for (const key of outgoingFlash.old) {
+        if (outgoingFlash.new.includes(key)) {
           // keep it for another request
           continue;
         } else {
@@ -40,6 +42,6 @@ export default class StartSession {
       }
     } // then flash only if there is input
 
-    return next();
+    return res;
   };
 }

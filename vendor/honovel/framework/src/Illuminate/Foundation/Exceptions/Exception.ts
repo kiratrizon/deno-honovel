@@ -1,5 +1,5 @@
 import { ContentfulStatusCode } from "hono/utils/http-status";
-import { HttpStatusCodeValue } from "Illuminate/Foundation/HttpExecptions/HttpException.ts";
+import { HttpStatusCodeValue } from "Illuminate/Foundation/HttpExceptions/HttpException.ts";
 
 export default class Exception extends Error {
     protected static readonly httpStatusMessages: Record<HttpStatusCodeValue, string> = {

@@ -1,10 +1,45 @@
-import HonoRequest from "HonoHttp/HonoRequest.ts";
-
+/**
+ * continue to the next middleware.
+ *
+ * await it for the response,
+ * or use `.headers` to modify the response headers.
+ */
 class HonoClosure {
-  constructor(private readonly c: MyContext) {}
+  #continued = false;
+  #pending?: Promise<Response>;
 
-  protected next(_request?: HonoRequest) {
-    // to be implemented
+  constructor(
+    private readonly c: MyContext,
+    // get hono's next to run inside HonoClosure
+    private readonly honoNext: () => Promise<void>,
+  ) {}
+
+  public get continued(): boolean {
+    return this.#continued;
+  }
+
+  #run(): Promise<Response> {
+    if (!isset(this.#pending)) {
+      this.#continued = true;
+      // wrap it in async so honoNext magic will run...
+      this.#pending = (async () => {
+        await this.honoNext();
+        // return the res after next is executed
+        return this.c.res;
+      })();
+    }
+    return this.#pending as Promise<Response>;
+  }
+
+  // auto execute when next() is awaited
+  public then(
+    resolve?: (value: Response) => unknown,
+    reject?: (reason: unknown) => unknown,
+  ) {
+    return this.#run().then(resolve, reject);
+  }
+
+  public next(): HonoClosure {
     return this;
   }
 

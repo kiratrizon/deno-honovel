@@ -75,13 +75,12 @@ export interface MiddlewareBuildOptions {
   routeGroupMiddleware: MiddlewareHandler[];
   flagMiddleware: MiddlewareHandler[];
   dispatch: MiddlewareHandler;
-  fallbacks: MiddlewareHandler[];
 }
 
 export function buildMiddlewareChain(
   options: MiddlewareBuildOptions,
 ): MiddlewareHandler[] {
-  return [...options.flagMiddleware, options.dispatch, ...options.fallbacks];
+  return [...options.flagMiddleware, options.dispatch];
 }
 
 /**

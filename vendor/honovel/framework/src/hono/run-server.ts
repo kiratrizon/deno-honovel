@@ -48,7 +48,7 @@ try {
   if (config("app.env") == "local") {
     for (const warmup of warmups) {
       const test = await fetch(warmup);
-      console.info(`Warmup URL: ${warmup} - Status: ${test.status}`);
+      // console.info(`Warmup URL: ${warmup} - Status: ${test.status}`);
     }
   }
 } catch {
