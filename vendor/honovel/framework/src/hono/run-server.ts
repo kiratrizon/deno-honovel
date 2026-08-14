@@ -35,26 +35,6 @@ if (env("OTEL_DENO") === "true") {
 
 Deno.serve(serveObj, app.fetch);
 
-try {
-  // await json
-  const filePath = basePath("storage/honovel/warmup.json"); // path to your JSON file
-
-  // Read the file as a string
-  const jsonString = await Deno.readTextFile(filePath);
-
-  // Parse it into an object
-  const warmups = JSON.parse(jsonString) || [];
-
-  if (config("app.env") == "local") {
-    for (const warmup of warmups) {
-      const test = await fetch(warmup);
-      // console.info(`Warmup URL: ${warmup} - Status: ${test.status}`);
-    }
-  }
-} catch {
-  //
-}
-
 import { dbCloser } from "Database";
 
 Deno.addSignalListener("SIGINT", dbCloser);

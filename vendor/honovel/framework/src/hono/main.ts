@@ -27,10 +27,6 @@ import { honoSession } from "HonoHttp/HonoSession.ts";
 import { Route as Router } from "Illuminate/Support/Facades/index.ts";
 const Route = Router as typeof INRoute;
 
-const warmUpdispatch: HttpDispatch = async () => {
-  return response("");
-};
-
 import GroupRoute from "./Support/GroupRoute.ts";
 import { myError } from "HonoHttp/builder.ts";
 import { PublicDiskConfig } from "configs/@types/index.d.ts";
@@ -268,21 +264,9 @@ class Server {
     }
     await Boot.init();
     this.app = await this.generateNewApp({}, true);
-    const conditionalLogger = async (c: any, next: () => Promise<void>) => {
-      const url = c.req.url;
-      // skip if path ends with __warmup
-      const skipPaths = ["/.well-known", "/robots.txt", "/favicon.ico"];
-      if (skipPaths.some((path) => new URL(url).pathname.startsWith(path))) {
-        return await next(); // skip logging
-      }
-      if (!url.endsWith("__warmup")) {
-        return await logger()(c, next); // call logger middleware
-      } else {
-        return await next(); // skip logger
-      }
-    };
 
-    this.app.use(conditionalLogger);
+    // start of using hono app
+    this.app.use(logger());
 
     if (!env("DENO_DEPLOYMENT_ID", null)) {
       const disks = config("filesystems")?.disks || {};
@@ -562,16 +546,6 @@ class Server {
               }
               byEndpointsRouter.route("/", newApp);
             }
-          }
-
-          if (config("app.env") == "local") {
-            const warmUpBuilds = [
-              toDispatch({ args: warmUpdispatch, debugString: "" }, []),
-            ];
-            const warmUpApp = await this.generateNewApp();
-            // @ts-ignore //
-            warmUpApp.get("/__warmup", ...warmUpBuilds);
-            byEndpointsRouter.route("/", warmUpApp);
           }
 
           // for groups
