@@ -1,0 +1,11 @@
+# https://www.robotstxt.org/robotstxt.html
+# Sample policy — allows everything. Tighten before going public.
+
+User-agent: *
+Allow: /
+
+# Paths worth excluding once they exist:
+# Disallow: /storage/
+# Disallow: /myadmin/
+
+# Sitemap: https://example.com/sitemap.xml

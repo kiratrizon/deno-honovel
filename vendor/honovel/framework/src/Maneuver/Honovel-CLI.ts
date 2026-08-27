@@ -706,7 +706,7 @@ class MyArtisan {
       hostname: string,
       port: number,
       hasCert: boolean,
-      path: string = "/__warmup",
+      path: string = "/",
     ): string => {
       const protocol = hasCert ? "https" : "http";
       const host = hostname || "localhost";
@@ -734,19 +734,6 @@ class MyArtisan {
     ).replace(/\/$/, "");
     const envPath: string | undefined | null = basePath(".env");
     // EnvUpdater.updateAppUrl(envPath as string, APP_URL);
-
-    // @ts-ignore //
-    const WARMUP_URL = jsonEncode([
-      buildAppUrl(HOSTNAME || "", finalPort, hasCert, "/__warmup"),
-      buildAppUrl(HOSTNAME || "", finalPort, hasCert, "/api/__warmup"),
-    ]);
-
-    // write to .json file
-    const warmupJsonPath = basePath("storage/honovel/warmup.json");
-    // mkdir first
-    Deno.mkdirSync(path.dirname(warmupJsonPath), { recursive: true });
-
-    Deno.writeTextFileSync(warmupJsonPath, WARMUP_URL);
 
     const cmdArgs = ["run", "--config", "./deno.json", "-A"];
     if (options.tunnel) {
