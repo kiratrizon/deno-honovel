@@ -1,9 +1,23 @@
-export class Encrypter {
-  public static generateAppKey(envPath: string = ".env", force = false) {
-    const key = crypto.getRandomValues(new Uint8Array(32));
-    const binary = String.fromCharCode(...key);
-    const base64Key = btoa(binary);
-    const appKey = `base64:${base64Key}`;
+export class EnvUpdater {
+  /**
+   * Set or remove specific key in .env file
+   */
+
+  public static setEnv({
+    key,
+    value,
+    force,
+    envPath = ".env",
+  }: {
+    key: string;
+    value: string;
+    force?: boolean;
+    envPath?: string;
+  }) {
+    if (!isset(key) || !isset(value)) {
+      throw new Error(`key and value must be present`);
+    }
+    const prevKey = `PREVIOUS_${key}`;
 
     const envFile = basePath(envPath);
     let envContent = "";
@@ -14,19 +28,17 @@ export class Encrypter {
       // File does not exist
     }
 
-    const appKeyMatch = envContent.match(/^APP_KEY=(.*)$/m);
-    const prevKeysMatch = envContent.match(/^PREVIOUS_KEYS=(.*)$/m);
-    const existingKey = appKeyMatch?.[1]?.trim();
+    const keyMatch = envContent.match(new RegExp(`^${key}=(.*)$`, "m"));
+    const prevKeysMatch = envContent.match(
+      new RegExp(`^${prevKey}=(.*)$`, "m"),
+    );
+    const existingKey = keyMatch?.[1]?.trim();
 
-    // ✅ If key exists AND is not empty AND not forcing → skip
-    if (existingKey && appKeyMatch && !force) {
-      console.info(
-        `APP_KEY already exists in ${envPath}. Use force to overwrite.`
-      );
+    if (existingKey && keyMatch && !force) {
+      console.info(`${key} already exists in ".env". Use force to overwrite.`);
       return;
     }
 
-    // ✅ Handle previous key only if it was a real one
     if (existingKey) {
       let prevKeys = prevKeysMatch
         ? prevKeysMatch[1].trim().replace(/^"|"$/g, "")
@@ -38,69 +50,31 @@ export class Encrypter {
 
       if (prevKeysMatch) {
         envContent = envContent.replace(
-          /^PREVIOUS_KEYS=.*$/m,
-          `PREVIOUS_KEYS="${prevKeys}"`
+          new RegExp(`^${prevKey}=.*$`, "m"),
+          `${prevKey}="${prevKeys}"`,
         );
       } else {
-        envContent += `\nPREVIOUS_KEYS="${prevKeys}"`;
+        envContent += `\n${prevKey}="${prevKeys}"`;
       }
     }
 
     // ✅ Replace or append APP_KEY
-    if (appKeyMatch) {
-      envContent = envContent.replace(/^APP_KEY=.*$/m, `APP_KEY=${appKey}`);
+    if (keyMatch) {
+      envContent = envContent.replace(
+        new RegExp(`^${key}=.*$`, "m"),
+        `${key}="${value}"`,
+      );
     } else {
       if (envContent.trim() !== "") envContent += "\n";
-      envContent += `APP_KEY=${appKey}`;
+      envContent += `${key}=${value}`;
     }
 
     Deno.writeTextFileSync(envFile, envContent);
 
-    console.log(`App key generated and saved to ${envPath}`);
+    console.log(`${key} generated and saved to ".env"`);
 
     if (force && existingKey) {
-      console.info(`Old key stored in PREVIOUS_KEYS inside ${envPath}`);
+      console.info(`Old key stored in ${prevKey} inside ".env"`);
     }
-  }
-}
-
-export class EnvUpdater {
-  /**
-   * Set or remove APP_URL in a .env file
-   * @param envPath Path to .env file
-   * @param appUrl Value to set. If null, APP_URL is removed
-   */
-  public static updateAppUrl(
-    envPath: string = ".env",
-    appUrl: string | null = null
-  ) {
-    const envFile =
-      envPath.split("/").length === 1 ? basePath(envPath) : envPath;
-    let envContent = "";
-    try {
-      envContent = Deno.readTextFileSync(envFile);
-    } catch {
-      // If file doesn't exist, we start fresh
-    }
-
-    const appUrlMatch = envContent.match(/^APP_URL=.*$/m);
-
-    if (appUrl === null) {
-      // Remove APP_URL if it exists
-      if (appUrlMatch) {
-        envContent = envContent.replace(/^APP_URL=.*$/m, "").trim();
-      }
-    } else {
-      // Add or replace APP_URL
-      if (appUrlMatch) {
-        envContent = envContent.replace(/^APP_URL=.*$/m, `APP_URL=${appUrl}`);
-      } else {
-        if (envContent.trim() !== "") envContent += "\n";
-        envContent += `APP_URL=${appUrl}`;
-      }
-    }
-
-    // Save changes
-    Deno.writeTextFileSync(envFile, envContent);
   }
 }

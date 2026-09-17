@@ -28,10 +28,7 @@ import {
   TableSchema,
 } from "Illuminate/Database/Schema/index.ts";
 
-import {
-  QueryResult,
-  QueryResultDerived,
-} from "./databaseTypes.ts";
+import { QueryResult, QueryResultDerived } from "./databaseTypes.ts";
 
 type TInsertOrUpdateBuilder = {
   table: string;
@@ -164,7 +161,10 @@ export class Database {
 
   /** Build the pools for a single connection, once, on first use. */
   public static async ensureConnection(key: string): Promise<void> {
-    if (isset(Database.connections[key]) && !empty(Database.connections[key].write)) {
+    if (
+      isset(Database.connections[key]) &&
+      !empty(Database.connections[key].write)
+    ) {
       return;
     }
     if (!(key in Database.building)) {
@@ -290,9 +290,7 @@ export class Database {
               if (defaultOptions?.dateStrings) {
                 poolParams.dateStrings = true;
               }
-              Database.connections[key].read.push(
-                mysql.createPool(poolParams),
-              );
+              Database.connections[key].read.push(mysql.createPool(poolParams));
             });
           }
         }
@@ -339,8 +337,7 @@ export class Database {
       case "sqlite": {
         const forSQLite = value;
         if (isset(forSQLite)) {
-          const dbPath =
-            forSQLite.database || databasePath("database.sqlite");
+          const dbPath = forSQLite.database || databasePath("database.sqlite");
           if (!dbPath) {
             throw new Error("Database path is not configured.");
           }
@@ -388,7 +385,7 @@ export class Database {
     const dbType = this.dbUsed;
 
     let index = 0;
-    let result = "";
+    let sql = "";
     let inSingleQuote = false;
     let inDoubleQuote = false;
 
@@ -398,7 +395,7 @@ export class Database {
 
       // Handle escape characters (e.g., 'It\'s')
       if (char === "\\" && (nextChar === "'" || nextChar === '"')) {
-        result += char + nextChar;
+        sql += char + nextChar;
         i++; // Skip next character
         continue;
       }
@@ -406,14 +403,14 @@ export class Database {
       // Toggle single quote
       if (char === "'" && !inDoubleQuote) {
         inSingleQuote = !inSingleQuote;
-        result += char;
+        sql += char;
         continue;
       }
 
       // Toggle double quote
       if (char === '"' && !inSingleQuote) {
         inDoubleQuote = !inDoubleQuote;
-        result += char;
+        sql += char;
         continue;
       }
 
@@ -421,21 +418,21 @@ export class Database {
       if (char === "?" && !inSingleQuote && !inDoubleQuote) {
         switch (dbType) {
           case "pgsql":
-            result += `$${++index}`;
+            sql += `$${++index}`;
             break;
           case "sqlsrv":
-            result += `@p${++index}`;
+            sql += `@p${++index}`;
             break;
           case "mysql":
           case "sqlite":
           default:
-            result += "?";
+            sql += "?";
             break;
         }
         continue;
       }
 
-      result += char;
+      sql += char;
     }
     const newParams = params.map((param) => {
       const isBinded = Database.bindings.some((binding) => {
@@ -446,7 +443,7 @@ export class Database {
       }
       return param;
     });
-    return [result, newParams];
+    return [sql, newParams];
   }
 
   public generateCreateTableSQL(schema: TableSchema, dbType: DBType): string {
@@ -806,9 +803,24 @@ export const closeConnections = async (): Promise<void> => {
   Database.resetConnections();
 };
 
-/** SIGINT handler: close every pool, then exit. */
+// add time out for 5 secs only to close the terminal - local development
+const DB_CLOSE_TIMEOUT_MS = 5000;
+
+// revise logic
 export const dbCloser = async () => {
-  await closeConnections();
+  let closedCleanly = true;
+  const timeout = new Promise<void>((resolve) => {
+    setTimeout(() => {
+      closedCleanly = false;
+      resolve();
+    }, DB_CLOSE_TIMEOUT_MS);
+  });
+  await Promise.race([closeConnections(), timeout]);
+  if (!closedCleanly) {
+    console.warn(
+      `dbCloser: timed out after ${DB_CLOSE_TIMEOUT_MS}ms waiting for connections to close, exiting anyway.`,
+    );
+  }
   Deno.exit(0);
 };
 

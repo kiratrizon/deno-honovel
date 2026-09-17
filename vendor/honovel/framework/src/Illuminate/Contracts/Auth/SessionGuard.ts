@@ -1,7 +1,5 @@
 import { Hash } from "../../Support/Facades/index.ts";
-import { Carbon } from "helpers";
-import BaseGuard from "./BaseGuard.ts";
-import Authenticatable from "./Authenticatable.ts";
+import BaseGuard, { AuthUser } from "./BaseGuard.ts";
 import { Str } from "../../Support/index.ts";
 
 type AuthenticatableAttrSession = {
@@ -10,53 +8,45 @@ type AuthenticatableAttrSession = {
 };
 
 export default class SessionGuard extends BaseGuard {
+  #cookie;
+  constructor(c: MyContext, guardName: string) {
+    super(c, guardName);
+    this.#cookie = this.c.get("myHono").Cookie;
+  }
   async check(): Promise<boolean> {
     // Implement session check logic
 
-    const key = "auth_user";
-    if (this.authUser) {
-      // If user is already set in context, return true
-      this.c.set(key, this.authUser);
-      return true;
-    }
-    const { request } = this.c.get("myHono");
-    if (request.user()) {
-      this.authUser = request.user() as Authenticatable;
-      this.c.set(key, this.authUser);
-    }
+    if (this.defaultChecker()) return true;
     const sessguardKey = `auth_${this.guardName}_user`;
 
-    // @ts-ignore //
-    const checkUser = request.session.get(sessguardKey) as Record<
+    const checkUser = this.request.session.get(sessguardKey) as Record<
       string,
       any
     > | null;
     if (checkUser) {
       // If user is already set in context, return true
-      // @ts-ignore //
-      this.authUser = new this.model(
-        checkUser as AuthenticatableAttrSession,
-      ) as Authenticatable;
-      this.c.set(key, this.authUser);
+      this.setAuth(
+        // @ts-ignore //
+        new this.model(checkUser as AuthenticatableAttrSession) as AuthUser,
+      );
       return true;
     }
 
     // Check if remember token exists in cookies
-    const rememberToken = request.cookie(sessguardKey);
+    const rememberToken = this.request.cookie(sessguardKey);
     // @ts-ignore //
-    const instanceModel = new this.model() as Authenticatable;
+    const instanceModel = new this.model() as AuthUser;
     if (rememberToken) {
       const user = (await this.model
         .where(instanceModel.getRememberTokenName(), rememberToken)
-        .first()) as Authenticatable | null;
+        .first()) as AuthUser | null;
       if (user) {
         this.rememberUser = true;
-        this.authUser = user;
-        this.c.set(key, this.authUser);
+        this.setAuth(user);
         return true;
       }
     }
-    return false; // Placeholder
+    return false;
   }
 
   async attempt(
@@ -80,7 +70,7 @@ export default class SessionGuard extends BaseGuard {
     }
     const user = (await this.model
       .where(credentialKey, credentials[credentialKey])
-      .first()) as Authenticatable | null;
+      .first()) as AuthUser | null;
     if (!user) {
       return false;
     }
@@ -93,35 +83,27 @@ export default class SessionGuard extends BaseGuard {
     return await this.login(user, remember);
   }
 
-  user(): Authenticatable | null {
-    const { request } = this.c.get("myHono");
+  user(): AuthUser | null {
     const sessguardKey = `auth_${this.guardName}_user`;
-    // @ts-ignore //
-    return request.session.get(sessguardKey) as Authenticatable | null;
+    return this.request.session.get(sessguardKey) as AuthUser | null;
   }
 
-  async login(
-    user: Authenticatable,
-    remember: boolean = false,
-  ): Promise<boolean> {
-    this.authUser = user;
+  async login(user: AuthUser, remember: boolean = false): Promise<boolean> {
+    this.beforeLogin(user); // trapper
     const rawAttributes = user.getRawAttributes();
-    const { request } = this.c.get("myHono");
-    const key = "auth_user";
     const sessguardKey = `auth_${this.guardName}_user`;
-    request.session.put(
+    this.request.session.put(
       // @ts-ignore //
       sessguardKey,
       rawAttributes as AuthenticatableAttrSession,
     );
-    this.c.set(key, user);
-    const Cookie = this.c.get("myHono").Cookie;
+    this.setAuth(user);
     if (remember) {
       // If "remember me" is checked, set the remember token
       const rememberToken = Str.random(60);
       await user.setRememberToken(rememberToken);
 
-      Cookie.queue(sessguardKey, rememberToken, {
+      this.#cookie.queue(sessguardKey, rememberToken, {
         maxAge: 30 * 24 * 60 * 60, // 30 days
         path: "/",
       });
@@ -130,25 +112,17 @@ export default class SessionGuard extends BaseGuard {
     return true; // Login successful
   }
 
-  logout(): void {
-    const { request } = this.c.get("myHono");
+  async logout(): Promise<void> {
     const sessguardKey = `auth_${this.guardName}_user`;
-    const Cookie = this.c.get("myHono").Cookie;
-    // @ts-ignore //
-    request.session.forget(sessguardKey);
-    Cookie.queue(sessguardKey, "", {
+    this.request.session.forget(sessguardKey);
+    this.#cookie.queue(sessguardKey, "", {
       maxAge: -1, // Delete the cookie
       path: "/",
     });
-    // @ts-ignore //
-    this.c.set("auth_user", null);
+    this.reset();
   }
 
   viaRemember(): boolean {
-    const { request } = this.c.get("myHono");
-    const sessguardKey = `auth_${this.guardName}_user`;
-    // @ts-ignore //
-    const user = request.session.get(sessguardKey) as Authenticatable | null;
-    return user ? !!user.remember_token : false;
+    return this.rememberUser;
   }
 }

@@ -88,7 +88,7 @@ export class WhereInterpolator {
   public where(
     column: string,
     operator: WhereOperator,
-    value: WherePrimitive
+    value: WherePrimitive,
   ): this;
   public where(callback: (qb: WhereInterpolator) => void): this;
   public where(
@@ -116,7 +116,7 @@ export class WhereInterpolator {
   public orWhere(
     column: string,
     operator: WhereOperator,
-    value: WherePrimitive
+    value: WherePrimitive,
   ): this;
   public orWhere(callback: (qb: WhereInterpolator) => void): this;
   public orWhere(
@@ -167,7 +167,7 @@ export class WhereInterpolator {
           this.whereClauses.push([`OR (${mainStr})`, callbackValues]);
         } else {
           throw new SQLError(
-            "Provide a valid where clause first before using OR"
+            "Provide a valid where clause first before using OR",
           );
         }
       }
@@ -205,7 +205,7 @@ export class WhereInterpolator {
         this.whereClauses.push([`OR ${mainStr}`, [...value]]);
       } else {
         throw new SQLError(
-          "Provide a valid where clause first before using OR"
+          "Provide a valid where clause first before using OR",
         );
       }
     }
@@ -240,7 +240,7 @@ export class WhereInterpolator {
     operator: "NOT IN" | "IN",
     type: WhereSeparator,
     column: string,
-    values: WherePrimitive[] | SQLRaw
+    values: WherePrimitive[] | SQLRaw,
   ): void {
     column = this.database.quoteIdentifier(column);
     if (values instanceof SQLRaw) {
@@ -264,7 +264,7 @@ export class WhereInterpolator {
           } else {
             //
             throw new SQLError(
-              "Provide a valid where clause first before using OR"
+              "Provide a valid where clause first before using OR",
             );
           }
           break;
@@ -291,7 +291,7 @@ export class WhereInterpolator {
             this.whereClauses.push([`OR ${mainStr}`, values]);
           } else {
             throw new SQLError(
-              "Provide a valid where clause first before using OR"
+              "Provide a valid where clause first before using OR",
             );
           }
           break;
@@ -324,7 +324,7 @@ export class WhereInterpolator {
   private whereNullProcess(
     operator: "IS NULL" | "IS NOT NULL",
     type: WhereSeparator,
-    column: string
+    column: string,
   ): void {
     column = this.database.quoteIdentifier(column);
     const mainStr = `${column} ${operator}`;
@@ -339,7 +339,7 @@ export class WhereInterpolator {
           this.whereClauses.push([`OR ${mainStr}`, []]);
         } else {
           throw new SQLError(
-            "Provide a valid where clause first before using OR"
+            "Provide a valid where clause first before using OR",
           );
         }
         break;
@@ -371,11 +371,11 @@ export class WhereInterpolator {
     operator: "BETWEEN" | "NOT BETWEEN",
     type: WhereSeparator,
     column: string,
-    values: whereBetweenParams
+    values: whereBetweenParams,
   ): void {
     if (!isArray(values) || values.length !== 2) {
       throw new SQLError(
-        "Values for whereBetween must be an array of two elements"
+        "Values for whereBetween must be an array of two elements",
       );
     }
 
@@ -410,7 +410,7 @@ export class WhereInterpolator {
           this.whereClauses.push([`OR ${mainStr}`, newValues]);
         } else {
           throw new SQLError(
-            "Provide a valid where clause first before using OR"
+            "Provide a valid where clause first before using OR",
           );
         }
         break;
@@ -481,7 +481,7 @@ export class JoinInterpolator extends WhereInterpolator {
       this.on(
         `ON ${arrayLast(this.fromTable.split(" "))}.${col}`,
         "=",
-        `${arrayLast(this.myTable.split(" "))}.${col}`
+        `${arrayLast(this.myTable.split(" "))}.${col}`,
       );
     });
     return this;
@@ -498,6 +498,22 @@ export class Builder extends WhereInterpolator {
   #sql: string = "";
   private fields: Array<[string, false | number]>;
   private table: [string, false | number];
+  /** Soft-delete visibility for this query - "exclude" (default) hides
+   * trashed rows from SELECT/soft-delete UPDATE, "include" (withTrashed())
+   * disables the scope entirely, "only" (onlyTrashed()) inverts it. */
+  private trashedMode: "exclude" | "include" | "only" = "exclude";
+
+  /** Include soft-deleted rows alongside normal ones (no-op on models without soft deletes). */
+  public withTrashed(): this {
+    this.trashedMode = "include";
+    return this;
+  }
+
+  /** Only return soft-deleted rows (no-op on models without soft deletes). */
+  public onlyTrashed(): this {
+    this.trashedMode = "only";
+    return this;
+  }
   constructor(
     {
       table,
@@ -506,7 +522,7 @@ export class Builder extends WhereInterpolator {
       table: sqlstring;
       fields?: sqlstring[];
     },
-    protected dbUsed: string = DB.getDefaultConnection()
+    protected dbUsed: string = DB.getDefaultConnection(),
   ) {
     super(dbUsed);
     this.table = this.extract(table);
@@ -524,13 +540,13 @@ export class Builder extends WhereInterpolator {
   // join
   public join(
     table: sqlstring,
-    callback: (join: JoinInterpolator) => void
+    callback: (join: JoinInterpolator) => void,
   ): this;
   public join(
     table: sqlstring,
     first: string,
     operator: WhereOperator,
-    second: string
+    second: string,
   ): this;
   public join(table: string, first: string, second: string): this;
   public join(
@@ -547,7 +563,7 @@ export class Builder extends WhereInterpolator {
       this.processJoin(
         "INNER",
         args[0],
-        args[1] as (join: JoinInterpolator) => void
+        args[1] as (join: JoinInterpolator) => void,
       );
     } else {
       this.joinClauses.push([joinT, []]);
@@ -558,13 +574,13 @@ export class Builder extends WhereInterpolator {
 
   public leftJoin(
     table: string,
-    callback: (join: JoinInterpolator) => void
+    callback: (join: JoinInterpolator) => void,
   ): this;
   public leftJoin(
     table: string,
     first: string,
     operator: WhereOperator,
-    second: string
+    second: string,
   ): this;
   public leftJoin(table: string, first: string, second: string): this;
   public leftJoin(
@@ -581,7 +597,7 @@ export class Builder extends WhereInterpolator {
       this.processJoin(
         "LEFT",
         args[0],
-        args[1] as (join: JoinInterpolator) => void
+        args[1] as (join: JoinInterpolator) => void,
       );
     } else {
       this.joinClauses.push([joinT, []]);
@@ -591,13 +607,13 @@ export class Builder extends WhereInterpolator {
 
   public rightJoin(
     table: string,
-    callback: (join: JoinInterpolator) => void
+    callback: (join: JoinInterpolator) => void,
   ): this;
   public rightJoin(
     table: string,
     first: string,
     operator: WhereOperator,
-    second: string
+    second: string,
   ): this;
   public rightJoin(table: string, first: string, second: string): this;
   public rightJoin(
@@ -614,7 +630,7 @@ export class Builder extends WhereInterpolator {
       this.processJoin(
         "RIGHT",
         args[0],
-        args[1] as (join: JoinInterpolator) => void
+        args[1] as (join: JoinInterpolator) => void,
       );
     } else {
       this.joinClauses.push([joinT, []]);
@@ -624,13 +640,13 @@ export class Builder extends WhereInterpolator {
 
   public fullJoin(
     table: string,
-    callback: (join: JoinInterpolator) => void
+    callback: (join: JoinInterpolator) => void,
   ): this;
   public fullJoin(
     table: string,
     first: string,
     operator: WhereOperator,
-    second: string
+    second: string,
   ): this;
   public fullJoin(table: string, first: string, second: string): this;
   public fullJoin(
@@ -647,7 +663,7 @@ export class Builder extends WhereInterpolator {
       this.processJoin(
         "FULL",
         args[0],
-        args[1] as (join: JoinInterpolator) => void
+        args[1] as (join: JoinInterpolator) => void,
       );
     } else {
       this.joinClauses.push([joinT, []]);
@@ -664,7 +680,7 @@ export class Builder extends WhereInterpolator {
   private processJoin(
     type: JoinType,
     table: sqlstring,
-    fn: (join: JoinInterpolator) => void
+    fn: (join: JoinInterpolator) => void,
   ): void {
     const [myNewTable, isRaw] = this.extract(table);
     if (!isFunction(fn)) {
@@ -689,7 +705,7 @@ export class Builder extends WhereInterpolator {
     subQuery: Builder,
     type: JoinType,
     table: string,
-    fn: (join: JoinInterpolator) => void
+    fn: (join: JoinInterpolator) => void,
   ): void {
     if (!(subQuery instanceof Builder)) {
       throw new SQLError("subQuery must be an instance of Builder");
@@ -717,20 +733,20 @@ export class Builder extends WhereInterpolator {
   public joinSub(
     subQuery: Builder,
     table: string,
-    callback: (join: JoinInterpolator) => void
+    callback: (join: JoinInterpolator) => void,
   ): this;
   public joinSub(
     subQuery: Builder,
     table: string,
     first: string,
     operator: WhereOperator,
-    second: string
+    second: string,
   ): this;
   public joinSub(
     subQuery: Builder,
     table: string,
     first: string,
-    second: string
+    second: string,
   ): this;
 
   public joinSub(
@@ -752,7 +768,7 @@ export class Builder extends WhereInterpolator {
         subQuery,
         "INNER",
         args[0],
-        args[1] as (join: JoinInterpolator) => void
+        args[1] as (join: JoinInterpolator) => void,
       );
     } else {
       this.joinClauses.push([returnedJoin, []]);
@@ -764,20 +780,20 @@ export class Builder extends WhereInterpolator {
   public rightJoinSub(
     subQuery: Builder,
     table: string,
-    callback: (join: JoinInterpolator) => void
+    callback: (join: JoinInterpolator) => void,
   ): this;
   public rightJoinSub(
     subQuery: Builder,
     table: string,
     first: string,
     operator: WhereOperator,
-    second: string
+    second: string,
   ): this;
   public rightJoinSub(
     subQuery: Builder,
     table: string,
     first: string,
-    second: string
+    second: string,
   ): this;
 
   public rightJoinSub(
@@ -799,7 +815,7 @@ export class Builder extends WhereInterpolator {
         subQuery,
         "RIGHT",
         args[0],
-        args[1] as (join: JoinInterpolator) => void
+        args[1] as (join: JoinInterpolator) => void,
       );
     } else {
       this.joinClauses.push([returnedJoin, []]);
@@ -811,20 +827,20 @@ export class Builder extends WhereInterpolator {
   public leftJoinSub(
     subQuery: Builder,
     table: string,
-    callback: (join: JoinInterpolator) => void
+    callback: (join: JoinInterpolator) => void,
   ): this;
   public leftJoinSub(
     subQuery: Builder,
     table: string,
     first: string,
     operator: WhereOperator,
-    second: string
+    second: string,
   ): this;
   public leftJoinSub(
     subQuery: Builder,
     table: string,
     first: string,
-    second: string
+    second: string,
   ): this;
 
   public leftJoinSub(
@@ -846,7 +862,7 @@ export class Builder extends WhereInterpolator {
         subQuery,
         "LEFT",
         args[0],
-        args[1] as (join: JoinInterpolator) => void
+        args[1] as (join: JoinInterpolator) => void,
       );
     } else {
       this.joinClauses.push([returnedJoin, []]);
@@ -858,20 +874,20 @@ export class Builder extends WhereInterpolator {
   public fullJoinSub(
     subQuery: Builder,
     table: string,
-    callback: (join: JoinInterpolator) => void
+    callback: (join: JoinInterpolator) => void,
   ): this;
   public fullJoinSub(
     subQuery: Builder,
     table: string,
     first: string,
     operator: WhereOperator,
-    second: string
+    second: string,
   ): this;
   public fullJoinSub(
     subQuery: Builder,
     table: string,
     first: string,
-    second: string
+    second: string,
   ): this;
 
   public fullJoinSub(
@@ -893,7 +909,7 @@ export class Builder extends WhereInterpolator {
         subQuery,
         "FULL",
         args[0],
-        args[1] as (join: JoinInterpolator) => void
+        args[1] as (join: JoinInterpolator) => void,
       );
     } else {
       this.joinClauses.push([returnedJoin, []]);
@@ -1061,6 +1077,33 @@ export class Builder extends WhereInterpolator {
     const orderBy = [...this.orderByValue];
     const offset = this.offsetValue ?? null;
     const limit = this.limitValue ?? null;
+    const modelRef =
+      "model" in this &&
+      (this as any).model &&
+      (this as any).model._softDelete === true
+        ? (this as any).model
+        : null;
+    const softDeleteModel = kind === "delete" ? modelRef : null;
+
+    // Soft-deleted rows are excluded from SELECTs (and from the soft-delete
+    // UPDATE below) by default - .withTrashed()/.onlyTrashed() override that.
+    let effectiveWhere = where;
+    if (modelRef && this.trashedMode !== "include") {
+      const deletedAtColumn = this.database.quoteIdentifier(
+        modelRef._deletedAtColumn ?? "deleted_at",
+      );
+      const scopeSql =
+        this.trashedMode === "only"
+          ? `${deletedAtColumn} IS NOT NULL`
+          : `${deletedAtColumn} IS NULL`;
+      if (where.length > 0) {
+        const restClause = where.map(([clause]) => clause).join(" ");
+        const restParams = where.flatMap(([, val]) => val);
+        effectiveWhere = [[`${scopeSql} AND (${restClause})`, restParams]];
+      } else {
+        effectiveWhere = [[scopeSql, []]];
+      }
+    }
 
     let sql = kind === "delete" ? "DELETE" : "SELECT";
     const fieldStr: string[] = [];
@@ -1070,37 +1113,46 @@ export class Builder extends WhereInterpolator {
       }
       fieldStr.push(str);
     });
-    if (kind === "select") {
-      sql += ` ${fieldStr.join(", ")}`;
+
+    if (softDeleteModel) {
+      const deletedAtColumn = this.database.quoteIdentifier(
+        softDeleteModel._deletedAtColumn ?? "deleted_at",
+      );
+      sql = `UPDATE ${this.table[0]} SET ${deletedAtColumn} = ?`;
+      this.#params.push(date("Y-m-d H:i:s"));
+    } else {
+      if (kind === "select") {
+        sql += ` ${fieldStr.join(", ")}`;
+      }
+      sql += ` ${this.buildFromClause()}`;
+      if (joins.length > 0) {
+        sql +=
+          " " +
+          joins
+            .map(([[clause, bool], val]) => {
+              if (bool) {
+                this.#inputParams(bool);
+              }
+              this.#params.push(...val);
+              return clause;
+            })
+            .join(" ");
+      }
     }
-    sql += ` ${this.buildFromClause()}`;
-    if (joins.length > 0) {
-      sql +=
-        " " +
-        joins
-          .map(([[clause, bool], val]) => {
-            if (bool) {
-              this.#inputParams(bool);
-            }
-            this.#params.push(...val);
-            return clause;
-          })
-          .join(" ");
-    }
-    if (where.length > 0) {
+    if (effectiveWhere.length > 0) {
       sql +=
         " WHERE " +
-        where
+        effectiveWhere
           .map(([clause, val]) => {
             this.#params.push(...val);
             return clause;
           })
           .join(" ");
     }
-    if (groupBy.length > 0) {
+    if (!softDeleteModel && groupBy.length > 0) {
       sql += " GROUP BY " + groupBy.join(", ");
     }
-    if (having.length > 0) {
+    if (!softDeleteModel && having.length > 0) {
       if (groupBy.length === 0) {
         throw new SQLError("HAVING clause requires a GROUP BY clause");
       }
@@ -1113,7 +1165,7 @@ export class Builder extends WhereInterpolator {
           })
           .join(" ");
     }
-    if (orderBy.length > 0) {
+    if (!softDeleteModel && orderBy.length > 0) {
       sql +=
         " ORDER BY " +
         orderBy
@@ -1148,7 +1200,11 @@ export class Builder extends WhereInterpolator {
           );
         }
       }
-    } else if (driver === "sqlsrv" && kind === "delete" && (wantsLimit || wantsOffset)) {
+    } else if (
+      driver === "sqlsrv" &&
+      kind === "delete" &&
+      (wantsLimit || wantsOffset)
+    ) {
       throw new SQLError(
         "DELETE with LIMIT or OFFSET is not supported for SQL Server in this query builder",
       );
@@ -1191,14 +1247,20 @@ export class Builder extends WhereInterpolator {
 
   public async get() {
     this.#compileQuery("select");
-    const result = await this.database.runQuery<"select">(this.#sql, this.#params);
+    const result = await this.database.runQuery<"select">(
+      this.#sql,
+      this.#params,
+    );
     return result;
   }
 
   public async first() {
     this.limit(1);
     this.#compileQuery("select");
-    const result = await this.database.runQuery<"select">(this.#sql, this.#params);
+    const result = await this.database.runQuery<"select">(
+      this.#sql,
+      this.#params,
+    );
     return result[0] || null;
   }
 
@@ -1215,7 +1277,10 @@ export class Builder extends WhereInterpolator {
 
   public async delete() {
     this.#compileQuery("delete");
-    const result = await this.database.runQuery<"delete">(this.#sql, this.#params);
+    const result = await this.database.runQuery<"delete">(
+      this.#sql,
+      this.#params,
+    );
     return result;
   }
 
@@ -1279,13 +1344,13 @@ export class Builder extends WhereInterpolator {
           return value.toISOString();
         }
         return value;
-      })
+      }),
     );
 
     const db = this.database;
     columns = columns.map((col) => db.quoteIdentifier(col));
     let sql = `INSERT INTO ${input.table} (${columns.join(
-      ", "
+      ", ",
     )}) VALUES ${placeholders}`;
 
     if (this.database.getDriver() === "pgsql") {
@@ -1398,12 +1463,12 @@ export class Builder extends WhereInterpolator {
   public having(
     column: string,
     operator: HavingOperator,
-    value: WhereValue
+    value: WhereValue,
   ): this;
   public having(
     column: string,
     operatorOrValue: HavingOperator | WhereValue,
-    maybeValue?: WhereValue
+    maybeValue?: WhereValue,
   ): this {
     let operator: HavingOperator = "=";
     let value: WhereValue;
@@ -1433,12 +1498,12 @@ export class Builder extends WhereInterpolator {
   public orHaving(
     column: string,
     operator: HavingOperator,
-    value: WhereValue
+    value: WhereValue,
   ): this;
   public orHaving(
     column: string,
     operatorOrValue: HavingOperator | WhereValue,
-    maybeValue?: WhereValue
+    maybeValue?: WhereValue,
   ): this {
     let operator: HavingOperator = "=";
     let value: WhereValue;
@@ -1461,7 +1526,7 @@ export class Builder extends WhereInterpolator {
     type: "AND" | "OR",
     column: string,
     operator: HavingOperator,
-    value: WhereValue
+    value: WhereValue,
   ): void {
     const db = this.database;
     column = db.quoteIdentifier(column);
@@ -1475,7 +1540,11 @@ export class Builder extends WhereInterpolator {
     }
   }
 
-  async paginate(page: number, perPage: number = 10, urlPath?: URL): Promise<Paginator<Record<string, unknown>>> {
+  async paginate(
+    page: number,
+    perPage: number = 10,
+    urlPath?: URL,
+  ): Promise<Paginator<Record<string, unknown>>> {
     const offset = (page - 1) * perPage;
     this.limit(perPage);
     this.offset(offset);
@@ -1487,11 +1556,4 @@ export class Builder extends WhereInterpolator {
   }
 }
 type HavingOperator =
-  | "="
-  | "!="
-  | "<"
-  | "<="
-  | ">"
-  | ">="
-  | "LIKE"
-  | "NOT LIKE";
+  "=" | "!=" | "<" | "<=" | ">" | ">=" | "LIKE" | "NOT LIKE";

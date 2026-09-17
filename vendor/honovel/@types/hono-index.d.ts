@@ -4,7 +4,6 @@ import HonoClosure from "HonoHttp/HonoClosure.ts";
 import HonoRequest from "../framework/src/hono/Http/HonoRequest.d.ts";
 import IHonoView from "../@types/declaration/IHonoView.d.ts";
 import { ContentfulStatusCode } from "http-status";
-import { SessionModifier } from "HonoHttp/HonoSession.ts";
 import { Context } from "hono";
 import { HonoTypeImport } from "./declaration/imain.d.ts";
 

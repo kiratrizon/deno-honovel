@@ -1,7 +1,6 @@
 import { Database } from "Database";
 import { Auth, Cache } from "Illuminate/Support/Facades/index.ts";
 import { Carbon } from "helpers";
-import { SessionInitializer, SessionModifier } from "HonoHttp/HonoSession.ts";
 import { CookieKeysCache } from "HonoHttp/HonoCookie.ts";
 import Exceptions from "Illuminate/Foundation/Exceptions/Exceptions.ts";
 import ValidationException from "Illuminate/Validation/ValidationException.ts";
@@ -42,8 +41,6 @@ class Boot {
 
   static async finalInit() {
     try {
-      await SessionModifier.init();
-      await SessionInitializer.init();
       CookieKeysCache.init();
     } catch (e) {
       console.error(e);

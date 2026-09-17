@@ -752,24 +752,26 @@ globalFn("frameworkVersion", () => {
   };
 });
 
-const originalConsole = {
-  error: console.error,
-  warn: console.warn,
-  info: console.info,
-  debug: console.debug,
-};
+if (config("app")?.env === "local") {
+  const originalConsole = {
+    error: console.error,
+    warn: console.warn,
+    info: console.info,
+    debug: console.debug,
+  };
 
-console.error = (...msg: any[]) =>
-  originalConsole.error("\x1b[31m[x] Error:\x1b[0m", ...msg);
+  console.error = (...msg: any[]) =>
+    originalConsole.error("\x1b[31m[x]\x1b[0m", ...msg);
 
-console.warn = (...msg: any[]) =>
-  originalConsole.warn("\x1b[33m[!] Warning:\x1b[0m", ...msg);
+  console.warn = (...msg: any[]) =>
+    originalConsole.warn("\x1b[33m[!]\x1b[0m", ...msg);
 
-console.info = (...msg: any[]) =>
-  originalConsole.info("\x1b[34m[i] Info:\x1b[0m", ...msg);
+  console.info = (...msg: any[]) =>
+    originalConsole.info("\x1b[34m[i]\x1b[0m", ...msg);
 
-console.debug = (...msg: any[]) =>
-  originalConsole.debug("\x1b[90m[>] Debug:\x1b[0m", ...msg);
+  console.debug = (...msg: any[]) =>
+    originalConsole.debug("\x1b[90m[>]\x1b[0m", ...msg);
+}
 
 globalFn(
   "log",

@@ -1,17 +1,22 @@
 import { AuthConfig } from "configs/@types/index.d.ts";
 import Authenticatable from "./Authenticatable.ts";
-import { JWTSubject } from "./JWTSubject.ts";
+import HonoRequest from "HonoHttp/HonoRequest.d.ts";
+import { JWTSubject } from "./index.ts";
+
+export type AuthUser = Authenticatable & JWTSubject;
 
 export default abstract class BaseGuard {
   protected model: typeof Authenticatable;
+  protected request: HonoRequest;
   constructor(
     protected c: MyContext,
     protected guardName: string,
   ) {
     BaseGuard.init();
     this.model = BaseGuard.getModelFromGuard(guardName);
+    this.request = c.get("myHono").request;
   }
-  protected authUser: Authenticatable | null = null;
+  protected authUser: AuthUser | null = null;
 
   protected rememberUser: boolean = false; // if "remember me" is checked
 
@@ -48,16 +53,13 @@ export default abstract class BaseGuard {
     return model as typeof Authenticatable;
   }
 
-  abstract login(
-    user: Authenticatable | JWTSubject,
-    remember?: boolean,
-  ): Promise<unknown>;
+  abstract login(user: AuthUser, remember?: boolean): Promise<unknown>;
 
   /**
    * Retrieves the currently authenticated user.
    * If no user is authenticated, returns null.
    */
-  abstract user(): Authenticatable | null;
+  abstract user(): AuthUser | null;
 
   /**
    * Checks if the user is authenticated.
@@ -68,7 +70,7 @@ export default abstract class BaseGuard {
   /**
    * Logs out the currently authenticated user.
    */
-  abstract logout(): void;
+  abstract logout(): Promise<void>;
 
   /**
    * Returns the authenticated user's primary key.
@@ -89,5 +91,46 @@ export default abstract class BaseGuard {
    */
   getGuardName(): string {
     return this.guardName;
+  }
+
+  /**
+   * Assign the userAuth
+   */
+  protected setAuth(data: AuthUser) {
+    this.authUser = data;
+    this.c.set("auth_user", this.authUser);
+  }
+
+  /**
+   * Reset auth
+   */
+  protected reset() {
+    this.authUser = null;
+    this.c.set("auth_user", null);
+  }
+
+  /**
+   * Default checker
+   */
+  protected defaultChecker(): boolean {
+    if (this.authUser) {
+      this.setAuth(this.authUser);
+      return true;
+    }
+    if (this.request.user()) {
+      this.setAuth(this.request.user() as AuthUser);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Before login, needs to detect if data instance of assigned model else throw
+   */
+  protected beforeLogin(user: AuthUser) {
+    if (!(user instanceof this.model))
+      throw new Error(
+        `Auth.login data is not an instance of ${this.model.name}`,
+      );
   }
 }

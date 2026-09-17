@@ -28,3 +28,24 @@ export interface SessionGuard extends BaseGuard {
 export interface TokenGuard extends BaseGuard {
   // TokenGuard has no login/logout; it just authenticates via token
 }
+
+export interface JwtGuard extends BaseGuard {
+  login<T extends Authenticatable = Authenticatable>(
+    user: T,
+    remember?: boolean
+  ): Promise<string | false>;
+
+  attempt(
+    credentials: Record<string, any>,
+    remember?: boolean
+  ): Promise<string | false>;
+
+  /** Revokes the current token via the blacklist, then clears local state. */
+  logout(): Promise<void>;
+
+  /** Exchanges the current token for a fresh one, parking the old one in the grace period. */
+  refresh(): Promise<string>;
+
+  /** The raw token backing the current request, if there is one. */
+  token(): string | null;
+}

@@ -1,35 +1,26 @@
 import { Hash } from "../../Support/Facades/index.ts";
-import BaseGuard from "./BaseGuard.ts";
-import Authenticatable from "./Authenticatable.ts";
+import BaseGuard, { AuthUser } from "./BaseGuard.ts";
 
 export default class TokenGuard extends BaseGuard {
   async check(): Promise<boolean> {
-    const key = `auth_user`;
-    if (this.authUser) {
-      this.c.set(key, this.authUser);
-      return true;
-    }
-    const checkUser = this.c.get(key);
-    if (checkUser) {
-      this.c.set(key, checkUser);
-      return true;
-    }
-    // Implement token check logic
-    const { request } = this.c.get("myHono");
+    if (this.defaultChecker()) return true;
 
-    const token = request.headers.get("Authorization")?.replace("Bearer ", "");
+    // token logic here Bearer
+    const token = this.request.headers
+      .get("Authorization")
+      ?.replace("Bearer ", "");
     if (!isset(token) || empty(token)) {
       return false;
     }
 
     const user = (await this.model
       .where("api_token", token)
-      .first()) as Authenticatable;
-    if (!user) {
-      return false;
+      .first()) as AuthUser;
+    if (user) {
+      this.setAuth(user);
+      return true;
     }
-    this.c.set(key, user);
-    return true; // Placeholder
+    return false;
   }
 
   async attempt(credentials: Record<string, any>): Promise<string | false> {
@@ -50,7 +41,7 @@ export default class TokenGuard extends BaseGuard {
     }
     const user = (await this.model
       .where(credentialKey, credentials[credentialKey])
-      .first()) as Authenticatable | null;
+      .first()) as AuthUser | null;
     if (!user) {
       return false;
     }
@@ -63,31 +54,27 @@ export default class TokenGuard extends BaseGuard {
     return await this.login(user);
   }
 
-  async login(user: Authenticatable): Promise<string | false> {
-    this.authUser = user;
+  async login(user: AuthUser): Promise<string | false> {
+    this.beforeLogin(user);
     const rawAttributes = user.getRawAttributes();
 
-    const key = `auth_user`;
     if (!keyExist(rawAttributes, "api_token")) {
       throw new Error(
         // @ts-ignore //
         `Table ${new this.model().getTableName()} have no api_token column.`,
       );
     }
-    this.c.set(key, user);
+    this.setAuth(user);
     // @ts-ignore //
     return rawAttributes.api_token as string;
   }
 
   user() {
-    const key = `auth_${this.guardName}_user`;
-    // @ts-ignore //
-    return this.c.get(key) as Authenticatable | null;
+    return this.authUser;
   }
 
-  logout() {
-    const key = "auth_user";
-    this.c.set(key, null);
+  async logout(): Promise<void> {
+    this.reset();
     // Optionally, you can also delete the token from the database
   }
 

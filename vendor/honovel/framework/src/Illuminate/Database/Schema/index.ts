@@ -717,6 +717,14 @@ export class Blueprint {
   }
 
   /**
+   * Drop the `deleted_at` column, effectively removing soft delete support.
+   * Equivalent to Laravel's `dropSoftDeletes()` method.
+   */
+  dropSoftDeletes(columnName: string = "deleted_at") {
+    this.drops.push(columnName);
+  }
+
+  /**
    * Add a JSON column for storing structured data (like objects or arrays).
    * Equivalent to Laravel's `json()` column type.
    *

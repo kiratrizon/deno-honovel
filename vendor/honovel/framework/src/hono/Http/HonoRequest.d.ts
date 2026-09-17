@@ -1,3 +1,4 @@
+import { SessionStore } from "Illuminate/Session/Store.ts";
 export type RequestMethod =
   | "GET"
   | "POST"
@@ -127,11 +128,11 @@ export interface SERVER {
 }
 import { ISession } from "../../../../@types/declaration/ISession.d.ts";
 import { CookieOptions } from "hono/utils/cookie";
-import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
 import IHonoHeader from "../../../../@types/declaration/IHonoHeader.d.ts";
 import Model from "Illuminate/Database/Eloquent/Model.ts";
 import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
 import HonoFile from "./HonoFile.ts";
+import { AuthUser } from "Illuminate/Contracts/Auth/BaseGuard.ts";
 
 declare class HonoRequest {
   /** Common X-Forwarded headers used for proxies */
@@ -256,7 +257,7 @@ declare class HonoRequest {
   getPort(): number;
 
   /** Get currently authenticated user */
-  user(): Authenticatable | null;
+  user(): AuthUser | null;
 
   /** Check if request is JSON */
   isJson(): boolean;
@@ -283,6 +284,9 @@ declare class HonoRequest {
 
   /** Access session instance */
   readonly session: ISession;
+
+  /** Bind a started session Store to this request (Laravel's setLaravelSession). */
+  setSession(session: SessionStore): void;
 
   /** Flash data to session */
   public flash(): void;

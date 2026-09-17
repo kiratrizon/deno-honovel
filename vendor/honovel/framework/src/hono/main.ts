@@ -23,7 +23,6 @@ import {
 } from "./Support/FunctionRoute.ts";
 import type HttpHono from "HttpHono";
 import { IMyConfig } from "./Support/MethodRoute.ts";
-import { honoSession } from "HonoHttp/HonoSession.ts";
 import { Route as Router } from "Illuminate/Support/Facades/index.ts";
 const Route = Router as typeof INRoute;
 
@@ -415,7 +414,6 @@ class Server {
     const asterisk = "*";
     app.use(
       asterisk,
-      honoSession(),
       buildRequestInit(),
       ...globalMiddleware,
       ...toMiddleware(mainMiddleware),
@@ -888,7 +886,12 @@ globalFn(
 
     // $_GET build
     const allParams = [...requiredParams, ...optionalParams];
-    let buildUrl = config("app.url") + finalUrl;
+    let appUrl = (config("app.url") || "") as string;
+    // remove trailing slash or double slash in the final URL
+    if (appUrl.endsWith("/")) {
+      appUrl = appUrl.slice(0, -1);
+    }
+    let buildUrl = appUrl + finalUrl;
     const $_GET: string[] = [];
     Object.entries(params).forEach(([key, value]) => {
       if (!allParams.includes(key) && isset(value)) {

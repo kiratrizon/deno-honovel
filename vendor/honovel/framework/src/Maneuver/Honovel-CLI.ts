@@ -11,18 +11,23 @@ const myCommand = new Command();
 import { IMyArtisan } from "../../../@types/IMyArtisan.d.ts";
 import * as path from "node:path";
 import PreventRequestDuringMaintenance from "Illuminate/Foundation/Http/Middleware/PreventRequestDuringMaintenance.ts";
-import { Encrypter, EnvUpdater } from "Illuminate/Encryption/index.ts";
+import { EnvUpdater } from "Illuminate/Encryption/index.ts";
 import { Database, DatabaseHelper } from "Database";
 import Seeder from "Illuminate/Database/Seeder.ts";
 import Boot from "./Boot.ts";
 import { createCA, createCert } from "mkcert";
 import { dirname, basename } from "https://deno.land/std/path/mod.ts";
+import { randomBytes } from "node:crypto";
 
 const envs = [".env"];
 
 await Boot.init(true);
 class MyArtisan {
   constructor() {}
+
+  private resolveEnv(envPath?: string) {
+    return isset(envPath) && isString(envPath) ? `.env.${envPath}` : ".env";
+  }
   private async createConfig(options: { force?: boolean }, name: string) {
     const stubPath = honovelPath("stubs/ConfigDefault.stub");
     const stubContent = getFileContents(stubPath);
@@ -1079,6 +1084,17 @@ class MyArtisan {
     }
   }
 
+  private generateJwtSecret(force?: boolean, env?: string): void {
+    const secret = randomBytes(64).toString("hex");
+
+    EnvUpdater.setEnv({
+      key: "JWT_SECRET_KEY",
+      value: secret,
+      force,
+      envPath: env,
+    });
+  }
+
   public async command(args: string[]): Promise<void> {
     const commandName = args.find((arg) => !arg.startsWith("-")) || "";
     const dbCommands = new Set([
@@ -1106,6 +1122,18 @@ class MyArtisan {
       .name("deno task")
       .description("Honovel CLI")
       .version(frameworkVersion().honovelVersion)
+      .command("cache:clear", "Clear the application cache")
+      .action(() => this.cacheClear())
+
+      .command(
+        "config:cache",
+        "Create a cache file for faster configuration loading",
+      )
+      .action(() => this.configCache())
+
+      .command("config:clear", "Remove the configuration cache file")
+      .action(() => this.configClear())
+
       .command("db:seed", "Run the database seeds")
       .option("--class <class:string>", "Specify the seeder class to run")
       .option(
@@ -1117,6 +1145,40 @@ class MyArtisan {
           seederClass: options.class,
           db: options.database,
         }),
+      )
+
+      // for maintenance mode
+      .command("down", "Put the application into maintenance mode")
+      .option(
+        "--message <message:string>",
+        "The message for the maintenance mode",
+      )
+      .option(
+        "--retry <retry:number>",
+        "Retry after seconds (adds Retry-After header)",
+      )
+      .option(
+        "--allow <ip:string[]>",
+        "IP addresses allowed to access the app during maintenance",
+      )
+      .option(
+        "--secret <key:string>",
+        "Secret bypass key for maintenance access",
+      )
+      .option(
+        "--render <view:string>",
+        "Custom view to render during maintenance",
+      )
+      .option("--redirect <url:string>", "Redirect URL during maintenance mode")
+      .action(
+        (options: {
+          message?: string;
+          retry?: number;
+          allow?: string[];
+          secret?: string;
+          render?: string;
+          redirect?: string;
+        }) => this.down.bind(this)(options),
       )
 
       .command("install:api", "Install the API routes")
@@ -1135,22 +1197,44 @@ class MyArtisan {
         this.installDriver(options),
       )
 
+      .command("jwt:secret", "Generate a 32-bytes JWT_SECRET_KEY")
+      .option("--force", "Force overwrite existing JWT_SECRET_KEY")
+      .option(
+        "--env <env:string>",
+        "Specify the environment path (e.g. .staging, .production)",
+      )
+      .action((options: { force?: boolean; env?: string }) => {
+        const envPath = this.resolveEnv(options.env);
+        this.generateJwtSecret.bind(this)(options.force, envPath);
+      })
+
       .command("key:generate", "Generate a new application key")
       .option("--force", "Force overwrite existing APP_KEY")
       .option(
         "--env <env:string>",
         "Specify the environment name (e.g. staging, production)",
       )
-      .action((options: { force?: boolean; env?: string }) => {
-        const envPath = options.env ? `.env.${options.env}` : ".env";
-        Encrypter.generateAppKey(envPath, options.force);
+      .action(({ force, env }: { force?: boolean; env?: string }) => {
+        const envPath = this.resolveEnv(env);
+        const key = crypto.getRandomValues(new Uint8Array(32));
+        const binary = String.fromCharCode(...key);
+        const base64Key = btoa(binary);
+        const appKey = `base64:${base64Key}`;
+        EnvUpdater.setEnv({
+          key: "APP_KEY",
+          value: appKey,
+          envPath,
+          force: force,
+        });
       })
+
       .command("make:config", "Make a new config file")
       .arguments("<name:string>")
       .option("--force", "Force overwrite existing config file")
       .action((options: { force?: boolean }, name: string) =>
         this.createConfig.bind(this)(options, name),
       )
+
       .command("make:controller", "Generate a controller file")
       .arguments("<name:string>")
       .option(
@@ -1160,6 +1244,15 @@ class MyArtisan {
       .action((options: { resource?: boolean }, name: string) =>
         this.makeController.bind(this)(options, name),
       )
+
+      .command("make:event", "Generate an event class")
+      .arguments("<name:string>")
+      .action((_: unknown, name: string) => this.makeEvent(name))
+
+      .command("make:exception", "Generate a custom exception class")
+      .arguments("<name:string>")
+      .action((_: unknown, name: string) => this.makeException(name))
+
       .command("make:factory", "Generate a factory file")
       .arguments("<name:string>")
       .option(
@@ -1169,6 +1262,29 @@ class MyArtisan {
       .action((options: { model?: string }, name: string) =>
         this.makeFactory.bind(this)(options, name),
       )
+
+      .command("make:job", "Generate a job class")
+      .arguments("<name:string>")
+      .action((_: unknown, name: string) => this.makeJob(name))
+
+      .command("make:listener", "Generate an event listener class")
+      .arguments("<name:string>")
+      .option(
+        "--event <event:string>",
+        "The event class the listener should handle",
+      )
+      .action((options: { event?: string }, name: string) =>
+        this.makeListener(options, name),
+      )
+
+      .command("make:mail", "Generate a mailable class")
+      .arguments("<name:string>")
+      .action((_: unknown, name: string) => this.makeMail(name))
+
+      .command("make:middleware", "Generate a middleware class")
+      .arguments("<name:string>")
+      .action((_: unknown, name: string) => this.makeMiddleware(name))
+
       .command("make:migration", "Generate a migration file")
       .arguments("<name:string>")
       .option(
@@ -1178,29 +1294,7 @@ class MyArtisan {
       .action((options: { table?: string }, name: string) =>
         this.makeMigration(options, name),
       )
-      .command("migrate", "Run the database migrations")
-      .option("--seed", "Seed the database after migration")
-      .option("--path <path:string>", "Specify a custom migrations directory")
-      .option("--db <db:string>", "Specify the database connection to use")
-      .option("--force", "Force the migration without confirmation")
-      .option(
-        "--seeder <seeder:string>",
-        "Specify a seeder class to run after migration",
-      )
-      .action((options: any) => {
-        const db: string =
-          (options.db as string) ||
-          (config("database").default as string) ||
-          "mysql";
-        return this.runMigrations({
-          ...options,
-          db,
-          force: options.force || false,
-        });
-      })
-      .command("make:middleware", "Generate a middleware class")
-      .arguments("<name:string>")
-      .action((_: unknown, name: string) => this.makeMiddleware(name))
+
       .command("make:model", "Generate a model class")
       .arguments("<name:string>")
       .option("-m, --migration", "Also generate a migration file")
@@ -1224,6 +1318,7 @@ class MyArtisan {
           name: string,
         ) => this.makeModel(options, name),
       )
+
       .command(
         "make:provider",
         "Generate a service provider class for the application",
@@ -1231,9 +1326,13 @@ class MyArtisan {
       .arguments("<name:string>")
       .action((_: unknown, name: string) => this.makeProvider(name))
 
-      .command("make:view", "Generate a view file")
+      .command("make:request", "Generate a form request class")
       .arguments("<name:string>")
-      .action((_: unknown, name: string) => this.makeView(name))
+      .action((_: unknown, name: string) => this.makeRequest(name))
+
+      .command("make:rule", "Generate a validation rule class")
+      .arguments("<name:string>")
+      .action((_: unknown, name: string) => this.makeRule(name))
 
       .command("make:seeder", "Generate a seeder class")
       .arguments("<name:string>")
@@ -1249,67 +1348,6 @@ class MyArtisan {
           )}`,
         );
       })
-
-      .command("make:request", "Generate a form request class")
-      .arguments("<name:string>")
-      .action((_: unknown, name: string) => this.makeRequest(name))
-
-      .command("make:mail", "Generate a mailable class")
-      .arguments("<name:string>")
-      .action((_: unknown, name: string) => this.makeMail(name))
-
-      .command("make:event", "Generate an event class")
-      .arguments("<name:string>")
-      .action((_: unknown, name: string) => this.makeEvent(name))
-
-      .command("make:listener", "Generate an event listener class")
-      .arguments("<name:string>")
-      .option(
-        "--event <event:string>",
-        "The event class the listener should handle",
-      )
-      .action((options: { event?: string }, name: string) =>
-        this.makeListener(options, name),
-      )
-
-      .command("make:job", "Generate a job class")
-      .arguments("<name:string>")
-      .action((_: unknown, name: string) => this.makeJob(name))
-
-      .command("make:rule", "Generate a validation rule class")
-      .arguments("<name:string>")
-      .action((_: unknown, name: string) => this.makeRule(name))
-
-      .command("make:exception", "Generate a custom exception class")
-      .arguments("<name:string>")
-      .action((_: unknown, name: string) => this.makeException(name))
-
-      .command("route:list", "List all named routes")
-      .action(() => this.routeList())
-
-      .command("cache:clear", "Clear the application cache")
-      .action(() => this.cacheClear())
-
-      .command(
-        "config:cache",
-        "Create a cache file for faster configuration loading",
-      )
-      .action(() => this.configCache())
-
-      .command("config:clear", "Remove the configuration cache file")
-      .action(() => this.configClear())
-
-      .command(
-        "storage:link",
-        "Create a symbolic link from public/storage to storage/app/public",
-      )
-      .action(() => this.storageLink())
-
-      .command("optimize", "Cache the framework bootstrap files")
-      .action(() => this.optimize())
-
-      .command("optimize:clear", "Remove the cached bootstrap files")
-      .action(() => this.optimizeClear())
 
       .command("make:ssl", "Generate self-signed SSL certificates")
       .arguments("<domains:string[]>")
@@ -1346,6 +1384,31 @@ class MyArtisan {
         console.log(`SSL certificates generated at ${sslPath}`);
       })
 
+      .command("make:view", "Generate a view file")
+      .arguments("<name:string>")
+      .action((_: unknown, name: string) => this.makeView(name))
+
+      .command("migrate", "Run the database migrations")
+      .option("--seed", "Seed the database after migration")
+      .option("--path <path:string>", "Specify a custom migrations directory")
+      .option("--db <db:string>", "Specify the database connection to use")
+      .option("--force", "Force the migration without confirmation")
+      .option(
+        "--seeder <seeder:string>",
+        "Specify a seeder class to run after migration",
+      )
+      .action((options: any) => {
+        const db: string =
+          (options.db as string) ||
+          (config("database").default as string) ||
+          "mysql";
+        return this.runMigrations({
+          ...options,
+          db,
+          force: options.force || false,
+        });
+      })
+
       .command("migrate:fresh", "Drop all tables and rerun all migrations")
       .option("--seed", "Seed the database after fresh migration")
       .option("--path <path:string>", "Specify a custom migrations directory")
@@ -1366,6 +1429,7 @@ class MyArtisan {
           force: options.force || false,
         });
       })
+
       .command("migrate:refresh", "Rollback and re-run all migrations")
       .option("--seed", "Seed the database after refresh")
       .option(
@@ -1390,6 +1454,23 @@ class MyArtisan {
           force: options.force || false,
         });
       })
+
+      .command("migrate:reset", "Rollback all database migrations")
+      .option("--path <path:string>", "Specify a custom migrations directory")
+      .option("--db <db:string>", "Specify the database connection to use")
+      .option("--force", "Force the reset without confirmation")
+      .action((options: any) => {
+        const db: string =
+          (options.db as string) ||
+          (config("database").default as string) ||
+          "mysql";
+        return this.resetMigrations({
+          ...options,
+          db,
+          force: options.force || false,
+        });
+      })
+
       .command("migrate:rollback", "Rollback the last database migration")
       .option(
         "--step <step:number>",
@@ -1409,21 +1490,7 @@ class MyArtisan {
           force: options.force || false,
         });
       })
-      .command("migrate:reset", "Rollback all database migrations")
-      .option("--path <path:string>", "Specify a custom migrations directory")
-      .option("--db <db:string>", "Specify the database connection to use")
-      .option("--force", "Force the reset without confirmation")
-      .action((options: any) => {
-        const db: string =
-          (options.db as string) ||
-          (config("database").default as string) ||
-          "mysql";
-        return this.resetMigrations({
-          ...options,
-          db,
-          force: options.force || false,
-        });
-      })
+
       .command("migrate:status", "Show the status of each migration")
       .option("--path <path:string>", "Specify a custom migrations directory")
       .option("--db <db:string>", "Specify the database connection to use")
@@ -1434,11 +1501,22 @@ class MyArtisan {
           "mysql";
         return this.migrationStatus({ ...options, db });
       })
+
+      .command("optimize", "Cache the framework bootstrap files")
+      .action(() => this.optimize())
+
+      .command("optimize:clear", "Remove the cached bootstrap files")
+      .action(() => this.optimizeClear())
+
       .command(
         "publish:config",
         "Build your configs in config/build/myConfig.ts",
       )
       .action(() => this.publishConfig.bind(this)())
+
+      .command("route:list", "List all named routes")
+      .action(() => this.routeList())
+
       .command("serve", "Start the Honovel server")
       .option("--port <port:number>", "Port to run the server on", {
         default: env("APP_PORT", null),
@@ -1454,39 +1532,13 @@ class MyArtisan {
           tunnel?: boolean;
         }) => this.serve.bind(this)(options),
       )
-      // for maintenance mode
-      .command("down", "Put the application into maintenance mode")
-      .option(
-        "--message <message:string>",
-        "The message for the maintenance mode",
+
+      .command(
+        "storage:link",
+        "Create a symbolic link from public/storage to storage/app/public",
       )
-      .option(
-        "--retry <retry:number>",
-        "Retry after seconds (adds Retry-After header)",
-      )
-      .option(
-        "--allow <ip:string[]>",
-        "IP addresses allowed to access the app during maintenance",
-      )
-      .option(
-        "--secret <key:string>",
-        "Secret bypass key for maintenance access",
-      )
-      .option(
-        "--render <view:string>",
-        "Custom view to render during maintenance",
-      )
-      .option("--redirect <url:string>", "Redirect URL during maintenance mode")
-      .action(
-        (options: {
-          message?: string;
-          retry?: number;
-          allow?: string[];
-          secret?: string;
-          render?: string;
-          redirect?: string;
-        }) => this.down.bind(this)(options),
-      )
+      .action(() => this.storageLink())
+
       .command("up", "Bring the application out of maintenance mode")
       .action(() => this.up.bind(this)())
       .parse(args);

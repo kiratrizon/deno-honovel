@@ -58,6 +58,58 @@ export default class Builder<
   }
 
   /**
+   * Update the first row this query matches, or create it when nothing does.
+   *
+   * `attributes` are added to the query as constraints and are also part of
+   * the inserted row; `values` are applied on top in both branches. Any
+   * where()/orWhere() already chained onto the builder still applies, so a
+   * match on "either of two columns" is expressible - something Laravel's
+   * updateOrCreate can't do, since its attributes are always ANDed.
+   *
+   * Soft-delete aware, and that's the point of having it here rather than
+   * reaching for DB.insertOrUpdate(): a trashed match is restored instead of
+   * being updated while still hidden from every other query. Chain
+   * withTrashed() so the lookup can see trashed rows in the first place.
+   *
+   * Note fill() throws on attributes outside the model's _fillable, so a typo
+   * in `values` surfaces immediately rather than silently not being written.
+   */
+  public async updateOrCreate<M extends typeof Model = typeof Model>(
+    // Deliberately Partial<ModelAttributes> and not Partial<B>: putting the
+    // class's own type parameter in a parameter position makes Builder
+    // invariant in B, and Builder<ModelAttributes> then stops being assignable
+    // to Builder<SomeSchema> - which breaks every hasOne()/hasMany() return
+    // type across the models.
+    attributes: Partial<ModelAttributes> = {},
+    values: Partial<ModelAttributes> = {},
+  ): Promise<InstanceType<M>> {
+    for (const [column, value] of Object.entries(attributes)) {
+      // @ts-ignore //
+      this.where(column, value);
+    }
+
+    const existing = await this.first<M>();
+
+    if (existing) {
+      const softDeletes =
+        (this.model as unknown as { _softDelete?: boolean })._softDelete ===
+          true;
+
+      if (softDeletes && existing.isTrashed()) {
+        existing.restore();
+      }
+
+      existing.fill({ ...values } as Partial<ModelAttributes>);
+      await existing.save();
+      return existing;
+    }
+
+    // @ts-ignore //
+    const created = await this.model.create({ ...attributes, ...values });
+    return created as InstanceType<M>;
+  }
+
+  /**
    * Eager load relationships for the model.
    * @param modelActions The relationships to load.
    */

@@ -1715,6 +1715,10 @@ export class Auth {
   public user() {
     return this.guard().user();
   }
+
+  public async logout(): Promise<void> {
+    return await this.guard().logout();
+  }
 }
 
 // The main Cache facade class, similar to Laravel's Cache:: facade

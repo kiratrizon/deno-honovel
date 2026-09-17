@@ -5,8 +5,8 @@
 type NonFunction<T> = T extends (...args: any[]) => any
   ? never // exclude functions
   : T extends object
-  ? { [K in keyof T]: NonFunction<T[K]> }
-  : T;
+    ? { [K in keyof T]: NonFunction<T[K]> }
+    : T;
 
 export declare class ISession {
   /**
@@ -58,4 +58,41 @@ export declare class ISession {
    * @param value - The flash message value.
    */
   flash(key: string, value: NonFunction<unknown>): void;
+
+  /**
+   * Retrieve every value held in the session.
+   */
+  all(): Record<string, unknown>;
+
+  /**
+   * The current CSRF token, generating one if the session has none.
+   */
+  token(): string;
+
+  /**
+   * Remove every value from the session, keeping the current ID.
+   */
+  flush(): void;
+
+  /**
+   * Clear all data from the session. Alias of flush().
+   */
+  clear(): void;
+
+  /**
+   * Invalidate the session: clear its data, destroy the stored record and
+   * issue a new session ID. Asynchronous - it writes to the session store.
+   */
+  invalidate(): Promise<boolean>;
+
+  /**
+   * Regenerate the session ID, keeping the data. Pass true to also destroy the
+   * old record. Asynchronous - it may write to the session store.
+   */
+  regenerate(destroy?: boolean): Promise<boolean>;
+
+  /**
+   * The URL the user was last on, used by redirect().back().
+   */
+  previousUrl(): string | null;
 }

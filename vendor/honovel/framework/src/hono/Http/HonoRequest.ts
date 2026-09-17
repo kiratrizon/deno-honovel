@@ -7,14 +7,16 @@ import { multiParser } from "multiParser2";
 
 import { CookieOptions } from "hono/utils/cookie";
 import { deleteCookie } from "hono/cookie";
-import { SessionModifier } from "HonoHttp/HonoSession.ts";
-import { Authenticatable } from "Illuminate/Contracts/Auth/index.ts";
+import { SessionStore } from "Illuminate/Session/Store.ts";
+import SessionManager from "Illuminate/Session/SessionManager.ts";
+import { SessionDataTypes } from "../../../../@types/declaration/imain.d.ts";
 import Model from "Illuminate/Database/Eloquent/Model.ts";
 import { ModelAttributes } from "../../../../@types/declaration/Base/IBaseModel.d.ts";
 import ValidationException from "Illuminate/Validation/ValidationException.ts";
 import HonoFile from "./HonoFile.ts";
 
 import { XMLParser } from "fast-xml-parser";
+import { AuthUser } from "Illuminate/Contracts/Auth/BaseGuard.ts";
 
 class HonoRequest extends Macroable {
   public static HEADER_X_FORWARDED_ALL = [
@@ -45,7 +47,6 @@ class HonoRequest extends Macroable {
       this.#c.set("_myHeader", new HonoHeader(this.#c));
       this.#c.set("_routeParams", {});
       this.#c.set("_built", false);
-      this.#c.set("_sessionMod", new SessionModifier(this.#c));
       this.#c.set("_bindedModels", {});
       this.#c.set("_server", {} as SERVER);
       this.#c.set("_variables", {});
@@ -138,6 +139,10 @@ class HonoRequest extends Macroable {
           break;
       }
     }
+
+    const queryParams = c.req.query() || {};
+    body = { ...queryParams, ...body };
+
     this.#c.set("_files", files);
     this.#c.set("_myAll", body);
 
@@ -444,7 +449,7 @@ class HonoRequest extends Macroable {
     return this.server("SERVER_PORT") as number;
   }
 
-  public user(): Authenticatable | null {
+  public user(): AuthUser | null {
     return this.#c.get("auth_user") || null;
   }
 
@@ -504,8 +509,21 @@ class HonoRequest extends Macroable {
     return this.header("x-requested-with")?.toLowerCase() === "xmlhttprequest";
   }
 
-  public get session() {
-    return this.#c.get("session");
+  public get session(): SessionStore {
+    let session = this.#c.get("session");
+    if (!isset(session)) {
+      session = new SessionManager().driver();
+      this.#c.set("session", session);
+    }
+    return session;
+  }
+
+  /**
+   * Bind a started session Store to this request.
+   * The analogue of Laravel's $request->setLaravelSession().
+   */
+  public setSession(session: SessionStore): void {
+    this.#c.set("session", session);
   }
 
   public flash(): void {
@@ -531,8 +549,7 @@ class HonoRequest extends Macroable {
   }
 
   public get $_SESSION() {
-    // @ts-ignore //
-    return this.#c.get("session").values;
+    return this.session.all();
   }
 
   public get $_COOKIE() {
@@ -563,14 +580,20 @@ class HonoRequest extends Macroable {
     return this.#c.get("_myAll") as Record<string, unknown>;
   }
 
+  /**
+   * Load the session. StartSession does this for the "web" group; this is here
+   * for anywhere that wants a session without that middleware.
+   */
   public async sessionStart(): Promise<void> {
-    const sessionMod = this.#c.get("_sessionMod") as SessionModifier;
-    await sessionMod.start();
+    await this.session.start();
   }
 
+  /**
+   * Drop the session entirely and issue a new, empty one.
+   */
   public async sessionEnd(): Promise<void> {
-    const sessionMod = this.#c.get("_sessionMod") as SessionModifier;
-    await sessionMod.end();
+    await this.session.invalidate();
+    this.#c.set("logged_out", true);
   }
 
   // trap the dispose to avoid it from running twice
@@ -581,10 +604,11 @@ class HonoRequest extends Macroable {
       return;
     }
     this.#disposed = true;
-    const sessionMod = this.#c.get("_sessionMod") as SessionModifier;
-    // @ts-ignore //
-    const sessionValue = this.#c.get("session").values;
-    await sessionMod.dispose(sessionValue);
+
+    // StartSession saves the session in the "web" group. This is the safety net
+    // for groups without it; Store.save() clears `started`, so the second call
+    // is a no-op rather than a double write.
+    await this.#c.get("session")?.save(); // only if one was ever created
   }
 
   public async validate<T extends Record<string, string>>(
