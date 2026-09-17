@@ -10,6 +10,7 @@ primary_region = 'ams'
 
 [env]
   APP_PORT = '8080'
+  PORT = '8080'
 
 [http_service]
   internal_port = 8080
