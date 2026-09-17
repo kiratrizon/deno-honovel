@@ -34,7 +34,7 @@ Deno and Hono are fast and modern, but building a real application from scratch 
 
 ```bash
 # scaffold a new Honovel project
-deno run -A https://honovel.kiratrizon.deno.net/create-project my-app@latest
+deno run -A https://honovel.fly.dev/create-project my-app@latest
 
 cd my-app
 
@@ -161,7 +161,7 @@ honovel/
 
 ## Documentation
 
-Full documentation is available at [honovel.kiratrizon.deno.net/docs](https://honovel.kiratrizon.deno.net/docs/1).
+Full documentation is available at [honovel.kiratrizon.deno.net/docs](https://honovel.fly.dev/docs/1).
 
 ## Roadmap
 

@@ -11,6 +11,16 @@ primary_region = 'ams'
 [env]
   APP_PORT = '8080'
   PORT = '8080'
+  APP_NAME = 'Honovel'
+  APP_ENV = 'production'
+  APP_DEBUG = 'false'
+  APP_URL = 'https://honovel.fly.dev'
+  DB_CONNECTION = 'mysql'
+  BROADCAST_DRIVER = 'log'
+  CACHE_DRIVER = 'redis'
+  QUEUE_CONNECTION = 'sync'
+  SESSION_DRIVER = 'cache'
+  REDIS_CLIENT = 'upstash'
 
 [http_service]
   internal_port = 8080

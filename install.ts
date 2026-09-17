@@ -5,8 +5,8 @@ const [name, version = "latest"] = args[0]?.split("@") || [];
 
 if (!name) {
   console.error(
-    "Usage: deno run -A https://honovel.kiratrizon.deno.net/create-project <name>@<version>\n" +
-      "Example: deno run -A https://honovel.kiratrizon.deno.net/create-project my-app@1.0.0",
+    "Usage: deno run -A https://honovel.fly.dev/create-project <name>@<version>\n" +
+      "Example: deno run -A https://honovel.fly.dev/create-project my-app@1.0.0",
   );
   Deno.exit(1);
 }
