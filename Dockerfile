@@ -1,35 +1,9 @@
-# Based on https://github.com/denoland/deno_docker/blob/main/alpine.dockerfile
+FROM denoland/deno:2.7.11
 
-ARG DENO_VERSION=2.7.11
-ARG BIN_IMAGE=denoland/deno:bin-${DENO_VERSION}
-FROM ${BIN_IMAGE} AS bin
+WORKDIR /app
 
-FROM gcr.io/distroless/cc as cc
-
-FROM alpine:latest
-
-# Inspired by https://github.com/dojyorin/deno_docker_image/blob/master/src/alpine.dockerfile
-COPY --from=cc --chown=root:root --chmod=755 /lib/*-linux-gnu/* /usr/local/lib/
-COPY --from=cc --chown=root:root --chmod=755 /lib/ld-linux-* /lib/
-
-RUN addgroup --gid 1000 deno \
-  && adduser --uid 1000 --disabled-password deno --ingroup deno \
-  && mkdir /deno-dir/ \
-  && chown deno:deno /deno-dir/ \
-  && mkdir /lib64 \
-  && ln -s /usr/local/lib/ld-linux-* /lib64/
-
-ENV LD_LIBRARY_PATH="/usr/local/lib"
-ENV DENO_USE_CGROUPS=1
-ENV DENO_DIR /deno-dir/
-ENV DENO_INSTALL_ROOT /usr/local
-
-ARG DENO_VERSION
-ENV DENO_VERSION=${DENO_VERSION}
-COPY --from=bin /deno /bin/deno
-
-WORKDIR /deno-dir
 COPY . .
 
-ENTRYPOINT ["/bin/deno"]
-CMD ["run", "-A", "./vendor/honovel/framework/src/hono/run-server.ts"]
+RUN deno install --entrypoint vendor/honovel/framework/src/hono/run-server.ts
+
+CMD ["deno", "run", "-A", "vendor/honovel/framework/src/hono/run-server.ts"]
