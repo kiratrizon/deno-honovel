@@ -1,6 +1,6 @@
 # Based on https://github.com/denoland/deno_docker/blob/main/alpine.dockerfile
 
-ARG DENO_VERSION=2.4.5
+ARG DENO_VERSION=2.7.11
 ARG BIN_IMAGE=denoland/deno:bin-${DENO_VERSION}
 FROM ${BIN_IMAGE} AS bin
 
@@ -32,4 +32,4 @@ WORKDIR /deno-dir
 COPY . .
 
 ENTRYPOINT ["/bin/deno"]
-CMD ["run", "-A", "./index.ts"]
+CMD ["run", "-A", "./vendor/honovel/framework/src/hono/run-server.ts"]
