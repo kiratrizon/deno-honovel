@@ -254,6 +254,9 @@ export default class Model<T extends ModelAttributes = ModelAttributes> {
   public fill(attributes: Partial<T>): this {
     const fillable = [...(this.constructor as typeof Model)._fillable];
     const guarded = [...(this.constructor as typeof Model)._guarded];
+    if ((this.constructor as typeof Model)._softDelete) {
+      fillable.push((this.constructor as typeof Model)._deletedAtColumn);
+    }
     fillable.push((this.constructor as typeof Model)._primaryKey);
     if (this.usesTimestamps()) {
       fillable.push(

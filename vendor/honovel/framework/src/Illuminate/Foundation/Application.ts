@@ -6,9 +6,21 @@ import HttpException from "./HttpExceptions/HttpException.ts";
 export type RouterLoader = () => Promise<any>;
 
 export interface RoutingConfig {
+  /**
+   * The `web` property has a default prefix of `/` and a default middleware of `web`.
+   */
   web?: RouterLoader;
+  /**
+   * The `api` property has a default prefix of `/api` and a default middleware of `api`.
+   */
   api?: RouterLoader;
+  /**
+   * The `commands` property is used to load console commands for the application.
+   */
   commands?: RouterLoader;
+  /**
+   * The `health` property is used to load a health check route for the application.
+   */
   health?: string;
 }
 export type ExceptionConstructor = new (...args: any[]) => Exception;
@@ -17,6 +29,7 @@ export default class Application {
 
   private static routers: RoutingConfig = {};
 
+  private static groupRoutes: Record<string, RouterLoader> = {};
   static withMiddleware(cb: (middleware: typeof Middleware) => void) {
     const mw = this.middleware;
     cb(mw);
@@ -27,6 +40,13 @@ export default class Application {
     for (const [key, value] of Object.entries(obj)) {
       this.routers[key as keyof RoutingConfig] = value;
     }
+    return this;
+  }
+
+  static groupRoutingAlias(
+    cb: (routeLoader: Record<string, RouterLoader>) => void,
+  ) {
+    cb(this.groupRoutes);
     return this;
   }
 
@@ -43,6 +63,7 @@ export default class Application {
     const data = {
       middleware: new Application.middleware(),
       routers: Application.routers,
+      groupRoutes: Application.groupRoutes,
     };
     return data;
   }

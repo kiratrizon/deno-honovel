@@ -109,6 +109,16 @@ class MyArtisan {
     return maxBatch + 1;
   }
 
+  /** Names already in the `migrations` table, for O(1) "has this run?" checks. */
+  private async appliedMigrationNames(db: string): Promise<Set<string>> {
+    const rows = await DB.connection(db)
+      .table("migrations")
+      .select("name")
+      .get();
+
+    return new Set(rows.map((row) => row.name as string));
+  }
+
   private async makeModel(
     options: {
       migration?: boolean;
@@ -191,20 +201,21 @@ class MyArtisan {
     const modules = await loadMigrationModules(options.path);
     const batchNumber = await this.getBatchNumber(options.db);
 
+    const applied = await this.appliedMigrationNames(options.db);
+
     const type = "up"; // or "down" based on your requirement
     for (const module of modules) {
       const { name, migration } = module;
-      // need query
-      const isApplied = await DB.connection(options.db)
-        .table("migrations")
-        .where("name", name)
-        .count();
-      if (isApplied) {
-        // console.info(`Migration ${name} already applied.`);
+      if (applied.has(name)) {
         continue;
       }
       migration.setConnection(options.db);
-      await migration.run(type);
+      try {
+        await migration.run(type);
+      } catch (error) {
+        console.error(`Migration ${name} failed.`);
+        throw error;
+      }
       await DB.connection(options.db).insert("migrations", {
         name,
         batch: batchNumber,
@@ -236,20 +247,25 @@ class MyArtisan {
     await this.createMigrationTable(options.db);
     const modules = await loadMigrationModules(options.path);
     const batchNumber = await this.getBatchNumber(options.db);
+    const applied = await this.appliedMigrationNames(options.db);
     const type = "up"; // or "down" based on your requirement
     for (const module of modules) {
       const { name, migration } = module;
-      // need query
-      const isApplied = await DB.connection(options.db)
-        .table("migrations")
-        .where("name", name)
-        .count();
-      if (isApplied) {
+      if (applied.has(name)) {
         // console.info(`Migration ${name} already applied.`);
         continue;
       }
       migration.setConnection(options.db);
-      await migration.run(type);
+      try {
+        await migration.run(type);
+      } catch (error) {
+        // Left out of the `migrations` table on purpose, so the next run
+        // retries it. MySQL does not roll DDL back, though: statements that
+        // already succeeded are still applied, so the retry has to survive a
+        // half-migrated table or the schema needs fixing by hand first.
+        console.error(`Migration ${name} failed - not recorded as applied.`);
+        throw error;
+      }
       await DB.connection(options.db).insert("migrations", {
         name,
         batch: batchNumber,

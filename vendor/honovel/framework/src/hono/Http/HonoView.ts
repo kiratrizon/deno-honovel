@@ -12,7 +12,7 @@ class HonoView {
   // enabled everywhere else so a view only ever compiles once per process (avoiding
   // repeated tag-compile work, e.g. the @vite tag's manifest read, on every request).
   private edge = new Edge({
-    cache: isset(env("DENO_DEPLOYMENT_ID")),
+    cache: config("app.env") !== "local",
   });
   constructor({ viewName = "", data, mergeData }: ViewParams = {}) {
     if (data && typeof data === "object") {
@@ -37,7 +37,7 @@ class HonoView {
     }
     const tempRendered = await this.renderElement(this.#viewFile, this.#data);
 
-    if (env("DENO_DEPLOYMENT_ID")) {
+    if (config("app.env") !== "local") {
       return tempRendered;
     } else {
       return await this.pretty(tempRendered);

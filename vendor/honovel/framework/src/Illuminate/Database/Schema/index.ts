@@ -78,16 +78,27 @@ export class Blueprint {
   private table: string;
   public columns: ColumnDefinition[] = [];
   public drops: string[] = [];
-  /** Table-level default character set (MySQL only), e.g. `$table->charset = 'utf8mb4'`. */
   public charset?: string;
-  /** Table-level default collation (MySQL only), e.g. `$table->collation = 'utf8mb4_unicode_ci'`. */
   public collation?: string;
   private columnCount: number = 0;
   constructor(
     table: string,
-    private connection: SupportedDrivers,
+    private connection: string,
   ) {
     this.table = table;
+    const driver = new Database(this.connection).getDriver();
+    switch (driver) {
+      case "mysql": {
+        this.charset = "utf8mb4";
+        this.collation = "utf8mb4_unicode_ci";
+        break;
+      }
+      case "sqlite":
+      case "pgsql":
+      case "sqlsrv": {
+        break;
+      }
+    }
   }
 
   /** Laravel-style: `user_id` → `users`, `third_class_id` → `third_classes`. */
@@ -1138,6 +1149,13 @@ export class Blueprint {
    */
   alterMode() {
     this.#isAlter = true;
+    // The constructor's defaults are for CREATE. Carried into an ALTER they
+    // would make every Schema.table() call emit CONVERT TO CHARACTER SET,
+    // rewriting and locking the whole table for a conversion the migration
+    // never asked for. Schema.table() calls this before the callback runs, so
+    // a migration that does set them still wins.
+    this.charset = undefined;
+    this.collation = undefined;
     return this;
   }
 }

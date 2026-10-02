@@ -6,8 +6,7 @@ const app = Honovel.app;
 const HOSTNAME = String(env("HOSTNAME", ""));
 
 let serveObj:
-  | (Deno.ServeTcpOptions & Deno.TlsCertifiedKeyPem)
-  | Deno.ServeTcpOptions = {};
+  (Deno.ServeTcpOptions & Deno.TlsCertifiedKeyPem) | Deno.ServeTcpOptions = {};
 
 if (!empty(HOSTNAME)) {
   serveObj.hostname = HOSTNAME;
@@ -27,8 +26,7 @@ if (!empty(key) && !empty(cert)) {
   console.warn("SSL key or certificate not found, running without SSL.");
 }
 
-const defaultPort = !empty(key) && !empty(cert) ? 443 : 80;
-serveObj.port = env("PORT", env("APP_PORT", defaultPort));
+serveObj.port = env("APP_PORT", !empty(key) && !empty(cert) ? 443 : 80);
 
 if (env("OTEL_DENO") === "true") {
   console.info("OpenTelemetry is enabled");

@@ -29,6 +29,7 @@ import {
 } from "Illuminate/Database/Schema/index.ts";
 
 import { QueryResult, QueryResultDerived } from "./databaseTypes.ts";
+import { SQLError } from "Illuminate/Database/Query/index.ts";
 
 type TInsertOrUpdateBuilder = {
   table: string;
@@ -103,7 +104,11 @@ export class Database {
         // @ts-ignore //
         return await queryDriver.query(client, newQuery, newParams);
       } catch (error) {
-        console.error(`Query failed: ${newQuery}`, `Params:`, newParams);
+        if (error instanceof Error) {
+          console.error(`Query failed: ${newQuery}`, `Params:`, newParams);
+          throw new SQLError(error.message);
+        }
+        console.error(error);
         throw error;
       }
     }

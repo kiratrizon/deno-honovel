@@ -17,6 +17,10 @@ if (Deno.env.get("VERCEL") == "1") {
   Deno.env.set("DENO_DEPLOYMENT_ID", Deno.env.get("VERCEL_URL") || "");
 }
 
+if (Deno.env.get("FLY_MACHINE_ID")) {
+  Deno.env.set("DENO_DEPLOYMENT_ID", Deno.env.get("FLY_MACHINE_ID") || "");
+}
+
 Object.defineProperty(globalThis, "globalFn", {
   value: function (key: string, value: (args: any[]) => void) {
     if (typeof key !== "string") {

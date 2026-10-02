@@ -113,22 +113,90 @@ class Group {
     return;
   }
 
-  public static groupRouteMain: Record<
-    string,
-    {
-      middleware: string[];
-      prefix?: string;
-    }
-  > = {};
-
   private static groupIdList: number[] = [];
+
+  // For storing the group loaders that are registered via groupRoutingAlias()
+  public static groupLoaders: Record<string, () => Promise<unknown>> = {};
+
+  // for storing the pending groups that are waiting to be loaded
+  static #pendingGroups: {
+    alias: string;
+    inner: {
+      groupId: number;
+      currentGroup: string[];
+      currentAs: string[];
+      currentDomain: string | null;
+    };
+    outer: {
+      groupId: number;
+      currentGroup: string[];
+      currentAs: string[];
+      callbackCalled: boolean;
+    };
+  }[] = [];
+
+  // For storing the aliases that have already been loaded, to prevent duplicate loading
+  static #loadedAliases = new Set<string>();
+
+  public static async drainPendingGroups(): Promise<void> {
+    const ambient = {
+      groupId: Group.groupId,
+      currentGroup: Group.currentGroup,
+      currentAs: Group.currentAs,
+      currentDomain: Group.currentDomain,
+      callbackCalled: Group.callbackCalled,
+    };
+    try {
+      await Group.#drainPendingGroups();
+    } finally {
+      Group.groupId = ambient.groupId;
+      Group.currentGroup = ambient.currentGroup;
+      Group.currentAs = ambient.currentAs;
+      Group.currentDomain = ambient.currentDomain;
+      Group.callbackCalled = ambient.callbackCalled;
+    }
+  }
+
+  static async #drainPendingGroups(): Promise<void> {
+    while (Group.#pendingGroups.length) {
+      const { alias, inner, outer } = Group.#pendingGroups.pop()!;
+
+      if (Group.#loadedAliases.has(alias)) {
+        console.warn(
+          `Route group alias "${alias}" was already loaded; skipping. ` +
+            `A route file can only be grouped once.`,
+        );
+        continue;
+      }
+      Group.#loadedAliases.add(alias);
+
+      Group.groupId = inner.groupId;
+      Group.currentGroup = inner.currentGroup;
+      Group.currentAs = inner.currentAs;
+      Group.currentDomain = inner.currentDomain;
+      Group.callbackCalled = true;
+      try {
+        await Group.groupLoaders[alias]();
+      } finally {
+        Group.groupId = outer.groupId;
+        Group.currentGroup = outer.currentGroup;
+        Group.currentAs = outer.currentAs;
+        Group.callbackCalled = outer.callbackCalled;
+      }
+    }
+  }
+
   public group(callback: (() => void) | string): void {
-    if (isString(callback)) {
-      Group.groupRouteMain[callback] = {
-        middleware: [...(this.flag["middleware"] as string[])],
-        prefix: this.flag["prefix"] as string | undefined,
-      };
-      return;
+    // check first in the groupRoutingAlias() if the callback is a string and not exist on the group
+    if (isString(callback) && !Object.hasOwn(Group.groupLoaders, callback)) {
+      const known = Object.keys(Group.groupLoaders);
+      // throw and exit
+      throw new Error(
+        `Unknown route group alias "${callback}". ` +
+          (known.length
+            ? `Registered aliases: ${known.join(", ")}.`
+            : `No aliases are registered - add one with groupRoutingAlias() in bootstrap/app.ts.`),
+      );
     }
     const previousGroupId = Group.groupId;
     if (previousGroupId > 0) {
@@ -206,6 +274,29 @@ class Group {
       Group.callbackCalled = callbackCalled; // Reset the callback called state
       Group.currentAs = currentAs; // Reset to the previous "as" state
       Group.currentGroup = currentGroup; // Reset to the previous group
+    }
+    if (isString(callback)) {
+      // if string, then it is an alias to a group loader registered via groupRoutingAlias()
+      Group.#pendingGroups.push({
+        alias: callback,
+        inner: {
+          groupId: Group.groupId,
+          currentGroup: Group.currentGroup,
+          currentAs: Group.currentAs,
+          currentDomain: Group.currentDomain,
+        },
+        outer: {
+          groupId: previousGroupId,
+          currentGroup,
+          currentAs,
+          callbackCalled,
+        },
+      });
+      // unset the current group state to the previous state, so that the next group can be registered correctly
+      Group.groupId = previousGroupId;
+      Group.callbackCalled = callbackCalled;
+      Group.currentAs = currentAs;
+      Group.currentGroup = currentGroup;
     }
   }
 

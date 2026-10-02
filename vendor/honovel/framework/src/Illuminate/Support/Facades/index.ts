@@ -163,8 +163,8 @@ export class Schema {
     const driver = DB.connection(connection).getDriverName();
     this.validateDB(driver);
     const blueprint = new Blueprint(table, driver);
-    callback(blueprint);
     blueprint.alterMode();
+    callback(blueprint);
     const converted = blueprint.toSql();
     // console.error("converted", converted);
     await DB.connection(connection).statement(converted);

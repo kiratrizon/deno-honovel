@@ -1104,6 +1104,7 @@ async function handleErrors(
   c: MyContext,
   request: HRequest,
 ): Promise<Response> {
+  const defaultException = new InternalServerErrorHttpException();
   let resp: Response | undefined;
   if (e instanceof DDError) {
     const data = forDD(e.data as any[]);
@@ -1129,17 +1130,25 @@ async function handleErrors(
     // for http exceptions
     resp = await exceptionToResponse(c, e);
   } else if (e instanceof SQLError) {
-    if (request.expectsJson()) {
-      resp = c.json(
-        {
-          message: e.message,
-          error_type: e.name,
-        },
-        500,
-      );
-    } else {
-      resp = c.html(renderErrorHtml(e), 500);
-    }
+    // Honovel default error response for SQL errors
+    const defaultResp = async (): Promise<Response> => {
+      if (request.expectsJson()) {
+        return c.json(
+          {
+            message: e.message,
+            error_type: e.name,
+          },
+          500,
+        );
+      } else {
+        return c.html(renderErrorHtml(e), 500);
+      }
+    };
+    defaultException.message = e.message;
+    defaultException.name = e.name;
+    defaultException.stack = e.stack;
+    defaultException.cause = e.cause;
+    resp = await exceptionToResponse(c, defaultException, defaultResp);
   } else if (e instanceof Error) {
     // populate e with additional information
     const populatedError: Record<string, unknown> = {};
@@ -1149,28 +1158,36 @@ async function handleErrors(
       ? e.stack.split("\n").map((line) => line.trim())
       : [];
     populatedError["cause"] = e.cause;
-    let errorHtml: string;
-    if (config("app").debug) {
-      if (!request.expectsJson()) {
-        errorHtml =
-          (await extractControllerTrace(populatedError.stack as string[])) ||
-          renderErrorHtml(e);
-        resp = c.html(errorHtml, 500);
-      } else {
-        resp = c.json(
+
+    // Honovel default error response for generic errors
+
+    const buildDefaultResponse = async (): Promise<Response> => {
+      if (!config("app").debug) {
+        console.error(populatedError);
+        return c.html("Internal server error", 500);
+      }
+      if (request.expectsJson()) {
+        return c.json(
           {
-            message: populatedError.message,
             error_type: populatedError.error_type,
+            message: populatedError.message,
             stack: populatedError.stack,
             cause: populatedError.cause,
           },
           500,
         );
       }
-    } else {
-      resp = c.html("Internal server error", 500);
-    }
-    console.error(populatedError);
+      const errorHtml =
+        (await extractControllerTrace(populatedError.stack as string[])) ||
+        renderErrorHtml(e);
+      return c.html(errorHtml, 500);
+    };
+
+    defaultException.message = e.message;
+    defaultException.name = e.name;
+    defaultException.stack = e.stack;
+    defaultException.cause = e.cause;
+    resp = await exceptionToResponse(c, defaultException, buildDefaultResponse);
   } else {
     console.error("Unexpected error:", e);
     resp = c.json({ message: "Internal server error" }, 500);
@@ -1519,6 +1536,9 @@ export function convertToResponse(c: MyContext, res: Response): Response {
 export async function exceptionToResponse(
   c: MyContext,
   exception: Exception,
+  // A thunk is only invoked when no registered handler claimed the exception,
+  // so an expensive default response is never built for nothing.
+  defaultResponse?: () => Promise<Response>,
 ): Promise<Response> {
   const myHono = c.get("myHono");
   // @ts-ignore //
@@ -1552,6 +1572,9 @@ export async function exceptionToResponse(
         exception.headers,
       );
     }
+  }
+  if (isset(defaultResponse) && isFunction(defaultResponse)) {
+    return await defaultResponse();
   }
   return await myError(
     c,

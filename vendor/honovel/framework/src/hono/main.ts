@@ -228,6 +228,7 @@ class Server {
   public static domainPattern: Record<string, Record<string, HonoType>> = {};
 
   private static console: RouterLoader;
+  private static health: string;
 
   private static routeFallbacks: Record<
     string,
@@ -398,28 +399,31 @@ class Server {
     return app;
   }
 
-  private static applyMainMiddleware(key: string, app: HonoType): string {
+  private static applyMainMiddleware(
+    key: "web" | "api",
+    app: HonoType,
+  ): string {
     const mainMiddleware = [];
-    // @ts-ignore //
-    const groupRoutes = GroupRoute.groupRouteMain as Record<
-      string,
-      { middleware: string[]; prefix?: string }
-    >;
-    if (isset(groupRoutes) && !empty(groupRoutes)) {
-      if (isset(groupRoutes[key]) && keyExist(groupRoutes, key)) {
-        mainMiddleware.push(...groupRoutes[key].middleware);
-      }
-    }
+    const webApiVals = {
+      web: {
+        prefix: "/",
+        middleware: ["web"],
+      },
+      api: {
+        prefix: "/api",
+        middleware: ["api"],
+      },
+    };
+    mainMiddleware.push(...webApiVals[key].middleware);
 
-    const asterisk = "*";
     app.use(
-      asterisk,
+      "*",
       buildRequestInit(),
       ...globalMiddleware,
       ...toMiddleware(mainMiddleware),
     );
     // return the prefix if exists
-    return groupRoutes[key]?.prefix || "/";
+    return webApiVals[key].prefix;
   }
 
   private static async loadAndValidateRoutes() {
@@ -431,8 +435,11 @@ class Server {
         routeFiles.push(entry.name);
       }
     }
+    const appRouter = application.getRouter();
+    const routers = appRouter.routers;
+    // @ts-ignore //
+    GroupRoute.groupLoaders = appRouter.groupRoutes;
     // arrange the routes make the key web in first
-    const routers = application.getRouter().routers;
     const ordered = {
       ...Object.fromEntries(
         Object.entries(routers).filter(([key]) => key !== "web"),
@@ -445,15 +452,26 @@ class Server {
         this.console = val;
         continue;
       }
+      if (key == "health") {
+        // @ts-ignore //
+        this.health = val as string;
+        continue;
+      }
       try {
         await val();
       } catch (err) {
         console.warn(`Route file "${key}" could not be loaded.`, err);
       }
+
+      // @ts-ignore - load stringified route files
+      await GroupRoute.drainPendingGroups();
       if (isset(Route)) {
         Server.domainPattern[key] = {};
         const byEndpointsRouter = await this.generateNewApp({}, false, key);
-        const routePrefix = this.applyMainMiddleware(key, byEndpointsRouter);
+        const routePrefix = this.applyMainMiddleware(
+          key as "web" | "api",
+          byEndpointsRouter,
+        );
         const instancedRoute = new Route();
         const allGroup = instancedRoute.getAllGroupsAndMethods();
 
@@ -749,14 +767,14 @@ class Server {
               if (!hasDomain) {
                 byEndpointsRouter.route("/", newAppGroup);
               } else if (isset(domain) && !empty(domain)) {
-                this.applyMainMiddleware(
-                  "",
-                  Server.domainPattern[key][domainName] as HonoType,
-                );
-                Server.domainPattern[key][domainName].route(
-                  routePrefix,
-                  newAppGroup,
-                );
+                // this.applyMainMiddleware(
+                //   "",
+                //   Server.domainPattern[key][domainName] as HonoType,
+                // );
+                // Server.domainPattern[key][domainName].route(
+                //   routePrefix,
+                //   newAppGroup,
+                // );
               }
             }
           }
@@ -839,6 +857,12 @@ class Server {
 
     if (isset(this.console) && isFunction(this.console)) {
       await this.console();
+    }
+
+    if (isset(this.health) && isString(this.health)) {
+      this.app.get(this.health, async (c: MyContext) => {
+        return c.text("OK", 200);
+      });
     }
   }
 }
